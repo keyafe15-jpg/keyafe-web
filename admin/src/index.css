@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  /* Admin tokens — light, dense, dashboardy. Keep brand pink as the primary CTA. */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-700: #334155;
+  --color-slate-900: #0f172a;
+
+  --color-brand-100: #fce0ee;
+  --color-brand-500: #e31c79;
+  --color-brand-600: #c2196a;
+  --color-brand-700: #b0155f;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --radius-card: 0.75rem;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-slate-50);
+    color: var(--color-slate-900);
+    -webkit-font-smoothing: antialiased;
+  }
+}

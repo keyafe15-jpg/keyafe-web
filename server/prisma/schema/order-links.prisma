@@ -1,0 +1,64 @@
+// Admin-generated pre-filled order links. Admin locks the reference image +
+// price + spec, sends the URL to the customer over WhatsApp, and the customer
+// fills their own contact/address/slot to convert the link into a real Order.
+
+enum OrderLinkKind {
+  CUSTOM // one-off celebration cake — free-form spec
+  CATALOG // linked to an existing Product
+}
+
+enum OrderLinkStatus {
+  OPEN // shared, awaiting the customer
+  ORDERED // customer completed the order
+  EXPIRED // past `expiresAt`
+  CANCELLED // admin cancelled
+}
+
+model OrderLink {
+  id    String @id @default(cuid())
+  // URL-friendly public token used in /o/{token}. Not guessable but not a secret.
+  token String @unique
+
+  kind OrderLinkKind
+
+  // Catalog side (nullable for CUSTOM)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  // Snapshotted spec — populated for both kinds. For CATALOG kinds we copy
+  // fields from Product at link-creation time so the link stays stable even if
+  // the catalog changes later.
+  productName       String
+  sizeLabel         String?
+  sizeGrams         Int?
+  flavourId         String?
+  flavourName       String?
+  referenceImageUrl String?
+  messageHint       String?
+
+  // Price locked at link-creation time. Customer sees + accepts this.
+  unitPrice Decimal @db.Decimal(10, 2)
+  qty       Int     @default(1)
+
+  // Optional prefills the customer can accept or override.
+  customerName       String?
+  customerPhone      String?
+  suggestedDate      DateTime?
+  suggestedSlotKey   String?
+  suggestedSlotLabel String?
+
+  // Internal — never shown to customer.
+  adminNotes String?
+
+  status    OrderLinkStatus @default(OPEN)
+  expiresAt DateTime?
+
+  // Set when the customer converts the link into a real Order.
+  linkedOrderId String? @unique
+  linkedOrder   Order?  @relation(fields: [linkedOrderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+}

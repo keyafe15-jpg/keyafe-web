@@ -1,0 +1,13 @@
+// Prisma config — datasource + generator live here.
+// All models are auto-discovered from other .prisma files in this folder
+// (enabled by the `prismaSchemaFolder` preview feature).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["prismaSchemaFolder"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

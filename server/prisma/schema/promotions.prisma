@@ -1,0 +1,23 @@
+enum CouponType {
+  PERCENT
+  FLAT
+}
+
+model Coupon {
+  code                  String     @id // primary key = the code itself, uppercased
+  type                  CouponType
+  value                 Decimal    @db.Decimal(10, 2) // percent (0-100) or flat rupees
+  minCartAmount         Decimal?   @db.Decimal(10, 2)
+  maxDiscount           Decimal?   @db.Decimal(10, 2) // caps a percent coupon
+  applicableCategoryIds String[] // empty = all categories
+  perCustomerLimit      Int?
+  totalUsageLimit       Int?
+  usageCount            Int        @default(0)
+  validFrom             DateTime
+  validUntil            DateTime
+  isActive              Boolean    @default(true)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  @@index([isActive, validFrom, validUntil])
+}

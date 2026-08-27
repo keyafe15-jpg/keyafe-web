@@ -1,0 +1,84 @@
+model Category {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  imageUrl    String?
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  // Self-referencing hierarchy (adjacency list). 2 levels for now:
+  // top-level (parentId = null) and sub-categories (parentId = <parent>).
+  parentId String?
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
+
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@index([parentId, isActive, sortOrder])
+}
+
+// Cross-cutting labels: "2-Tier", "Fondant", "Eggless", "Same-Day", "Bestseller"
+model Tag {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  colorHex  String?
+  products  Product[] @relation("ProductTags")
+  createdAt DateTime  @default(now())
+}
+
+// Shared master list of flavours. A product references the flavours it offers.
+model Flavor {
+  id               String    @id @default(cuid())
+  slug             String    @unique
+  name             String // "Chocolate Truffle", "Vanilla", "Red Velvet"
+  description      String?
+  isEggless        Boolean   @default(false)
+  isSugarFree      Boolean   @default(false)
+  isHealthy        Boolean   @default(false) // low refined sugar / whole grains / etc — drives the "Healthy Desserts" tab
+  imageUrl         String?
+  // Per-pound premium added on top of the product's base price when this flavour is picked.
+  additionalAmount Decimal   @default(0) @db.Decimal(10, 2)
+  sortOrder        Int       @default(0)
+  isActive         Boolean   @default(true)
+  products         Product[] @relation("ProductFlavors") // flavours this product offers
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now()) @updatedAt
+}
+
+// Sizes offered on any product with `sellByPound = true`. Stored in grams.
+// Pricing convention: 500g = "1 pound" = 1x basePrice. Multiplier = grams / 500.
+model CakeSize {
+  id         String   @id @default(cuid())
+  grams      Int      @unique
+  label      String
+  servesText String?
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Shared master list of pizza toppings (also usable for cookie mix-ins etc.).
+enum ToppingKind {
+  TOPPING // Cheese, olives, jalapeños
+  CONDIMENT // Hot honey, ranch, oregano packet
+}
+
+model Topping {
+  id         String      @id @default(cuid())
+  slug       String      @unique
+  name       String // "Extra Cheese", "Olives", "Jalapeños"
+  kind       ToppingKind @default(TOPPING)
+  priceDelta Decimal     @default(0) @db.Decimal(10, 2)
+  isVeg      Boolean     @default(true)
+  imageUrl   String?
+  sortOrder  Int         @default(0)
+  isActive   Boolean     @default(true)
+  products   Product[]   @relation("ProductToppings")
+  createdAt  DateTime    @default(now())
+}

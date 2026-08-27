@@ -1,0 +1,38 @@
+enum GstScheme {
+  REGULAR
+  COMPOSITE
+}
+
+model BusinessSettings {
+  id                String    @id @default(cuid())
+  legalName         String
+  tradeName         String
+  gstin             String?
+  gstScheme         GstScheme @default(REGULAR)
+  registeredAddress Json // { line1, line2, city, state, stateCode, pincode }
+  invoicePrefix     String    @default("KEY")
+  fyStartMonth      Int       @default(4) // April = Indian FY start
+  supportEmail      String
+  supportPhone      String
+  // Where the new-order notification email is sent. Falls back to supportEmail if null.
+  orderNotificationEmail String?
+  currency          String    @default("INR")
+
+  // Delivery — global rules
+  timezone            String  @default("Asia/Kolkata")
+  sameDayCutoff       String  @default("17:30") // "HH:mm" in `timezone` (regular / book-ahead track)
+  defaultDeliveryFee  Decimal @default(0) @db.Decimal(10, 2)
+  minSameDayLeadHours Int     @default(0) // added to cutoff check for safety (e.g., 2h prep)
+
+  // Same-Day / "Express" storefront window & surcharge.
+  expressStart        String  @default("11:00") // storefront opens
+  expressEnd          String  @default("23:00") // storefront closes
+  expressSurchargeFee Decimal @default(50) @db.Decimal(10, 2) // added on top of pincode fee for express orders
+
+  // Same-Day store manual controls.
+  isSameDayStoreClosed Boolean @default(false) // admin kill-switch; overrides any schedule
+  sameDayClosedMessage String  @default("Sorry — we're closed right now. Please check back later.")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

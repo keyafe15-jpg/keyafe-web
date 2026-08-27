@@ -1,0 +1,27 @@
+// Configurable operating hours for the Same-Day (Express) storefront.
+// Priority at request time: BusinessSettings.isSameDayStoreClosed >
+//   SameDayScheduleException[today] > SameDayScheduleWeekly[dayOfWeek] >
+//   BusinessSettings.expressStart / expressEnd (fallback default).
+
+// One row per weekday. 0 = Sunday .. 6 = Saturday.
+model SameDayScheduleWeekly {
+  dayOfWeek Int     @id
+  isClosed  Boolean @default(false)
+  openTime  String? // "HH:mm" in BusinessSettings.timezone; ignored if isClosed
+  closeTime String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// Date-specific override — takes precedence over the weekly schedule.
+// Add rows for holidays, one-off events, or "today only" hour changes.
+model SameDayScheduleException {
+  date      DateTime @id @db.Date
+  isClosed  Boolean  @default(false)
+  openTime  String?
+  closeTime String?
+  reason    String? // admin-only note
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

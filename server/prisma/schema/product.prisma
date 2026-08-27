@@ -1,0 +1,146 @@
+enum ProductType {
+  FIXED_VARIANTS // Pre-defined SKUs (dry cakes, tubs)
+  CONFIGURABLE // Customer picks options at purchase (celebration cakes, pizzas)
+}
+
+enum ProductTemplate {
+  CAKE // Flavours + pounds + message-on-cake
+  PIZZA // Sizes (inch) + crust + toppings + condiments
+  OTHER
+}
+
+enum SelectionType {
+  SINGLE // radio
+  MULTIPLE // checkboxes
+}
+
+enum PriceMode {
+  ABSOLUTE // Option.price is the item's price (replaces basePrice). Used for size groups.
+  DELTA // Option.price is added on top. Used for crust, extras, etc.
+}
+
+model Product {
+  id               String  @id @default(cuid())
+  slug             String  @unique
+  name             String
+  shortDescription String?
+  description      String? // markdown
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  // Drives which sections the admin form shows and how storefront renders variants.
+  template ProductTemplate @default(CAKE)
+
+  images         String[] // Cloudinary URLs, index 0 = primary
+  basePrice      Decimal     @db.Decimal(10, 2)
+  productType    ProductType
+  isCustomizable Boolean     @default(false)
+  // Whether the product itself is eggless. Independent of flavour eggless flags
+  // (those describe individual flavour recipes on the master list).
+  isEggless      Boolean     @default(true)
+
+  // If true, the PDP shows a pound selector (from CakeSize master list) and
+  // charges (basePrice + flavourAdditional) * pounds.
+  sellByPound      Boolean @default(false)
+  // Optional per-product size bounds (in grams). Null = no bound. Applied to
+  // the CakeSize master list to filter the picker.
+  minGrams         Int?
+  maxGrams         Int?
+  // If true, the PDP shows a "custom pounds" input alongside the master sizes.
+  allowCustomSize  Boolean @default(false)
+
+  // Customization flags
+  supportsMessageOnCake   Boolean @default(false)
+  messageMaxLength        Int     @default(40)
+  supportsSameDayDelivery Boolean @default(false)
+  leadTimeHours           Int     @default(0)
+
+  // GST
+  gstRate             Decimal @default(5) @db.Decimal(5, 2)
+  hsnCode             String  @default("1905")
+  priceIsGstInclusive Boolean @default(true)
+
+  // SEO / metadata
+  metaTitle       String?
+  metaDescription String?
+  allergens       String[] // ["gluten", "egg", "nuts", "dairy"]
+  nutritionalInfo Json?
+  adminNotes      String?
+  kitchenNotes    String?
+
+  isActive    Boolean @default(true) // in catalogue at all
+  isAvailable Boolean @default(true) // can be ordered right now (soft "sold out" toggle)
+  isFeatured  Boolean @default(false)
+  sortOrder   Int     @default(0)
+
+  // Relations
+  optionGroups OptionGroup[]
+  variants     ProductVariant[]
+  flavors      Flavor[]         @relation("ProductFlavors")
+  toppings     Topping[]        @relation("ProductToppings")
+  tags         Tag[]            @relation("ProductTags")
+  festivals    Festival[]       @relation("FestivalProducts")
+  orderLinks   OrderLink[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId, isActive, sortOrder])
+  @@index([isFeatured, isActive])
+}
+
+// For CONFIGURABLE products — customer picks options. Examples:
+//   Celebration cake:  Size (single, required), Tier (single, optional), Fondant (single, optional)
+//   Pizza:             Size (single, required) — toppings handled via Product.toppings
+model OptionGroup {
+  id            String        @id @default(cuid())
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  key           String // "size" | "tier" | "fondant" | "crust"
+  label         String // "Size", "Tier", "Fondant"
+  selectionType SelectionType @default(SINGLE)
+  priceMode     PriceMode     @default(DELTA)
+  isRequired    Boolean       @default(true)
+  sortOrder     Int           @default(0)
+  options       Option[]
+
+  @@unique([productId, key])
+}
+
+model Option {
+  id      String      @id @default(cuid())
+  groupId String
+  group   OptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  key     String // "500g", "1lb", "8inch", "2tier"
+  label   String // "500g (1 pound)", "8 inches"
+  // Meaning depends on OptionGroup.priceMode: ABSOLUTE replaces basePrice, DELTA adds on top.
+  price   Decimal     @default(0) @db.Decimal(10, 2)
+
+  // Semantic values (nullable — only fill what applies)
+  weightGrams Int?
+  diameterMm  Int?
+
+  isDefault Boolean @default(false)
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  @@unique([groupId, key])
+}
+
+// For FIXED_VARIANTS products — pre-computed SKUs with own price.
+// Example: Dry cake "Marble Loaf" has variants { Vanilla 250g, Chocolate 250g, Vanilla 500g, ... }
+model ProductVariant {
+  id          String  @id @default(cuid())
+  productId   String
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku         String  @unique
+  label       String // "Vanilla 500g"
+  attributes  Json // { flavor: "vanilla", size: "500g", weightGrams: 500 }
+  price       Decimal @db.Decimal(10, 2)
+  isActive    Boolean @default(true)
+  isAvailable Boolean @default(true) // soft "sold out" toggle
+  sortOrder   Int     @default(0)
+
+  @@index([productId, isActive])
+}

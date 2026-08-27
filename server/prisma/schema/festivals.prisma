@@ -1,0 +1,29 @@
+// Time-bound campaigns (Durga Puja, Rakhi, Diwali, Christmas, Valentine's, ...).
+// Renders as a nav tab, an optional home-page hero, and a dedicated /festival/:slug page.
+
+model Festival {
+  id          String  @id @default(cuid())
+  slug        String  @unique // "diwali-2026", "rakhi-2026"
+  name        String // "Diwali Special"
+  tagline     String? // "Sweet moments, sweeter cakes"
+  description String? // markdown for banner section
+
+  bannerImage    String? // Cloudinary URL — hero on /festival/:slug and home banner
+  thumbnailImage String? // small image — nav tab / card view
+  themeColor     String? // hex accent for banner background
+
+  startDate DateTime
+  endDate   DateTime
+
+  showAsNavTab Boolean @default(true) // renders in header nav during window
+  showOnHome   Boolean @default(true) // renders as banner section on home page
+  sortOrder    Int     @default(0)
+  isActive     Boolean @default(true) // admin can pause/preview without deleting
+
+  products Product[] @relation("FestivalProducts")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, startDate, endDate])
+}

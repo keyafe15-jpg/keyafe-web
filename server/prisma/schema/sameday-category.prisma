@@ -1,0 +1,18 @@
+// Same-Day / "Express" storefront categories.
+// Deliberately separate from Category — the same-day store has a curated
+// grab-and-go menu that doesn't map to the main catalog hierarchy.
+
+model SameDayCategory {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  imageUrl    String?
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}

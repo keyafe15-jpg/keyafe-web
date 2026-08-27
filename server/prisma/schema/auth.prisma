@@ -1,0 +1,117 @@
+// Auth + customer profile + RBAC.
+// Single User table where guests have a null password.
+// Roles + Permissions are DB-driven so admin can configure them from the UI.
+
+model Role {
+  id          String  @id @default(cuid())
+  slug        String  @unique // "admin", "chef", "customer", "delivery-manager"
+  name        String // "Admin", "Chef", "Customer"
+  description String?
+
+  // System roles can't be deleted or have their slug renamed.
+  // Seed data flags: admin/chef/customer are all system roles.
+  isSystem Boolean @default(false)
+
+  // If true, all permission checks pass regardless of the RolePermission list.
+  // Prevents "we forgot to grant the new permission to admin" bugs when features ship.
+  // Only the admin role should have this.
+  isSuperuser Boolean @default(false)
+
+  permissions RolePermission[]
+  users       User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  key         String  @unique // "orders.read", "products.update", "settings.gst.manage"
+  label       String // human-readable: "View orders"
+  description String?
+  category    String // "orders", "products", "settings" — for admin UI grouping
+  sortOrder   Int     @default(0)
+
+  roles RolePermission[]
+
+  createdAt DateTime @default(now())
+
+  @@index([category, sortOrder])
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  grantedAt    DateTime   @default(now())
+
+  @@id([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model User {
+  id           String  @id @default(cuid())
+  phone        String  @unique // required (India-first)
+  email        String? @unique // optional; needed for registered accounts
+  name         String
+  passwordHash String? // NULL = guest (no login), set = registered
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  isActive        Boolean   @default(true) // admin can disable / mark spam
+
+  addresses      Address[]
+  refreshTokens  RefreshToken[]
+  assignedQuotes QuoteRequest[] @relation("QuoteAssignee")
+  orders         Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roleId, isActive])
+}
+
+// Saved addresses for registered users. Guests have their address snapshotted onto the Order.
+model Address {
+  id            String  @id @default(cuid())
+  userId        String
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String? // "Home", "Office"
+  recipientName String
+  phone         String
+  line1         String
+  line2         String?
+  landmark      String?
+  city          String
+  state         String
+  stateCode     String // "19" for West Bengal — drives CGST/SGST vs IGST
+  pincode       String // soft-ref to DeliveryPincode.pincode
+  isDefault     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Rotated refresh tokens — hashed at rest so a DB leak doesn't expose live sessions.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // sha256 of the raw refresh token
+  expiresAt DateTime
+  revokedAt DateTime?
+  ip        String?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}

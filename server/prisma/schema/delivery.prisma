@@ -1,0 +1,30 @@
+// Which pincodes we deliver to and what the local rules are.
+// Everything not in this table is treated as "not serviceable".
+
+enum DeliveryDistrict {
+  KOLKATA
+  HOWRAH
+  HOOGHLY
+}
+
+model DeliveryPincode {
+  pincode         String           @id // 6-digit
+  city            String // "Kolkata", "Howrah", "Serampore"
+  area            String? // "Park Street", "Salt Lake Sector V"
+  district        DeliveryDistrict
+  deliveryFee     Decimal          @default(0) @db.Decimal(10, 2)
+  sameDayEligible Boolean          @default(true) // some far zones might be next-day only
+  minOrderAmount  Decimal?         @db.Decimal(10, 2) // optional minimum cart value for this zone
+  extraLeadHours  Int              @default(0) // added on top of product's leadTimeHours
+  notes           String? // admin note ("only within 2km of station")
+  isActive        Boolean          @default(true)
+
+  // Same-Day / Express storefront overrides for this zone.
+  expressEligible    Boolean  @default(true) // false = zone can't do the express track even in window
+  expressDeliveryFee Decimal? @db.Decimal(10, 2) // per-zone override; falls back to base + surcharge
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([district, isActive])
+}

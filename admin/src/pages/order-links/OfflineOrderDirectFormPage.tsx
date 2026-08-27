@@ -1,0 +1,891 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  Package,
+  Plus,
+  Sparkles,
+  Store,
+  Trash2,
+  Truck,
+  X,
+} from "lucide-react";
+import { useAdminProducts } from "@/hooks/useAdminProducts";
+import { useFlavours } from "@/hooks/useFlavours";
+import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
+import type { OrderLinkKind } from "@/hooks/useAdminOrderLinks";
+import { TIME_SLOTS } from "@/content/slots";
+import { api } from "@/lib/api";
+import { uploadImage } from "@/lib/uploads";
+import {
+  Field,
+  inputClass,
+  selectClass,
+  submitClass,
+  textareaClass,
+} from "@/components/form/Field";
+import { cn } from "@/lib/cn";
+
+interface PincodeInfo {
+  serviceable: boolean;
+  city?: string | null;
+  area?: string | null;
+  state?: string | null;
+  stateCode?: string | null;
+  deliveryFee: number;
+}
+
+interface LineItem {
+  id: string; // client-side only, for React keys
+  kind: OrderLinkKind;
+  productId: string;
+  productName: string;
+  sizeLabel: string;
+  sizeGrams: string;
+  flavourId: string;
+  messageOnCake: string;
+  instructions: string;
+  unitPrice: string;
+  qty: string;
+  refFile: File | null;
+  refPreview: string | null;
+  expanded: boolean;
+}
+
+function todayIso(): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+function newItem(kind: OrderLinkKind = "CATALOG"): LineItem {
+  return {
+    id: crypto.randomUUID(),
+    kind,
+    productId: "",
+    productName: "",
+    sizeLabel: "",
+    sizeGrams: "",
+    flavourId: "",
+    messageOnCake: "",
+    instructions: "",
+    unitPrice: "",
+    qty: "1",
+    refFile: null,
+    refPreview: null,
+    expanded: false,
+  };
+}
+
+export function OfflineOrderDirectFormPage() {
+  const navigate = useNavigate();
+  const create = useCreateOfflineOrder();
+  const { data: products = [] } = useAdminProducts();
+  const { data: flavours = [] } = useFlavours();
+
+  const [items, setItems] = useState<LineItem[]>(() => [newItem("CATALOG")]);
+  const [uploading, setUploading] = useState(false);
+
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+
+  const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">(
+    "DELIVERY",
+  );
+  const [line1, setLine1] = useState("");
+  const [line2, setLine2] = useState("");
+  const [landmark, setLandmark] = useState("");
+  const [mapSearchQuery, setMapSearchQuery] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [pincodeInfo, setPincodeInfo] = useState<PincodeInfo | null>(null);
+  const [pincodeError, setPincodeError] = useState<string | null>(null);
+  const [pincodeChecking, setPincodeChecking] = useState(false);
+
+  const [deliveryDate, setDeliveryDate] = useState(todayIso());
+  const [slotKey, setSlotKey] = useState<string>(TIME_SLOTS[0].key);
+
+  const [customerNotes, setCustomerNotes] = useState("");
+  const [adminNotes, setAdminNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const patchItem = (id: string, patch: Partial<LineItem>) => {
+    setItems((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, ...patch } : it)),
+    );
+  };
+  const removeItem = (id: string) => {
+    setItems((prev) =>
+      prev.length === 1 ? prev : prev.filter((it) => it.id !== id),
+    );
+  };
+  const addItem = (kind: OrderLinkKind) =>
+    setItems((prev) => [...prev, newItem(kind)]);
+
+  // Refresh object-URL previews whenever an item's file changes.
+  useEffect(() => {
+    const created: string[] = [];
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.refFile) {
+          if (it.refPreview?.startsWith("blob:")) return it;
+          const url = URL.createObjectURL(it.refFile);
+          created.push(url);
+          return { ...it, refPreview: url };
+        }
+        return it.refPreview ? { ...it, refPreview: null } : it;
+      }),
+    );
+    return () => {
+      created.forEach((u) => URL.revokeObjectURL(u));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.map((i) => i.refFile).join("|")]);
+
+  useEffect(() => {
+    setPincodeInfo(null);
+    setPincodeError(null);
+  }, [pincode]);
+
+  useEffect(() => {
+    if (fulfillment !== "DELIVERY") return;
+    if (!/^\d{6}$/.test(pincode)) return;
+    let cancelled = false;
+    setPincodeChecking(true);
+    api
+      .get<PincodeInfo>(`/delivery/check-pincode/${pincode}`)
+      .then((info) => {
+        if (cancelled) return;
+        setPincodeInfo(info);
+        if (!info.serviceable) {
+          setPincodeError(
+            "We don't deliver to this pincode. Switch to pickup or use a different address.",
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setPincodeError(err instanceof Error ? err.message : "Check failed");
+      })
+      .finally(() => {
+        if (!cancelled) setPincodeChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pincode, fulfillment]);
+
+  const deliveryFee =
+    fulfillment === "DELIVERY" && pincodeInfo?.serviceable
+      ? Number(pincodeInfo.deliveryFee)
+      : 0;
+
+  const subtotal = useMemo(
+    () =>
+      items.reduce(
+        (sum, it) => sum + Number(it.unitPrice || 0) * Number(it.qty || 0),
+        0,
+      ),
+    [items],
+  );
+  const grandTotal = subtotal + deliveryFee;
+
+  const addressValid =
+    fulfillment === "PICKUP" ||
+    (line1.trim().length >= 3 &&
+      mapSearchQuery.trim().length >= 3 &&
+      /^\d{6}$/.test(pincode) &&
+      pincodeInfo?.serviceable === true);
+
+  const itemsValid = items.every(
+    (it) =>
+      it.productName.trim().length >= 2 &&
+      Number(it.unitPrice) > 0 &&
+      Number(it.qty) > 0 &&
+      (it.kind === "CUSTOM" || it.productId),
+  );
+
+  const canSubmit =
+    itemsValid &&
+    customerName.trim().length >= 2 &&
+    /^[0-9+\-\s]{7,15}$/.test(customerPhone.trim()) &&
+    !!deliveryDate &&
+    addressValid &&
+    !uploading &&
+    !pincodeChecking;
+
+  const slot = useMemo(
+    () => TIME_SLOTS.find((s) => s.key === slotKey) ?? TIME_SLOTS[0],
+    [slotKey],
+  );
+
+  const submit = async () => {
+    setError(null);
+    try {
+      const itemPayloads = [];
+      for (const it of items) {
+        let referenceImageUrl: string | null = null;
+        if (it.refFile) {
+          setUploading(true);
+          const res = await uploadImage(it.refFile, "quote-reference");
+          referenceImageUrl = res.publicUrl;
+        }
+        const flavourName =
+          flavours.find((f) => f.id === it.flavourId)?.name ?? null;
+        itemPayloads.push({
+          kind: it.kind,
+          productId: it.kind === "CATALOG" ? it.productId : null,
+          productName: it.productName.trim(),
+          sizeLabel: it.sizeLabel.trim() || null,
+          sizeGrams: it.sizeGrams ? Number(it.sizeGrams) : null,
+          flavourId: it.flavourId || null,
+          flavourName,
+          referenceImageUrl,
+          messageOnCake: it.messageOnCake.trim() || null,
+          instructions: it.instructions.trim() || null,
+          unitPrice: Number(it.unitPrice),
+          qty: Number(it.qty) || 1,
+        });
+      }
+      setUploading(false);
+
+      const payload = {
+        items: itemPayloads,
+
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        customerEmail: customerEmail.trim() || null,
+
+        fulfillment,
+        deliveryAddress:
+          fulfillment === "DELIVERY"
+            ? {
+                line1: line1.trim(),
+                line2: line2.trim() || null,
+                landmark: landmark.trim() || null,
+                mapSearchQuery: mapSearchQuery.trim(),
+                pincode,
+                city: pincodeInfo?.city ?? null,
+                area: pincodeInfo?.area ?? null,
+                state: pincodeInfo?.state ?? null,
+                stateCode: pincodeInfo?.stateCode ?? null,
+              }
+            : null,
+        deliveryDate,
+        deliverySlotKey: slot.key,
+        deliverySlotLabel: slot.label,
+
+        customerNotes: customerNotes.trim() || null,
+        adminNotes: adminNotes.trim() || null,
+      };
+
+      const order = await create.mutateAsync(payload);
+      navigate(`/orders/${order.orderNumber}`);
+    } catch (err) {
+      setUploading(false);
+      setError(err instanceof Error ? err.message : "Failed to place order");
+    }
+  };
+
+  return (
+    <div className="pb-24">
+      <Link
+        to="/offline-orders"
+        className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-500"
+      >
+        <ArrowLeft className="h-3 w-3" /> Back to offline orders
+      </Link>
+      <h1 className="mt-3 text-2xl font-semibold text-slate-900">
+        New offline order — full details
+      </h1>
+      <p className="mt-1 text-sm text-slate-500">
+        Enter one or more items and the customer's details. Order is placed
+        straight away — no customer link needed.
+      </p>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="space-y-6">
+          <Section
+            title="Items"
+            subtitle="Catalog picks a product from your menu; Custom is a one-off item."
+            action={
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => addItem("CATALOG")}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
+                >
+                  <Plus className="h-3 w-3" /> Catalog item
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addItem("CUSTOM")}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
+                >
+                  <Plus className="h-3 w-3" /> Custom item
+                </button>
+              </div>
+            }
+          >
+            <div className="space-y-3">
+              {items.map((it, idx) => (
+                <ItemRow
+                  key={it.id}
+                  index={idx}
+                  item={it}
+                  products={products}
+                  flavours={flavours}
+                  onPatch={(patch) => patchItem(it.id, patch)}
+                  onRemove={() => removeItem(it.id)}
+                  canRemove={items.length > 1}
+                />
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Customer">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Name" required>
+                <input
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Aarav Kumar"
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Phone" required hint="WhatsApp preferred">
+                <input
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="9876543210"
+                  className={inputClass}
+                />
+              </Field>
+              <Field
+                label="Email"
+                hint="Optional. Confirmation email will be sent."
+                className="sm:col-span-2"
+              >
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="aarav@example.com"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section title="Fulfillment">
+            <div className="grid grid-cols-2 gap-3">
+              <KindButton
+                active={fulfillment === "DELIVERY"}
+                onClick={() => setFulfillment("DELIVERY")}
+                icon={<Truck className="h-5 w-5" />}
+                title="Delivery"
+                subtitle="We deliver to their address"
+              />
+              <KindButton
+                active={fulfillment === "PICKUP"}
+                onClick={() => setFulfillment("PICKUP")}
+                icon={<Store className="h-5 w-5" />}
+                title="Pickup"
+                subtitle="Customer picks up from store"
+              />
+            </div>
+
+            {fulfillment === "DELIVERY" && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field label="Pincode" required className="sm:col-span-1">
+                  <input
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={pincode}
+                    onChange={(e) =>
+                      setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                    }
+                    placeholder="700001"
+                    className={inputClass}
+                  />
+                  {pincodeChecking && (
+                    <p className="mt-1 text-xs text-slate-500">Checking…</p>
+                  )}
+                  {pincodeInfo?.serviceable && (
+                    <p className="mt-1 text-xs text-emerald-700">
+                      {pincodeInfo.city}
+                      {pincodeInfo.area ? ` · ${pincodeInfo.area}` : ""} · ₹
+                      {Number(pincodeInfo.deliveryFee).toFixed(0)} delivery
+                    </p>
+                  )}
+                  {pincodeError && (
+                    <p className="mt-1 text-xs text-red-700">{pincodeError}</p>
+                  )}
+                </Field>
+                <Field
+                  label="Address line 1"
+                  required
+                  className="sm:col-span-1"
+                >
+                  <input
+                    value={line1}
+                    onChange={(e) => setLine1(e.target.value)}
+                    placeholder="12A, Prince Anwar Shah Road"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Address line 2" className="sm:col-span-1">
+                  <input
+                    value={line2}
+                    onChange={(e) => setLine2(e.target.value)}
+                    placeholder="Flat 3B, Rose Apartments"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Landmark" className="sm:col-span-1">
+                  <input
+                    value={landmark}
+                    onChange={(e) => setLandmark(e.target.value)}
+                    placeholder="Near South City Mall"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field
+                  label="What to search on Uber / Rapido"
+                  required
+                  className="sm:col-span-2"
+                  hint="Whatever the delivery partner should type — building name, landmark, etc."
+                >
+                  <input
+                    value={mapSearchQuery}
+                    onChange={(e) => setMapSearchQuery(e.target.value)}
+                    placeholder="Rose Apartments, Prince Anwar Shah Road"
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+            )}
+          </Section>
+
+          <Section title="Delivery date & slot">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Date" required>
+                <input
+                  type="date"
+                  min={todayIso()}
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Time slot" required>
+                <select
+                  value={slotKey}
+                  onChange={(e) => setSlotKey(e.target.value)}
+                  className={selectClass}
+                >
+                  {TIME_SLOTS.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </Section>
+
+          <Section
+            title="Customer notes"
+            subtitle="Anything the kitchen or delivery partner should know."
+          >
+            <textarea
+              rows={3}
+              value={customerNotes}
+              onChange={(e) => setCustomerNotes(e.target.value)}
+              placeholder="Handle gently, ring bell twice…"
+              className={textareaClass}
+            />
+          </Section>
+
+          <Section
+            title="Admin notes"
+            subtitle="Internal only. Never shown to customer."
+          >
+            <textarea
+              rows={3}
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+              placeholder="Called on WhatsApp, paid ₹500 advance…"
+              className={textareaClass}
+            />
+          </Section>
+        </div>
+
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <div className="rounded-card border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900">Summary</h2>
+            <div className="mt-3 space-y-1.5 text-sm">
+              {items.map((it, idx) => (
+                <div
+                  key={it.id}
+                  className="flex justify-between text-slate-700"
+                >
+                  <span className="truncate pr-2">
+                    {it.productName.trim() || `Item ${idx + 1}`}
+                    {Number(it.qty) > 1 ? ` × ${it.qty}` : ""}
+                  </span>
+                  <span className="tabular-nums">
+                    ₹
+                    {(Number(it.unitPrice || 0) * Number(it.qty || 0)).toFixed(
+                      0,
+                    )}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between border-t border-slate-100 pt-2 text-slate-700">
+                <span>Subtotal</span>
+                <span className="tabular-nums">₹{subtotal.toFixed(0)}</span>
+              </div>
+              <div className="flex justify-between text-slate-700">
+                <span>Delivery</span>
+                <span className="tabular-nums">
+                  {fulfillment === "PICKUP"
+                    ? "—"
+                    : pincodeInfo?.serviceable
+                      ? `₹${deliveryFee.toFixed(0)}`
+                      : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900">
+                <span>Total</span>
+                <span className="tabular-nums">₹{grandTotal.toFixed(0)}</span>
+              </div>
+            </div>
+
+            {error && (
+              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!canSubmit || create.isPending}
+              className={cn(submitClass, "mt-5 w-full")}
+            >
+              {uploading
+                ? "Uploading…"
+                : create.isPending
+                  ? "Placing order…"
+                  : "Place order"}
+            </button>
+            <Link
+              to="/offline-orders"
+              className="mt-2 block text-center text-xs text-slate-500 hover:text-brand-500"
+            >
+              Cancel
+            </Link>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function ItemRow({
+  index,
+  item,
+  products,
+  flavours,
+  onPatch,
+  onRemove,
+  canRemove,
+}: {
+  index: number;
+  item: LineItem;
+  products: Array<{ id: string; name: string; basePrice: string }>;
+  flavours: Array<{ id: string; name: string }>;
+  onPatch: (patch: Partial<LineItem>) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+}) {
+  const selectedProduct = useMemo(
+    () => products.find((p) => p.id === item.productId),
+    [products, item.productId],
+  );
+
+  useEffect(() => {
+    if (item.kind !== "CATALOG" || !selectedProduct) return;
+    const patch: Partial<LineItem> = {};
+    if (!item.productName) patch.productName = selectedProduct.name;
+    if (!item.unitPrice)
+      patch.unitPrice = Number(selectedProduct.basePrice).toFixed(0);
+    if (Object.keys(patch).length) onPatch(patch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProduct]);
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                item.kind === "CATALOG"
+                  ? "bg-sky-100 text-sky-700"
+                  : "bg-brand-100 text-brand-700",
+              )}
+            >
+              {item.kind === "CATALOG" ? (
+                <Package className="h-3 w-3" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
+              {item.kind === "CATALOG" ? "Catalog" : "Custom"}
+            </span>
+            <span className="text-xs text-slate-400">#{index + 1}</span>
+          </div>
+
+          {item.kind === "CATALOG" && (
+            <div className="mt-3">
+              <Field label="Product" required>
+                <select
+                  value={item.productId}
+                  onChange={(e) => onPatch({ productId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">— Choose —</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} · ₹{Number(p.basePrice).toFixed(0)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          )}
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
+            <Field
+              label={item.kind === "CATALOG" ? "Name (override)" : "Name"}
+              required
+            >
+              <input
+                value={item.productName}
+                onChange={(e) => onPatch({ productName: e.target.value })}
+                placeholder={
+                  item.kind === "CATALOG"
+                    ? "Uses product name if blank"
+                    : "1 pound chocolate cake"
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Unit price (₹)" required>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={item.unitPrice}
+                onChange={(e) => onPatch({ unitPrice: e.target.value })}
+                placeholder="500"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Qty" required>
+              <input
+                type="number"
+                min={1}
+                value={item.qty}
+                onChange={(e) => onPatch({ qty: e.target.value })}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onPatch({ expanded: !item.expanded })}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-brand-700"
+          >
+            {item.expanded ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+            {item.expanded ? "Hide" : "Show"} details (size, flavour, message
+            {item.kind === "CUSTOM" ? ", reference image" : ""})
+          </button>
+
+          {item.expanded && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Size label">
+                <input
+                  value={item.sizeLabel}
+                  onChange={(e) => onPatch({ sizeLabel: e.target.value })}
+                  placeholder="1 pound / 500g"
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Size (grams)">
+                <input
+                  type="number"
+                  min={1}
+                  value={item.sizeGrams}
+                  onChange={(e) => onPatch({ sizeGrams: e.target.value })}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Flavour">
+                <select
+                  value={item.flavourId}
+                  onChange={(e) => onPatch({ flavourId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">— None —</option>
+                  {flavours.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Message on cake">
+                <input
+                  value={item.messageOnCake}
+                  onChange={(e) => onPatch({ messageOnCake: e.target.value })}
+                  placeholder="Happy Birthday Aarav"
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Instructions" className="sm:col-span-2">
+                <input
+                  value={item.instructions}
+                  onChange={(e) => onPatch({ instructions: e.target.value })}
+                  placeholder="Extra frosting, no nuts…"
+                  className={inputClass}
+                />
+              </Field>
+              {item.kind === "CUSTOM" && (
+                <Field label="Reference image" className="sm:col-span-2">
+                  <div className="flex items-start gap-3">
+                    {item.refPreview ? (
+                      <div className="relative h-20 w-20 shrink-0">
+                        <img
+                          src={item.refPreview}
+                          alt="Reference"
+                          className="h-full w-full rounded-md object-cover ring-1 ring-slate-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onPatch({ refFile: null, refPreview: null })
+                          }
+                          className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-900/70 text-white hover:bg-slate-900"
+                          aria-label="Remove image"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-[10px] text-slate-400">
+                        No image
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
+                      onChange={(e) =>
+                        onPatch({ refFile: e.target.files?.[0] ?? null })
+                      }
+                      className="block text-xs text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-50"
+                    />
+                  </div>
+                </Field>
+              )}
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={!canRemove}
+          className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+          aria-label="Remove item"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  subtitle,
+  action,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-card border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+          {subtitle && (
+            <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+          )}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function KindButton({
+  active,
+  onClick,
+  icon,
+  title,
+  subtitle,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition",
+        active
+          ? "border-brand-500 bg-brand-50/50 ring-1 ring-brand-500/30"
+          : "border-slate-200 bg-white hover:border-brand-300",
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-md",
+          active ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-500",
+        )}
+      >
+        {icon}
+      </span>
+      <span className="text-sm font-medium text-slate-900">{title}</span>
+      <span className="text-xs text-slate-500">{subtitle}</span>
+    </button>
+  );
+}

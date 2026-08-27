@@ -1,0 +1,113 @@
+enum OrderStatus {
+  PENDING // Just created, awaiting payment/confirmation
+  CONFIRMED
+  IN_KITCHEN
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum OrderFulfillment {
+  DELIVERY
+  PICKUP
+}
+
+model Order {
+  id          String @id @default(cuid())
+  // Human-friendly reference: KEY-YYMMDD-XXXXXX. Shared with customer.
+  orderNumber String @unique
+
+  // Nullable link to registered user; guests keep this null and rely on the
+  // snapshot fields below.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  // Customer snapshot at time of order (guest checkout friendly)
+  customerName  String
+  customerPhone String
+  customerEmail String?
+
+  // Fulfillment
+  fulfillment       OrderFulfillment
+  // Snapshotted delivery address; null for pickup. Shape: { line1, line2?, landmark?, pincode, city, area?, state, stateCode }
+  deliveryAddress   Json?
+  // Individual delivery dates/slots live on OrderItem (per-line).
+
+  // Pricing snapshots
+  subtotal    Decimal @db.Decimal(10, 2)
+  deliveryFee Decimal @default(0) @db.Decimal(10, 2)
+  discount    Decimal @default(0) @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  // GST breakup snapshots. taxableAmount = subtotal minus GST when the item
+  // prices are inclusive; equal to subtotal when exclusive. Same-state ships
+  // to CGST + SGST; different-state ships to IGST.
+  taxableAmount Decimal @default(0) @db.Decimal(10, 2)
+  cgstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  sgstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  igstAmount    Decimal @default(0) @db.Decimal(10, 2)
+
+  // Payment (simple stub until Razorpay lands)
+  paymentMethod String        @default("cod") // "cod" | "upi" | "razorpay"
+  paymentStatus PaymentStatus @default(PENDING)
+
+  // Status
+  status OrderStatus @default(PENDING)
+
+  customerNotes String?
+  adminNotes    String?
+
+  items OrderItem[]
+  // Set (1:1) when this order was placed via a pre-filled OrderLink.
+  sourceLink OrderLink?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([customerPhone])
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Snapshot everything so the order row is self-contained even if the
+  // product is later edited or deleted. `productId` is nullable to support
+  // free-form / custom-cake items placed via an OrderLink.
+  productId    String?
+  productName  String
+  productSlug  String?
+  productImage String?
+
+  sizeGrams     Int?
+  sizeLabel     String?
+  flavourId     String?
+  flavourName   String?
+  messageOnCake String?
+  instructions  String?
+  // For custom cake orders (from an OrderLink) — customer's reference photo.
+  referenceImageUrl String?
+
+  // Per-line delivery/pickup slot
+  deliveryDate      DateTime
+  deliverySlotKey   String
+  deliverySlotLabel String
+
+  unitPrice Decimal @db.Decimal(10, 2)
+  qty       Int
+  lineTotal Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
