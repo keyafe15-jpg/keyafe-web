@@ -1,6 +1,6 @@
 # Keyafe
 
-A homegrown e-commerce platform for **Keyafe Bakes** — a boutique bakery in Kolkata that sells celebration cakes, dry cakes and tubs, pizzas, panuozzo, focaccia sandwiches and other snacks.
+A homegrown e-commerce platform for **Keyafe** — a boutique bakery in Kolkata that sells celebration cakes, dry cakes and tubs, pizzas, panuozzo, focaccia sandwiches and other snacks.
 
 The stack is a pnpm monorepo with three apps talking to a shared Postgres database.
 
