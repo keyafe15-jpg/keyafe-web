@@ -95,13 +95,60 @@ const PUBLIC_CARD_SELECT = {
   name: true,
   shortDescription: true,
   basePrice: true,
+  template: true,
   images: true,
   isAvailable: true,
   isFeatured: true,
   leadTimeHours: true,
   supportsSameDayDelivery: true,
   category: { select: { id: true, slug: true, name: true } },
+  // Read the size group's options so we can surface a "starts from" price
+  // for variant-priced products (pizzas, etc.) where basePrice = 0.
+  optionGroups: {
+    where: { key: "size" },
+    select: {
+      priceMode: true,
+      options: {
+        where: { isActive: true },
+        select: { price: true },
+      },
+    },
+  },
 } as const;
+
+type PublicCardRow = {
+  id: string;
+  slug: string;
+  name: string;
+  shortDescription: string | null;
+  basePrice: unknown;
+  template: "CAKE" | "PIZZA" | "OTHER";
+  images: string[];
+  isAvailable: boolean;
+  isFeatured: boolean;
+  leadTimeHours: number;
+  supportsSameDayDelivery: boolean;
+  category: { id: string; slug: string; name: string };
+  optionGroups: {
+    priceMode: "ABSOLUTE" | "DELTA";
+    options: { price: unknown }[];
+  }[];
+};
+
+// Adds a `startingPrice` string (min customer-visible price) for the card,
+// derived from the size group when priced by variant.
+function decorateCard(row: PublicCardRow) {
+  const base = Number(row.basePrice);
+  const sizeGroup = row.optionGroups[0];
+  let startingPrice = base;
+  if (sizeGroup && sizeGroup.options.length > 0) {
+    const prices = sizeGroup.options.map((o) => Number(o.price));
+    const min = Math.min(...prices);
+    startingPrice = sizeGroup.priceMode === "ABSOLUTE" ? min : base + min;
+  }
+  const { optionGroups: _drop, ...rest } = row;
+  return { ...rest, startingPrice: startingPrice.toFixed(2) };
+}
 
 // Returns products for a category slug. If the slug is a top-level
 // category, includes products from all its children so shoppers see
@@ -138,7 +185,7 @@ export async function listPublicProductsByCategorySlug(slug: string) {
     select: PUBLIC_CARD_SELECT,
   });
 
-  return products;
+  return products.map((p) => decorateCard(p as unknown as PublicCardRow));
 }
 
 // Full product detail for the PDP. Only returns active rows; unavailable ones

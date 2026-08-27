@@ -146,7 +146,8 @@ function ProductCard({
 }: {
   product: import("@/hooks/useProducts").ProductCard;
 }) {
-  const priceLabel = `₹${Number(product.basePrice).toFixed(0)}`;
+  const priceValue = `₹${Number(product.startingPrice).toFixed(0)}`;
+  const showsRange = product.template !== "CAKE";
   return (
     <Link
       to={`/product/${product.slug}`}
@@ -180,7 +181,12 @@ function ProductCard({
         )}
         <div className="mt-3 flex items-center justify-between">
           <span className="text-lg font-semibold text-ink-900">
-            {priceLabel}
+            {showsRange && (
+              <span className="mr-1 text-xs font-normal text-ink-500">
+                starts from
+              </span>
+            )}
+            {priceValue}
           </span>
           {!product.isAvailable ? (
             <span className="rounded-md bg-cream-200 px-2 py-0.5 text-xs text-ink-500">

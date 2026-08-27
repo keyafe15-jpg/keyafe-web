@@ -7,6 +7,10 @@ export interface ProductCard {
   name: string;
   shortDescription: string | null;
   basePrice: string;
+  // Minimum customer-visible price. For variant-priced products (pizzas etc.)
+  // this reflects the cheapest size; for cakes it equals basePrice.
+  startingPrice: string;
+  template: "CAKE" | "PIZZA" | "OTHER";
   images: string[];
   isAvailable: boolean;
   isFeatured: boolean;
