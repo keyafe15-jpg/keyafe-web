@@ -1,8 +1,19 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, Search, Volume2, VolumeX, LogOut, User } from "lucide-react";
+import {
+  Menu,
+  Search,
+  Volume2,
+  VolumeX,
+  Bell,
+  BellOff,
+  LogOut,
+  User,
+} from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { useAdminAuth } from "@/store/adminAuth";
 import { useAlerts } from "@/store/alerts";
+import { disablePush, enablePush, getPushState } from "@/lib/push";
 import { cn } from "@/lib/cn";
 
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
@@ -13,6 +24,26 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const setSoundEnabled = useAlerts((s) => s.setSoundEnabled);
 
   const initial = (user?.name ?? "?").charAt(0).toUpperCase();
+
+  const [pushState, setPushState] = useState(() => getPushState());
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    setPushState(getPushState());
+  }, []);
+
+  const togglePush = async () => {
+    if (!pushState.supported || pushBusy) return;
+    setPushBusy(true);
+    try {
+      const next = pushState.subscribed
+        ? await disablePush()
+        : await enablePush();
+      setPushState(next);
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const toggleSound = async () => {
     const next = !soundEnabled;
@@ -53,6 +84,36 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        {pushState.supported && (
+          <button
+            type="button"
+            onClick={togglePush}
+            disabled={pushBusy}
+            className={cn(
+              "rounded-md p-2 transition disabled:opacity-50",
+              pushState.subscribed
+                ? "text-brand-500 hover:bg-brand-100/60"
+                : "text-slate-400 hover:bg-slate-100",
+            )}
+            aria-label={
+              pushState.subscribed
+                ? "Disable push notifications"
+                : "Enable push notifications on this device"
+            }
+            title={
+              pushState.subscribed
+                ? "Push on this device — click to disable"
+                : "Enable push on this device (works when the app is closed)"
+            }
+          >
+            {pushState.subscribed ? (
+              <Bell className="h-4 w-4" />
+            ) : (
+              <BellOff className="h-4 w-4" />
+            )}
+          </button>
+        )}
+
         <button
           type="button"
           onClick={toggleSound}

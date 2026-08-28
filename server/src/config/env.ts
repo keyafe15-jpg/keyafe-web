@@ -40,6 +40,12 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default("Keyafe Bakery <keyafe15@gmail.com>"),
+
+  // Web Push (VAPID). If either key is missing, push endpoints stay
+  // functional but sendPushToAll() no-ops with a warning.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default("mailto:admin@keyafe.in"),
 });
 
 const parsed = envSchema.safeParse(process.env);

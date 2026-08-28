@@ -1,0 +1,19 @@
+// Browser subscriptions for Web Push. One row per (device × browser).
+model PushSubscription {
+  id         String   @id @default(cuid())
+  endpoint   String   @unique
+  p256dh     String // client public key
+  auth       String // auth secret
+
+  // Nullable for now — admin auth isn't wired everywhere yet.
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  label      String? // optional friendly label ("Owner's phone", "Kitchen tablet")
+  userAgent  String?
+
+  lastPushAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}

@@ -37,6 +37,8 @@ import {
   adminOrderLinkRouter,
   publicOrderLinkRouter,
 } from "./modules/order-links/order-link.routes.js";
+import { adminPushRouter } from "./modules/push/push.routes.js";
+import { attachPushToOrderEvents } from "./lib/push.js";
 
 export function createApp() {
   const app = express();
@@ -99,6 +101,10 @@ export function createApp() {
   app.use("/api/admin/orders", adminOrderRouter);
   app.use("/api/admin/order-links", adminOrderLinkRouter);
   app.use("/api/admin/offline-orders", adminOfflineOrderRouter);
+  app.use("/api/admin/push", adminPushRouter);
+
+  // Fan out new-order events to Web Push subscribers (in addition to SSE).
+  attachPushToOrderEvents();
 
   app.use(notFound);
   app.use(errorHandler);

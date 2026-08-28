@@ -1,0 +1,19 @@
+{
+  "name": "Keyafe Admin",
+  "short_name": "Keyafe",
+  "description": "Order management console for Keyafe Bakes",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#e94a7a",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
