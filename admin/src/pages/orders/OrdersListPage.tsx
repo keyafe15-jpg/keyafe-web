@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Truck, Store, Phone, ChevronRight } from "lucide-react";
+import {
+  Truck,
+  Store,
+  Phone,
+  ChevronRight,
+  Globe,
+  Link2,
+  PhoneCall,
+} from "lucide-react";
 import {
   useAdminOrders,
   useAdminOrderCounts,
   type OrderStatus,
+  type OrderSource,
 } from "@/hooks/useAdminOrders";
 import { cn } from "@/lib/cn";
 
@@ -170,6 +179,7 @@ export function OrdersListPage() {
               <tr>
                 <th className="px-4 py-2 font-medium">Order</th>
                 <th className="px-4 py-2 font-medium">Customer</th>
+                <th className="px-4 py-2 font-medium">Source</th>
                 <th className="px-4 py-2 font-medium">Deliver on</th>
                 <th className="px-4 py-2 font-medium text-right">Amount</th>
                 <th className="px-4 py-2 font-medium">Status</th>
@@ -214,6 +224,9 @@ export function OrdersListPage() {
                       <Phone className="h-3 w-3" />
                       {o.customerPhone}
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <SourceBadge source={o.source} />
                   </td>
                   <td className="px-4 py-3">
                     {o.earliestDelivery ? (
@@ -297,6 +310,7 @@ export function OrdersListPage() {
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                    <SourceBadge source={o.source} />
                     {o.earliestDelivery && (
                       <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700">
                         {new Date(o.earliestDelivery).toLocaleDateString(
@@ -355,6 +369,42 @@ export function StatusPill({ status }: { status: OrderStatus }) {
         cfg.className,
       )}
     >
+      {cfg.label}
+    </span>
+  );
+}
+
+export function SourceBadge({ source }: { source: OrderSource }) {
+  const map: Record<
+    OrderSource,
+    { label: string; className: string; Icon: typeof Globe }
+  > = {
+    STOREFRONT: {
+      label: "Storefront",
+      className: "bg-sky-100 text-sky-800",
+      Icon: Globe,
+    },
+    OFFLINE_LINK: {
+      label: "Link",
+      className: "bg-brand-100 text-brand-800",
+      Icon: Link2,
+    },
+    OFFLINE_DIRECT: {
+      label: "Offline",
+      className: "bg-amber-100 text-amber-800",
+      Icon: PhoneCall,
+    },
+  };
+  const cfg = map[source];
+  const Icon = cfg.Icon;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
+        cfg.className,
+      )}
+    >
+      <Icon className="h-3 w-3" />
       {cfg.label}
     </span>
   );

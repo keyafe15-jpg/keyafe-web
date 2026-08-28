@@ -20,6 +20,12 @@ enum OrderFulfillment {
   PICKUP
 }
 
+enum OrderSource {
+  STOREFRONT // Customer self-serve on the storefront
+  OFFLINE_LINK // Admin generated a link, customer redeemed it (/o/:token)
+  OFFLINE_DIRECT // Admin filled everything in the offline order form
+}
+
 model Order {
   id          String @id @default(cuid())
   // Human-friendly reference: KEY-YYMMDD-XXXXXX. Shared with customer.
@@ -61,6 +67,9 @@ model Order {
 
   // Status
   status OrderStatus @default(PENDING)
+
+  // Where the order came from — used in admin filtering and reporting.
+  source OrderSource @default(STOREFRONT)
 
   customerNotes String?
   adminNotes    String?

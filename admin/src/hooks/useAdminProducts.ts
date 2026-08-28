@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 export type ProductTemplate = "CAKE" | "PIZZA" | "OTHER";
 
 export interface ProductOptionInput {
+  id?: string; // present on read (server-generated), omitted on create/update
   key: string;
   label: string;
   price: number;

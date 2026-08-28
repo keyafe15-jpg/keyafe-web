@@ -2,11 +2,17 @@ import { useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/nav/Sidebar";
 import { TopBar } from "@/components/nav/TopBar";
+import { NewOrderAlertModal } from "@/components/NewOrderAlertModal";
 import { useAdminAuth } from "@/store/adminAuth";
+import { useOrderStream } from "@/hooks/useOrderStream";
 
 export function AdminLayout() {
   const user = useAdminAuth((s) => s.user);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Subscribe to the SSE stream for new-order alerts. Runs only while an
+  // admin session exists; unmounts (and closes the stream) on logout.
+  useOrderStream();
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -31,6 +37,8 @@ export function AdminLayout() {
           <Outlet />
         </main>
       </div>
+
+      <NewOrderAlertModal />
     </div>
   );
 }

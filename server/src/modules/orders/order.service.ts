@@ -9,6 +9,7 @@ import {
   renderCustomerConfirmation,
 } from "../email/templates.js";
 import { logger } from "../../utils/logger.js";
+import { emitNewOrder } from "../../lib/events.js";
 
 const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
 
@@ -176,6 +177,7 @@ export async function createOrder(input: CreateOrderInput) {
       sgstAmount,
       igstAmount,
       paymentMethod: input.paymentMethod,
+      source: "STOREFRONT",
       customerNotes: input.customerNotes ?? null,
       items: {
         create: input.items.map((i) => {
@@ -207,6 +209,16 @@ export async function createOrder(input: CreateOrderInput) {
   // Fire-and-forget notifications. Failures are logged but never fail the order.
   void sendOrderEmails(created).catch((err) => {
     logger.error({ err, orderId: created.id }, "order email dispatch failed");
+  });
+
+  emitNewOrder({
+    id: created.id,
+    orderNumber: created.orderNumber,
+    customerName: created.customerName,
+    total: created.total.toString(),
+    source: "STOREFRONT",
+    itemCount: created.items.length,
+    createdAt: created.createdAt.toISOString(),
   });
 
   return created;

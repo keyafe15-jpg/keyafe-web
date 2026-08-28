@@ -9,6 +9,7 @@ import {
   renderCustomerConfirmation,
 } from "../email/templates.js";
 import { logger } from "../../utils/logger.js";
+import { emitNewOrder } from "../../lib/events.js";
 import { buildOrderNumber } from "../orders/order.service.js";
 
 // 31-char lower-safe alphabet (drops i, l, o, 1, 0 to avoid ambiguity).
@@ -348,6 +349,7 @@ export async function placeOrderFromLink(
         sgstAmount,
         igstAmount,
         paymentMethod: "cod",
+        source: "OFFLINE_LINK",
         customerNotes: input.customerNotes ?? null,
         items: {
           create: [
@@ -389,6 +391,16 @@ export async function placeOrderFromLink(
       { err, orderId: order.id },
       "order-link email dispatch failed",
     );
+  });
+
+  emitNewOrder({
+    id: order.id,
+    orderNumber: order.orderNumber,
+    customerName: order.customerName,
+    total: order.total.toString(),
+    source: "OFFLINE_LINK",
+    itemCount: order.items.length,
+    createdAt: order.createdAt.toISOString(),
   });
 
   return order;
@@ -730,6 +742,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       sgstAmount,
       igstAmount,
       paymentMethod: "cod",
+      source: "OFFLINE_DIRECT",
       customerNotes: input.customerNotes ?? null,
       adminNotes: input.adminNotes ?? null,
       items: { create: itemCreates },
@@ -742,6 +755,16 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       { err, orderId: order.id },
       "offline order email dispatch failed",
     );
+  });
+
+  emitNewOrder({
+    id: order.id,
+    orderNumber: order.orderNumber,
+    customerName: order.customerName,
+    total: order.total.toString(),
+    source: "OFFLINE_DIRECT",
+    itemCount: order.items.length,
+    createdAt: order.createdAt.toISOString(),
   });
 
   return order;

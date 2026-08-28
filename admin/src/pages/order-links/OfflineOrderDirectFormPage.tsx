@@ -12,8 +12,10 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import { useAdminProducts } from "@/hooks/useAdminProducts";
+import { useAdminProducts, useAdminProduct } from "@/hooks/useAdminProducts";
 import { useFlavours } from "@/hooks/useFlavours";
+import { useAdminToppings, type AdminTopping } from "@/hooks/useToppings";
+import { useAdminCakeSizes, type CakeSize } from "@/hooks/useCakeSizes";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
 import type { OrderLinkKind } from "@/hooks/useAdminOrderLinks";
 import { TIME_SLOTS } from "@/content/slots";
@@ -52,6 +54,15 @@ interface LineItem {
   refFile: File | null;
   refPreview: string | null;
   expanded: boolean;
+
+  // Pizza-only picker state (auto-populated when a PIZZA product is selected).
+  sizeOptionId: string;
+  crustOptionId: string;
+  crustLabel: string;
+  toppingSelections: string[]; // topping IDs (both toppings + condiments)
+
+  // Cake-only picker state (auto-populated when a CAKE product is selected).
+  cakeSizeId: string;
 }
 
 function todayIso(): string {
@@ -76,6 +87,11 @@ function newItem(kind: OrderLinkKind = "CATALOG"): LineItem {
     refFile: null,
     refPreview: null,
     expanded: false,
+    sizeOptionId: "",
+    crustOptionId: "",
+    crustLabel: "",
+    toppingSelections: [],
+    cakeSizeId: "",
   };
 }
 
@@ -84,6 +100,8 @@ export function OfflineOrderDirectFormPage() {
   const create = useCreateOfflineOrder();
   const { data: products = [] } = useAdminProducts();
   const { data: flavours = [] } = useFlavours();
+  const { data: allToppings = [] } = useAdminToppings();
+  const { data: cakeSizes = [] } = useAdminCakeSizes();
 
   const [items, setItems] = useState<LineItem[]>(() => [newItem("CATALOG")]);
   const [uploading, setUploading] = useState(false);
@@ -234,6 +252,30 @@ export function OfflineOrderDirectFormPage() {
         }
         const flavourName =
           flavours.find((f) => f.id === it.flavourId)?.name ?? null;
+
+        // Compose pizza selections into instructions (crust + toppings + condiments).
+        const pickedToppingNames = allToppings.filter((t) =>
+          it.toppingSelections.includes(t.id),
+        );
+        const parts: string[] = [];
+        if (it.crustLabel) parts.push(`Crust: ${it.crustLabel}`);
+        const toppingsPart = pickedToppingNames
+          .filter((t) => t.kind === "TOPPING")
+          .map((t) => t.name)
+          .join(", ");
+        if (toppingsPart) parts.push(`Toppings: ${toppingsPart}`);
+        const condimentsPart = pickedToppingNames
+          .filter((t) => t.kind === "CONDIMENT")
+          .map((t) => t.name)
+          .join(", ");
+        if (condimentsPart) parts.push(`Condiments: ${condimentsPart}`);
+        const composedPrefix = parts.join(" · ");
+        const finalInstructions = it.instructions.trim();
+        const mergedInstructions =
+          composedPrefix && finalInstructions
+            ? `${composedPrefix}\n${finalInstructions}`
+            : composedPrefix || finalInstructions || null;
+
         itemPayloads.push({
           kind: it.kind,
           productId: it.kind === "CATALOG" ? it.productId : null,
@@ -244,7 +286,7 @@ export function OfflineOrderDirectFormPage() {
           flavourName,
           referenceImageUrl,
           messageOnCake: it.messageOnCake.trim() || null,
-          instructions: it.instructions.trim() || null,
+          instructions: mergedInstructions,
           unitPrice: Number(it.unitPrice),
           qty: Number(it.qty) || 1,
         });
@@ -337,6 +379,8 @@ export function OfflineOrderDirectFormPage() {
                   item={it}
                   products={products}
                   flavours={flavours}
+                  allToppings={allToppings}
+                  cakeSizes={cakeSizes}
                   onPatch={(patch) => patchItem(it.id, patch)}
                   onRemove={() => removeItem(it.id)}
                   canRemove={items.length > 1}
@@ -600,14 +644,23 @@ function ItemRow({
   item,
   products,
   flavours,
+  allToppings,
+  cakeSizes,
   onPatch,
   onRemove,
   canRemove,
 }: {
   index: number;
   item: LineItem;
-  products: Array<{ id: string; name: string; basePrice: string }>;
-  flavours: Array<{ id: string; name: string }>;
+  products: Array<{
+    id: string;
+    name: string;
+    basePrice: string;
+    template: "CAKE" | "PIZZA" | "OTHER";
+  }>;
+  flavours: Array<{ id: string; name: string; additionalAmount: string }>;
+  allToppings: AdminTopping[];
+  cakeSizes: CakeSize[];
   onPatch: (patch: Partial<LineItem>) => void;
   onRemove: () => void;
   canRemove: boolean;
@@ -617,15 +670,142 @@ function ItemRow({
     [products, item.productId],
   );
 
+  const isPizza =
+    item.kind === "CATALOG" && selectedProduct?.template === "PIZZA";
+  const isCakeCatalog =
+    item.kind === "CATALOG" && (selectedProduct?.template ?? "CAKE") === "CAKE";
+
+  // Fetch full product detail (with optionGroups + toppingIds + pound settings)
+  // for both cakes (needs sellByPound + min/maxGrams + flavorIds) and pizzas.
+  const { data: productDetail } = useAdminProduct(
+    isPizza || isCakeCatalog ? item.productId : undefined,
+  );
+
+  const sizeOptions = productDetail?.sizeOptions ?? [];
+  const crustOptions = productDetail?.crustOptions ?? [];
+  const linkedToppingIds = new Set(productDetail?.toppingIds ?? []);
+  const linkedToppings = allToppings.filter((t) => linkedToppingIds.has(t.id));
+  const availToppings = linkedToppings.filter((t) => t.kind === "TOPPING");
+  const availCondiments = linkedToppings.filter((t) => t.kind === "CONDIMENT");
+
+  // Cake pound picker: only when the product opts in via sellByPound.
+  const isPoundCake = isCakeCatalog && productDetail?.sellByPound === true;
+  const availableCakeSizes = useMemo(() => {
+    if (!isPoundCake) return [];
+    return cakeSizes.filter((s) => {
+      if (!s.isActive) return false;
+      if (productDetail?.minGrams != null && s.grams < productDetail.minGrams)
+        return false;
+      if (productDetail?.maxGrams != null && s.grams > productDetail.maxGrams)
+        return false;
+      return true;
+    });
+  }, [isPoundCake, cakeSizes, productDetail]);
+
+  // Flavours the product actually offers — fall back to master list if none
+  // were linked, matching the client-side PDP behaviour.
+  const productFlavourIds = new Set(productDetail?.flavorIds ?? []);
+  const availableFlavours =
+    productFlavourIds.size > 0
+      ? flavours.filter((f) => productFlavourIds.has(f.id))
+      : flavours;
+
+  // For CATALOG items, hide cake-specific fields when the picked product is
+  // a pizza / other so the admin isn't asked for flavour on a pizza.
+  const showCakeFields = item.kind === "CUSTOM" || isCakeCatalog;
+
   useEffect(() => {
     if (item.kind !== "CATALOG" || !selectedProduct) return;
     const patch: Partial<LineItem> = {};
     if (!item.productName) patch.productName = selectedProduct.name;
-    if (!item.unitPrice)
+    if (!item.unitPrice && !isPizza && !isPoundCake)
       patch.unitPrice = Number(selectedProduct.basePrice).toFixed(0);
     if (Object.keys(patch).length) onPatch(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProduct]);
+
+  // Preselect default size + crust when the pizza detail arrives.
+  useEffect(() => {
+    if (!isPizza || !productDetail) return;
+    const patch: Partial<LineItem> = {};
+    if (!item.sizeOptionId && sizeOptions.length > 0) {
+      patch.sizeOptionId =
+        sizeOptions.find((o) => o.isDefault)?.id ?? sizeOptions[0].id ?? "";
+    }
+    if (!item.crustOptionId && crustOptions.length > 0) {
+      patch.crustOptionId =
+        crustOptions.find((o) => o.isDefault)?.id ?? crustOptions[0].id ?? "";
+    }
+    if (Object.keys(patch).length) onPatch(patch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPizza, productDetail]);
+
+  // Preselect default cake size (500g = 1 pound if allowed, else first).
+  useEffect(() => {
+    if (!isPoundCake || availableCakeSizes.length === 0) return;
+    if (item.cakeSizeId) return;
+    const oneLb = availableCakeSizes.find((s) => s.grams === 500);
+    const pick = oneLb ?? availableCakeSizes[0];
+    onPatch({
+      cakeSizeId: pick.id,
+      sizeGrams: String(pick.grams),
+      sizeLabel: pick.label,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPoundCake, availableCakeSizes]);
+
+  // Recompute unit price + size label when any pizza selection changes.
+  const pickedSize = sizeOptions.find((o) => o.id === item.sizeOptionId);
+  const pickedCrust = crustOptions.find((o) => o.id === item.crustOptionId);
+  const pickedToppingsFull = allToppings.filter((t) =>
+    item.toppingSelections.includes(t.id),
+  );
+
+  // Recompute cake price when size or flavour changes.
+  useEffect(() => {
+    if (!isPoundCake || !productDetail) return;
+    const size = availableCakeSizes.find((s) => s.id === item.cakeSizeId);
+    if (!size) return;
+    const base = Number(productDetail.basePrice);
+    const flavour = flavours.find((f) => f.id === item.flavourId);
+    const flavourDelta = flavour ? Number(flavour.additionalAmount) : 0;
+    const multiplier = size.grams / 500;
+    const computed = (base + flavourDelta) * multiplier;
+    onPatch({
+      unitPrice: computed.toFixed(0),
+      sizeGrams: String(size.grams),
+      sizeLabel: size.label,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPoundCake, item.cakeSizeId, item.flavourId, productDetail]);
+
+  useEffect(() => {
+    if (!isPizza || !productDetail) return;
+    const sizePrice = pickedSize ? Number(pickedSize.price) : 0;
+    const crustDelta = pickedCrust ? Number(pickedCrust.price) : 0;
+    const toppingsDelta = pickedToppingsFull.reduce(
+      (s, t) => s + Number(t.priceDelta),
+      0,
+    );
+    const computed = sizePrice + crustDelta + toppingsDelta;
+    const patch: Partial<LineItem> = { unitPrice: computed.toFixed(0) };
+    if (pickedSize) patch.sizeLabel = pickedSize.label;
+    patch.crustLabel = pickedCrust ? pickedCrust.label : "";
+    onPatch(patch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isPizza,
+    item.sizeOptionId,
+    item.crustOptionId,
+    item.toppingSelections.join("|"),
+  ]);
+
+  const toggleTopping = (id: string) => {
+    const next = item.toppingSelections.includes(id)
+      ? item.toppingSelections.filter((x) => x !== id)
+      : [...item.toppingSelections, id];
+    onPatch({ toppingSelections: next });
+  };
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
@@ -685,43 +865,224 @@ function ItemRow({
                 className={inputClass}
               />
             </Field>
-            <Field label="Unit price (₹)" required>
+            <Field
+              label={
+                isPizza || isPoundCake ? "Unit price (auto)" : "Unit price (₹)"
+              }
+              required
+            >
               <input
-                type="number"
-                min={0}
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 value={item.unitPrice}
-                onChange={(e) => onPatch({ unitPrice: e.target.value })}
+                onChange={(e) =>
+                  onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })
+                }
                 placeholder="500"
-                className={inputClass}
+                disabled={isPizza || isPoundCake}
+                className={cn(
+                  inputClass,
+                  (isPizza || isPoundCake) && "bg-slate-100 text-slate-600",
+                )}
               />
             </Field>
             <Field label="Qty" required>
               <input
-                type="number"
-                min={1}
+                type="text"
+                inputMode="numeric"
                 value={item.qty}
-                onChange={(e) => onPatch({ qty: e.target.value })}
+                onChange={(e) =>
+                  onPatch({ qty: e.target.value.replace(/\D/g, "") })
+                }
+                placeholder="1"
                 className={inputClass}
               />
             </Field>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onPatch({ expanded: !item.expanded })}
-            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-brand-700"
-          >
-            {item.expanded ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-            {item.expanded ? "Hide" : "Show"} details (size, flavour, message
-            {item.kind === "CUSTOM" ? ", reference image" : ""})
-          </button>
+          {isPoundCake && productDetail && (
+            <div className="mt-3 space-y-3 rounded-md border border-amber-100 bg-amber-50/40 p-3">
+              {availableCakeSizes.length > 0 && (
+                <Field label="Size (pounds)" required>
+                  <select
+                    value={item.cakeSizeId}
+                    onChange={(e) => onPatch({ cakeSizeId: e.target.value })}
+                    className={selectClass}
+                  >
+                    <option value="">— Choose —</option>
+                    {availableCakeSizes.map((s) => {
+                      const flavour = flavours.find(
+                        (f) => f.id === item.flavourId,
+                      );
+                      const flavourDelta = flavour
+                        ? Number(flavour.additionalAmount)
+                        : 0;
+                      const base = productDetail
+                        ? Number(productDetail.basePrice)
+                        : 0;
+                      const price = (base + flavourDelta) * (s.grams / 500);
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {s.label} · ₹{price.toFixed(0)}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </Field>
+              )}
+              <Field label="Flavour">
+                <select
+                  value={item.flavourId}
+                  onChange={(e) => onPatch({ flavourId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">— None —</option>
+                  {availableFlavours.map((f) => {
+                    const delta = Number(f.additionalAmount);
+                    return (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                        {delta > 0 ? ` (+₹${delta.toFixed(0)}/lb)` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </Field>
+              <Field label="Message on cake">
+                <input
+                  value={item.messageOnCake}
+                  onChange={(e) => onPatch({ messageOnCake: e.target.value })}
+                  placeholder="Happy Birthday Aarav"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+          )}
 
-          {item.expanded && (
+          {isPizza && productDetail && (
+            <div className="mt-3 space-y-3 rounded-md border border-sky-100 bg-sky-50/40 p-3">
+              {sizeOptions.length > 0 && (
+                <Field label="Size" required>
+                  <select
+                    value={item.sizeOptionId}
+                    onChange={(e) => onPatch({ sizeOptionId: e.target.value })}
+                    className={selectClass}
+                  >
+                    <option value="">— Choose —</option>
+                    {sizeOptions.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label} · ₹{Number(o.price).toFixed(0)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              {crustOptions.length > 0 && (
+                <Field label="Crust">
+                  <select
+                    value={item.crustOptionId}
+                    onChange={(e) => onPatch({ crustOptionId: e.target.value })}
+                    className={selectClass}
+                  >
+                    {crustOptions.map((o) => {
+                      const delta = Number(o.price);
+                      return (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                          {delta === 0 ? "" : ` (+₹${delta.toFixed(0)})`}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </Field>
+              )}
+              {availToppings.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Toppings
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availToppings.map((t) => {
+                      const on = item.toppingSelections.includes(t.id);
+                      const delta = Number(t.priceDelta);
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => toggleTopping(t.id)}
+                          className={cn(
+                            "rounded-full border px-2.5 py-1 text-xs font-medium transition",
+                            on
+                              ? "border-brand-500 bg-brand-100 text-brand-700"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
+                          )}
+                        >
+                          {t.name}
+                          {delta > 0 && (
+                            <span className="ml-1 text-slate-500">
+                              +₹{delta.toFixed(0)}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {availCondiments.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Condiments / Extras
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availCondiments.map((t) => {
+                      const on = item.toppingSelections.includes(t.id);
+                      const delta = Number(t.priceDelta);
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => toggleTopping(t.id)}
+                          className={cn(
+                            "rounded-full border px-2.5 py-1 text-xs font-medium transition",
+                            on
+                              ? "border-brand-500 bg-brand-100 text-brand-700"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
+                          )}
+                        >
+                          {t.name}
+                          {delta > 0 && (
+                            <span className="ml-1 text-slate-500">
+                              +₹{delta.toFixed(0)}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isPizza && !isPoundCake && (
+            <button
+              type="button"
+              onClick={() => onPatch({ expanded: !item.expanded })}
+              className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-brand-700"
+            >
+              {item.expanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              {item.expanded ? "Hide" : "Show"} details (size
+              {showCakeFields ? ", flavour, message" : ""}
+              {item.kind === "CUSTOM" ? ", reference image" : ""})
+            </button>
+          )}
+
+          {!isPizza && !isPoundCake && item.expanded && (
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Field label="Size label">
                 <input
@@ -740,28 +1101,34 @@ function ItemRow({
                   className={inputClass}
                 />
               </Field>
-              <Field label="Flavour">
-                <select
-                  value={item.flavourId}
-                  onChange={(e) => onPatch({ flavourId: e.target.value })}
-                  className={selectClass}
-                >
-                  <option value="">— None —</option>
-                  {flavours.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Message on cake">
-                <input
-                  value={item.messageOnCake}
-                  onChange={(e) => onPatch({ messageOnCake: e.target.value })}
-                  placeholder="Happy Birthday Aarav"
-                  className={inputClass}
-                />
-              </Field>
+              {showCakeFields && (
+                <>
+                  <Field label="Flavour">
+                    <select
+                      value={item.flavourId}
+                      onChange={(e) => onPatch({ flavourId: e.target.value })}
+                      className={selectClass}
+                    >
+                      <option value="">— None —</option>
+                      {flavours.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Message on cake">
+                    <input
+                      value={item.messageOnCake}
+                      onChange={(e) =>
+                        onPatch({ messageOnCake: e.target.value })
+                      }
+                      placeholder="Happy Birthday Aarav"
+                      className={inputClass}
+                    />
+                  </Field>
+                </>
+              )}
               <Field label="Instructions" className="sm:col-span-2">
                 <input
                   value={item.instructions}

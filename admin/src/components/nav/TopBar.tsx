@@ -1,14 +1,36 @@
 import { useNavigate } from "react-router-dom";
-import { Menu, Search, Bell, LogOut, User } from "lucide-react";
+import { Menu, Search, Volume2, VolumeX, LogOut, User } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { useAdminAuth } from "@/store/adminAuth";
+import { useAlerts } from "@/store/alerts";
+import { cn } from "@/lib/cn";
 
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const user = useAdminAuth((s) => s.user);
   const logout = useAdminAuth((s) => s.logout);
   const navigate = useNavigate();
+  const soundEnabled = useAlerts((s) => s.soundEnabled);
+  const setSoundEnabled = useAlerts((s) => s.setSoundEnabled);
 
   const initial = (user?.name ?? "?").charAt(0).toUpperCase();
+
+  const toggleSound = async () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    if (
+      next &&
+      typeof Notification !== "undefined" &&
+      Notification.permission === "default"
+    ) {
+      // Grant browser permission the first time the user enables alerts, so
+      // desktop OS notifications work even when the tab isn't focused.
+      try {
+        await Notification.requestPermission();
+      } catch {
+        // Ignore — some environments (embedded) throw here.
+      }
+    }
+  };
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/85 px-4 backdrop-blur">
@@ -33,11 +55,25 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="ml-auto flex items-center gap-2">
         <button
           type="button"
-          className="relative rounded-md p-2 text-slate-600 hover:bg-slate-100"
-          aria-label="Notifications"
+          onClick={toggleSound}
+          className={cn(
+            "rounded-md p-2 transition",
+            soundEnabled
+              ? "text-slate-600 hover:bg-slate-100"
+              : "text-slate-400 hover:bg-slate-100",
+          )}
+          aria-label={soundEnabled ? "Mute order alarm" : "Enable order alarm"}
+          title={
+            soundEnabled
+              ? "Order alarm on — click to mute"
+              : "Order alarm muted — click to enable"
+          }
         >
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand-500" />
+          {soundEnabled ? (
+            <Volume2 className="h-4 w-4" />
+          ) : (
+            <VolumeX className="h-4 w-4" />
+          )}
         </button>
 
         <Dropdown.Root>

@@ -4,6 +4,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import type { OrderStatus, PaymentStatus } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
+import { orderEvents, type NewOrderEvent } from "../../lib/events.js";
 
 // TODO: gate behind requireAuth + requirePermission("orders.read/update") once auth is wired.
 export const adminOrderRouter = Router();
@@ -61,6 +62,7 @@ adminOrderRouter.get("/", async (req, res) => {
       status: true,
       paymentStatus: true,
       paymentMethod: true,
+      source: true,
       createdAt: true,
       _count: { select: { items: true } },
       items: {
@@ -93,6 +95,7 @@ adminOrderRouter.get("/", async (req, res) => {
       status: r.status,
       paymentStatus: r.paymentStatus,
       paymentMethod: r.paymentMethod,
+      source: r.source,
       createdAt: r.createdAt,
       itemCount: r._count.items,
       earliestDelivery: r.items[0]?.deliveryDate ?? null,
@@ -112,6 +115,35 @@ adminOrderRouter.get("/counts", async (_req, res) => {
   for (const g of grouped) counts[g.status] = g._count._all;
   counts.ALL = Object.values(counts).reduce((a, b) => a + b, 0);
   res.json(counts);
+});
+
+// Server-Sent Events channel — admin subscribes here and gets a `new-order`
+// message every time an order is placed (any source).
+adminOrderRouter.get("/stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders?.();
+
+  // Initial hello so the client's onopen fires immediately.
+  res.write(`event: ready\ndata: {}\n\n`);
+
+  const onNewOrder = (event: NewOrderEvent) => {
+    res.write(`event: new-order\ndata: ${JSON.stringify(event)}\n\n`);
+  };
+  orderEvents.on("new-order", onNewOrder);
+
+  // Heartbeat every 25s so proxies / load balancers don't cut idle streams.
+  const heartbeat = setInterval(() => {
+    res.write(`: hb\n\n`);
+  }, 25_000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    orderEvents.off("new-order", onNewOrder);
+    res.end();
+  });
 });
 
 adminOrderRouter.get("/:idOrNumber", async (req, res) => {

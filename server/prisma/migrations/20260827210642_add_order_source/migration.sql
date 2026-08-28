@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "OrderSource" AS ENUM ('STOREFRONT', 'OFFLINE_LINK', 'OFFLINE_DIRECT');
+
+-- AlterTable
+ALTER TABLE "Order" ADD COLUMN     "source" "OrderSource" NOT NULL DEFAULT 'STOREFRONT';

@@ -54,7 +54,16 @@ export function createApp() {
       credentials: true,
     }),
   );
-  app.use(compression());
+  app.use(
+    compression({
+      // SSE responses must not be buffered — the client expects each
+      // `data:` frame to arrive as soon as we write it.
+      filter: (req, res) => {
+        if (req.path.endsWith("/orders/stream")) return false;
+        return compression.filter(req, res);
+      },
+    }),
+  );
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ extended: true }));
   app.use(pinoHttp({ logger }));

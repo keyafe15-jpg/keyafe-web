@@ -78,6 +78,7 @@ export async function listProducts() {
       name: true,
       basePrice: true,
       productType: true,
+      template: true,
       isActive: true,
       isAvailable: true,
       isFeatured: true,
