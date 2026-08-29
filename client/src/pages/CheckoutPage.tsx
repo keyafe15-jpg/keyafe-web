@@ -1,6 +1,9 @@
+import * as Dialog from "@radix-ui/react-dialog";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/store/auth";
 import { useCart } from "@/store/cart";
+import { useSavedAddresses } from "@/store/addresses";
 import { useCreateOrder } from "@/hooks/useOrders";
 import {
   usePincodeCheck,
@@ -17,11 +20,15 @@ const PINCODE_RE = /^\d{6}$/;
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const user = useAuth((s) => s.user);
   const lines = useCart((s) => s.lines);
   const subtotal = useCart((s) => s.subtotal());
   const clear = useCart((s) => s.clear);
   const createOrder = useCreateOrder();
   const pincodeCheck = usePincodeCheck();
+  const savedAddresses = useSavedAddresses((s) => s.addresses);
+  const addSavedAddress = useSavedAddresses((s) => s.addAddress);
+  const fetchSavedAddresses = useSavedAddresses((s) => s.fetchAddresses);
 
   // Seed defaults from the first cart line so smooth-return-from-PDP flow works.
   const seed = lines[0];
@@ -39,8 +46,45 @@ export function CheckoutPage() {
   const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(
     null,
   );
+  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<
+    string | null
+  >(null);
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [notes, setNotes] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setName((current) => current || user.name);
+      setPhone((current) => current || user.phone);
+      setEmail((current) => current || user.email || "");
+      void fetchSavedAddresses();
+    }
+  }, [fetchSavedAddresses, user]);
+
+  useEffect(() => {
+    if (!user || savedAddresses.length === 0) {
+      setSelectedSavedAddressId(null);
+      setShowNewAddressForm(false);
+      return;
+    }
+
+    const defaultAddress =
+      savedAddresses.find((address) => address.isDefault) ?? savedAddresses[0];
+    if (!selectedSavedAddressId && !showNewAddressForm) {
+      setSelectedSavedAddressId(defaultAddress.id);
+    }
+  }, [savedAddresses, selectedSavedAddressId, showNewAddressForm, user]);
+
+  const applySavedAddress = (address: (typeof savedAddresses)[number]) => {
+    setSelectedSavedAddressId(address.id);
+    setShowNewAddressForm(false);
+    setLine1(address.line1);
+    setLine2(address.line2 ?? "");
+    setLandmark(address.landmark ?? "");
+    setPincode(address.pincode);
+    setMapSearchQuery(`${address.line1}, ${address.city}, ${address.pincode}`);
+  };
 
   // Every line already carries its own delivery date + slot (set on the PDP).
   const missingSchedule = lines.some((l) => !l.date || !l.slotKey);
@@ -139,11 +183,44 @@ export function CheckoutPage() {
     );
   }
 
+  const saveNewAddress = async () => {
+    if (!user) return;
+    if (!line1.trim() || !pincode.trim() || !mapSearchQuery.trim()) {
+      setSubmitError("Please complete the address details before saving.");
+      return;
+    }
+
+    const created = await addSavedAddress({
+      label: "Home",
+      recipientName: name.trim() || user.name,
+      phone: phone.trim() || user.phone,
+      line1: line1.trim(),
+      line2: line2.trim() || undefined,
+      landmark: landmark.trim() || undefined,
+      mapSearchQuery: mapSearchQuery.trim(),
+      city: pincodeResult?.serviceable ? pincodeResult.city : "Kolkata",
+      state: "West Bengal",
+      stateCode: "19",
+      pincode: pincode.trim(),
+      isDefault: savedAddresses.length === 0,
+    });
+
+    if (!created) {
+      return;
+    }
+
+    setSelectedSavedAddressId(created.id);
+    setShowNewAddressForm(false);
+    setSubmitError(null);
+    applySavedAddress(created);
+  };
+
   const submit = async () => {
     if (!isValid) return;
     setSubmitError(null);
     try {
       const order = await createOrder.mutateAsync({
+        userId: user?.id,
         customerName: name.trim(),
         customerPhone: phone.trim(),
         customerEmail: email.trim() || null,
@@ -252,92 +329,335 @@ export function CheckoutPage() {
 
           {fulfillment === "DELIVERY" && (
             <FormCard title="3 · Delivery address">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  label="Pincode"
-                  required
-                  error={errors.pincode}
-                  className="sm:col-span-2"
-                >
-                  <div className="flex items-center gap-3">
-                    <Input
-                      value={pincode}
-                      onChange={(v) =>
-                        setPincode(v.replace(/\D/g, "").slice(0, 6))
-                      }
-                      placeholder="711202"
-                      className="w-32"
-                      inputMode="numeric"
-                    />
-                    <PincodeStatus
-                      value={pincode}
-                      result={pincodeResult}
-                      isChecking={pincodeCheck.isPending}
-                    />
-                  </div>
-                </Field>
-                <Field
-                  label="Address line 1"
-                  required
-                  error={errors.line1}
-                  className="sm:col-span-2"
-                >
-                  <Input
-                    value={line1}
-                    onChange={setLine1}
-                    placeholder="Flat / building / street"
-                  />
-                </Field>
-                <Field label="Address line 2" className="sm:col-span-2">
-                  <Input
-                    value={line2}
-                    onChange={setLine2}
-                    placeholder="Area / locality (optional)"
-                  />
-                </Field>
-                <Field
-                  label="Landmark"
-                  hint="Helps our delivery partner find you"
-                >
-                  <Input
-                    value={landmark}
-                    onChange={setLandmark}
-                    placeholder="Near the metro station"
-                  />
-                </Field>
-                <Field
-                  label="Uber / Rapido search"
-                  required
-                  error={errors.mapSearchQuery}
-                  hint="What we'd type in Uber or Rapido to find your location — an apartment name, shop, or well-known place nearby."
-                  className="sm:col-span-2"
-                >
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">
-                      <svg
-                        width={16}
-                        height={16}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
+              {user && savedAddresses.length > 0 && !showNewAddressForm && (
+                <div className="mb-5 space-y-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-ink-500">
+                    Saved addresses
+                  </p>
+                  <div className="space-y-2">
+                    {savedAddresses.map((address) => (
+                      <button
+                        key={address.id}
+                        type="button"
+                        onClick={() => applySavedAddress(address)}
+                        className={cn(
+                          "flex w-full items-start justify-between gap-3 rounded-lg border p-3 text-left transition",
+                          selectedSavedAddressId === address.id
+                            ? "border-brand-500 bg-brand-100/60"
+                            : "border-cream-200 bg-white hover:border-brand-300",
+                        )}
                       >
-                        <circle cx="11" cy="11" r="7" />
-                        <path d="M20 20l-3-3" />
-                      </svg>
-                    </span>
-                    <Input
-                      value={mapSearchQuery}
-                      onChange={setMapSearchQuery}
-                      placeholder='e.g. "Ganguly Bagan Metro Station" or "Aditya Apartments, Salkia"'
-                      className="pl-9"
-                    />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-ink-900">
+                              {address.label}
+                            </span>
+                            {address.isDefault && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-sm text-ink-700">
+                            {address.recipientName} · {address.phone}
+                          </p>
+                          <p className="text-xs text-ink-500">
+                            {address.line1}
+                            {address.line2 ? `, ${address.line2}` : ""} ·{" "}
+                            {address.city} - {address.pincode}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                </Field>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewAddressForm(true);
+                      setSelectedSavedAddressId(null);
+                    }}
+                    className="text-sm font-medium text-brand-500 hover:text-brand-600"
+                  >
+                    + Add a new address
+                  </button>
+                </div>
+              )}
+
+              {(!user || savedAddresses.length === 0) && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {user && savedAddresses.length > 0 && (
+                    <div className="sm:col-span-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewAddressForm(false);
+                          const defaultAddress =
+                            savedAddresses.find(
+                              (address) => address.isDefault,
+                            ) ?? savedAddresses[0];
+                          if (defaultAddress) applySavedAddress(defaultAddress);
+                        }}
+                        className="text-sm font-medium text-brand-500 hover:text-brand-600"
+                      >
+                        ← Use a saved address
+                      </button>
+                    </div>
+                  )}
+
+                  <Field
+                    label="Pincode"
+                    required
+                    error={errors.pincode}
+                    className="sm:col-span-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Input
+                        value={pincode}
+                        onChange={(v) =>
+                          setPincode(v.replace(/\D/g, "").slice(0, 6))
+                        }
+                        placeholder="711202"
+                        className="w-32"
+                        inputMode="numeric"
+                      />
+                      <PincodeStatus
+                        value={pincode}
+                        result={pincodeResult}
+                        isChecking={pincodeCheck.isPending}
+                      />
+                    </div>
+                  </Field>
+                  <Field
+                    label="Address line 1"
+                    required
+                    error={errors.line1}
+                    className="sm:col-span-2"
+                  >
+                    <Input
+                      value={line1}
+                      onChange={setLine1}
+                      placeholder="Flat / building / street"
+                    />
+                  </Field>
+                  <Field label="Address line 2" className="sm:col-span-2">
+                    <Input
+                      value={line2}
+                      onChange={setLine2}
+                      placeholder="Area / locality (optional)"
+                    />
+                  </Field>
+                  <Field
+                    label="Landmark"
+                    hint="Helps our delivery partner find you"
+                  >
+                    <Input
+                      value={landmark}
+                      onChange={setLandmark}
+                      placeholder="Near the metro station"
+                    />
+                  </Field>
+                  <Field
+                    label="Uber / Rapido search"
+                    required
+                    error={errors.mapSearchQuery}
+                    hint="What we'd type in Uber or Rapido to find your location — an apartment name, shop, or well-known place nearby."
+                    className="sm:col-span-2"
+                  >
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">
+                        <svg
+                          width={16}
+                          height={16}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <circle cx="11" cy="11" r="7" />
+                          <path d="M20 20l-3-3" />
+                        </svg>
+                      </span>
+                      <Input
+                        value={mapSearchQuery}
+                        onChange={setMapSearchQuery}
+                        placeholder='e.g. "Ganguly Bagan Metro Station" or "Aditya Apartments, Salkia"'
+                        className="pl-9"
+                      />
+                    </div>
+                  </Field>
+
+                  {user && (
+                    <div className="sm:col-span-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => void saveNewAddress()}
+                        className="rounded-full border border-brand-500 bg-brand-50 px-4 py-2 text-sm font-medium text-brand-600 transition hover:bg-brand-100"
+                      >
+                        Save address & continue
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <Dialog.Root
+                open={showNewAddressForm}
+                onOpenChange={(open) => {
+                  setShowNewAddressForm(open);
+                  if (!open) setSubmitError(null);
+                }}
+              >
+                <Dialog.Portal>
+                  <Dialog.Overlay className="fixed inset-0 z-50 bg-ink-900/60 backdrop-blur-sm" />
+                  <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-cream-200 bg-white p-5 shadow-2xl focus:outline-none">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <Dialog.Title className="font-display text-2xl text-ink-900">
+                          Add a new address
+                        </Dialog.Title>
+                        <Dialog.Description className="mt-1 text-sm text-ink-500">
+                          Save this address for faster checkout next time.
+                        </Dialog.Description>
+                      </div>
+                      <Dialog.Close
+                        className="rounded-full p-1 text-ink-500 transition hover:bg-cream-100 hover:text-ink-900"
+                        aria-label="Close address modal"
+                      >
+                        <svg
+                          width={20}
+                          height={20}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </Dialog.Close>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      <Field
+                        label="Pincode"
+                        required
+                        error={errors.pincode}
+                        className="sm:col-span-2"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Input
+                            value={pincode}
+                            onChange={(v) =>
+                              setPincode(v.replace(/\D/g, "").slice(0, 6))
+                            }
+                            placeholder="711202"
+                            className="w-32"
+                            inputMode="numeric"
+                          />
+                          <PincodeStatus
+                            value={pincode}
+                            result={pincodeResult}
+                            isChecking={pincodeCheck.isPending}
+                          />
+                        </div>
+                      </Field>
+
+                      <Field
+                        label="Address line 1"
+                        required
+                        error={errors.line1}
+                        className="sm:col-span-2"
+                      >
+                        <Input
+                          value={line1}
+                          onChange={setLine1}
+                          placeholder="Flat / building / street"
+                        />
+                      </Field>
+
+                      <Field label="Address line 2" className="sm:col-span-2">
+                        <Input
+                          value={line2}
+                          onChange={setLine2}
+                          placeholder="Area / locality (optional)"
+                        />
+                      </Field>
+
+                      <Field
+                        label="Landmark"
+                        hint="Helps our delivery partner find you"
+                      >
+                        <Input
+                          value={landmark}
+                          onChange={setLandmark}
+                          placeholder="Near the metro station"
+                        />
+                      </Field>
+
+                      <Field
+                        label="Uber / Rapido search"
+                        required
+                        error={errors.mapSearchQuery}
+                        hint="What we'd type in Uber or Rapido to find your location — an apartment name, shop, or well-known place nearby."
+                        className="sm:col-span-2"
+                      >
+                        <div className="relative">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">
+                            <svg
+                              width={16}
+                              height={16}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <circle cx="11" cy="11" r="7" />
+                              <path d="M20 20l-3-3" />
+                            </svg>
+                          </span>
+                          <Input
+                            value={mapSearchQuery}
+                            onChange={setMapSearchQuery}
+                            placeholder='e.g. "Ganguly Bagan Metro Station" or "Aditya Apartments, Salkia"'
+                            className="pl-9"
+                          />
+                        </div>
+                      </Field>
+                    </div>
+
+                    {submitError && (
+                      <p className="mt-4 rounded-md bg-brand-100/60 px-3 py-2 text-xs text-brand-700">
+                        {submitError}
+                      </p>
+                    )}
+
+                    <div className="mt-5 flex items-center justify-end gap-3">
+                      <Dialog.Close asChild>
+                        <button
+                          type="button"
+                          className="rounded-full border border-cream-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:border-brand-300 hover:text-brand-600"
+                        >
+                          Cancel
+                        </button>
+                      </Dialog.Close>
+                      <button
+                        type="button"
+                        onClick={() => void saveNewAddress()}
+                        className="rounded-full border border-brand-500 bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
+                      >
+                        Save address
+                      </button>
+                    </div>
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog.Root>
             </FormCard>
           )}
 

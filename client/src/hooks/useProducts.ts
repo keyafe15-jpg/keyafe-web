@@ -19,11 +19,25 @@ export interface ProductCard {
   category: { id: string; slug: string; name: string };
 }
 
-export function useProductsByCategory(slug: string | undefined) {
-  return useQuery<ProductCard[]>({
-    queryKey: ["products", "category", slug],
+export interface PaginatedProductsResponse {
+  items: ProductCard[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export function useProductsByCategory(
+  slug: string | undefined,
+  page = 1,
+  pageSize = 12,
+) {
+  return useQuery<PaginatedProductsResponse>({
+    queryKey: ["products", "category", slug, page, pageSize],
     queryFn: () =>
-      api.get<ProductCard[]>(`/products?category=${encodeURIComponent(slug!)}`),
+      api.get<PaginatedProductsResponse>(
+        `/products?category=${encodeURIComponent(slug!)}&page=${page}&pageSize=${pageSize}`,
+      ),
     enabled: !!slug,
     staleTime: 60_000,
   });

@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { StatusCodes } from "http-status-codes";
+import { optionalAuth, requireAuth } from "../../middleware/auth.js";
+import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import {
   createOrder,
@@ -10,13 +12,31 @@ import {
 
 export const orderRouter = Router();
 
-orderRouter.post("/", async (req, res) => {
+orderRouter.post("/", optionalAuth, async (req, res) => {
   const parsed = createOrderSchema.safeParse(req.body);
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid order", parsed.error.flatten());
   }
-  const order = await createOrder(parsed.data);
+
+  const payload = {
+    ...parsed.data,
+    userId: parsed.data.userId ?? (req as any).user?.id,
+  };
+
+  const order = await createOrder(payload);
   res.status(StatusCodes.CREATED).json(order);
+});
+
+orderRouter.get("/me", requireAuth, async (req, res) => {
+  const userId = (req as any).user.id as string;
+
+  const orders = await prisma.order.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: { items: { orderBy: { deliveryDate: "asc" } } },
+  });
+
+  res.json(orders);
 });
 
 // Accepts either a cuid (order id) or KEY-YYMMDD-XXXXXX (order number)

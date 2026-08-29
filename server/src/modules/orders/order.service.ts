@@ -45,6 +45,7 @@ const itemSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
+  userId: z.string().min(1).optional(),
   customerName: z.string().trim().min(2, "Name is required"),
   customerPhone: z
     .string()
@@ -163,6 +164,7 @@ export async function createOrder(input: CreateOrderInput) {
 
   const created = await prisma.order.create({
     data: {
+      userId: input.userId ?? null,
       orderNumber,
       customerName: input.customerName,
       customerPhone: input.customerPhone,

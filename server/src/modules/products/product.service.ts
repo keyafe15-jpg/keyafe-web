@@ -154,7 +154,11 @@ function decorateCard(row: PublicCardRow) {
 // Returns products for a category slug. If the slug is a top-level
 // category, includes products from all its children so shoppers see
 // everything under "Celebration Cakes" without picking a sub yet.
-export async function listPublicProductsByCategorySlug(slug: string) {
+export async function listPublicProductsByCategorySlug(
+  slug: string,
+  page = 1,
+  pageSize = 12,
+) {
   const category = await prisma.category.findUnique({
     where: { slug },
     select: {
@@ -171,22 +175,46 @@ export async function listPublicProductsByCategorySlug(slug: string) {
   });
   if (!category) throw HttpError.notFound("Category not found");
 
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
+  const skip = (safePage - 1) * safePageSize;
   const categoryIds = [category.id, ...category.children.map((c) => c.id)];
 
-  const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      categoryId: { in: categoryIds },
-    },
-    orderBy: [
-      { isFeatured: "desc" },
-      { sortOrder: "asc" },
-      { createdAt: "desc" },
-    ],
-    select: PUBLIC_CARD_SELECT,
-  });
+  const [total, products] = await Promise.all([
+    prisma.product.count({
+      where: {
+        isActive: true,
+        categoryId: { in: categoryIds },
+      },
+    }),
+    prisma.product.findMany({
+      where: {
+        isActive: true,
+        categoryId: { in: categoryIds },
+      },
+      orderBy: [
+        { isFeatured: "desc" },
+        { sortOrder: "asc" },
+        { createdAt: "desc" },
+      ],
+      skip,
+      take: safePageSize,
+      select: PUBLIC_CARD_SELECT,
+    }),
+  ]);
 
-  return products.map((p) => decorateCard(p as unknown as PublicCardRow));
+  const items = products.map((p) =>
+    decorateCard(p as unknown as PublicCardRow),
+  );
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+
+  return {
+    items,
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    totalPages,
+  };
 }
 
 // All same-day-eligible products, ordered like the category listings. Client

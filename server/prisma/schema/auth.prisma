@@ -88,6 +88,7 @@ model Address {
   line1         String
   line2         String?
   landmark      String?
+  mapSearchQuery String // mandatory search text for Uber / Rapido / delivery app lookup
   city          String
   state         String
   stateCode     String // "19" for West Bengal — drives CGST/SGST vs IGST

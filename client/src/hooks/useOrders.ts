@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/store/auth";
 
 export interface OrderItem {
   id: string;
@@ -80,6 +81,7 @@ export interface CreateOrderItem {
 }
 
 export interface CreateOrderPayload {
+  userId?: string;
   customerName: string;
   customerPhone: string;
   customerEmail?: string | null;
@@ -92,8 +94,18 @@ export interface CreateOrderPayload {
 
 export function useCreateOrder() {
   return useMutation({
-    mutationFn: (input: CreateOrderPayload) =>
-      api.post<Order>("/orders", input),
+    mutationFn: (input: CreateOrderPayload) => {
+      const auth = useAuth.getState();
+      const token = auth.accessToken;
+      const payload = {
+        ...input,
+        userId: input.userId ?? auth.user?.id,
+      };
+
+      return api.post<Order>("/orders", payload, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+    },
   });
 }
 
@@ -102,6 +114,20 @@ export function useOrder(idOrNumber: string | undefined) {
     queryKey: ["order", idOrNumber],
     queryFn: () => api.get<Order>(`/orders/${idOrNumber}`),
     enabled: !!idOrNumber,
+    staleTime: 30_000,
+  });
+}
+
+export function useUserOrders() {
+  return useQuery<Order[]>({
+    queryKey: ["user-orders"],
+    queryFn: () => {
+      const token = useAuth.getState().accessToken;
+      return api.get<Order[]>("/orders/me", {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+    },
+    enabled: !!useAuth.getState().accessToken,
     staleTime: 30_000,
   });
 }

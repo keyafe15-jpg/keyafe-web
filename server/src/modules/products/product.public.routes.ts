@@ -17,11 +17,16 @@ publicProductRouter.get("/same-day", async (_req, res) => {
 });
 
 publicProductRouter.get("/", async (req, res) => {
-  const { category } = req.query;
+  const { category, page, pageSize } = req.query;
   if (typeof category !== "string" || !category) {
     throw HttpError.badRequest("Query param 'category' is required");
   }
-  const products = await listPublicProductsByCategorySlug(category);
+
+  const products = await listPublicProductsByCategorySlug(
+    category,
+    Number(page ?? 1),
+    Number(pageSize ?? 12),
+  );
   res.setHeader("Cache-Control", "public, max-age=30");
   res.json(products);
 });

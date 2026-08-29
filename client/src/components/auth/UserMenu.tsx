@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/store/auth";
 import { cn } from "@/lib/cn";
 import { AUTH_COPY } from "@/content/auth";
@@ -38,18 +39,20 @@ export function UserMenu() {
           <p className="text-sm font-medium text-ink-900">{user.name}</p>
           <p className="truncate text-xs text-ink-500">{user.phone}</p>
         </div>
-        <button
-          type="button"
+        <Link
+          to="/my-orders"
+          onClick={() => setOpen(false)}
           className="block w-full rounded-lg px-3 py-2 text-left text-sm text-ink-700 transition hover:bg-cream-100"
         >
           {AUTH_COPY.menu.myOrders}
-        </button>
-        <button
-          type="button"
+        </Link>
+        <Link
+          to="/saved-addresses"
+          onClick={() => setOpen(false)}
           className="block w-full rounded-lg px-3 py-2 text-left text-sm text-ink-700 transition hover:bg-cream-100"
         >
           {AUTH_COPY.menu.savedAddresses}
-        </button>
+        </Link>
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}

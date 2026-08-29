@@ -427,6 +427,257 @@ async function seedCategories() {
   logger.info(`Seeded ${total} categories (${tree.length} top-level)`);
 }
 
+async function seedProducts() {
+  const productRows = [
+    {
+      slug: "classic-vanilla-birthday-cake",
+      name: "Classic Vanilla Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Soft vanilla sponge with a buttery cream finish.",
+      basePrice: 1099,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=900&q=80",
+      ],
+      isFeatured: true,
+      supportsSameDayDelivery: true,
+      sortOrder: 10,
+    },
+    {
+      slug: "dark-chocolate-truffle-birthday-cake",
+      name: "Dark Chocolate Truffle Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Rich chocolate sponge with silky truffle ganache.",
+      basePrice: 1299,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1559628235-42d5a3b1b4a2?auto=format&fit=crop&w=900&q=80",
+      ],
+      isFeatured: true,
+      supportsSameDayDelivery: true,
+      sortOrder: 20,
+    },
+    {
+      slug: "strawberry-cream-birthday-cake",
+      name: "Strawberry Cream Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Fresh strawberry notes with fluffy cream layers.",
+      basePrice: 1199,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 30,
+    },
+    {
+      slug: "butterscotch-burst-birthday-cake",
+      name: "Butterscotch Burst Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Caramelised butterscotch on a light sponge base.",
+      basePrice: 1349,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1486427944299-d1955d23e34d?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 40,
+    },
+    {
+      slug: "red-velvet-delight-birthday-cake",
+      name: "Red Velvet Delight Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Classic red velvet with cream cheese frosting.",
+      basePrice: 1499,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1533134242443-d6bbb7d6d0c9?auto=format&fit=crop&w=900&q=80",
+      ],
+      isFeatured: true,
+      sortOrder: 50,
+    },
+    {
+      slug: "rasmalai-birthday-cake",
+      name: "Rasmalai Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "A fragrant rasmalai-inspired cream cake.",
+      basePrice: 1549,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 60,
+    },
+    {
+      slug: "blueberry-bliss-birthday-cake",
+      name: "Blueberry Bliss Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Juicy blueberry layers with soft vanilla cream.",
+      basePrice: 1399,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1558301211-0d8c8ddee6ec?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 70,
+    },
+    {
+      slug: "peach-rose-birthday-cake",
+      name: "Peach Rose Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Delicate peach flavour with a floral cream finish.",
+      basePrice: 1419,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 80,
+    },
+    {
+      slug: "choco-fudge-birthday-cake",
+      name: "Choco Fudge Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Mud-smooth chocolate layers with fudge icing.",
+      basePrice: 1599,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1486427944299-d1955d23e34d?auto=format&fit=crop&w=900&q=80",
+      ],
+      isFeatured: true,
+      sortOrder: 90,
+    },
+    {
+      slug: "cookie-monster-birthday-cake",
+      name: "Cookie Monster Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Chocolate sponge with cookie crumble and cream.",
+      basePrice: 1475,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 100,
+    },
+    {
+      slug: "mint-choco-birthday-cake",
+      name: "Mint Choco Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Cool mint notes with rich chocolate frosting.",
+      basePrice: 1369,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1517433670267-08bbd4be890f?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 110,
+    },
+    {
+      slug: "vanilla-berry-birthday-cake",
+      name: "Vanilla Berry Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Vanilla sponge layered with berry compote and cream.",
+      basePrice: 1450,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1558301211-0d8c8ddee6ec?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 120,
+    },
+    {
+      slug: "mango-celebration-cake",
+      name: "Mango Celebration Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "Mango cream layers with a light tropical finish.",
+      basePrice: 1525,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 130,
+    },
+    {
+      slug: "butterscotch-swirl-birthday-cake",
+      name: "Butterscotch Swirl Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription: "A buttery caramel swirled delight in every bite.",
+      basePrice: 1499,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1486427944299-d1955d23e34d?auto=format&fit=crop&w=900&q=80",
+      ],
+      sortOrder: 140,
+    },
+    {
+      slug: "lemon-zest-birthday-cake",
+      name: "Lemon Zest Birthday Cake",
+      categorySlug: "birthday-cakes",
+      shortDescription:
+        "Bright citrus layers with soft buttercream and a silky finish.",
+      basePrice: 1269,
+      template: "CAKE",
+      productType: "CONFIGURABLE",
+      images: [
+        "https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&w=900&q=80",
+      ],
+      isFeatured: false,
+      supportsSameDayDelivery: true,
+      sortOrder: 150,
+    },
+  ];
+
+  for (const product of productRows) {
+    const category = await prisma.category.findUnique({
+      where: { slug: product.categorySlug },
+    });
+    if (!category) continue;
+
+    await prisma.product.upsert({
+      where: { slug: product.slug },
+      create: {
+        slug: product.slug,
+        name: product.name,
+        shortDescription: product.shortDescription,
+        categoryId: category.id,
+        template: product.template,
+        productType: product.productType,
+        images: product.images,
+        basePrice: product.basePrice,
+        isFeatured: product.isFeatured ?? false,
+        supportsSameDayDelivery: product.supportsSameDayDelivery ?? false,
+        isActive: true,
+        isAvailable: true,
+        sortOrder: product.sortOrder,
+      },
+      update: {
+        name: product.name,
+        shortDescription: product.shortDescription,
+        categoryId: category.id,
+        template: product.template,
+        productType: product.productType,
+        images: product.images,
+        basePrice: product.basePrice,
+        isFeatured: product.isFeatured ?? false,
+        supportsSameDayDelivery: product.supportsSameDayDelivery ?? false,
+        isActive: true,
+        isAvailable: true,
+        sortOrder: product.sortOrder,
+      },
+    });
+  }
+
+  logger.info(`Seeded ${productRows.length} products for pagination testing`);
+}
+
 async function seedSameDayCategories() {
   const categories = [
     {
@@ -555,6 +806,7 @@ async function main() {
   await seedFlavors();
   await seedCakeSizes();
   await seedCategories();
+  await seedProducts();
   await seedSameDayCategories();
 }
 
