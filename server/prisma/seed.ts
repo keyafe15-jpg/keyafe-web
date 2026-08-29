@@ -799,6 +799,132 @@ async function seedSameDayCategories() {
   );
 }
 
+async function seedSampleOrders() {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, basePrice: true },
+    take: 12,
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+  });
+
+  if (products.length === 0) {
+    logger.info("No products available for sample order seed");
+    return;
+  }
+
+  const customerNames = [
+    "Aisha Sen",
+    "Rohit Nandi",
+    "Tanisha Roy",
+    "Manav Basu",
+    "Debjani Ghosh",
+    "Sayan Pal",
+    "Priya Mukherjee",
+    "Arjun Saha",
+    "Nandini Dutta",
+    "Aniket Roy",
+  ];
+
+  const today = new Date();
+  const sampleDays = [1, 2, 4, 6, 8, 10, 13, 16, 20, 24];
+
+  for (const [index, day] of sampleDays.entries()) {
+    const createdAt = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      day,
+      12 + (index % 3),
+      15 + index * 7,
+    );
+    const itemCount = index % 3 === 0 ? 2 : 1;
+    const selectedProducts = products.slice(
+      index % products.length,
+      (index % products.length) + itemCount,
+    );
+    const items = selectedProducts.map((product, itemIndex) => {
+      const unitPrice = Number(product.basePrice || 799);
+      const qty = itemIndex === 0 ? 1 : 2;
+      const lineTotal = unitPrice * qty;
+      return {
+        productId: product.id,
+        productName: product.name,
+        productSlug: product.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, ""),
+        productImage: null,
+        sizeLabel: itemIndex === 0 ? "1 pound" : "2 pound",
+        flavourName: itemIndex === 0 ? "Vanilla" : "Chocolate",
+        messageOnCake: itemIndex === 0 ? "Happy Birthday!" : null,
+        instructions: null,
+        deliveryDate: new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          day + 1,
+          18,
+          0,
+        ),
+        deliverySlotKey: "slot-1",
+        deliverySlotLabel: "Evening Slot",
+        unitPrice,
+        qty,
+        lineTotal,
+      };
+    });
+
+    const subtotal = items.reduce(
+      (sum, item) => sum + Number(item.lineTotal),
+      0,
+    );
+    const deliveryFee = index % 2 === 0 ? 40 : 60;
+    const total = subtotal + deliveryFee;
+
+    await prisma.order.create({
+      data: {
+        orderNumber: `KEY-${String(today.getMonth() + 1).padStart(2, "0")}${String(day).padStart(2, "0")}${String(index + 1).padStart(4, "0")}`,
+        customerName: customerNames[index % customerNames.length],
+        customerPhone: `+91${9000000000 + index * 17}`,
+        customerEmail: `${customerNames[index % customerNames.length].toLowerCase().replace(/\s+/g, ".")}@example.com`,
+        fulfillment: "DELIVERY",
+        deliveryAddress: {
+          line1: `${index + 1} Example Lane`,
+          line2: "Near Market Road",
+          landmark: "Main Square",
+          city: "Howrah",
+          area: "Central",
+          state: "West Bengal",
+          stateCode: "19",
+          pincode: "711202",
+          mapSearchQuery: "Howrah Central, West Bengal",
+        },
+        subtotal,
+        deliveryFee,
+        discount: 0,
+        total,
+        taxableAmount: subtotal,
+        cgstAmount: 0,
+        sgstAmount: 0,
+        igstAmount: 0,
+        paymentMethod: "cod",
+        paymentStatus: "PAID",
+        status: index % 4 === 0 ? "DELIVERED" : "CONFIRMED",
+        source: "STOREFRONT",
+        customerNotes: null,
+        adminNotes: null,
+        createdAt,
+        updatedAt: createdAt,
+        items: {
+          create: items,
+        },
+      },
+    });
+  }
+
+  logger.info(
+    `Seeded ${sampleDays.length} sample orders for dashboard analytics`,
+  );
+}
+
 async function main() {
   await seedBusinessSettings();
   await seedSameDayWeeklySchedule();
@@ -808,6 +934,7 @@ async function main() {
   await seedCategories();
   await seedProducts();
   await seedSameDayCategories();
+  await seedSampleOrders();
 }
 
 main()

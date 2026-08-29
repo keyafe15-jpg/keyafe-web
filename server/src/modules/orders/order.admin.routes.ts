@@ -117,6 +117,176 @@ adminOrderRouter.get("/counts", async (_req, res) => {
   res.json(counts);
 });
 
+adminOrderRouter.get("/analytics", async (req, res) => {
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  const parseDate = (value: unknown, fallback: Date) => {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return fallback;
+    }
+
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed = new Date(year!, month! - 1, day!);
+    return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+  };
+
+  const rangeFrom = parseDate(req.query.from, monthStart);
+  const rangeTo = parseDate(req.query.to, today);
+
+  if (rangeFrom > rangeTo) {
+    throw HttpError.badRequest("From date must be before or equal to To date.");
+  }
+
+  const chartStart = new Date(rangeFrom);
+  chartStart.setHours(0, 0, 0, 0);
+
+  const chartEnd = new Date(rangeTo);
+  chartEnd.setHours(23, 59, 59, 999);
+
+  const [allTime, thisMonth, selectedRange, chartRows] = await Promise.all([
+    prisma.order.aggregate({
+      _count: { id: true },
+      _sum: {
+        total: true,
+        cgstAmount: true,
+        sgstAmount: true,
+        igstAmount: true,
+      },
+    }),
+    prisma.order.aggregate({
+      where: {
+        createdAt: {
+          gte: monthStart,
+          lte: today,
+        },
+      },
+      _count: { id: true },
+      _sum: {
+        total: true,
+        cgstAmount: true,
+        sgstAmount: true,
+        igstAmount: true,
+      },
+    }),
+    prisma.order.aggregate({
+      where: {
+        createdAt: {
+          gte: chartStart,
+          lte: chartEnd,
+        },
+      },
+      _count: { id: true },
+      _sum: {
+        total: true,
+        cgstAmount: true,
+        sgstAmount: true,
+        igstAmount: true,
+      },
+    }),
+    prisma.order.findMany({
+      where: {
+        createdAt: {
+          gte: chartStart,
+          lte: chartEnd,
+        },
+      },
+      select: { createdAt: true, total: true },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  const toSafeNumber = (value: unknown): number => {
+    if (value == null) return 0;
+
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    if (typeof value === "object") {
+      const candidate = value as {
+        toNumber?: () => number;
+        toString?: () => string;
+      };
+      if (typeof candidate.toNumber === "function") {
+        const parsed = candidate.toNumber();
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      if (typeof candidate.toString === "function") {
+        const parsed = Number(candidate.toString());
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+    }
+
+    return 0;
+  };
+
+  const sumGst = (
+    value: {
+      cgstAmount: unknown;
+      sgstAmount: unknown;
+      igstAmount: unknown;
+    } | null,
+  ) =>
+    toSafeNumber(value?.cgstAmount) +
+    toSafeNumber(value?.sgstAmount) +
+    toSafeNumber(value?.igstAmount);
+
+  const salesByDate = new Map<string, { sales: number; orders: number }>();
+  for (const row of chartRows) {
+    const key = new Date(row.createdAt).toISOString().slice(0, 10);
+    const current = salesByDate.get(key) ?? { sales: 0, orders: 0 };
+    current.sales += Number(row.total ?? 0);
+    current.orders += 1;
+    salesByDate.set(key, current);
+  }
+
+  const chart: Array<{
+    date: string;
+    label: string;
+    sales: number;
+    orders: number;
+  }> = [];
+  const cursor = new Date(chartStart);
+  while (cursor <= chartEnd) {
+    const key = new Date(cursor).toISOString().slice(0, 10);
+    const bucket = salesByDate.get(key) ?? { sales: 0, orders: 0 };
+    chart.push({
+      date: key,
+      label: cursor.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+      }),
+      sales: Number(bucket.sales ?? 0),
+      orders: bucket.orders ?? 0,
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  res.json({
+    summary: {
+      totalOrdersReceived: allTime._count.id ?? 0,
+      totalSales: Number(allTime._sum.total ?? 0),
+      totalGstReceived: sumGst(allTime._sum),
+      ordersThisMonth: thisMonth._count.id ?? 0,
+      monthlySales: Number(thisMonth._sum.total ?? 0),
+      monthlyGstReceived: sumGst(thisMonth._sum),
+      rangeOrders: selectedRange._count.id ?? 0,
+      rangeSales: Number(selectedRange._sum.total ?? 0),
+      rangeGstReceived: sumGst(selectedRange._sum),
+    },
+    chart,
+  });
+});
+
 // Server-Sent Events channel — admin subscribes here and gets a `new-order`
 // message every time an order is placed (any source).
 adminOrderRouter.get("/stream", (req, res) => {
