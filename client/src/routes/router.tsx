@@ -11,6 +11,7 @@ import { SameDayPage } from "@/pages/SameDayPage";
 import { HealthyPage } from "@/pages/HealthyPage";
 import { SavedAddressesPage } from "@/pages/SavedAddressesPage";
 import { MyOrdersPage } from "@/pages/MyOrdersPage";
+import { AboutPage } from "@/pages/AboutPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OrderLinkPage } from "@/pages/OrderLinkPage";
 
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: "get-quote", element: <GetQuotePage /> },
       { path: "same-day", element: <SameDayPage /> },
       { path: "healthy", element: <HealthyPage /> },
+      { path: "about", element: <AboutPage /> },
       { path: "saved-addresses", element: <SavedAddressesPage /> },
       { path: "my-orders", element: <MyOrdersPage /> },
       { path: "o/:token", element: <OrderLinkPage /> },

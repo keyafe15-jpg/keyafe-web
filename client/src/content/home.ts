@@ -3,7 +3,7 @@
 export const HOME_COPY = {
   hero: {
     eyebrow: "Handcrafted daily",
-    heading: ["Baked with love,", "delivered warm."] as const,
+    heading: ["Baked with love,", "delivered fresh."] as const,
     sub: "Celebration cakes, dry cakes, tubs, pizzas & house-special savoury — same-day delivery available on select items.",
     primaryCta: { to: "/category/celebration-cakes", label: "Order a cake" },
     secondaryCta: {
