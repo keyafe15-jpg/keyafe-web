@@ -29,6 +29,14 @@ export function useProductsByCategory(slug: string | undefined) {
   });
 }
 
+export function useSameDayProducts() {
+  return useQuery<ProductCard[]>({
+    queryKey: ["products", "same-day"],
+    queryFn: () => api.get<ProductCard[]>("/products/same-day"),
+    staleTime: 30_000,
+  });
+}
+
 export interface ProductFlavour {
   id: string;
   slug: string;

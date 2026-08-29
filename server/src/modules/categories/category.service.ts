@@ -28,6 +28,7 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
   });
 
   const byParent = new Map<string | null, typeof rows>();
+
   for (const row of rows) {
     const key = row.parentId ?? null;
     if (!byParent.has(key)) byParent.set(key, []);
@@ -44,6 +45,5 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
       sortOrder: r.sortOrder,
       children: build(r.id),
     }));
-
   return build(null);
 }

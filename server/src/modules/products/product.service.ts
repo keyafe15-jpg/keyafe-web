@@ -189,6 +189,25 @@ export async function listPublicProductsByCategorySlug(slug: string) {
   return products.map((p) => decorateCard(p as unknown as PublicCardRow));
 }
 
+// All same-day-eligible products, ordered like the category listings. Client
+// groups them by category — server just filters.
+export async function listSameDayProducts() {
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      supportsSameDayDelivery: true,
+    },
+    orderBy: [
+      { isFeatured: "desc" },
+      { sortOrder: "asc" },
+      { createdAt: "desc" },
+    ],
+    select: PUBLIC_CARD_SELECT,
+  });
+
+  return products.map((p) => decorateCard(p as unknown as PublicCardRow));
+}
+
 // Full product detail for the PDP. Only returns active rows; unavailable ones
 // still return (so shoppers see "sold out") — hidden inactive rows 404.
 export async function getPublicProductBySlug(slug: string) {
