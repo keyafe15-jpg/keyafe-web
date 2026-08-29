@@ -38,6 +38,7 @@ import {
   publicOrderLinkRouter,
 } from "./modules/order-links/order-link.routes.js";
 import { adminPushRouter } from "./modules/push/push.routes.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
 import { attachPushToOrderEvents } from "./lib/push.js";
 
 export function createApp() {
@@ -82,6 +83,7 @@ export function createApp() {
   }
 
   app.use("/api/health", healthRouter);
+  app.use("/api/auth", authRouter);
   app.use("/api/uploads", uploadRouter);
   app.use("/api/store", storeRouter);
   app.use("/api/delivery", deliveryRouter);

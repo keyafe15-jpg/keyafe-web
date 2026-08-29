@@ -16,7 +16,14 @@ const DEFAULT_CLOSED_MESSAGE =
   "Sorry — we're closed right now. Please check back later.";
 
 function formatHm12(hm: string): string {
-  const [h, m] = hm.split(":").map(Number);
+  const [rawHour, rawMinute] = hm.split(":");
+  const h = Number(rawHour);
+  const m = Number(rawMinute ?? 0);
+
+  if (!Number.isFinite(h) || !Number.isFinite(m)) {
+    return hm;
+  }
+
   const period = h >= 12 ? "PM" : "AM";
   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return m === 0

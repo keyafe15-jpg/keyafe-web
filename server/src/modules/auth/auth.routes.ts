@@ -1,0 +1,217 @@
+import crypto from "node:crypto";
+import { Router } from "express";
+import jwt from "jsonwebtoken";
+import { z } from "zod";
+import { prisma } from "../../config/db.js";
+import { env } from "../../config/env.js";
+import { HttpError } from "../../utils/httpError.js";
+
+export const authRouter = Router();
+
+const normalizePhone = (value: string) => value.trim().replace(/[\s().-]/g, "");
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .transform((value) => normalizePhone(value))
+  .refine(
+    (value) => /^(?:\+?[1-9]\d{7,14}|[6-9]\d{9})$/.test(value),
+    "Enter a valid phone number",
+  );
+const otpSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, "Enter the 6-digit OTP");
+
+const sendOtpSchema = z.object({
+  phone: phoneSchema,
+});
+
+const verifyOtpSchema = z.object({
+  phone: phoneSchema,
+  otp: otpSchema,
+  name: z.string().trim().min(2, "Please enter your name").optional(),
+  email: z
+    .string()
+    .trim()
+    .email("Enter a valid email")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+});
+
+const otpStore = new Map<string, { code: string; expiresAt: number }>();
+
+function hashRefreshToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function signAccessToken(userId: string, phone: string): string {
+  return jwt.sign({ sub: userId, type: "access", phone }, env.JWT_SECRET, {
+    expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+  });
+}
+
+async function ensureCustomerRole() {
+  return prisma.role.upsert({
+    where: { slug: "customer" },
+    update: {},
+    create: {
+      slug: "customer",
+      name: "Customer",
+      description: "Customer role",
+      isSystem: true,
+      isSuperuser: false,
+    },
+  });
+}
+
+function serializeUser(user: {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  role: {
+    slug: string;
+    isSuperuser: boolean;
+    permissions: { permission: { key: string } }[];
+  };
+}) {
+  return {
+    id: user.id,
+    name: user.name,
+    phone: user.phone,
+    email: user.email ?? undefined,
+    role: {
+      slug: user.role.slug,
+      isSuperuser: user.role.isSuperuser,
+      permissions: user.role.permissions.map((row) => row.permission.key),
+    },
+  };
+}
+
+function issueOtp(phone: string) {
+  const normalizedPhone = normalizePhone(phone);
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  otpStore.set(normalizedPhone, {
+    code,
+    expiresAt: Date.now() + 5 * 60 * 1000,
+  });
+  return code;
+}
+
+function validateOtp(phone: string, code: string) {
+  const normalizedPhone = normalizePhone(phone);
+  const record = otpStore.get(normalizedPhone);
+  if (!record) return false;
+  if (record.expiresAt < Date.now()) {
+    otpStore.delete(normalizedPhone);
+    return false;
+  }
+  return record.code === code;
+}
+
+function consumeOtp(phone: string, code: string) {
+  const normalizedPhone = normalizePhone(phone);
+  const matches = validateOtp(normalizedPhone, code);
+  if (matches) otpStore.delete(normalizedPhone);
+  return matches;
+}
+
+authRouter.post("/send-otp", async (req, res) => {
+  const parsed = sendOtpSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid phone number", parsed.error.flatten());
+  }
+
+  const { phone } = parsed.data;
+  const otp = issueOtp(phone);
+
+  res.json({
+    message: "OTP sent successfully",
+    expiresInSeconds: 300,
+    otp: env.NODE_ENV !== "production" ? otp : undefined,
+  });
+});
+
+authRouter.post("/verify-otp", async (req, res) => {
+  const parsed = verifyOtpSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid OTP request", parsed.error.flatten());
+  }
+
+  const { phone, otp, name, email } = parsed.data;
+  const normalizedPhone = normalizePhone(phone);
+
+  if (!validateOtp(normalizedPhone, otp)) {
+    throw HttpError.unauthorized("Invalid or expired OTP");
+  }
+
+  let user = await prisma.user.findUnique({
+    where: { phone: normalizedPhone },
+    include: {
+      role: {
+        include: {
+          permissions: { include: { permission: true } },
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    if (!name) {
+      return res.status(202).json({
+        requiresProfile: true,
+        phone: normalizedPhone,
+        message: "Complete your profile to finish account setup",
+      });
+    }
+
+    const role = await ensureCustomerRole();
+    const existingEmail = email
+      ? await prisma.user.findUnique({ where: { email } })
+      : null;
+    if (existingEmail) {
+      throw HttpError.conflict("An account with this email already exists");
+    }
+
+    user = await prisma.user.create({
+      data: {
+        name,
+        phone: normalizedPhone,
+        email: email ?? null,
+        roleId: role.id,
+      },
+      include: {
+        role: {
+          include: {
+            permissions: { include: { permission: true } },
+          },
+        },
+      },
+    });
+  }
+
+  if (!consumeOtp(normalizedPhone, otp)) {
+    throw HttpError.unauthorized("Invalid or expired OTP");
+  }
+
+  const accessToken = signAccessToken(user.id, user.phone);
+  const refreshToken = crypto.randomBytes(32).toString("hex");
+
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashRefreshToken(refreshToken),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      ip: req.ip ?? null,
+      userAgent: req.headers["user-agent"] ?? null,
+    },
+  });
+
+  res.json({
+    user: serializeUser(user),
+    accessToken,
+    refreshToken,
+    tokenType: "Bearer",
+  });
+});

@@ -1,29 +1,20 @@
 export const AUTH_COPY = {
-  tabs: { login: "Log in", register: "Register" },
-  login: {
-    title: "Welcome back",
-    subtitle: "Log in to track orders and speed up checkout.",
-    submit: "Log in",
-    submitting: "Logging in…",
-    fields: {
-      phone: { label: "Phone", placeholder: "10-digit mobile" },
-      password: { label: "Password" },
+  title: "Continue with OTP",
+  subtitle:
+    "Enter your phone number and we’ll send a code. If it’s your first time, we’ll ask for your name and email after the OTP is verified.",
+  submit: "Verify OTP",
+  createAccount: "Create account",
+  submitting: "Verifying…",
+  sendOtp: "Send OTP",
+  fields: {
+    name: { label: "Your name", hint: "Needed the first time you sign up." },
+    countryCode: { label: "Code" },
+    phone: { label: "Phone", placeholder: "Phone number" },
+    email: {
+      label: "Email",
+      hint: "Optional — we use it for order receipts.",
     },
-  },
-  register: {
-    title: "Create your account",
-    subtitle: "Register to save addresses and see your order history.",
-    submit: "Create account",
-    submitting: "Creating account…",
-    fields: {
-      name: { label: "Your name" },
-      phone: { label: "Phone", placeholder: "10-digit mobile" },
-      email: {
-        label: "Email",
-        hint: "Optional — we use it for order receipts.",
-      },
-      password: { label: "Password" },
-    },
+    otp: { label: "OTP" },
   },
   headerButton: "Log in",
   menu: {

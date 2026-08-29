@@ -55,7 +55,6 @@ CREATE TABLE "User" (
     "phone" TEXT NOT NULL,
     "email" TEXT,
     "name" TEXT NOT NULL,
-    "passwordHash" TEXT,
     "roleId" TEXT NOT NULL,
     "emailVerifiedAt" TIMESTAMP(3),
     "phoneVerifiedAt" TIMESTAMP(3),

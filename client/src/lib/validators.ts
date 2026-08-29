@@ -1,19 +1,66 @@
 import { z } from "zod";
 
-// Indian mobile: 10 digits starting with 6/7/8/9.
+export const normalizePhone = (value: string) =>
+  value.trim().replace(/[\s().-]/g, "");
+
+export const formatPhoneWithCountryCode = (
+  countryCode: string,
+  phone: string,
+) => {
+  const normalizedCountryCode = countryCode.trim();
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedCountryCode) return normalizedPhone;
+  return `${normalizedCountryCode}${normalizedPhone.startsWith("+") ? normalizedPhone.slice(1) : normalizedPhone}`;
+};
+
+export const countryCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\+\d{1,4}$/, "Select a valid country code");
+
+export const phoneNumberSchema = z
+  .string()
+  .trim()
+  .transform((value) => normalizePhone(value))
+  .refine((value) => /^\d{5,15}$/.test(value), "Enter a valid phone number");
+
+// Accept Indian mobile numbers as well as international numbers like +91..., +1..., +44...
 export const phoneSchema = z
   .string()
   .trim()
-  .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile number");
+  .transform((value) => normalizePhone(value))
+  .refine(
+    (value) => /^(?:\+?[1-9]\d{7,14}|[6-9]\d{9})$/.test(value),
+    "Enter a valid phone number",
+  );
 
-export const passwordSchema = z
+export const otpSchema = z
   .string()
-  .min(6, "Minimum 6 characters")
-  .max(72, "Maximum 72 characters");
+  .trim()
+  .regex(/^\d{6}$/, "Enter the 6-digit OTP");
+
+export const otpAuthSchema = z.object({
+  countryCode: countryCodeSchema.default("+91"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Please enter your name")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  phone: phoneNumberSchema,
+  email: z
+    .string()
+    .trim()
+    .email("Enter a valid email")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  otp: otpSchema,
+});
+export type OtpAuthInput = z.infer<typeof otpAuthSchema>;
 
 export const loginSchema = z.object({
   phone: phoneSchema,
-  password: passwordSchema,
+  otp: otpSchema,
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
@@ -26,7 +73,7 @@ export const registerSchema = z.object({
     .email("Enter a valid email")
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  password: passwordSchema,
+  otp: otpSchema,
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 

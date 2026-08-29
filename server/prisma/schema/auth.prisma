@@ -1,5 +1,5 @@
 // Auth + customer profile + RBAC.
-// Single User table where guests have a null password.
+// OTP-only customer authentication; no password-based login path remains.
 // Roles + Permissions are DB-driven so admin can configure them from the UI.
 
 model Role {
@@ -52,11 +52,10 @@ model RolePermission {
 }
 
 model User {
-  id           String  @id @default(cuid())
-  phone        String  @unique // required (India-first)
-  email        String? @unique // optional; needed for registered accounts
-  name         String
-  passwordHash String? // NULL = guest (no login), set = registered
+  id    String  @id @default(cuid())
+  phone String  @unique // required; supports Indian and international numbers
+  email String? @unique // optional; needed for registered accounts
+  name  String
 
   roleId String
   role   Role   @relation(fields: [roleId], references: [id])

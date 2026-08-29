@@ -46,6 +46,12 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default("mailto:admin@keyafe.in"),
+
+  JWT_SECRET: z
+    .string()
+    .min(32, "JWT_SECRET must be at least 32 chars")
+    .default("dev-secret-keyafe-please-change-me-2026"),
+  JWT_EXPIRES_IN: z.string().default("7d"),
 });
 
 const parsed = envSchema.safeParse(process.env);
