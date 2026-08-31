@@ -168,12 +168,6 @@
   min-height: 0;
 }
 
-.hero-carousel-track {
-  display: flex;
-  width: 300%;
-  animation: hero-rotate 16s ease-in-out infinite;
-}
-
 .hero-slide {
   width: 100%;
   min-width: 0;

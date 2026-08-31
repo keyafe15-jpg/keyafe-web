@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import useEmblaCarousel from "embla-carousel-react";
-import Autoplay from "embla-carousel-autoplay";
 
 type HeroSlide = {
   title: string;
@@ -34,53 +32,76 @@ const slides: HeroSlide[] = [
 ];
 
 export function HeroSlider() {
-  const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true, align: "center" },
-    [Autoplay({ delay: 4200, stopOnInteraction: false })],
-  );
   const [selectedIndex, setSelectedIndex] = useState(0);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-
-    const onSelect = () => {
-      setSelectedIndex(emblaApi.selectedScrollSnap());
-    };
-
-    onSelect();
-    emblaApi.on("select", onSelect);
-
-    return () => {
-      emblaApi.off("select", onSelect);
-    };
-  }, [emblaApi]);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   const goToPrevious = () => {
-    emblaApi?.scrollPrev();
+    setSelectedIndex(
+      (current) => (current - 1 + slides.length) % slides.length,
+    );
   };
 
   const goToNext = () => {
-    emblaApi?.scrollNext();
+    setSelectedIndex((current) => (current + 1) % slides.length);
   };
 
   const goToSlide = (index: number) => {
-    emblaApi?.scrollTo(index);
+    setSelectedIndex(index);
+  };
+
+  useEffect(() => {
+    const autoplay = window.setInterval(() => {
+      setSelectedIndex((current) => (current + 1) % slides.length);
+    }, 4200);
+
+    return () => {
+      window.clearInterval(autoplay);
+    };
+  }, []);
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    setTouchStartX(event.touches[0]?.clientX ?? null);
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (touchStartX === null) return;
+
+    const touchEndX = event.changedTouches[0]?.clientX ?? touchStartX;
+    const delta = touchEndX - touchStartX;
+
+    if (Math.abs(delta) > 40) {
+      if (delta < 0) {
+        goToNext();
+      } else {
+        goToPrevious();
+      }
+    }
+
+    setTouchStartX(null);
   };
 
   return (
-    <div className="hero-showcase w-full rounded-[2.1rem] border border-[#eadfc8] bg-[#f7f2eb]/90 p-4 shadow-[0_20px_45px_rgba(21,31,37,0.06)] backdrop-blur-sm">
-      <div className="hero-carousel-wrap overflow-hidden rounded-[1.7rem] border border-[#eadfc8] bg-[#f5f2ee] p-1 sm:p-2">
-        <div className="embla__viewport overflow-hidden" ref={emblaRef}>
-          <div className="embla__container flex">
+    <div className="hero-showcase w-full max-w-full min-w-0 rounded-[2.1rem] border border-[#eadfc8] bg-[#f7f2eb]/90 p-4 shadow-[0_20px_45px_rgba(21,31,37,0.06)] backdrop-blur-sm">
+      <div className="hero-carousel-wrap w-full max-w-full min-w-0 overflow-hidden rounded-[1.7rem] border border-[#eadfc8] bg-[#f5f2ee] p-1 sm:p-2">
+        <div
+          className="w-full max-w-full min-w-0 overflow-hidden"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div
+            className="flex w-full min-w-0 transition-transform duration-500 ease-out"
+            style={{ transform: `translateX(-${selectedIndex * 100}%)` }}
+          >
             {slides.map((slide) => (
               <div
                 key={slide.title}
-                className="embla__slide min-w-0 flex-[0_0_100%] p-0.5"
+                className="min-w-0 w-full shrink-0 p-0.5"
+                style={{ flex: "0 0 100%" }}
               >
                 <div className="showcase-stage relative overflow-hidden rounded-[1.4rem] border border-[#eadfc8] bg-[#f4f0eb] p-3 sm:p-4">
                   <div className={`absolute inset-0 ${slide.tint}`} />
-                  <div className="relative flex h-[130px] items-end justify-between gap-3 sm:h-[310px] lg:h-[330px] md:h-[310px]">
-                    <div className="max-w-[62%]">
+                  <div className="relative flex h-[130px] items-end justify-between gap-2 sm:h-[310px] md:h-[310px] lg:h-[330px]">
+                    <div className="min-w-0 max-w-[62%] flex-1">
                       <p
                         className={`mb-1.5 inline-flex rounded-full px-2.5 py-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-white sm:mb-2 sm:text-[9px] ${slide.accent}`}
                       >

@@ -34,8 +34,8 @@ export function HomePage() {
       <PageMotifs />
 
       <section className="mx-auto max-w-6xl px-2 pb-10 pt-8 sm:pt-6 md:pt-12">
-        <div className="grid items-start gap-5 md:gap-8 lg:grid-cols-[0.9fr_1.1fr] sm:grid-cols-[0.9fr_1.1fr] lg:gap-12 sm:gap-8">
-          <div className="flex flex-[0_0_auto] flex-col pt-2 md:pt-4">
+        <div className="grid min-w-0 items-start gap-5 md:gap-8 lg:grid-cols-[0.9fr_1.1fr] sm:grid-cols-[0.9fr_1.1fr] lg:gap-12 sm:gap-8">
+          <div className="flex min-w-0 flex-[0_0_auto] flex-col pt-2 md:pt-4">
             <div className="mb-4 flex flex-[0_0_auto] items-center gap-2 rounded-full border border-brand-200 bg-transparent px-3 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700 md:w-full">
               <span className="inline-block h-2 w-2 rounded-full bg-brand-500" />
               <span className="inline-block">{HOME_COPY.hero.eyebrow}</span>
@@ -86,9 +86,8 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="relative w-full pt-1 md:pt-2">
+          <div className="relative w-full min-w-0 pt-1 md:pt-2">
             <HeroSlider />
-
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-[#eadfc8] bg-[#f0e7dc] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-brand-500">
