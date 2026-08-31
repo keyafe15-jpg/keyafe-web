@@ -5,6 +5,7 @@ import { useSameDayStatus } from "@/hooks/useSameDayStatus";
 import { useSameDayProducts, type ProductCard } from "@/hooks/useProducts";
 import { useCategories, type CategoryNode } from "@/hooks/useCategories";
 import { LeadTimeChip } from "@/components/product/LeadTimeChip";
+import { Reveal } from "@/components/motion/Reveal";
 import { SAMEDAY_COPY } from "@/content/sameday";
 
 const SAME_DAY_PAGE_SIZE = 12;
@@ -85,7 +86,10 @@ export function SameDayPage() {
     setPage(1);
   }, [activeSlug]);
 
-  const totalPages = Math.max(1, Math.ceil(visibleProducts.length / SAME_DAY_PAGE_SIZE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(visibleProducts.length / SAME_DAY_PAGE_SIZE),
+  );
   const paginatedProducts = useMemo(
     () =>
       visibleProducts.slice(
@@ -157,18 +161,32 @@ export function SameDayPage() {
         <button
           type="button"
           onClick={() => setMobileNavOpen((v) => !v)}
-          className="flex w-full items-center justify-between rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm"
+          className="flex w-full items-center justify-between rounded-2xl border border-brand-200 bg-gradient-to-r from-white to-[#fff5f9] px-4 py-3 text-sm shadow-sm transition active:scale-[0.99]"
         >
-          <span>
-            <span className="text-ink-500">
-              {SAMEDAY_COPY.sidebarMobileLabel}:
-            </span>{" "}
-            <span className="font-medium text-ink-900">{activeLabel}</span>
+          <span className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-white shadow-[0_6px_14px_rgba(227,28,121,0.3)]">
+              <BoltIcon />
+            </span>
+            <span className="text-left">
+              <span className="block text-[10px] uppercase tracking-[0.18em] text-brand-500">
+                {SAMEDAY_COPY.sidebarMobileLabel}
+              </span>
+              <span className="block font-semibold text-ink-900">
+                {activeLabel}
+              </span>
+            </span>
           </span>
-          <ChevronIcon open={mobileNavOpen} />
+          <span
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-full bg-white text-brand-500 shadow-sm transition-transform duration-200",
+              mobileNavOpen && "rotate-180",
+            )}
+          >
+            <ChevronIcon open={mobileNavOpen} />
+          </span>
         </button>
         {mobileNavOpen && (
-          <ul className="mt-2 space-y-1 rounded-lg border border-cream-200 bg-white p-2">
+          <ul className="category-dropdown mt-2 space-y-1 rounded-2xl border border-cream-200 bg-white p-2 shadow-[0_16px_32px_rgba(26,33,42,0.1)]">
             {pruned.map((top) => (
               <MobileNavItem
                 key={top.id}
@@ -241,9 +259,11 @@ export function SameDayPage() {
 
           {!productsLoading && visibleProducts.length > 0 && (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {paginatedProducts.map((p) => (
-                  <ProductCardView key={p.id} product={p} disabled={!isOpen} />
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+                {paginatedProducts.map((p, index) => (
+                  <Reveal key={p.id} delay={(index % 6) * 60}>
+                    <ProductCardView product={p} disabled={!isOpen} />
+                  </Reveal>
                 ))}
               </div>
 
@@ -425,54 +445,90 @@ function MobileNavItem({
   const count = products.filter((p) => branchIds.has(p.category.id)).length;
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.slug);
+  const isActive = node.slug === activeSlug;
   return (
     <li>
       <div
         className={cn(
-          "flex items-center rounded-md text-sm",
-          node.slug === activeSlug
-            ? "bg-brand-100 text-brand-700"
+          "flex items-center gap-2 rounded-xl transition",
+          isActive
+            ? "bg-gradient-to-r from-brand-500 to-[#f0509a] text-white shadow-[0_8px_18px_rgba(227,28,121,0.25)]"
             : "text-ink-700 hover:bg-cream-100",
         )}
       >
         <button
           type="button"
           onClick={() => onPick(node.slug)}
-          className="flex-1 px-3 py-2 text-left"
+          className="flex flex-1 items-center gap-2 px-3 py-2.5 text-left text-sm font-medium"
         >
-          {node.name} ({count})
+          <span
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              isActive ? "bg-white" : "bg-brand-300",
+            )}
+          />
+          {node.name}
+          <span
+            className={cn(
+              "ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold",
+              isActive ? "bg-white/25 text-white" : "bg-cream-100 text-ink-500",
+            )}
+          >
+            {count}
+          </span>
         </button>
         {hasChildren && (
           <button
             type="button"
             onClick={() => onToggle(node.slug)}
             aria-label={isOpen ? "Collapse" : "Expand"}
-            className="flex h-8 w-8 items-center justify-center text-ink-500"
+            className={cn(
+              "mr-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition",
+              isActive ? "text-white/90" : "text-ink-500",
+            )}
           >
-            <ChevronIcon open={isOpen} />
+            <span
+              className={cn(
+                "inline-block transition-transform duration-200",
+                isOpen && "rotate-180",
+              )}
+            >
+              <ChevronIcon open={isOpen} />
+            </span>
           </button>
         )}
       </div>
       {hasChildren && isOpen && (
-        <ul className="ml-4 space-y-1">
+        <ul className="ml-4 mt-1 space-y-1 border-l-2 border-brand-100 pl-3">
           {node.children.map((child) => {
             const childIds = collectIds(child);
             const childCount = products.filter((p) =>
               childIds.has(p.category.id),
             ).length;
+            const childActive = child.slug === activeSlug;
             return (
               <li key={child.id}>
                 <button
                   type="button"
                   onClick={() => onPick(child.slug)}
                   className={cn(
-                    "block w-full rounded-md px-3 py-2 text-left text-sm transition",
-                    child.slug === activeSlug
-                      ? "bg-brand-100 text-brand-700"
+                    "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition",
+                    childActive
+                      ? "bg-brand-100 font-medium text-brand-700"
                       : "text-ink-700 hover:bg-cream-100",
                   )}
                 >
-                  {child.name} ({childCount})
+                  {child.name}
+                  <span
+                    className={cn(
+                      "ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                      childActive
+                        ? "bg-brand-200/60 text-brand-700"
+                        : "bg-cream-100 text-ink-500",
+                    )}
+                  >
+                    {childCount}
+                  </span>
                 </button>
               </li>
             );
@@ -495,10 +551,7 @@ function pruneTree(
     .filter((n) => eligibleIds.has(n.id) || n.children.length > 0);
 }
 
-function findBySlug(
-  tree: CategoryNode[],
-  slug: string,
-): CategoryNode | null {
+function findBySlug(tree: CategoryNode[], slug: string): CategoryNode | null {
   for (const n of tree) {
     if (n.slug === slug) return n;
     const inChildren = findBySlug(n.children, slug);
@@ -577,7 +630,7 @@ function ProductCardView({
 
 function ProductGridSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}

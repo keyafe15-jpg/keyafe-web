@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCategories, type CategoryNode } from "@/hooks/useCategories";
 import { useProductsByCategory } from "@/hooks/useProducts";
 import { CATEGORY_PLACEHOLDER_COPY } from "@/content/misc";
+import { Reveal } from "@/components/motion/Reveal";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 12;
@@ -87,26 +88,51 @@ export function CategoryPage() {
 
       <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
         {hasSubs && (
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-              {container?.name}
-            </p>
-            <ul className="space-y-1">
-              <SidebarLink
-                to={`/category/${container!.slug}`}
-                active={current?.id === container!.id}
-                label="All"
-              />
-              {subcategories.map((sub) => (
-                <SidebarLink
-                  key={sub.id}
-                  to={`/category/${sub.slug}`}
-                  active={current?.id === sub.id}
-                  label={sub.name}
+          <>
+            {/* mobile/tablet: wrapped pill filter bar */}
+            <div className="lg:hidden">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-ink-500">
+                {container?.name}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <PillLink
+                  to={`/category/${container!.slug}`}
+                  active={current?.id === container!.id}
+                  label="All"
                 />
-              ))}
-            </ul>
-          </aside>
+                {subcategories.map((sub) => (
+                  <PillLink
+                    key={sub.id}
+                    to={`/category/${sub.slug}`}
+                    active={current?.id === sub.id}
+                    label={sub.name}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* desktop: sidebar with sliding active indicator */}
+            <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+                {container?.name}
+              </p>
+              <ul className="space-y-1">
+                <SidebarLink
+                  to={`/category/${container!.slug}`}
+                  active={current?.id === container!.id}
+                  label="All"
+                />
+                {subcategories.map((sub) => (
+                  <SidebarLink
+                    key={sub.id}
+                    to={`/category/${sub.slug}`}
+                    active={current?.id === sub.id}
+                    label={sub.name}
+                  />
+                ))}
+              </ul>
+            </aside>
+          </>
         )}
 
         <div className={cn(!hasSubs && "lg:col-span-2")}>
@@ -121,9 +147,11 @@ export function CategoryPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {products.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+              <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3">
+                {products.map((p, index) => (
+                  <Reveal key={p.id} delay={(index % 6) * 60}>
+                    <ProductCard product={p} />
+                  </Reveal>
                 ))}
               </div>
 
@@ -172,15 +200,46 @@ function SidebarLink({
       <Link
         to={to}
         className={cn(
-          "block rounded-lg px-3 py-2 text-sm transition",
+          "group relative block rounded-lg px-3 py-2 pl-4 text-sm transition",
           active
-            ? "bg-brand-100 font-medium text-brand-700"
+            ? "font-medium text-brand-700"
             : "text-ink-700 hover:bg-cream-100",
         )}
       >
+        <span
+          className={cn(
+            "absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-brand-500 transition-all",
+            active ? "opacity-100" : "opacity-0 group-hover:opacity-40",
+          )}
+          aria-hidden="true"
+        />
         {label}
       </Link>
     </li>
+  );
+}
+
+function PillLink({
+  to,
+  active,
+  label,
+}: {
+  to: string;
+  active: boolean;
+  label: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className={cn(
+        "rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
+        active
+          ? "border-brand-500 bg-brand-500 text-white shadow-[0_8px_16px_rgba(227,28,121,0.2)]"
+          : "border-cream-200 bg-white text-ink-700 hover:border-brand-200 hover:text-brand-600",
+      )}
+    >
+      {label}
+    </Link>
   );
 }
 
@@ -210,33 +269,33 @@ function ProductCard({
           </div>
         )}
       </div>
-      <div className="p-4">
-        <p className="text-xs uppercase tracking-wide text-ink-400">
+      <div className="p-2.5 sm:p-4">
+        <p className="text-[10px] uppercase tracking-wide text-ink-400 sm:text-xs">
           {product.category.name}
         </p>
-        <h3 className="mt-1 line-clamp-1 text-lg text-ink-900 group-hover:text-brand-500">
+        <h3 className="mt-1 line-clamp-1 text-sm text-ink-900 group-hover:text-brand-500 sm:text-lg">
           {product.name}
         </h3>
         {product.shortDescription && (
-          <p className="mt-1 line-clamp-2 text-sm text-ink-500">
+          <p className="mt-1 hidden line-clamp-2 text-sm text-ink-500 sm:block">
             {product.shortDescription}
           </p>
         )}
-        <div className="mt-3 flex items-center justify-between">
-          <span className="text-lg font-semibold text-ink-900">
+        <div className="mt-2 flex items-center justify-between gap-1 sm:mt-3">
+          <span className="text-sm font-semibold text-ink-900 sm:text-lg">
             {showsRange && (
-              <span className="mr-1 text-xs font-normal text-ink-500">
+              <span className="mr-1 hidden text-xs font-normal text-ink-500 sm:inline">
                 starts from
               </span>
             )}
             {priceValue}
           </span>
           {!product.isAvailable ? (
-            <span className="rounded-md bg-cream-200 px-2 py-0.5 text-xs text-ink-500">
+            <span className="rounded-md bg-cream-200 px-1.5 py-0.5 text-[10px] text-ink-500 sm:px-2 sm:text-xs">
               Sold out
             </span>
           ) : product.supportsSameDayDelivery ? (
-            <span className="rounded-md bg-brand-100 px-2 py-0.5 text-xs text-brand-700">
+            <span className="rounded-md bg-brand-100 px-1.5 py-0.5 text-[10px] text-brand-700 sm:px-2 sm:text-xs">
               Same-day
             </span>
           ) : null}
@@ -248,7 +307,7 @@ function ProductCard({
 
 function ProductGridSkeleton() {
   return (
-    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}

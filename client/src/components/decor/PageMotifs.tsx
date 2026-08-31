@@ -21,7 +21,7 @@ const placements: Placement[] = [
     Motif: Cupcake,
     x: "3%",
     y: "2%",
-    size: 84,
+    size: 104,
     rotate: -14,
     color: "brand",
     opacity: 0.22,
@@ -30,7 +30,7 @@ const placements: Placement[] = [
     Motif: Whisk,
     x: "88%",
     y: "4%",
-    size: 80,
+    size: 98,
     rotate: 16,
     color: "brand",
     opacity: 0.2,
@@ -441,19 +441,125 @@ const placements: Placement[] = [
     color: "ink",
     opacity: 0.22,
   },
+
+  // Bigger, bolder motifs concentrated near the end of the page (quote
+  // banner / footer area) so the closing section doesn't feel bare.
+  {
+    Motif: Cupcake,
+    x: "6%",
+    y: "82%",
+    size: 96,
+    rotate: -16,
+    color: "brand",
+    opacity: 0.3,
+    hideOnMobile: true,
+  },
+  {
+    Motif: Whisk,
+    x: "86%",
+    y: "84%",
+    size: 92,
+    rotate: 20,
+    color: "brand",
+    opacity: 0.28,
+    hideOnMobile: true,
+  },
+  {
+    Motif: Cookie,
+    x: "46%",
+    y: "80%",
+    size: 70,
+    rotate: 12,
+    color: "ink",
+    opacity: 0.22,
+  },
+  {
+    Motif: Cupcake,
+    x: "22%",
+    y: "97%",
+    size: 60,
+    rotate: 8,
+    color: "brand",
+    opacity: 0.3,
+  },
+  {
+    Motif: Cookie,
+    x: "70%",
+    y: "98%",
+    size: 56,
+    rotate: -14,
+    color: "brand",
+    opacity: 0.3,
+  },
+  {
+    Motif: Whisk,
+    x: "94%",
+    y: "94%",
+    size: 50,
+    rotate: -8,
+    color: "ink",
+    opacity: 0.24,
+    hideOnMobile: true,
+  },
+  {
+    Motif: Cupcake,
+    x: "38%",
+    y: "88%",
+    size: 44,
+    rotate: -20,
+    color: "brand",
+    opacity: 0.26,
+  },
+
+  // A few extra oversized motifs scattered through the middle for stronger
+  // overall presence.
+  {
+    Motif: Whisk,
+    x: "2%",
+    y: "56%",
+    size: 88,
+    rotate: 10,
+    color: "brand",
+    opacity: 0.26,
+    hideOnMobile: true,
+  },
+  {
+    Motif: Cupcake,
+    x: "94%",
+    y: "62%",
+    size: 84,
+    rotate: -22,
+    color: "brand",
+    opacity: 0.26,
+    hideOnMobile: true,
+  },
+  {
+    Motif: Cookie,
+    x: "50%",
+    y: "34%",
+    size: 78,
+    rotate: 16,
+    color: "ink",
+    opacity: 0.2,
+    hideOnMobile: true,
+  },
 ];
 
 export function PageMotifs() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
     >
       {placements.map(
         ({ Motif, x, y, size, rotate, color, opacity, hideOnMobile }, i) => {
           // Stagger duration (5.5–8s) and delay (0–3.5s) so bobs are out of sync.
           const duration = 5.5 + ((i * 0.37) % 2.5);
           const delay = (i * 0.31) % 3.5;
+          // Boost visibility across the board; only suppress the very largest
+          // shapes on mobile so small screens don't feel cluttered.
+          const boostedOpacity = Math.min(opacity * 1.7, 0.85);
+          const suppressOnMobile = hideOnMobile && size >= 60;
           return (
             <Motif
               key={i}
@@ -462,7 +568,7 @@ export function PageMotifs() {
               className={[
                 "absolute",
                 color === "brand" ? "text-brand-500" : "text-ink-500",
-                hideOnMobile ? "hidden sm:block" : "",
+                suppressOnMobile ? "hidden sm:block" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -471,7 +577,7 @@ export function PageMotifs() {
                 top: y,
                 width: size,
                 height: size,
-                opacity,
+                opacity: boostedOpacity,
                 transform: `rotate(${rotate}deg)`,
                 animation: `motif-float ${duration.toFixed(2)}s ease-in-out ${delay.toFixed(2)}s infinite`,
                 willChange: "translate",

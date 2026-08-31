@@ -15,10 +15,17 @@ import { Menu, ShoppingCart, X } from "lucide-react";
 export function Header() {
   const count = useCart((s) => s.itemCount());
   const user = useAuth((s) => s.user);
+  const logout = useAuth((s) => s.logout);
   const { data: categories = [] } = useCategories();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(
+    null,
+  );
 
-  const closeMobileMenu = () => setMobileMenuOpen(false);
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+    setExpandedCategoryId(null);
+  };
 
   return (
     <>
@@ -145,132 +152,223 @@ export function Header() {
 
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/30 md:hidden"
+          className="fixed inset-0 z-50 bg-ink-900/40 backdrop-blur-[2px] md:hidden"
           onClick={closeMobileMenu}
         >
           <div
-            className="ml-auto h-full w-[82%] max-w-sm overflow-y-auto border-l border-cream-200 bg-[#fffaf4] p-4 shadow-xl"
+            className="drawer-panel ml-auto flex h-full w-[86%] max-w-sm flex-col overflow-y-auto bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-500">
-                Menu
-              </p>
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-cream-100 bg-white/95 px-5 py-3.5 backdrop-blur">
+              <Link
+                to="/"
+                onClick={closeMobileMenu}
+                className="flex items-center gap-2"
+              >
+                <img
+                  src={BRAND.logoSrc}
+                  alt={BRAND.logoAlt}
+                  className="h-9 w-9 rounded-full border border-[#e7d6b4] bg-white object-cover shadow-sm"
+                />
+                <span className="brand-wordmark text-lg">{BRAND.name}</span>
+              </Link>
               <button
                 type="button"
                 onClick={closeMobileMenu}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-cream-200 bg-white text-ink-700"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-cream-100 text-ink-700 transition hover:bg-cream-200"
                 aria-label="Close menu"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-cream-200 bg-white p-3">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-500">
-                  Categories
-                </p>
-                <div className="space-y-2">
-                  {categories.length === 0 && (
-                    <p className="text-sm text-ink-500">No categories yet.</p>
-                  )}
-                  {categories.map((category) => (
-                    <div
-                      key={category.id}
-                      className="rounded-xl border border-cream-200 bg-[#fffaf5] px-2 py-1.5"
-                    >
-                      <Link
-                        to={`/category/${category.slug}`}
-                        onClick={closeMobileMenu}
-                        className="flex items-center justify-between gap-3 text-sm font-medium text-ink-800"
-                      >
-                        <span>{category.name}</span>
-                        {category.children.length > 0 && (
-                          <span className="text-xs text-ink-500">›</span>
-                        )}
-                      </Link>
-
-                      {category.children.length > 0 && (
-                        <div className="mt-2 space-y-1.5 border-l border-cream-200 pl-3">
-                          {category.children.map((child) => (
-                            <Link
-                              key={child.id}
-                              to={`/category/${child.slug}`}
-                              onClick={closeMobileMenu}
-                              className="block text-sm text-ink-600 hover:text-brand-500"
-                            >
-                              {child.name}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
+            <div className="flex-1 space-y-6 px-5 py-5">
+              {user ? (
+                <div className="rounded-2xl bg-gradient-to-r from-cream-50 to-cream-100 p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-500 text-sm font-semibold text-white">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-ink-900">
+                        {user.name}
+                      </p>
+                      <p className="truncate text-xs text-ink-500">
+                        {user.phone}
+                      </p>
                     </div>
-                  ))}
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Link
+                      to="/my-orders"
+                      onClick={closeMobileMenu}
+                      className="rounded-xl bg-white px-3 py-2 text-center text-xs font-medium text-ink-700 shadow-sm transition hover:text-brand-500"
+                    >
+                      {AUTH_COPY.menu.myOrders}
+                    </Link>
+                    <Link
+                      to="/saved-addresses"
+                      onClick={closeMobileMenu}
+                      className="rounded-xl bg-white px-3 py-2 text-center text-xs font-medium text-ink-700 shadow-sm transition hover:text-brand-500"
+                    >
+                      {AUTH_COPY.menu.savedAddresses}
+                    </Link>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void logout();
+                      closeMobileMenu();
+                    }}
+                    className="mt-2 w-full rounded-xl px-3 py-2 text-center text-xs font-medium text-ink-500 transition hover:bg-white hover:text-brand-500"
+                  >
+                    Log out
+                  </button>
+                </div>
+              ) : (
+                <AuthDialog
+                  trigger={
+                    <button
+                      type="button"
+                      onClick={closeMobileMenu}
+                      className="w-full rounded-2xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(227,28,121,0.25)] transition hover:bg-brand-700"
+                    >
+                      {AUTH_COPY.headerButton}
+                    </button>
+                  }
+                />
+              )}
+
+              <div>
+                <p className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">
+                  Quick links
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <NavLink
+                    to={SAMEDAY_NAV.to}
+                    onClick={closeMobileMenu}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex flex-col items-center gap-1.5 rounded-2xl border border-brand-200 bg-gradient-to-b from-[#fff1f6] to-[#ffe6ef] px-2 py-3 text-center transition active:scale-95",
+                        isActive && "ring-2 ring-brand-300",
+                      )
+                    }
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-base shadow-sm">
+                      ⚡
+                    </span>
+                    <span className="text-xs font-semibold leading-tight text-brand-700">
+                      {SAMEDAY_NAV.label}
+                    </span>
+                  </NavLink>
+                  <NavLink
+                    to={HEALTHY_NAV.to}
+                    onClick={closeMobileMenu}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex flex-col items-center gap-1.5 rounded-2xl border border-emerald-200 bg-gradient-to-b from-[#f2fff7] to-[#eafcf1] px-2 py-3 text-center transition active:scale-95",
+                        isActive && "ring-2 ring-emerald-300",
+                      )
+                    }
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-base shadow-sm">
+                      🌿
+                    </span>
+                    <span className="text-xs font-semibold leading-tight text-emerald-700">
+                      {HEALTHY_NAV.label}
+                    </span>
+                  </NavLink>
+                  <NavLink
+                    to="/about"
+                    onClick={closeMobileMenu}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex flex-col items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-center transition active:scale-95",
+                        isActive && "ring-2 ring-slate-300",
+                      )
+                    }
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-base shadow-sm">
+                      ✦
+                    </span>
+                    <span className="text-xs font-semibold leading-tight text-slate-700">
+                      About
+                    </span>
+                  </NavLink>
                 </div>
               </div>
 
-              <nav className="space-y-2.5 rounded-2xl border border-cream-200 bg-white p-3">
-                <NavLink
-                  to={SAMEDAY_NAV.to}
-                  onClick={closeMobileMenu}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center justify-between rounded-2xl border border-brand-200 bg-gradient-to-r from-[#fff1f6] to-[#ffe6ef] px-3 py-2.5 text-sm font-semibold text-brand-700 shadow-[0_8px_18px_rgba(227,28,121,0.08)]",
-                      isActive && "ring-2 ring-brand-200",
-                    )
-                  }
-                >
-                  <span>{SAMEDAY_NAV.label}</span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base shadow-sm">
-                    ⚡
-                  </span>
-                </NavLink>
-                <NavLink
-                  to={HEALTHY_NAV.to}
-                  onClick={closeMobileMenu}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center justify-between rounded-2xl border border-emerald-200 bg-gradient-to-r from-[#f2fff7] to-[#eafcf1] px-3 py-2.5 text-sm font-semibold text-emerald-700 shadow-[0_8px_18px_rgba(16,185,129,0.08)]",
-                      isActive && "ring-2 ring-emerald-200",
-                    )
-                  }
-                >
-                  <span>{HEALTHY_NAV.label}</span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base shadow-sm">
-                    🌿
-                  </span>
-                </NavLink>
-                <NavLink
-                  to="/about"
-                  onClick={closeMobileMenu}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700",
-                      isActive && "bg-slate-100 ring-1 ring-slate-200",
-                    )
-                  }
-                >
-                  <span>About</span>
-                  <span className="text-base text-slate-500">✦</span>
-                </NavLink>
-              </nav>
+              <div>
+                <p className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">
+                  Categories
+                </p>
+                <div className="divide-y divide-cream-100 overflow-hidden rounded-2xl border border-cream-100">
+                  {categories.length === 0 && (
+                    <p className="p-3 text-sm text-ink-500">
+                      No categories yet.
+                    </p>
+                  )}
+                  {categories.map((category) => {
+                    const hasChildren = category.children.length > 0;
+                    const isExpanded = expandedCategoryId === category.id;
 
-              {!user && (
-                <div className="rounded-2xl border border-cream-200 bg-white p-3">
-                  <AuthDialog
-                    trigger={
-                      <button
-                        type="button"
-                        onClick={closeMobileMenu}
-                        className="w-full rounded-full bg-brand-500 px-4 py-2.5 text-sm font-medium text-white"
-                      >
-                        {AUTH_COPY.headerButton}
-                      </button>
-                    }
-                  />
+                    return (
+                      <div key={category.id} className="bg-white">
+                        <div className="flex items-center justify-between gap-3 pl-4 pr-2">
+                          <Link
+                            to={`/category/${category.slug}`}
+                            onClick={closeMobileMenu}
+                            className="flex-1 py-3 text-sm font-medium text-ink-800 transition hover:text-brand-500"
+                          >
+                            {category.name}
+                          </Link>
+                          {hasChildren && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedCategoryId((current) =>
+                                  current === category.id ? null : category.id,
+                                )
+                              }
+                              aria-label={
+                                isExpanded
+                                  ? `Collapse ${category.name}`
+                                  : `Expand ${category.name}`
+                              }
+                              aria-expanded={isExpanded}
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-500 transition hover:bg-cream-100"
+                            >
+                              <span
+                                className={cn(
+                                  "inline-block text-sm transition-transform duration-200",
+                                  isExpanded && "rotate-90",
+                                )}
+                              >
+                                ›
+                              </span>
+                            </button>
+                          )}
+                        </div>
+
+                        {hasChildren && isExpanded && (
+                          <div className="space-y-0.5 bg-cream-50/60 py-1.5 pl-7 pr-3">
+                            {category.children.map((child) => (
+                              <Link
+                                key={child.id}
+                                to={`/category/${child.slug}`}
+                                onClick={closeMobileMenu}
+                                className="block rounded-lg px-2 py-1.5 text-sm text-ink-600 transition hover:bg-white hover:text-brand-500"
+                              >
+                                {child.name}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
