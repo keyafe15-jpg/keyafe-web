@@ -179,7 +179,7 @@ export function OfflineOrderDirectFormPage() {
         setPincodeInfo(info);
         if (!info.serviceable) {
           setPincodeError(
-            "We don't deliver to this pincode. Switch to pickup or use a different address.",
+            "We may still deliver here, please call or WhatsApp us to confirm or opt for pickup",
           );
         }
       })

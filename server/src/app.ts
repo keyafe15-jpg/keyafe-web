@@ -12,7 +12,10 @@ import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 import { uploadRouter } from "./modules/uploads/upload.routes.js";
 import { storeRouter } from "./modules/store/store.routes.js";
-import { deliveryRouter } from "./modules/delivery/delivery.routes.js";
+import {
+  adminDeliveryRouter,
+  deliveryRouter,
+} from "./modules/delivery/delivery.routes.js";
 import { categoryRouter } from "./modules/categories/category.routes.js";
 import { adminCategoryRouter } from "./modules/categories/category.admin.routes.js";
 import {
@@ -105,6 +108,7 @@ export function createApp() {
   app.use("/api/admin/orders", adminOrderRouter);
   app.use("/api/admin/order-links", adminOrderLinkRouter);
   app.use("/api/admin/offline-orders", adminOfflineOrderRouter);
+  app.use("/api/admin/delivery", adminDeliveryRouter);
   app.use("/api/admin/push", adminPushRouter);
 
   // Fan out new-order events to Web Push subscribers (in addition to SSE).

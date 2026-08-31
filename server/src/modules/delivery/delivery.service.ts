@@ -1,5 +1,7 @@
 import { prisma } from "../../config/db.js";
 
+type DeliveryDistrict = "KOLKATA" | "HOWRAH" | "HOOGHLY";
+
 export interface PincodeUnserviceable {
   serviceable: false;
 }
@@ -24,9 +26,23 @@ export async function checkPincode(pincode: string): Promise<PincodeCheck> {
   const zone = await prisma.deliveryPincode.findUnique({
     where: { pincode },
   });
-  if (!zone || !zone.isActive) {
-    return { serviceable: false };
-  }
+  if (!zone || !zone.isActive) return { serviceable: false };
+
+  return toPincodeServiceable(zone);
+}
+
+function toPincodeServiceable(zone: {
+  pincode: string;
+  city: string;
+  area: string | null;
+  district: DeliveryDistrict;
+  deliveryFee: unknown;
+  sameDayEligible: boolean;
+  expressEligible: boolean;
+  expressDeliveryFee: unknown | null;
+  minOrderAmount: unknown | null;
+  extraLeadHours: number;
+}): PincodeServiceable {
   return {
     serviceable: true,
     pincode: zone.pincode,

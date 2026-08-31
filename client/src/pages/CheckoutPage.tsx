@@ -152,7 +152,8 @@ export function CheckoutPage() {
         pincodeResult &&
         !pincodeResult.serviceable
       )
-        e.pincode = "We don't deliver to this pincode yet";
+        e.pincode =
+          "We may still deliver here, please call or WhatsApp us to confirm";
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
     }
@@ -953,7 +954,11 @@ function PincodeStatus({
     return <span className="text-xs text-ink-500">Checking…</span>;
   if (!result) return null;
   if (!result.serviceable)
-    return <span className="text-xs text-brand-700">Not serviceable</span>;
+    return (
+      <span className="text-xs text-brand-700">
+        We may still deliver here, please call or WhatsApp us to confirm
+      </span>
+    );
   const label = [result.city, result.area].filter(Boolean).join(" · ");
   return (
     <span className="text-xs text-emerald-700">

@@ -141,7 +141,8 @@ function LinkForm({
       if (line1.trim().length < 3) e.line1 = "Street address is required";
       if (!PINCODE_RE.test(pincode)) e.pincode = "6-digit pincode";
       else if (pincodeResult && !pincodeResult.serviceable)
-        e.pincode = "We don't deliver here yet";
+        e.pincode =
+          "We may still deliver here, please call or WhatsApp us to confirm";
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
     }
@@ -350,7 +351,8 @@ function LinkForm({
                         </span>
                       ) : (
                         <span className="text-xs text-brand-700">
-                          Not serviceable
+                          We may deliver here. Please call or whatsapp us to
+                          confirm
                         </span>
                       )
                     ) : null)}

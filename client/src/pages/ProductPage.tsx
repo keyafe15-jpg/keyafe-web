@@ -501,17 +501,6 @@ function PdpContent({ product }: { product: ProductDetail }) {
             </p>
           )}
 
-          {fulfillment === "delivery" && (
-            <PincodeChecker onResult={setPincodeResult} />
-          )}
-
-          <DateSlotPicker
-            date={date}
-            onDateChange={setDate}
-            slot={slotKey}
-            onSlotChange={setSlotKey}
-          />
-
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
               {PRODUCT_COPY.labels.specialInstructions}

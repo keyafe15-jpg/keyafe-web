@@ -59,7 +59,7 @@ export const PRODUCT_COPY = {
   pincode: {
     idle: "Enter your pincode to check delivery.",
     unserviceable:
-      "Sorry, we don't deliver here yet. You can still order for pickup.",
+      "We may still deliver here, please call or WhatsApp us to confirm, or you can opt for pickup.",
     serviceable: (city: string, fee: number) =>
       fee === 0
         ? `Great — we deliver to ${city}, free delivery.`
