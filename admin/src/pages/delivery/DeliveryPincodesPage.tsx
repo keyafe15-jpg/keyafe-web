@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   FileSpreadsheet,
   Pencil,
@@ -26,6 +26,10 @@ import {
   selectClass,
   submitClass,
 } from "@/components/form/Field";
+import {
+  ClientPagination,
+  PaginationControls,
+} from "@/components/ClientPagination";
 
 const DISTRICTS: DeliveryDistrict[] = ["HOWRAH", "KOLKATA", "HOOGHLY"];
 const PAGE_SIZE = 10;
@@ -59,7 +63,6 @@ export function DeliveryPincodesPage() {
   const { data: pincodes = [], isLoading } = useAdminDeliveryPincodes();
   const [district, setDistrict] = useState<"ALL" | DeliveryDistrict>("ALL");
   const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
 
   const filtered = pincodes.filter((row) => {
     const matchesDistrict = district === "ALL" || row.district === district;
@@ -71,16 +74,6 @@ export function DeliveryPincodesPage() {
       (row.area ?? "").toLowerCase().includes(search);
     return matchesDistrict && matchesSearch;
   });
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const paginated = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
-
-  useEffect(() => {
-    setPage(1);
-  }, [district, query]);
 
   const activeCount = pincodes.filter((row) => row.isActive).length;
   const expressCount = pincodes.filter((row) => row.expressEligible).length;
@@ -146,60 +139,76 @@ export function DeliveryPincodesPage() {
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
+      <ClientPagination
+        items={filtered}
+        pageSize={PAGE_SIZE}
+        resetKey={`${district}:${query}`}
+      >
+        {({ items, page, pageCount, total, firstItem, lastItem, setPage }) => (
+          <>
+            <div className="mt-4 overflow-hidden rounded-card border border-slate-200 bg-white">
+              {isLoading && (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  Loading…
+                </div>
+              )}
+              {!isLoading && filtered.length === 0 && (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  No delivery pincodes found.
+                </div>
+              )}
+              {!isLoading && filtered.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[980px] text-left text-sm">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-4 py-2 font-medium">Area</th>
+                        <th className="w-28 px-4 py-2 text-right font-medium">
+                          Fee
+                        </th>
+                        <th className="w-32 px-4 py-2 text-right font-medium">
+                          Min order
+                        </th>
+                        <th className="w-32 px-4 py-2 text-center font-medium">
+                          Same day
+                        </th>
+                        <th className="w-28 px-4 py-2 text-center font-medium">
+                          Express
+                        </th>
+                        <th className="w-32 px-4 py-2 text-center font-medium">
+                          Lead
+                        </th>
+                        <th className="w-28 px-4 py-2 text-center font-medium">
+                          Active
+                        </th>
+                        <th className="w-24 px-4 py-2 text-right font-medium">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {items.map((row) => (
+                        <PincodeRow key={row.pincode} row={row} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            {!isLoading && total > 0 && (
+              <PaginationControls
+                page={page}
+                pageCount={pageCount}
+                total={total}
+                firstItem={firstItem}
+                lastItem={lastItem}
+                onPageChange={setPage}
+                noun="pincodes"
+              />
+            )}
+          </>
         )}
-        {!isLoading && filtered.length === 0 && (
-          <div className="p-8 text-center text-sm text-slate-500">
-            No delivery pincodes found.
-          </div>
-        )}
-        {!isLoading && filtered.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Area</th>
-                  <th className="w-28 px-4 py-2 text-right font-medium">Fee</th>
-                  <th className="w-32 px-4 py-2 text-right font-medium">
-                    Min order
-                  </th>
-                  <th className="w-32 px-4 py-2 text-center font-medium">
-                    Same day
-                  </th>
-                  <th className="w-28 px-4 py-2 text-center font-medium">
-                    Express
-                  </th>
-                  <th className="w-32 px-4 py-2 text-center font-medium">
-                    Lead
-                  </th>
-                  <th className="w-28 px-4 py-2 text-center font-medium">
-                    Active
-                  </th>
-                  <th className="w-24 px-4 py-2 text-right font-medium">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {paginated.map((row) => (
-                  <PincodeRow key={row.pincode} row={row} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      {!isLoading && filtered.length > 0 && (
-        <PaginationControls
-          page={currentPage}
-          pageCount={pageCount}
-          total={filtered.length}
-          pageSize={PAGE_SIZE}
-          onPageChange={setPage}
-        />
-      )}
+      </ClientPagination>
     </div>
   );
 }
@@ -903,54 +912,6 @@ function FilterButton({
     >
       {children}
     </button>
-  );
-}
-
-function PaginationControls({
-  page,
-  pageCount,
-  total,
-  pageSize,
-  onPageChange,
-}: {
-  page: number;
-  pageCount: number;
-  total: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
-}) {
-  const firstItem = (page - 1) * pageSize + 1;
-  const lastItem = Math.min(page * pageSize, total);
-
-  return (
-    <div className="mt-4 flex flex-col gap-3 rounded-card border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-      <p>
-        Showing <span className="font-medium text-slate-900">{firstItem}</span>-
-        <span className="font-medium text-slate-900">{lastItem}</span> of{" "}
-        <span className="font-medium text-slate-900">{total}</span> pincodes
-      </p>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={page === 1}
-          onClick={() => onPageChange(page - 1)}
-          className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
-          {page} / {pageCount}
-        </span>
-        <button
-          type="button"
-          disabled={page === pageCount}
-          onClick={() => onPageChange(page + 1)}
-          className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
-    </div>
   );
 }
 

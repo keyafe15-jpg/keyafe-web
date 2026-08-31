@@ -4,13 +4,16 @@ import { usePanIndiaProducts, type ProductCard } from "@/hooks/useProducts";
 import { Reveal } from "@/components/motion/Reveal";
 import { PANINDIA_COPY } from "@/content/panindia";
 import { cn } from "@/lib/cn";
+import {
+  ClientPagination,
+  PaginationControls,
+} from "@/components/ClientPagination";
 
 const PAGE_SIZE = 12;
 
 export function PanIndiaPage() {
   const { data: products = [], isLoading } = usePanIndiaProducts();
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
 
   const categories = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>();
@@ -26,19 +29,8 @@ export function PanIndiaPage() {
     ? products.filter((p) => p.category.id === activeCategoryId)
     : products;
 
-  const totalPages = Math.max(1, Math.ceil(visibleProducts.length / PAGE_SIZE));
-  const paginatedProducts = visibleProducts.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE,
-  );
-
-  const goToPage = (nextPage: number) => {
-    setPage(Math.min(Math.max(1, nextPage), totalPages));
-  };
-
   const selectCategory = (id: string | null) => {
     setActiveCategoryId(id);
-    setPage(1);
   };
 
   return (
@@ -82,41 +74,29 @@ export function PanIndiaPage() {
       )}
 
       {!isLoading && visibleProducts.length > 0 && (
-        <>
-          <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3">
-            {paginatedProducts.map((p, index) => (
-              <Reveal key={p.id} delay={(index % 6) * 60}>
-                <PanIndiaProductCard product={p} />
-              </Reveal>
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="mt-8 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => goToPage(page - 1)}
-                disabled={page <= 1}
-                className="h-8 min-w-[72px] rounded-full border border-cream-200 bg-white px-2.5 text-xs font-medium text-ink-700 transition hover:border-brand-200 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-cream-100 disabled:text-ink-300"
-              >
-                Prev
-              </button>
-
-              <div className="rounded-full border border-cream-200 bg-cream-50 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-ink-500">
-                {page}/{totalPages}
+        <ClientPagination
+          items={visibleProducts}
+          pageSize={PAGE_SIZE}
+          resetKey={activeCategoryId ?? "all"}
+        >
+          {({ items, page, pageCount, setPage }) => (
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3">
+                {items.map((p, index) => (
+                  <Reveal key={p.id} delay={(index % 6) * 60}>
+                    <PanIndiaProductCard product={p} />
+                  </Reveal>
+                ))}
               </div>
 
-              <button
-                type="button"
-                onClick={() => goToPage(page + 1)}
-                disabled={page >= totalPages}
-                className="h-8 min-w-[72px] rounded-full border border-brand-200 bg-brand-50 px-2.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:border-cream-100 disabled:bg-cream-50 disabled:text-ink-300"
-              >
-                Next
-              </button>
-            </div>
+              <PaginationControls
+                page={page}
+                pageCount={pageCount}
+                onPageChange={setPage}
+              />
+            </>
           )}
-        </>
+        </ClientPagination>
       )}
     </section>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, NavLink, useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useSameDayStatus } from "@/hooks/useSameDayStatus";
@@ -7,6 +7,10 @@ import { useCategories, type CategoryNode } from "@/hooks/useCategories";
 import { LeadTimeChip } from "@/components/product/LeadTimeChip";
 import { Reveal } from "@/components/motion/Reveal";
 import { SAMEDAY_COPY } from "@/content/sameday";
+import {
+  ClientPagination,
+  PaginationControls,
+} from "@/components/ClientPagination";
 
 const SAME_DAY_PAGE_SIZE = 12;
 
@@ -15,7 +19,6 @@ export function SameDayPage() {
   const { data: products = [], isLoading: productsLoading } =
     useSameDayProducts();
   const { data: categories = [], isLoading: catsLoading } = useCategories();
-  const [page, setPage] = useState(1);
 
   const isOpen = status?.isOpen ?? false;
   const statusMessage = status?.message ?? "";
@@ -82,28 +85,7 @@ export function SameDayPage() {
     [products, activeIds],
   );
 
-  useEffect(() => {
-    setPage(1);
-  }, [activeSlug]);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(visibleProducts.length / SAME_DAY_PAGE_SIZE),
-  );
-  const paginatedProducts = useMemo(
-    () =>
-      visibleProducts.slice(
-        (page - 1) * SAME_DAY_PAGE_SIZE,
-        page * SAME_DAY_PAGE_SIZE,
-      ),
-    [page, visibleProducts],
-  );
-
   const activeLabel = activeNode?.name ?? "…";
-
-  const goToPage = (nextPage: number) => {
-    setPage(Math.min(Math.max(1, nextPage), totalPages));
-  };
 
   return (
     <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">
@@ -258,39 +240,29 @@ export function SameDayPage() {
           )}
 
           {!productsLoading && visibleProducts.length > 0 && (
-            <>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-                {paginatedProducts.map((p, index) => (
-                  <Reveal key={p.id} delay={(index % 6) * 60}>
-                    <ProductCardView product={p} disabled={!isOpen} />
-                  </Reveal>
-                ))}
-              </div>
+            <ClientPagination
+              items={visibleProducts}
+              pageSize={SAME_DAY_PAGE_SIZE}
+              resetKey={activeSlug}
+            >
+              {({ items, page, pageCount, setPage }) => (
+                <>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+                    {items.map((p, index) => (
+                      <Reveal key={p.id} delay={(index % 6) * 60}>
+                        <ProductCardView product={p} disabled={!isOpen} />
+                      </Reveal>
+                    ))}
+                  </div>
 
-              <div className="mt-8 flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => goToPage(page - 1)}
-                  disabled={page <= 1}
-                  className="h-8 min-w-[72px] rounded-full border border-cream-200 bg-white px-2.5 text-xs font-medium text-ink-700 transition hover:border-brand-200 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-cream-100 disabled:text-ink-300"
-                >
-                  Prev
-                </button>
-
-                <div className="rounded-full border border-cream-200 bg-cream-50 px-3 py-1.5 text-[11px] font-medium tracking-[0.2em] text-ink-500 uppercase">
-                  {page}/{totalPages}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => goToPage(page + 1)}
-                  disabled={page >= totalPages}
-                  className="h-8 min-w-[72px] rounded-full border border-brand-200 bg-brand-50 px-2.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:border-cream-100 disabled:bg-cream-50 disabled:text-ink-300"
-                >
-                  Next
-                </button>
-              </div>
-            </>
+                  <PaginationControls
+                    page={page}
+                    pageCount={pageCount}
+                    onPageChange={setPage}
+                  />
+                </>
+              )}
+            </ClientPagination>
           )}
         </div>
       </div>
