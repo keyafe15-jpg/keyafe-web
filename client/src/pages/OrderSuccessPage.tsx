@@ -134,7 +134,9 @@ export function OrderSuccessPage() {
                 )}
                 <p className="text-xs text-ink-500">Qty {it.qty}</p>
                 <p className="mt-1 text-[11px] font-medium text-brand-700">
-                  {formatItemDate(it.deliveryDate)} · {it.deliverySlotLabel}
+                  {it.deliveryDate && it.deliverySlotLabel
+                    ? `${formatItemDate(it.deliveryDate)} · ${it.deliverySlotLabel}`
+                    : "Ships pan-India via courier"}
                 </p>
               </div>
               <span className="shrink-0 text-sm font-medium tabular-nums text-ink-900">
@@ -261,7 +263,8 @@ function BreakupRow({ label, value }: { label: string; value: number }) {
   );
 }
 
-function formatItemDate(iso: string) {
+function formatItemDate(iso: string | null) {
+  if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("en-IN", {

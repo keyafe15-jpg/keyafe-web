@@ -126,13 +126,22 @@ export function OrderDetailPage() {
                       </p>
                     )}
                     <p className="mt-1 text-[11px] font-medium text-brand-700">
-                      {new Date(it.deliveryDate).toLocaleDateString("en-IN", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}{" "}
-                      · {it.deliverySlotLabel}
+                      {it.deliveryDate && it.deliverySlotLabel ? (
+                        <>
+                          {new Date(it.deliveryDate).toLocaleDateString(
+                            "en-IN",
+                            {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )}{" "}
+                          · {it.deliverySlotLabel}
+                        </>
+                      ) : (
+                        "Ships pan-India via courier"
+                      )}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">

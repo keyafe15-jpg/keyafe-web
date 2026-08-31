@@ -16,6 +16,7 @@ export interface ProductCard {
   isFeatured: boolean;
   leadTimeHours: number;
   supportsSameDayDelivery: boolean;
+  canBeDeliveredPanIndia: boolean;
   category: { id: string; slug: string; name: string };
 }
 
@@ -47,6 +48,14 @@ export function useSameDayProducts() {
   return useQuery<ProductCard[]>({
     queryKey: ["products", "same-day"],
     queryFn: () => api.get<ProductCard[]>("/products/same-day"),
+    staleTime: 30_000,
+  });
+}
+
+export function usePanIndiaProducts() {
+  return useQuery<ProductCard[]>({
+    queryKey: ["products", "pan-india"],
+    queryFn: () => api.get<ProductCard[]>("/products/pan-india"),
     staleTime: 30_000,
   });
 }
@@ -119,6 +128,7 @@ export interface ProductDetail {
   messageMaxLength: number;
   supportsSameDayDelivery: boolean;
   leadTimeHours: number;
+  canBeDeliveredPanIndia: boolean;
   gstRate: string;
   priceIsGstInclusive: boolean;
   allergens: string[];

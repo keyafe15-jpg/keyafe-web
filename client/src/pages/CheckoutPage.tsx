@@ -87,7 +87,11 @@ export function CheckoutPage() {
   };
 
   // Every line already carries its own delivery date + slot (set on the PDP).
-  const missingSchedule = lines.some((l) => !l.date || !l.slotKey);
+  // Pan-India (courier-shipped) lines intentionally skip that — no local slot.
+  const hasOnlyPanIndiaItems =
+    lines.length > 0 && lines.every((l) => l.isPanIndia);
+  const scheduledLines = lines.filter((l) => !l.isPanIndia);
+  const missingSchedule = scheduledLines.some((l) => !l.date || !l.slotKey);
   // Recompute against a live tick so the "past slot" state flips right as it expires.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -96,15 +100,16 @@ export function CheckoutPage() {
   }, []);
   const expiredLines = useMemo(
     () =>
-      lines.filter(
+      scheduledLines.filter(
         (l) => l.date && l.slotKey && isSlotInPast(l.date, l.slotKey, now),
       ),
-    [lines, now],
+    [scheduledLines, now],
   );
   const hasExpired = expiredLines.length > 0;
 
-  const deliveryFee =
-    fulfillment === "DELIVERY" && pincodeResult?.serviceable
+  const deliveryFee = hasOnlyPanIndiaItems
+    ? 0
+    : fulfillment === "DELIVERY" && pincodeResult?.serviceable
       ? pincodeResult.deliveryFee
       : 0;
   const total = subtotal + deliveryFee;
@@ -142,7 +147,11 @@ export function CheckoutPage() {
     if (fulfillment === "DELIVERY") {
       if (line1.trim().length < 3) e.line1 = "Street address is required";
       if (!PINCODE_RE.test(pincode)) e.pincode = "6-digit pincode";
-      else if (pincodeResult && !pincodeResult.serviceable)
+      else if (
+        !hasOnlyPanIndiaItems &&
+        pincodeResult &&
+        !pincodeResult.serviceable
+      )
         e.pincode = "We don't deliver to this pincode yet";
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
@@ -161,6 +170,7 @@ export function CheckoutPage() {
     pincode,
     pincodeResult,
     mapSearchQuery,
+    hasOnlyPanIndiaItems,
   ]);
   const isValid = Object.keys(errors).length === 0 && lines.length > 0;
 
@@ -249,9 +259,11 @@ export function CheckoutPage() {
           flavourName: l.flavourName ?? null,
           messageOnCake: l.messageOnCake ?? null,
           instructions: l.instructions ?? null,
-          deliveryDate: l.date!,
-          deliverySlotKey: l.slotKey!,
-          deliverySlotLabel: l.slotLabel ?? PRODUCT_COPY.timeSlots[0].label,
+          deliveryDate: l.isPanIndia ? null : (l.date ?? null),
+          deliverySlotKey: l.isPanIndia ? null : (l.slotKey ?? null),
+          deliverySlotLabel: l.isPanIndia
+            ? null
+            : (l.slotLabel ?? PRODUCT_COPY.timeSlots[0].label),
           unitPrice: l.unitPrice,
           qty: l.qty,
         })),

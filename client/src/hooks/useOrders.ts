@@ -14,9 +14,9 @@ export interface OrderItem {
   flavourName: string | null;
   messageOnCake: string | null;
   instructions: string | null;
-  deliveryDate: string;
-  deliverySlotKey: string;
-  deliverySlotLabel: string;
+  deliveryDate: string | null;
+  deliverySlotKey: string | null;
+  deliverySlotLabel: string | null;
   unitPrice: string;
   qty: number;
   lineTotal: string;
@@ -73,9 +73,9 @@ export interface CreateOrderItem {
   flavourName?: string | null;
   messageOnCake?: string | null;
   instructions?: string | null;
-  deliveryDate: string;
-  deliverySlotKey: string;
-  deliverySlotLabel: string;
+  deliveryDate?: string | null;
+  deliverySlotKey?: string | null;
+  deliverySlotLabel?: string | null;
   unitPrice: number;
   qty: number;
 }

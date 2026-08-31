@@ -53,6 +53,8 @@ export interface CartLine {
   date?: string;
   slotKey?: string;
   slotLabel?: string;
+  // Ships nationwide via courier — no local pincode/slot requirement at checkout.
+  isPanIndia?: boolean;
 
   // Pricing
   unitPrice: Money;

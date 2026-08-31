@@ -12,6 +12,11 @@ export const HEALTHY_NAV = {
   label: "Healthy Desserts",
 } as const;
 
+export const PANINDIA_NAV = {
+  to: "/pan-india",
+  label: "Pan India",
+} as const;
+
 export const UTILITY_LINKS = [
   { to: "/get-quote", label: "Get a Quote" },
 ] as const;

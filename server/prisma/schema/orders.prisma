@@ -107,10 +107,11 @@ model OrderItem {
   // For custom cake orders (from an OrderLink) — customer's reference photo.
   referenceImageUrl String?
 
-  // Per-line delivery/pickup slot
-  deliveryDate      DateTime
-  deliverySlotKey   String
-  deliverySlotLabel String
+  // Per-line delivery/pickup slot. Null for pan-India courier-shipped items,
+  // which skip local date/slot selection entirely.
+  deliveryDate      DateTime?
+  deliverySlotKey   String?
+  deliverySlotLabel String?
 
   unitPrice Decimal @db.Decimal(10, 2)
   qty       Int

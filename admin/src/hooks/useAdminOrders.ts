@@ -39,9 +39,9 @@ export interface AdminOrderListItem {
     flavourName: string | null;
     qty: number;
     messageOnCake: string | null;
-    deliveryDate: string;
-    deliverySlotKey: string;
-    deliverySlotLabel: string;
+    deliveryDate: string | null;
+    deliverySlotKey: string | null;
+    deliverySlotLabel: string | null;
   }[];
 }
 
@@ -57,9 +57,9 @@ export interface AdminOrderItem {
   flavourName: string | null;
   messageOnCake: string | null;
   instructions: string | null;
-  deliveryDate: string;
-  deliverySlotKey: string;
-  deliverySlotLabel: string;
+  deliveryDate: string | null;
+  deliverySlotKey: string | null;
+  deliverySlotLabel: string | null;
   unitPrice: string;
   qty: number;
   lineTotal: string;

@@ -42,6 +42,7 @@ export const createProductSchema = z.object({
   messageMaxLength: z.coerce.number().int().positive().default(40),
   supportsSameDayDelivery: z.boolean().default(false),
   leadTimeHours: z.coerce.number().int().nonnegative().default(0),
+  canBeDeliveredPanIndia: z.boolean().default(false),
 
   gstRate: z.coerce.number().min(0).max(28).default(5),
   hsnCode: z.string().trim().default("1905"),
@@ -70,7 +71,7 @@ export const createProductSchema = z.object({
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 
 export async function listProducts() {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     orderBy: [{ createdAt: "desc" }],
     select: {
       id: true,
@@ -85,8 +86,35 @@ export async function listProducts() {
       images: true,
       createdAt: true,
       category: { select: { id: true, name: true, slug: true } },
+      // Size group drives variant pricing (e.g. pizzas priced per-size with
+      // basePrice = 0). Admin list needs the resulting price range, not the
+      // raw basePrice, which can be misleadingly 0.
+      optionGroups: {
+        where: { key: "size" },
+        select: {
+          priceMode: true,
+          options: {
+            where: { isActive: true },
+            select: { price: true },
+          },
+        },
+      },
     },
     take: 100,
+  });
+
+  return products.map(({ optionGroups, ...rest }) => {
+    const base = Number(rest.basePrice);
+    const sizeGroup = optionGroups[0];
+    if (!sizeGroup || sizeGroup.options.length === 0) {
+      return { ...rest, priceMin: base, priceMax: base };
+    }
+    const prices = sizeGroup.options.map((o) => Number(o.price));
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const priceMin = sizeGroup.priceMode === "ABSOLUTE" ? min : base + min;
+    const priceMax = sizeGroup.priceMode === "ABSOLUTE" ? max : base + max;
+    return { ...rest, priceMin, priceMax };
   });
 }
 
@@ -102,6 +130,7 @@ const PUBLIC_CARD_SELECT = {
   isFeatured: true,
   leadTimeHours: true,
   supportsSameDayDelivery: true,
+  canBeDeliveredPanIndia: true,
   category: { select: { id: true, slug: true, name: true } },
   // Read the size group's options so we can surface a "starts from" price
   // for variant-priced products (pizzas, etc.) where basePrice = 0.
@@ -129,6 +158,7 @@ type PublicCardRow = {
   isFeatured: boolean;
   leadTimeHours: number;
   supportsSameDayDelivery: boolean;
+  canBeDeliveredPanIndia: boolean;
   category: { id: string; slug: string; name: string };
   optionGroups: {
     priceMode: "ABSOLUTE" | "DELTA";
@@ -236,6 +266,24 @@ export async function listSameDayProducts() {
   return products.map((p) => decorateCard(p as unknown as PublicCardRow));
 }
 
+// All pan-India shippable products, ordered like the category listings.
+export async function listPanIndiaProducts() {
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      canBeDeliveredPanIndia: true,
+    },
+    orderBy: [
+      { isFeatured: "desc" },
+      { sortOrder: "asc" },
+      { createdAt: "desc" },
+    ],
+    select: PUBLIC_CARD_SELECT,
+  });
+
+  return products.map((p) => decorateCard(p as unknown as PublicCardRow));
+}
+
 // Full product detail for the PDP. Only returns active rows; unavailable ones
 // still return (so shoppers see "sold out") — hidden inactive rows 404.
 export async function getPublicProductBySlug(slug: string) {
@@ -261,6 +309,7 @@ export async function getPublicProductBySlug(slug: string) {
       messageMaxLength: true,
       supportsSameDayDelivery: true,
       leadTimeHours: true,
+      canBeDeliveredPanIndia: true,
       gstRate: true,
       priceIsGstInclusive: true,
       allergens: true,

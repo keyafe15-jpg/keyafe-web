@@ -38,7 +38,11 @@ function itemRow(item: OrderItem): string {
             : ""
         }
         <div style="font-size:12px;color:#e31c79;font-weight:600;margin-top:4px;">
-          ${escapeHtml(formatDate(item.deliveryDate))} · ${escapeHtml(item.deliverySlotLabel)}
+          ${
+            item.deliveryDate && item.deliverySlotLabel
+              ? `${escapeHtml(formatDate(item.deliveryDate))} · ${escapeHtml(item.deliverySlotLabel)}`
+              : "Ships pan-India via courier"
+          }
         </div>
       </td>
       <td style="padding:12px 0;border-top:1px solid #f0e6d5;text-align:right;vertical-align:top;">

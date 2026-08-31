@@ -83,7 +83,7 @@ export function ProductsListPage() {
                     {p.category.name}
                   </td>
                   <td className="px-4 py-3 text-right font-medium tabular-nums">
-                    ₹{Number(p.basePrice).toFixed(2)}
+                    <PriceCell priceMin={p.priceMin} priceMax={p.priceMax} />
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
                     {p.productType === "CONFIGURABLE"
@@ -105,6 +105,23 @@ export function ProductsListPage() {
       </div>
     </div>
   );
+}
+
+function PriceCell({
+  priceMin,
+  priceMax,
+}: {
+  priceMin: number;
+  priceMax: number;
+}) {
+  if (priceMin !== priceMax) {
+    return (
+      <span>
+        ₹{priceMin.toFixed(0)} – ₹{priceMax.toFixed(0)}
+      </span>
+    );
+  }
+  return <span>₹{priceMin.toFixed(2)}</span>;
 }
 
 function StatusBadges({

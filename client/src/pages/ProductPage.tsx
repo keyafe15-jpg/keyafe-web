@@ -126,9 +126,10 @@ function PdpContent({ product }: { product: ProductDetail }) {
   const canOrder =
     product.isAvailable &&
     !customOutOfRange &&
-    (fulfillment === "pickup" || pincodeResult?.serviceable === true) &&
-    date !== "" &&
-    slotKey !== "";
+    (product.canBeDeliveredPanIndia ||
+      fulfillment === "pickup" ||
+      pincodeResult?.serviceable === true) &&
+    (product.canBeDeliveredPanIndia || (date !== "" && slotKey !== ""));
 
   const handleAddToCart = () => {
     const chosenFlavour = pickedFlavour ?? product.flavors[0] ?? null;
@@ -152,9 +153,10 @@ function PdpContent({ product }: { product: ProductDetail }) {
       messageOnCake: message.trim() || undefined,
       instructions: instructions.trim() || undefined,
       fulfillment,
-      date,
-      slotKey,
-      slotLabel: slot.label,
+      date: product.canBeDeliveredPanIndia ? undefined : date,
+      slotKey: product.canBeDeliveredPanIndia ? undefined : slotKey,
+      slotLabel: product.canBeDeliveredPanIndia ? undefined : slot.label,
+      isPanIndia: product.canBeDeliveredPanIndia,
       unitPrice: unitPrice,
       qty,
     });
@@ -220,6 +222,27 @@ function PdpContent({ product }: { product: ProductDetail }) {
                   <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
                 </svg>
                 Same day delivery
+              </span>
+            )}
+            {product.canBeDeliveredPanIndia && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                <svg
+                  width={12}
+                  height={12}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M10 17h4V5H2v12h3" />
+                  <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1" />
+                  <circle cx="7.5" cy="17.5" r="2.5" />
+                  <circle cx="17.5" cy="17.5" r="2.5" />
+                </svg>
+                Ships Pan-India
               </span>
             )}
             {!product.isAvailable && (
@@ -438,23 +461,45 @@ function PdpContent({ product }: { product: ProductDetail }) {
 
           <hr className="border-cream-200" />
 
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
-              {PRODUCT_COPY.labels.deliveryOrPickup}
+          {!product.canBeDeliveredPanIndia && (
+            <>
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
+                  {PRODUCT_COPY.labels.deliveryOrPickup}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <FulfillmentButton
+                    active={fulfillment === "delivery"}
+                    onClick={() => setFulfillment("delivery")}
+                    label={PRODUCT_COPY.labels.delivery}
+                  />
+                  <FulfillmentButton
+                    active={fulfillment === "pickup"}
+                    onClick={() => setFulfillment("pickup")}
+                    label={PRODUCT_COPY.labels.pickup}
+                  />
+                </div>
+              </div>
+
+              {fulfillment === "delivery" && (
+                <PincodeChecker onResult={setPincodeResult} />
+              )}
+
+              <DateSlotPicker
+                date={date}
+                onDateChange={setDate}
+                slot={slotKey}
+                onSlotChange={setSlotKey}
+              />
+            </>
+          )}
+
+          {product.canBeDeliveredPanIndia && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Ships nationwide via courier. No delivery slot needed — just add
+              to cart and check out.
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              <FulfillmentButton
-                active={fulfillment === "delivery"}
-                onClick={() => setFulfillment("delivery")}
-                label={PRODUCT_COPY.labels.delivery}
-              />
-              <FulfillmentButton
-                active={fulfillment === "pickup"}
-                onClick={() => setFulfillment("pickup")}
-                label={PRODUCT_COPY.labels.pickup}
-              />
-            </div>
-          </div>
+          )}
 
           {fulfillment === "delivery" && (
             <PincodeChecker onResult={setPincodeResult} />
@@ -505,9 +550,11 @@ function PdpContent({ product }: { product: ProductDetail }) {
             </button>
             {product.isAvailable && !canOrder && (
               <p className="mt-2 text-center text-xs text-ink-500">
-                {fulfillment === "delivery" && !pincodeResult?.serviceable
-                  ? "Check delivery pincode to continue."
-                  : "Pick a delivery date and slot to continue."}
+                {product.canBeDeliveredPanIndia
+                  ? ""
+                  : fulfillment === "delivery" && !pincodeResult?.serviceable
+                    ? "Check delivery pincode to continue."
+                    : "Pick a delivery date and slot to continue."}
               </p>
             )}
           </div>
@@ -528,7 +575,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
               {product.allergens.join(", ")}
             </p>
           )}
-          {product.leadTimeHours > 0 && (
+          {product.leadTimeHours > 0 && !product.canBeDeliveredPanIndia && (
             <p className="mt-2 text-xs text-ink-500">
               Lead time: {product.leadTimeHours} hour
               {product.leadTimeHours === 1 ? "" : "s"}
@@ -765,9 +812,10 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
   const canOrder =
     product.isAvailable &&
     (!sizeGroup || pickedSize != null) &&
-    (fulfillment === "pickup" || pincodeResult?.serviceable === true) &&
-    date !== "" &&
-    slotKey !== "";
+    (product.canBeDeliveredPanIndia ||
+      fulfillment === "pickup" ||
+      pincodeResult?.serviceable === true) &&
+    (product.canBeDeliveredPanIndia || (date !== "" && slotKey !== ""));
 
   const galleryImages =
     product.images.length > 0
@@ -823,9 +871,10 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
       sizeLabel: pickedSize?.label,
       instructions: composedInstructions() ?? undefined,
       fulfillment,
-      date,
-      slotKey,
-      slotLabel: slot.label,
+      date: product.canBeDeliveredPanIndia ? undefined : date,
+      slotKey: product.canBeDeliveredPanIndia ? undefined : slotKey,
+      slotLabel: product.canBeDeliveredPanIndia ? undefined : slot.label,
+      isPanIndia: product.canBeDeliveredPanIndia,
       unitPrice,
       qty,
     });
@@ -868,6 +917,11 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
             {product.supportsSameDayDelivery && (
               <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-medium text-brand-700">
                 Same day delivery
+              </span>
+            )}
+            {product.canBeDeliveredPanIndia && (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                Ships Pan-India
               </span>
             )}
             {!product.isAvailable && (
@@ -996,34 +1050,45 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
 
           <hr className="border-cream-200" />
 
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
-              {PRODUCT_COPY.labels.deliveryOrPickup}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <FulfillmentButton
-                active={fulfillment === "delivery"}
-                onClick={() => setFulfillment("delivery")}
-                label={PRODUCT_COPY.labels.delivery}
-              />
-              <FulfillmentButton
-                active={fulfillment === "pickup"}
-                onClick={() => setFulfillment("pickup")}
-                label={PRODUCT_COPY.labels.pickup}
-              />
-            </div>
-          </div>
+          {!product.canBeDeliveredPanIndia && (
+            <>
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
+                  {PRODUCT_COPY.labels.deliveryOrPickup}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <FulfillmentButton
+                    active={fulfillment === "delivery"}
+                    onClick={() => setFulfillment("delivery")}
+                    label={PRODUCT_COPY.labels.delivery}
+                  />
+                  <FulfillmentButton
+                    active={fulfillment === "pickup"}
+                    onClick={() => setFulfillment("pickup")}
+                    label={PRODUCT_COPY.labels.pickup}
+                  />
+                </div>
+              </div>
 
-          {fulfillment === "delivery" && (
-            <PincodeChecker onResult={setPincodeResult} />
+              {fulfillment === "delivery" && (
+                <PincodeChecker onResult={setPincodeResult} />
+              )}
+
+              <DateSlotPicker
+                date={date}
+                onDateChange={setDate}
+                slot={slotKey}
+                onSlotChange={setSlotKey}
+              />
+            </>
           )}
 
-          <DateSlotPicker
-            date={date}
-            onDateChange={setDate}
-            slot={slotKey}
-            onSlotChange={setSlotKey}
-          />
+          {product.canBeDeliveredPanIndia && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Ships nationwide via courier. No delivery slot needed — just add
+              to cart and check out.
+            </p>
+          )}
 
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
@@ -1065,9 +1130,11 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
               <p className="mt-2 text-center text-xs text-ink-500">
                 {sizeGroup && !pickedSize
                   ? "Pick a size to continue."
-                  : fulfillment === "delivery" && !pincodeResult?.serviceable
-                    ? "Check delivery pincode to continue."
-                    : "Pick a delivery date and slot to continue."}
+                  : product.canBeDeliveredPanIndia
+                    ? ""
+                    : fulfillment === "delivery" && !pincodeResult?.serviceable
+                      ? "Check delivery pincode to continue."
+                      : "Pick a delivery date and slot to continue."}
               </p>
             )}
           </div>

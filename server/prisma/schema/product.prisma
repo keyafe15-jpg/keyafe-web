@@ -55,6 +55,10 @@ model Product {
   messageMaxLength        Int     @default(40)
   supportsSameDayDelivery Boolean @default(false)
   leadTimeHours           Int     @default(0)
+  // Products that can be shipped nationwide via courier (Shiprocket, India
+  // Post, etc.) instead of local same-day/pincode-restricted delivery. PDP
+  // skips date/slot selection for these — customer adds straight to cart.
+  canBeDeliveredPanIndia  Boolean @default(false)
 
   // GST
   gstRate             Decimal @default(5) @db.Decimal(5, 2)

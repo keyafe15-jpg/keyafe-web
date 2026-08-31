@@ -39,9 +39,9 @@ const itemSchema = z.object({
   instructions: z.string().trim().nullable().optional(),
   unitPrice: z.number().nonnegative(),
   qty: z.number().int().positive(),
-  deliveryDate: z.string().min(1),
-  deliverySlotKey: z.string().min(1),
-  deliverySlotLabel: z.string().min(1),
+  deliveryDate: z.string().min(1).nullable().optional(),
+  deliverySlotKey: z.string().min(1).nullable().optional(),
+  deliverySlotLabel: z.string().min(1).nullable().optional(),
 });
 
 export const createOrderSchema = z.object({
@@ -78,12 +78,12 @@ export async function createOrder(input: CreateOrderInput) {
       "Delivery address is required for delivery orders",
     );
   }
-
   // Reject items whose delivery date is in the past. Compares against
   // midnight local (day-level check); slot-level expiry is enforced client-side.
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   for (const item of input.items) {
+    if (!item.deliveryDate) continue;
     const d = new Date(item.deliveryDate);
     if (Number.isNaN(d.getTime())) {
       throw HttpError.badRequest("Invalid delivery date");
@@ -195,7 +195,7 @@ export async function createOrder(input: CreateOrderInput) {
             flavourName: i.flavourName ?? null,
             messageOnCake: i.messageOnCake ?? null,
             instructions: i.instructions ?? null,
-            deliveryDate: new Date(i.deliveryDate),
+            deliveryDate: i.deliveryDate ? new Date(i.deliveryDate) : null,
             deliverySlotKey: i.deliverySlotKey,
             deliverySlotLabel: i.deliverySlotLabel,
             unitPrice: i.unitPrice,

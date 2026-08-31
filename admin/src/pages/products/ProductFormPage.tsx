@@ -51,6 +51,7 @@ const formSchema = z.object({
   messageMaxLength: z.coerce.number().int().positive().max(200),
   supportsSameDayDelivery: z.boolean(),
   leadTimeHours: z.coerce.number().int().nonnegative(),
+  canBeDeliveredPanIndia: z.boolean(),
   gstRate: z.coerce.number().min(0).max(28),
   hsnCode: z.string().trim().min(1),
   priceIsGstInclusive: z.boolean(),
@@ -125,6 +126,7 @@ export function ProductFormPage() {
       messageMaxLength: 40,
       supportsSameDayDelivery: false,
       leadTimeHours: 24,
+      canBeDeliveredPanIndia: false,
       gstRate: 5,
       hsnCode: "1905",
       priceIsGstInclusive: true,
@@ -172,6 +174,7 @@ export function ProductFormPage() {
       messageMaxLength: existing.messageMaxLength,
       supportsSameDayDelivery: existing.supportsSameDayDelivery,
       leadTimeHours: existing.leadTimeHours,
+      canBeDeliveredPanIndia: existing.canBeDeliveredPanIndia ?? false,
       gstRate: Number(existing.gstRate),
       hsnCode: existing.hsnCode,
       priceIsGstInclusive: existing.priceIsGstInclusive,
@@ -222,6 +225,7 @@ export function ProductFormPage() {
         messageMaxLength: values.messageMaxLength,
         supportsSameDayDelivery: values.supportsSameDayDelivery,
         leadTimeHours: values.leadTimeHours,
+        canBeDeliveredPanIndia: values.canBeDeliveredPanIndia,
         gstRate: values.gstRate,
         hsnCode: values.hsnCode,
         priceIsGstInclusive: values.priceIsGstInclusive,
@@ -500,6 +504,13 @@ export function ProductFormPage() {
                 <Checkbox
                   {...register("supportsSameDayDelivery")}
                   label="Same-day delivery eligible"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Checkbox
+                  {...register("canBeDeliveredPanIndia")}
+                  label="Pan-India courier delivery"
+                  hint="Ships nationwide via courier (Shiprocket/India Post). PDP skips local date/slot selection."
                 />
               </div>
             </div>

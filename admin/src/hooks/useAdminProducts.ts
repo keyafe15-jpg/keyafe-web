@@ -20,6 +20,10 @@ export interface AdminProduct {
   slug: string;
   name: string;
   basePrice: string;
+  // Resolved from the size option group when the product is variant-priced
+  // (e.g. pizzas with basePrice = 0). Equal to basePrice otherwise.
+  priceMin: number;
+  priceMax: number;
   productType: "FIXED_VARIANTS" | "CONFIGURABLE";
   template: ProductTemplate;
   isActive: boolean;
@@ -58,6 +62,7 @@ export interface CreateProductPayload {
   messageMaxLength: number;
   supportsSameDayDelivery: boolean;
   leadTimeHours: number;
+  canBeDeliveredPanIndia: boolean;
   gstRate: number;
   hsnCode: string;
   priceIsGstInclusive: boolean;
