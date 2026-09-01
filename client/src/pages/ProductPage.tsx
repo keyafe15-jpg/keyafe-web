@@ -250,6 +250,25 @@ function PdpContent({ product }: { product: ProductDetail }) {
                 Ships Pan-India
               </span>
             )}
+            {product.isHealthyTreat && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                <svg
+                  width={12}
+                  height={12}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96c1.4-.98 2.3-.19 2.05 1.28C20.28 12 16 22 11 22" />
+                  <path d="M2 21c0-3 1.85-5.36 5.08-6" />
+                </svg>
+                Healthy treat
+              </span>
+            )}
             {!product.isAvailable && (
               <span className="rounded-full bg-cream-200 px-3 py-1 text-xs font-medium text-ink-700">
                 Sold out
@@ -928,6 +947,11 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
             {product.canBeDeliveredPanIndia && (
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
                 Ships Pan-India
+              </span>
+            )}
+            {product.isHealthyTreat && (
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                Healthy treat
               </span>
             )}
             {!product.isAvailable && (

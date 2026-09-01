@@ -39,7 +39,7 @@ model Flavor {
   description      String?
   isEggless        Boolean   @default(false)
   isSugarFree      Boolean   @default(false)
-  isHealthy        Boolean   @default(false) // low refined sugar / whole grains / etc — drives the "Healthy Desserts" tab
+  isHealthy        Boolean   @default(false) // recipe attribute (jaggery / sugar-free / whole grain). Product.isHealthyTreat drives the Healthy Treats section.
   imageUrl         String?
   // Per-pound premium added on top of the product's base price when this flavour is picked.
   additionalAmount Decimal   @default(0) @db.Decimal(10, 2)

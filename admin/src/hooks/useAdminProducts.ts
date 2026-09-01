@@ -63,6 +63,7 @@ export interface CreateProductPayload {
   supportsSameDayDelivery: boolean;
   leadTimeHours: number;
   canBeDeliveredPanIndia: boolean;
+  isHealthyTreat: boolean;
   gstRate: number;
   hsnCode: string;
   priceIsGstInclusive: boolean;

@@ -5,6 +5,7 @@ import {
   listPublicProductsByCategorySlug,
   listPanIndiaProducts,
   listSameDayProducts,
+  listHealthyTreatProducts,
 } from "./product.service.js";
 
 export const publicProductRouter = Router();
@@ -19,6 +20,12 @@ publicProductRouter.get("/same-day", async (_req, res) => {
 
 publicProductRouter.get("/pan-india", async (_req, res) => {
   const products = await listPanIndiaProducts();
+  res.setHeader("Cache-Control", "public, max-age=30");
+  res.json(products);
+});
+
+publicProductRouter.get("/healthy", async (_req, res) => {
+  const products = await listHealthyTreatProducts();
   res.setHeader("Cache-Control", "public, max-age=30");
   res.json(products);
 });

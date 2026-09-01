@@ -17,6 +17,7 @@ export interface ProductCard {
   leadTimeHours: number;
   supportsSameDayDelivery: boolean;
   canBeDeliveredPanIndia: boolean;
+  isHealthyTreat: boolean;
   category: { id: string; slug: string; name: string };
 }
 
@@ -56,6 +57,14 @@ export function usePanIndiaProducts() {
   return useQuery<ProductCard[]>({
     queryKey: ["products", "pan-india"],
     queryFn: () => api.get<ProductCard[]>("/products/pan-india"),
+    staleTime: 30_000,
+  });
+}
+
+export function useHealthyTreatProducts() {
+  return useQuery<ProductCard[]>({
+    queryKey: ["products", "healthy"],
+    queryFn: () => api.get<ProductCard[]>("/products/healthy"),
     staleTime: 30_000,
   });
 }
@@ -129,6 +138,7 @@ export interface ProductDetail {
   supportsSameDayDelivery: boolean;
   leadTimeHours: number;
   canBeDeliveredPanIndia: boolean;
+  isHealthyTreat: boolean;
   gstRate: string;
   priceIsGstInclusive: boolean;
   allergens: string[];

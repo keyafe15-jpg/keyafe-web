@@ -43,6 +43,7 @@ export const createProductSchema = z.object({
   supportsSameDayDelivery: z.boolean().default(false),
   leadTimeHours: z.coerce.number().int().nonnegative().default(0),
   canBeDeliveredPanIndia: z.boolean().default(false),
+  isHealthyTreat: z.boolean().default(false),
 
   gstRate: z.coerce.number().min(0).max(28).default(5),
   hsnCode: z.string().trim().default("1905"),
@@ -131,6 +132,7 @@ const PUBLIC_CARD_SELECT = {
   leadTimeHours: true,
   supportsSameDayDelivery: true,
   canBeDeliveredPanIndia: true,
+  isHealthyTreat: true,
   category: { select: { id: true, slug: true, name: true } },
   // Read the size group's options so we can surface a "starts from" price
   // for variant-priced products (pizzas, etc.) where basePrice = 0.
@@ -159,6 +161,7 @@ type PublicCardRow = {
   leadTimeHours: number;
   supportsSameDayDelivery: boolean;
   canBeDeliveredPanIndia: boolean;
+  isHealthyTreat: boolean;
   category: { id: string; slug: string; name: string };
   optionGroups: {
     priceMode: "ABSOLUTE" | "DELTA";
@@ -284,6 +287,25 @@ export async function listPanIndiaProducts() {
   return products.map((p) => decorateCard(p as unknown as PublicCardRow));
 }
 
+// Products flagged for the Healthy Treats section. Orthogonal to same-day /
+// pan-India — server just filters; the client groups by category.
+export async function listHealthyTreatProducts() {
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      isHealthyTreat: true,
+    },
+    orderBy: [
+      { isFeatured: "desc" },
+      { sortOrder: "asc" },
+      { createdAt: "desc" },
+    ],
+    select: PUBLIC_CARD_SELECT,
+  });
+
+  return products.map((p) => decorateCard(p as unknown as PublicCardRow));
+}
+
 // Full product detail for the PDP. Only returns active rows; unavailable ones
 // still return (so shoppers see "sold out") — hidden inactive rows 404.
 export async function getPublicProductBySlug(slug: string) {
@@ -310,6 +332,7 @@ export async function getPublicProductBySlug(slug: string) {
       supportsSameDayDelivery: true,
       leadTimeHours: true,
       canBeDeliveredPanIndia: true,
+      isHealthyTreat: true,
       gstRate: true,
       priceIsGstInclusive: true,
       allergens: true,

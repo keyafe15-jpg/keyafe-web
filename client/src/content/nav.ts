@@ -9,7 +9,7 @@ export const SAMEDAY_NAV = {
 
 export const HEALTHY_NAV = {
   to: "/healthy",
-  label: "Healthy Desserts",
+  label: "Healthy Treats",
 } as const;
 
 export const PANINDIA_NAV = {

@@ -935,6 +935,7 @@ async function seedProducts() {
       ],
       isFeatured: true,
       supportsSameDayDelivery: true,
+      isHealthyTreat: false,
       sortOrder: 10,
     },
     {
@@ -1147,6 +1148,7 @@ async function seedProducts() {
         basePrice: product.basePrice,
         isFeatured: product.isFeatured ?? false,
         supportsSameDayDelivery: product.supportsSameDayDelivery ?? false,
+        isHealthyTreat: product.isHealthyTreat ?? false,
         isActive: true,
         isAvailable: true,
         sortOrder: product.sortOrder,
@@ -1161,6 +1163,7 @@ async function seedProducts() {
         basePrice: product.basePrice,
         isFeatured: product.isFeatured ?? false,
         supportsSameDayDelivery: product.supportsSameDayDelivery ?? false,
+        isHealthyTreat: product.isHealthyTreat ?? false,
         isActive: true,
         isAvailable: true,
         sortOrder: product.sortOrder,

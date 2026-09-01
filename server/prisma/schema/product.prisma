@@ -59,6 +59,9 @@ model Product {
   // Post, etc.) instead of local same-day/pincode-restricted delivery. PDP
   // skips date/slot selection for these — customer adds straight to cart.
   canBeDeliveredPanIndia  Boolean @default(false)
+  // Merchandising flag for the Healthy Treats section. Orthogonal to
+  // category, same-day, and pan-India — a product can be all of them.
+  isHealthyTreat          Boolean @default(false)
 
   // GST
   gstRate             Decimal @default(5) @db.Decimal(5, 2)

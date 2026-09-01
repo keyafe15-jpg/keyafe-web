@@ -52,6 +52,7 @@ const formSchema = z.object({
   supportsSameDayDelivery: z.boolean(),
   leadTimeHours: z.coerce.number().int().nonnegative(),
   canBeDeliveredPanIndia: z.boolean(),
+  isHealthyTreat: z.boolean(),
   gstRate: z.coerce.number().min(0).max(28),
   hsnCode: z.string().trim().min(1),
   priceIsGstInclusive: z.boolean(),
@@ -127,6 +128,7 @@ export function ProductFormPage() {
       supportsSameDayDelivery: false,
       leadTimeHours: 24,
       canBeDeliveredPanIndia: false,
+      isHealthyTreat: false,
       gstRate: 5,
       hsnCode: "1905",
       priceIsGstInclusive: true,
@@ -175,6 +177,7 @@ export function ProductFormPage() {
       supportsSameDayDelivery: existing.supportsSameDayDelivery,
       leadTimeHours: existing.leadTimeHours,
       canBeDeliveredPanIndia: existing.canBeDeliveredPanIndia ?? false,
+      isHealthyTreat: existing.isHealthyTreat ?? false,
       gstRate: Number(existing.gstRate),
       hsnCode: existing.hsnCode,
       priceIsGstInclusive: existing.priceIsGstInclusive,
@@ -226,6 +229,7 @@ export function ProductFormPage() {
         supportsSameDayDelivery: values.supportsSameDayDelivery,
         leadTimeHours: values.leadTimeHours,
         canBeDeliveredPanIndia: values.canBeDeliveredPanIndia,
+        isHealthyTreat: values.isHealthyTreat,
         gstRate: values.gstRate,
         hsnCode: values.hsnCode,
         priceIsGstInclusive: values.priceIsGstInclusive,
@@ -511,6 +515,13 @@ export function ProductFormPage() {
                   {...register("canBeDeliveredPanIndia")}
                   label="Pan-India courier delivery"
                   hint="Ships nationwide via courier (Shiprocket/India Post). PDP skips local date/slot selection."
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Checkbox
+                  {...register("isHealthyTreat")}
+                  label="Show in Healthy Treats"
+                  hint="Lists this product on the Healthy Treats page. Independent of same-day and pan-India."
                 />
               </div>
             </div>
