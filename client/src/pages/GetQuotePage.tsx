@@ -11,6 +11,8 @@ import {
 import { MultiImageUpload } from "@/components/form/MultiImageUpload";
 import { getQuoteSchema, type GetQuoteInput } from "@/lib/validators";
 import { QUOTE_COPY } from "@/content/quote";
+import { api } from "@/lib/api";
+import { uploadImages } from "@/lib/uploads";
 
 function todayIso() {
   const d = new Date();
@@ -24,6 +26,7 @@ function todayIso() {
 export function GetQuotePage() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
 
   const {
@@ -37,13 +40,31 @@ export function GetQuotePage() {
 
   const onSubmit = handleSubmit(async (values) => {
     setIsSubmitting(true);
-    // TODO: POST multipart/form-data to /api/quotes — wired in a later phase.
-    await new Promise((r) => setTimeout(r, 700));
-    console.log("Quote request", { ...values, referenceImages });
-    setIsSubmitting(false);
-    setSubmitted(true);
-    setReferenceImages([]);
-    reset();
+    setSubmitError(null);
+    try {
+      const uploaded = referenceImages.length
+        ? await uploadImages(referenceImages, "quote-reference")
+        : [];
+      await api.post("/quotes", {
+        name: values.name,
+        phone: values.phone,
+        email: values.email ?? null,
+        address: values.address,
+        deliveryDate: values.deliveryDate,
+        description: values.description,
+        notes: values.notes ?? null,
+        referenceImages: uploaded.map((u) => u.publicUrl),
+      });
+      setSubmitted(true);
+      setReferenceImages([]);
+      reset();
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Could not send your request.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   });
 
   if (submitted) {
@@ -193,6 +214,12 @@ export function GetQuotePage() {
         >
           <textarea rows={3} className={textareaClass} {...register("notes")} />
         </Field>
+
+        {submitError && (
+          <p className="text-sm text-brand-700" role="alert">
+            {submitError}
+          </p>
+        )}
 
         <button type="submit" disabled={isSubmitting} className={submitClass}>
           {isSubmitting ? QUOTE_COPY.submittingCta : QUOTE_COPY.submitCta}

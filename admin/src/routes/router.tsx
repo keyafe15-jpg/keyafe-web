@@ -3,6 +3,7 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { StubPage } from "@/pages/StubPage";
+import { QuotesListPage } from "@/pages/quotes/QuotesListPage";
 import { ProductsListPage } from "@/pages/products/ProductsListPage";
 import { ProductFormPage } from "@/pages/products/ProductFormPage";
 import { FlavoursPage } from "@/pages/flavours/FlavoursPage";
@@ -50,12 +51,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "quotes",
-        element: (
-          <StubPage
-            title="Quote Requests"
-            subtitle="Custom-design requests from the storefront."
-          />
-        ),
+        element: <QuotesListPage />,
       },
       {
         path: "products",
