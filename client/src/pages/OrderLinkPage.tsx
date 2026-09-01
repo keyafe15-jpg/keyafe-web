@@ -104,7 +104,6 @@ function LinkForm({
   const [slotKey, setSlotKey] = useState<string>(
     link.suggestedSlotKey ?? PRODUCT_COPY.timeSlots[0].key,
   );
-  const [message, setMessage] = useState(link.messageHint ?? "");
   const [notes, setNotes] = useState("");
   const [payChoice, setPayChoice] = useState<PayChoice>("FULL");
   const [advanceAmount, setAdvanceAmount] = useState("");
@@ -119,9 +118,10 @@ function LinkForm({
     PRODUCT_COPY.timeSlots.find((s) => s.key === slotKey) ??
     PRODUCT_COPY.timeSlots[0];
 
-  const unitPrice = Number(link.unitPrice);
-  const qty = link.qty;
-  const subtotal = unitPrice * qty;
+  const subtotal = link.items.reduce(
+    (sum, it) => sum + Number(it.unitPrice) * it.qty,
+    0,
+  );
   const deliveryFee =
     fulfillment === "DELIVERY" && pincodeResult?.serviceable
       ? pincodeResult.deliveryFee
@@ -140,7 +140,10 @@ function LinkForm({
           payeeVpa: paymentInfo.upiId,
           payeeName: paymentInfo.payeeName,
           amount: payNowAmount,
-          note: `Order ${link.productName}`.slice(0, 50),
+          note: `Order ${link.items.map((i) => i.productName).join(", ")}`.slice(
+            0,
+            50,
+          ),
           refId: link.token,
         })
       : null;
@@ -248,7 +251,6 @@ function LinkForm({
         deliveryDate: date,
         deliverySlotKey: slotKey,
         deliverySlotLabel: slot.label,
-        messageOnCake: message.trim() || null,
         customerNotes: notes.trim() || null,
         paymentMode: payChoice === "FULL" ? "FULL" : "ADVANCE",
         advanceAmount:
@@ -283,64 +285,74 @@ function LinkForm({
         </p>
       </div>
 
-      {/* Locked cake card */}
-      <div className="mb-6 overflow-hidden rounded-card border-2 border-brand-500/30 bg-white shadow-sm">
-        <div className="grid gap-0 sm:grid-cols-[200px_1fr]">
-          <div className="aspect-square w-full bg-cream-100 sm:aspect-auto">
-            {link.referenceImageUrl ? (
-              <img
-                src={link.referenceImageUrl}
-                alt={link.productName}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full min-h-40 w-full items-center justify-center text-xs text-ink-400">
-                No image
+      {/* Locked items */}
+      <div className="mb-6 space-y-3">
+        {link.items.map((item) => {
+          const itemTotal = Number(item.unitPrice) * item.qty;
+          return (
+            <div
+              key={item.id}
+              className="overflow-hidden rounded-card border-2 border-brand-500/30 bg-white shadow-sm"
+            >
+              <div className="grid gap-0 sm:grid-cols-[160px_1fr]">
+                <div className="aspect-square w-full bg-cream-100 sm:aspect-auto">
+                  {item.referenceImageUrl ? (
+                    <img
+                      src={item.referenceImageUrl}
+                      alt={item.productName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full min-h-32 w-full items-center justify-center text-xs text-ink-400">
+                      No image
+                    </div>
+                  )}
+                </div>
+                <div className="p-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-700">
+                    Your order
+                  </p>
+                  <h2 className="mt-1 font-display text-xl text-ink-900">
+                    {item.productName}
+                  </h2>
+                  <dl className="mt-2 space-y-0.5 text-sm text-ink-700">
+                    {item.sizeLabel && (
+                      <div className="flex gap-1.5">
+                        <dt className="text-ink-500">Size:</dt>
+                        <dd>{item.sizeLabel}</dd>
+                      </div>
+                    )}
+                    {item.flavourName && (
+                      <div className="flex gap-1.5">
+                        <dt className="text-ink-500">Flavour:</dt>
+                        <dd>{item.flavourName}</dd>
+                      </div>
+                    )}
+                    {item.qty > 1 && (
+                      <div className="flex gap-1.5">
+                        <dt className="text-ink-500">Qty:</dt>
+                        <dd>{item.qty}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  <div className="mt-3 flex items-baseline gap-2">
+                    <span className="text-3xl font-semibold text-ink-900">
+                      ₹{Number(item.unitPrice).toFixed(0)}
+                    </span>
+                    {item.qty > 1 && (
+                      <span className="text-sm text-ink-500">
+                        × {item.qty} = ₹{itemTotal.toFixed(0)}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-          <div className="p-5">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-700">
-              Your cake
-            </p>
-            <h2 className="mt-1 font-display text-xl text-ink-900">
-              {link.productName}
-            </h2>
-            <dl className="mt-2 space-y-0.5 text-sm text-ink-700">
-              {link.sizeLabel && (
-                <div className="flex gap-1.5">
-                  <dt className="text-ink-500">Size:</dt>
-                  <dd>{link.sizeLabel}</dd>
-                </div>
-              )}
-              {link.flavourName && (
-                <div className="flex gap-1.5">
-                  <dt className="text-ink-500">Flavour:</dt>
-                  <dd>{link.flavourName}</dd>
-                </div>
-              )}
-              {qty > 1 && (
-                <div className="flex gap-1.5">
-                  <dt className="text-ink-500">Qty:</dt>
-                  <dd>{qty}</dd>
-                </div>
-              )}
-            </dl>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-semibold text-ink-900">
-                ₹{unitPrice.toFixed(0)}
-              </span>
-              {qty > 1 && (
-                <span className="text-sm text-ink-500">
-                  × {qty} = ₹{subtotal.toFixed(0)}
-                </span>
-              )}
             </div>
-            <p className="mt-1 text-[11px] text-ink-500">
-              Includes GST. Delivery fee added below.
-            </p>
-          </div>
-        </div>
+          );
+        })}
+        <p className="text-[11px] text-ink-500">
+          Includes GST. Delivery fee added below.
+        </p>
       </div>
 
       <div className="space-y-5">
@@ -501,14 +513,6 @@ function LinkForm({
               </select>
             </Field>
           </div>
-        </Section>
-
-        <Section title="Message on cake">
-          <Input
-            value={message}
-            onChange={setMessage}
-            placeholder="e.g., Happy Birthday Aarav!"
-          />
         </Section>
 
         <Section

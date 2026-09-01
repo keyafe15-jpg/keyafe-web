@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 import { PRODUCT_COPY } from "@/content/product";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { PincodeChecker } from "@/components/product/PincodeChecker";
-import { DateSlotPicker } from "@/components/product/DateSlotPicker";
+import { SameDayDeliveryPicker } from "@/components/product/SameDayDeliveryPicker";
 import type { PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import {
   useProduct,
@@ -81,6 +81,12 @@ function PdpContent({ product }: { product: ProductDetail }) {
   );
   const [date, setDate] = useState("");
   const [slotKey, setSlotKey] = useState<string>(PRODUCT_COPY.timeSlots[0].key);
+  const [slotLabel, setSlotLabel] = useState<string>(
+    PRODUCT_COPY.timeSlots[0].label,
+  );
+  const [slotSurcharge, setSlotSurcharge] = useState<number>(
+    PRODUCT_COPY.timeSlots[0].surcharge,
+  );
   const [message, setMessage] = useState("");
   const [instructions, setInstructions] = useState("");
   const [qty, setQty] = useState(1);
@@ -109,13 +115,12 @@ function PdpContent({ product }: { product: ProductDetail }) {
     () => pickerFlavours.find((f) => f.id === flavourId) ?? null,
     [pickerFlavours, flavourId],
   );
-  const slot = PRODUCT_COPY.timeSlots.find((s) => s.key === slotKey)!;
 
   const flavourDelta = pickedFlavour
     ? Number(pickedFlavour.additionalAmount)
     : 0;
   const multiplier = effectiveGrams ? effectiveGrams / BASE_PRICE_GRAMS : 1;
-  const unitPrice = (basePrice + flavourDelta) * multiplier + slot.surcharge;
+  const unitPrice = (basePrice + flavourDelta) * multiplier + slotSurcharge;
 
   const deliveryFee =
     fulfillment === "delivery" && pincodeResult?.serviceable
@@ -155,7 +160,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
       fulfillment,
       date: product.canBeDeliveredPanIndia ? undefined : date,
       slotKey: product.canBeDeliveredPanIndia ? undefined : slotKey,
-      slotLabel: product.canBeDeliveredPanIndia ? undefined : slot.label,
+      slotLabel: product.canBeDeliveredPanIndia ? undefined : slotLabel,
       isPanIndia: product.canBeDeliveredPanIndia,
       unitPrice: unitPrice,
       qty,
@@ -485,11 +490,18 @@ function PdpContent({ product }: { product: ProductDetail }) {
                 <PincodeChecker onResult={setPincodeResult} />
               )}
 
-              <DateSlotPicker
-                date={date}
-                onDateChange={setDate}
-                slot={slotKey}
-                onSlotChange={setSlotKey}
+              <SameDayDeliveryPicker
+                supportsSameDayDelivery={product.supportsSameDayDelivery}
+                leadTimeHours={product.leadTimeHours}
+                fulfillment={fulfillment}
+                pincodeResult={pincodeResult}
+                value={{ date, slotKey, slotLabel, surcharge: slotSurcharge }}
+                onChange={(v) => {
+                  setDate(v.date);
+                  setSlotKey(v.slotKey);
+                  setSlotLabel(v.slotLabel);
+                  setSlotSurcharge(v.surcharge);
+                }}
               />
             </>
           )}
@@ -769,6 +781,12 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
   );
   const [date, setDate] = useState("");
   const [slotKey, setSlotKey] = useState<string>(PRODUCT_COPY.timeSlots[0].key);
+  const [slotLabel, setSlotLabel] = useState<string>(
+    PRODUCT_COPY.timeSlots[0].label,
+  );
+  const [slotSurcharge, setSlotSurcharge] = useState<number>(
+    PRODUCT_COPY.timeSlots[0].surcharge,
+  );
   const [instructions, setInstructions] = useState("");
   const [qty, setQty] = useState(1);
 
@@ -789,8 +807,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
     (s, t) => s + Number(t.priceDelta),
     0,
   );
-  const slot = PRODUCT_COPY.timeSlots.find((s) => s.key === slotKey)!;
-  const unitPrice = sizePrice + crustDelta + toppingsDelta + slot.surcharge;
+  const unitPrice = sizePrice + crustDelta + toppingsDelta + slotSurcharge;
 
   const deliveryFee =
     fulfillment === "delivery" && pincodeResult?.serviceable
@@ -862,7 +879,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
       fulfillment,
       date: product.canBeDeliveredPanIndia ? undefined : date,
       slotKey: product.canBeDeliveredPanIndia ? undefined : slotKey,
-      slotLabel: product.canBeDeliveredPanIndia ? undefined : slot.label,
+      slotLabel: product.canBeDeliveredPanIndia ? undefined : slotLabel,
       isPanIndia: product.canBeDeliveredPanIndia,
       unitPrice,
       qty,
@@ -1063,11 +1080,18 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
                 <PincodeChecker onResult={setPincodeResult} />
               )}
 
-              <DateSlotPicker
-                date={date}
-                onDateChange={setDate}
-                slot={slotKey}
-                onSlotChange={setSlotKey}
+              <SameDayDeliveryPicker
+                supportsSameDayDelivery={product.supportsSameDayDelivery}
+                leadTimeHours={product.leadTimeHours}
+                fulfillment={fulfillment}
+                pincodeResult={pincodeResult}
+                value={{ date, slotKey, slotLabel, surcharge: slotSurcharge }}
+                onChange={(v) => {
+                  setDate(v.date);
+                  setSlotKey(v.slotKey);
+                  setSlotLabel(v.slotLabel);
+                  setSlotSurcharge(v.surcharge);
+                }}
               />
             </>
           )}

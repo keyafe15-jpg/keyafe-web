@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 import { PRODUCT_COPY } from "@/content/product";
 
-function todayIso() {
+export function todayIso() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   const y = d.getFullYear();

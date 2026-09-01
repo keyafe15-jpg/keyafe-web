@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Sparkles, Package, ArrowLeft, Copy, Check, X } from "lucide-react";
+import {
+  Sparkles,
+  Package,
+  ArrowLeft,
+  Copy,
+  Check,
+  X,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import {
   useAdminOrderLink,
   useCreateOrderLink,
   useUpdateOrderLink,
   type CreateOrderLinkPayload,
+  type OrderLinkItemPayload,
   type OrderLinkKind,
 } from "@/hooks/useAdminOrderLinks";
 import { useAdminProducts } from "@/hooks/useAdminProducts";
@@ -25,6 +35,41 @@ function publicUrl(token: string): string {
   return `${base}/o/${token}`;
 }
 
+interface ItemDraft {
+  id: string; // client-side only, for React keys
+  kind: OrderLinkKind;
+  productId: string;
+  productName: string;
+  sizeLabel: string;
+  sizeGrams: string;
+  flavourId: string;
+  messageHint: string;
+  unitPrice: string;
+  qty: string;
+  refFile: File | null;
+  refPreview: string | null;
+  // Existing image URL kept in edit mode (unless user clears or uploads a new one).
+  keptImageUrl: string | null;
+}
+
+function newItem(kind: OrderLinkKind = "CUSTOM"): ItemDraft {
+  return {
+    id: crypto.randomUUID(),
+    kind,
+    productId: "",
+    productName: "",
+    sizeLabel: "",
+    sizeGrams: "",
+    flavourId: "",
+    messageHint: "",
+    unitPrice: "",
+    qty: "1",
+    refFile: null,
+    refPreview: null,
+    keptImageUrl: null,
+  };
+}
+
 export function OrderLinkFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
@@ -35,23 +80,11 @@ export function OrderLinkFormPage() {
   const { data: products = [] } = useAdminProducts();
   const { data: flavours = [] } = useFlavours();
 
-  const [kind, setKind] = useState<OrderLinkKind>("CUSTOM");
-  const [productId, setProductId] = useState<string>("");
-  const [productName, setProductName] = useState("");
-  const [sizeLabel, setSizeLabel] = useState("");
-  const [sizeGrams, setSizeGrams] = useState("");
-  const [flavourId, setFlavourId] = useState<string>("");
-  const [messageHint, setMessageHint] = useState("");
-  const [unitPrice, setUnitPrice] = useState("");
-  const [qty, setQty] = useState("1");
+  const [items, setItems] = useState<ItemDraft[]>(() => [newItem("CUSTOM")]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
   const [expiresInDays, setExpiresInDays] = useState<string>("7");
-  const [refFile, setRefFile] = useState<File | null>(null);
-  const [refPreview, setRefPreview] = useState<string | null>(null);
-  // Existing image URL kept in edit mode (unless user clears or uploads a new one).
-  const [keptImageUrl, setKeptImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{
@@ -59,18 +92,39 @@ export function OrderLinkFormPage() {
     url: string;
   } | null>(null);
 
+  const patchItem = (itemId: string, patch: Partial<ItemDraft>) => {
+    setItems((prev) =>
+      prev.map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
+    );
+  };
+  const removeItem = (itemId: string) => {
+    setItems((prev) =>
+      prev.length === 1 ? prev : prev.filter((it) => it.id !== itemId),
+    );
+  };
+  const addItem = (kind: OrderLinkKind) =>
+    setItems((prev) => [...prev, newItem(kind)]);
+
   // Prefill from existing link on edit.
   useEffect(() => {
     if (!existing) return;
-    setKind(existing.kind);
-    setProductId(existing.productId ?? "");
-    setProductName(existing.productName);
-    setSizeLabel(existing.sizeLabel ?? "");
-    setSizeGrams(existing.sizeGrams ? String(existing.sizeGrams) : "");
-    setFlavourId(existing.flavourId ?? "");
-    setMessageHint(existing.messageHint ?? "");
-    setUnitPrice(Number(existing.unitPrice).toFixed(0));
-    setQty(String(existing.qty));
+    setItems(
+      existing.items.map((it) => ({
+        id: it.id,
+        kind: it.kind,
+        productId: it.productId ?? "",
+        productName: it.productName,
+        sizeLabel: it.sizeLabel ?? "",
+        sizeGrams: it.sizeGrams ? String(it.sizeGrams) : "",
+        flavourId: it.flavourId ?? "",
+        messageHint: it.messageHint ?? "",
+        unitPrice: Number(it.unitPrice).toFixed(0),
+        qty: String(it.qty),
+        refFile: null,
+        refPreview: null,
+        keptImageUrl: it.referenceImageUrl,
+      })),
+    );
     setCustomerName(existing.customerName ?? "");
     setCustomerPhone(existing.customerPhone ?? "");
     setAdminNotes(existing.adminNotes ?? "");
@@ -86,69 +140,76 @@ export function OrderLinkFormPage() {
     } else {
       setExpiresInDays("");
     }
-    setKeptImageUrl(existing.referenceImageUrl);
   }, [existing]);
 
-  // Preview the selected file locally before upload.
+  // Refresh object-URL previews whenever an item's file changes.
   useEffect(() => {
-    if (!refFile) {
-      setRefPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(refFile);
-    setRefPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [refFile]);
+    const createdUrls: string[] = [];
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.refFile) {
+          if (it.refPreview?.startsWith("blob:")) return it;
+          const url = URL.createObjectURL(it.refFile);
+          createdUrls.push(url);
+          return { ...it, refPreview: url };
+        }
+        return it.refPreview ? { ...it, refPreview: null } : it;
+      }),
+    );
+    return () => {
+      createdUrls.forEach((u) => URL.revokeObjectURL(u));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.map((i) => i.refFile).join("|")]);
 
-  const selectedProduct = useMemo(
-    () => products.find((p) => p.id === productId),
-    [products, productId],
+  const flavourName = (flavourId: string) =>
+    flavours.find((f) => f.id === flavourId)?.name ?? null;
+
+  const itemsValid = items.every(
+    (it) =>
+      it.productName.trim().length >= 2 &&
+      Number(it.unitPrice) > 0 &&
+      Number(it.qty) > 0 &&
+      (it.kind === "CUSTOM" || it.productId),
   );
+  const canSubmit = itemsValid && !uploading;
 
-  // When product changes, auto-fill snapshotted fields.
-  useEffect(() => {
-    if (kind !== "CATALOG" || !selectedProduct) return;
-    setProductName(selectedProduct.name);
-    if (!unitPrice) setUnitPrice(Number(selectedProduct.basePrice).toFixed(0));
-  }, [kind, selectedProduct]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const flavourName = useMemo(
-    () => flavours.find((f) => f.id === flavourId)?.name ?? null,
-    [flavours, flavourId],
+  const grandTotal = items.reduce(
+    (sum, it) => sum + Number(it.unitPrice || 0) * Number(it.qty || 0),
+    0,
   );
-
-  const canSubmit =
-    productName.trim().length >= 2 &&
-    Number(unitPrice) > 0 &&
-    (kind === "CUSTOM" || productId) &&
-    !uploading;
 
   const submit = async () => {
     setError(null);
     try {
-      let referenceImageUrl: string | null = keptImageUrl;
-
-      if (refFile) {
-        setUploading(true);
-        const res = await uploadImage(refFile, "quote-reference");
-        referenceImageUrl = res.publicUrl;
-        setUploading(false);
+      const itemPayloads: OrderLinkItemPayload[] = [];
+      for (const it of items) {
+        let referenceImageUrl: string | null = it.keptImageUrl;
+        if (it.refFile) {
+          setUploading(true);
+          const res = await uploadImage(it.refFile, "quote-reference");
+          referenceImageUrl = res.publicUrl;
+        }
+        itemPayloads.push({
+          kind: it.kind,
+          productId: it.kind === "CATALOG" ? it.productId : null,
+          productName: it.productName.trim(),
+          sizeLabel: it.sizeLabel.trim() || null,
+          sizeGrams: it.sizeGrams ? Number(it.sizeGrams) : null,
+          flavourId: it.flavourId || null,
+          flavourName: flavourName(it.flavourId),
+          referenceImageUrl,
+          messageHint: it.messageHint.trim() || null,
+          unitPrice: Number(it.unitPrice),
+          qty: Number(it.qty) || 1,
+        });
       }
+      setUploading(false);
 
       if (isEdit && id) {
         await update.mutateAsync({
           id,
-          kind,
-          productId: kind === "CATALOG" ? productId : null,
-          productName: productName.trim(),
-          sizeLabel: sizeLabel.trim() || null,
-          sizeGrams: sizeGrams ? Number(sizeGrams) : null,
-          flavourId: flavourId || null,
-          flavourName,
-          referenceImageUrl,
-          messageHint: messageHint.trim() || null,
-          unitPrice: Number(unitPrice),
-          qty: Number(qty) || 1,
+          items: itemPayloads,
           customerName: customerName.trim() || null,
           customerPhone: customerPhone.trim() || null,
           adminNotes: adminNotes.trim() || null,
@@ -159,17 +220,7 @@ export function OrderLinkFormPage() {
       }
 
       const payload: CreateOrderLinkPayload = {
-        kind,
-        productId: kind === "CATALOG" ? productId : null,
-        productName: productName.trim(),
-        sizeLabel: sizeLabel.trim() || null,
-        sizeGrams: sizeGrams ? Number(sizeGrams) : null,
-        flavourId: flavourId || null,
-        flavourName,
-        referenceImageUrl,
-        messageHint: messageHint.trim() || null,
-        unitPrice: Number(unitPrice),
-        qty: Number(qty) || 1,
+        items: itemPayloads,
         customerName: customerName.trim() || null,
         customerPhone: customerPhone.trim() || null,
         adminNotes: adminNotes.trim() || null,
@@ -199,172 +250,47 @@ export function OrderLinkFormPage() {
       </h1>
       <p className="mt-1 text-sm text-slate-500">
         {isEdit
-          ? "Update the image, spec, or price. Type stays fixed."
-          : "Lock the reference image, size, flavour and agreed price. Customer fills their contact & address."}
+          ? "Update the items, spec, or price. Customer fills their contact & address."
+          : "Lock the reference image, size, flavour and agreed price for one or more items. Customer fills their contact & address."}
       </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          <Section title="Type">
-            <div className="grid grid-cols-2 gap-3">
-              <KindButton
-                active={kind === "CUSTOM"}
-                onClick={() => setKind("CUSTOM")}
-                icon={<Sparkles className="h-5 w-5" />}
-                title="Custom cake"
-                subtitle="One-off design, price you agreed on the call"
-              />
-              <KindButton
-                active={kind === "CATALOG"}
-                onClick={() => setKind("CATALOG")}
-                icon={<Package className="h-5 w-5" />}
-                title="From catalog"
-                subtitle="Existing product from your menu"
-              />
-            </div>
-          </Section>
-
-          {kind === "CATALOG" && (
-            <Section title="Product">
-              <Field label="Pick a product" required>
-                <select
-                  value={productId}
-                  onChange={(e) => setProductId(e.target.value)}
-                  className={selectClass}
-                >
-                  <option value="">— Choose —</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · ₹{Number(p.basePrice).toFixed(0)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              {selectedProduct && (
-                <p className="mt-2 text-xs text-slate-500">
-                  Reference image will use the product's primary photo. Override
-                  below if needed.
-                </p>
-              )}
-            </Section>
-          )}
-
-          <Section title="Cake spec">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Name shown to customer" required>
-                <input
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  placeholder="2 pound chocolate cake"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Flavour">
-                <select
-                  value={flavourId}
-                  onChange={(e) => setFlavourId(e.target.value)}
-                  className={selectClass}
-                >
-                  <option value="">— None —</option>
-                  {flavours.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Size label">
-                <input
-                  value={sizeLabel}
-                  onChange={(e) => setSizeLabel(e.target.value)}
-                  placeholder="1 pound / 500g"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Size (grams)" hint="Optional. e.g. 500 for 1 lb.">
-                <input
-                  type="number"
-                  min={1}
-                  value={sizeGrams}
-                  onChange={(e) => setSizeGrams(e.target.value)}
-                  className={inputClass}
-                />
-              </Field>
-              <Field
-                label="Message on cake (suggestion)"
-                hint="Customer can override this at checkout."
-                className="sm:col-span-2"
-              >
-                <input
-                  value={messageHint}
-                  onChange={(e) => setMessageHint(e.target.value)}
-                  placeholder="Happy Birthday Aarav"
-                  className={inputClass}
-                />
-              </Field>
-            </div>
-          </Section>
-
           <Section
-            title="Reference image"
-            subtitle={
-              kind === "CATALOG"
-                ? "Optional — leave blank to use the product's primary photo."
-                : "Upload the photo the customer sent."
+            title="Items"
+            subtitle="Catalog picks a product from your menu; Custom is a one-off item."
+            action={
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => addItem("CATALOG")}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
+                >
+                  <Plus className="h-3 w-3" /> Catalog item
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addItem("CUSTOM")}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
+                >
+                  <Plus className="h-3 w-3" /> Custom item
+                </button>
+              </div>
             }
           >
-            <div className="flex flex-col items-start gap-3 sm:flex-row">
-              {refPreview ? (
-                <img
-                  src={refPreview}
-                  alt="Reference"
-                  className="h-32 w-32 shrink-0 rounded-lg object-cover ring-1 ring-slate-200"
+            <div className="space-y-4">
+              {items.map((item, idx) => (
+                <ItemRow
+                  key={item.id}
+                  index={idx}
+                  item={item}
+                  products={products}
+                  flavours={flavours}
+                  onPatch={(patch) => patchItem(item.id, patch)}
+                  onRemove={() => removeItem(item.id)}
+                  canRemove={items.length > 1}
                 />
-              ) : keptImageUrl ? (
-                <div className="relative h-32 w-32 shrink-0">
-                  <img
-                    src={keptImageUrl}
-                    alt="Reference"
-                    className="h-full w-full rounded-lg object-cover ring-1 ring-slate-200"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setKeptImageUrl(null)}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-slate-900"
-                    aria-label="Remove image"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
-                  No image
-                </div>
-              )}
-              <div className="flex-1">
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    setRefFile(file);
-                    if (file) setKeptImageUrl(null);
-                  }}
-                  className="block text-xs text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-50"
-                />
-                {(refFile || keptImageUrl) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRefFile(null);
-                      setKeptImageUrl(null);
-                    }}
-                    className="mt-2 text-xs text-slate-500 hover:text-brand-500"
-                  >
-                    Remove image
-                  </button>
-                )}
-              </div>
+              ))}
             </div>
           </Section>
 
@@ -408,28 +334,36 @@ export function OrderLinkFormPage() {
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-card border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">Pricing</h2>
-            <div className="mt-3 space-y-3">
-              <Field label="Unit price (₹)" required>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={unitPrice}
-                  onChange={(e) => setUnitPrice(e.target.value)}
-                  placeholder="1500"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Qty" required>
-                <input
-                  type="number"
-                  min={1}
-                  value={qty}
-                  onChange={(e) => setQty(e.target.value)}
-                  className={inputClass}
-                />
-              </Field>
+            <h2 className="text-sm font-semibold text-slate-900">Summary</h2>
+            <div className="mt-3 space-y-1.5 text-sm">
+              {items.map((it, idx) => (
+                <div
+                  key={it.id}
+                  className="flex justify-between text-slate-700"
+                >
+                  <span className="truncate pr-2">
+                    {it.productName.trim() || `Item ${idx + 1}`}
+                    {Number(it.qty) > 1 ? ` × ${it.qty}` : ""}
+                  </span>
+                  <span className="tabular-nums">
+                    ₹
+                    {(Number(it.unitPrice || 0) * Number(it.qty || 0)).toFixed(
+                      0,
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <hr className="my-4 border-slate-100" />
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-slate-700">Locked price</span>
+              <span className="text-2xl font-semibold tabular-nums text-slate-900">
+                ₹{grandTotal.toFixed(0)}
+              </span>
+            </div>
+
+            <div className="mt-4">
               <Field
                 label="Expires in (days)"
                 hint="Link stops working after this. Blank = never."
@@ -443,17 +377,6 @@ export function OrderLinkFormPage() {
                   className={inputClass}
                 />
               </Field>
-            </div>
-
-            <hr className="my-4 border-slate-100" />
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm text-slate-700">Locked price</span>
-              <span className="text-2xl font-semibold tabular-nums text-slate-900">
-                ₹
-                {unitPrice
-                  ? (Number(unitPrice) * Number(qty || 1)).toFixed(0)
-                  : "0"}
-              </span>
             </div>
 
             {error && (
@@ -485,6 +408,261 @@ export function OrderLinkFormPage() {
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  subtitle,
+  action,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-card border border-slate-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+          {subtitle && (
+            <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+          )}
+        </div>
+        {action}
+      </div>
+      <div className={cn(subtitle || action ? "mt-4" : "mt-3")}>{children}</div>
+    </section>
+  );
+}
+
+function ItemRow({
+  index,
+  item,
+  products,
+  flavours,
+  onPatch,
+  onRemove,
+  canRemove,
+}: {
+  index: number;
+  item: ItemDraft;
+  products: Array<{ id: string; name: string; basePrice: string }>;
+  flavours: Array<{ id: string; name: string }>;
+  onPatch: (patch: Partial<ItemDraft>) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+}) {
+  const selectedProduct = useMemo(
+    () => products.find((p) => p.id === item.productId),
+    [products, item.productId],
+  );
+
+  // Auto-fill snapshotted fields when a catalog product is picked.
+  useEffect(() => {
+    if (item.kind !== "CATALOG" || !selectedProduct) return;
+    if (!item.productName) onPatch({ productName: selectedProduct.name });
+    if (!item.unitPrice)
+      onPatch({ unitPrice: Number(selectedProduct.basePrice).toFixed(0) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.kind, selectedProduct]);
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Item {index + 1}
+          </p>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+              item.kind === "CATALOG"
+                ? "bg-blue-50 text-blue-700"
+                : "bg-brand-100 text-brand-700",
+            )}
+          >
+            {item.kind === "CATALOG" ? (
+              <Package className="h-3 w-3" />
+            ) : (
+              <Sparkles className="h-3 w-3" />
+            )}
+            {item.kind === "CATALOG" ? "Catalog" : "Custom"}
+          </span>
+        </div>
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-slate-400 hover:text-red-600"
+            aria-label="Remove item"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
+      {item.kind === "CATALOG" && (
+        <Field label="Pick a product" required>
+          <select
+            value={item.productId}
+            onChange={(e) =>
+              onPatch({ productId: e.target.value, productName: "" })
+            }
+            className={selectClass}
+          >
+            <option value="">— Choose —</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} · ₹{Number(p.basePrice).toFixed(0)}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <Field
+          label={item.kind === "CATALOG" ? "Name (override)" : "Name"}
+          required
+        >
+          <input
+            value={item.productName}
+            onChange={(e) => onPatch({ productName: e.target.value })}
+            placeholder="2 pound chocolate cake"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Flavour">
+          <select
+            value={item.flavourId}
+            onChange={(e) => onPatch({ flavourId: e.target.value })}
+            className={selectClass}
+          >
+            <option value="">— None —</option>
+            {flavours.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Size label">
+          <input
+            value={item.sizeLabel}
+            onChange={(e) => onPatch({ sizeLabel: e.target.value })}
+            placeholder="1 pound / 500g"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Size (grams)" hint="Optional. e.g. 500 for 1 lb.">
+          <input
+            type="number"
+            min={1}
+            value={item.sizeGrams}
+            onChange={(e) => onPatch({ sizeGrams: e.target.value })}
+            className={inputClass}
+          />
+        </Field>
+        <Field
+          label="Message on cake (suggestion)"
+          hint="Customer can override this at checkout."
+          className="sm:col-span-2"
+        >
+          <input
+            value={item.messageHint}
+            onChange={(e) => onPatch({ messageHint: e.target.value })}
+            placeholder="Happy Birthday Aarav"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Unit price (₹)" required>
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            value={item.unitPrice}
+            onChange={(e) => onPatch({ unitPrice: e.target.value })}
+            placeholder="1500"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Qty" required>
+          <input
+            type="number"
+            min={1}
+            value={item.qty}
+            onChange={(e) => onPatch({ qty: e.target.value })}
+            className={inputClass}
+          />
+        </Field>
+      </div>
+
+      <Field
+        label="Reference image"
+        hint={
+          item.kind === "CATALOG"
+            ? "Optional — leave blank to use the product's primary photo."
+            : "Upload the photo the customer sent."
+        }
+        className="mt-3"
+      >
+        <div className="flex flex-col items-start gap-3 sm:flex-row">
+          {item.refPreview ? (
+            <img
+              src={item.refPreview}
+              alt="Reference"
+              className="h-24 w-24 shrink-0 rounded-lg object-cover ring-1 ring-slate-200"
+            />
+          ) : item.keptImageUrl ? (
+            <div className="relative h-24 w-24 shrink-0">
+              <img
+                src={item.keptImageUrl}
+                alt="Reference"
+                className="h-full w-full rounded-lg object-cover ring-1 ring-slate-200"
+              />
+              <button
+                type="button"
+                onClick={() => onPatch({ keptImageUrl: null })}
+                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-slate-900"
+                aria-label="Remove image"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
+              No image
+            </div>
+          )}
+          <div className="flex-1">
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                onPatch({
+                  refFile: file,
+                  keptImageUrl: file ? null : item.keptImageUrl,
+                });
+              }}
+              className="block text-xs text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-50"
+            />
+            {(item.refFile || item.keptImageUrl) && (
+              <button
+                type="button"
+                onClick={() => onPatch({ refFile: null, keptImageUrl: null })}
+                className="mt-2 text-xs text-slate-500 hover:text-brand-500"
+              >
+                Remove image
+              </button>
+            )}
+          </div>
+        </div>
+      </Field>
     </div>
   );
 }
@@ -556,64 +734,5 @@ function CreatedView({ created }: { created: { token: string; url: string } }) {
         </Link>
       </div>
     </div>
-  );
-}
-
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-card border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 px-4 py-3">
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        {subtitle && (
-          <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
-        )}
-      </div>
-      <div className="space-y-4 p-4">{children}</div>
-    </section>
-  );
-}
-
-function KindButton({
-  active,
-  onClick,
-  icon,
-  title,
-  subtitle,
-  disabled,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "flex flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left transition",
-        active
-          ? "border-brand-500 bg-brand-100/40 text-brand-700"
-          : "border-slate-200 bg-white text-slate-700 hover:border-brand-300",
-        disabled && "opacity-40",
-      )}
-    >
-      <span className={active ? "text-brand-700" : "text-slate-400"}>
-        {icon}
-      </span>
-      <span className="text-sm font-medium">{title}</span>
-      <span className="text-[11px] text-slate-500">{subtitle}</span>
-    </button>
   );
 }

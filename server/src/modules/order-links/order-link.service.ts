@@ -53,60 +53,110 @@ const suggestedSlotSchema = z
   .optional()
   .nullable();
 
-export const createOrderLinkSchema = z
-  .object({
-    kind: z.enum(["CUSTOM", "CATALOG"]),
+const orderLinkItemSchema = z.object({
+  kind: z.enum(["CUSTOM", "CATALOG"]),
+  productId: z.string().min(1).optional().nullable(),
+  productName: z.string().trim().min(2),
+  sizeLabel: z.string().trim().nullable().optional(),
+  sizeGrams: z.coerce.number().int().positive().nullable().optional(),
+  flavourId: z.string().nullable().optional(),
+  flavourName: z.string().trim().nullable().optional(),
+  referenceImageUrl: z.string().url().nullable().optional(),
+  messageHint: z.string().trim().max(200).nullable().optional(),
+  unitPrice: z.coerce.number().nonnegative(),
+  qty: z.coerce.number().int().positive().default(1),
+});
+type OrderLinkItemInput = z.infer<typeof orderLinkItemSchema>;
 
-    productId: z.string().min(1).optional().nullable(),
+const itemsRefine = (items: OrderLinkItemInput[]) =>
+  items.every((i) => (i.kind === "CATALOG" ? !!i.productId : true));
 
-    productName: z.string().trim().min(2),
-    sizeLabel: z.string().trim().nullable().optional(),
-    sizeGrams: z.coerce.number().int().positive().nullable().optional(),
-    flavourId: z.string().nullable().optional(),
-    flavourName: z.string().trim().nullable().optional(),
-    referenceImageUrl: z.string().url().nullable().optional(),
-    messageHint: z.string().trim().max(200).nullable().optional(),
+export const createOrderLinkSchema = z.object({
+  items: z
+    .array(orderLinkItemSchema)
+    .min(1, "Add at least one item")
+    .refine(itemsRefine, {
+      message: "productId required for CATALOG items",
+      path: ["items"],
+    }),
 
-    unitPrice: z.coerce.number().nonnegative(),
-    qty: z.coerce.number().int().positive().default(1),
+  customerName: z.string().trim().nullable().optional(),
+  customerPhone: z.string().trim().nullable().optional(),
+  suggested: suggestedSlotSchema,
 
-    customerName: z.string().trim().nullable().optional(),
-    customerPhone: z.string().trim().nullable().optional(),
-    suggested: suggestedSlotSchema,
+  adminNotes: z.string().trim().max(2000).nullable().optional(),
 
-    adminNotes: z.string().trim().max(2000).nullable().optional(),
-
-    expiresInDays: z.coerce
-      .number()
-      .int()
-      .positive()
-      .max(365)
-      .nullable()
-      .optional(),
-  })
-  .refine((v) => (v.kind === "CATALOG" ? !!v.productId : true), {
-    message: "productId required for CATALOG kind",
-    path: ["productId"],
-  });
+  expiresInDays: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(365)
+    .nullable()
+    .optional(),
+});
 
 export type CreateOrderLinkInput = z.infer<typeof createOrderLinkSchema>;
 
-export async function createOrderLink(input: CreateOrderLinkInput) {
-  let productName = input.productName;
-  let referenceImageUrl = input.referenceImageUrl ?? null;
-
-  if (input.kind === "CATALOG" && input.productId) {
-    const p = await prisma.product.findUnique({
-      where: { id: input.productId },
+// Snapshots catalog products (name/image) for the given item specs; returns
+// per-item create payloads for OrderLinkItem.
+async function buildItemCreates(items: OrderLinkItemInput[]) {
+  const catalogIds = [
+    ...new Set(
+      items
+        .filter((i) => i.kind === "CATALOG" && i.productId)
+        .map((i) => i.productId as string),
+    ),
+  ];
+  const catalogMap = new Map<
+    string,
+    { name: string; images: string[]; isActive: boolean }
+  >();
+  if (catalogIds.length) {
+    const products = await prisma.product.findMany({
+      where: { id: { in: catalogIds } },
       select: { id: true, name: true, images: true, isActive: true },
     });
-    if (!p) throw HttpError.badRequest("Product not found");
-    if (!p.isActive) throw HttpError.badRequest("Product is inactive");
-    // Snapshot: use admin-provided name if any, else product name; same for image.
-    if (!input.productName || input.productName === p.name)
-      productName = p.name;
-    if (!referenceImageUrl && p.images[0]) referenceImageUrl = p.images[0];
+    for (const p of products) {
+      if (!p.isActive)
+        throw HttpError.badRequest(`Product "${p.name}" is inactive`);
+      catalogMap.set(p.id, p);
+    }
+    for (const id of catalogIds) {
+      if (!catalogMap.has(id)) throw HttpError.badRequest("Product not found");
+    }
   }
+
+  return items.map((item, index) => {
+    const catalog =
+      item.kind === "CATALOG" && item.productId
+        ? catalogMap.get(item.productId)
+        : undefined;
+    const productName =
+      catalog && (!item.productName || item.productName === catalog.name)
+        ? catalog.name
+        : item.productName;
+    const referenceImageUrl =
+      item.referenceImageUrl ?? catalog?.images[0] ?? null;
+
+    return {
+      kind: item.kind,
+      productId: item.productId ?? null,
+      productName,
+      sizeLabel: item.sizeLabel ?? null,
+      sizeGrams: item.sizeGrams ?? null,
+      flavourId: item.flavourId ?? null,
+      flavourName: item.flavourName ?? null,
+      referenceImageUrl,
+      messageHint: item.messageHint ?? null,
+      unitPrice: item.unitPrice,
+      qty: item.qty,
+      sortOrder: index,
+    };
+  });
+}
+
+export async function createOrderLink(input: CreateOrderLinkInput) {
+  const itemCreates = await buildItemCreates(input.items);
 
   const expiresAt = input.expiresInDays
     ? new Date(Date.now() + input.expiresInDays * 24 * 3600 * 1000)
@@ -119,17 +169,6 @@ export async function createOrderLink(input: CreateOrderLinkInput) {
   const created = await prisma.orderLink.create({
     data: {
       token: tokenGen(),
-      kind: input.kind,
-      productId: input.productId ?? null,
-      productName,
-      sizeLabel: input.sizeLabel ?? null,
-      sizeGrams: input.sizeGrams ?? null,
-      flavourId: input.flavourId ?? null,
-      flavourName: input.flavourName ?? null,
-      referenceImageUrl,
-      messageHint: input.messageHint ?? null,
-      unitPrice: input.unitPrice,
-      qty: input.qty,
       customerName: input.customerName ?? null,
       customerPhone: input.customerPhone ?? null,
       suggestedDate,
@@ -137,7 +176,9 @@ export async function createOrderLink(input: CreateOrderLinkInput) {
       suggestedSlotLabel: input.suggested?.label ?? null,
       adminNotes: input.adminNotes ?? null,
       expiresAt,
+      items: { create: itemCreates },
     },
+    include: { items: { orderBy: { sortOrder: "asc" } } },
   });
   return created;
 }
@@ -152,6 +193,7 @@ export async function listOrderLinks(status?: string | null) {
     orderBy: { createdAt: "desc" },
     take: 200,
     include: {
+      items: { orderBy: { sortOrder: "asc" } },
       linkedOrder: {
         select: {
           id: true,
@@ -169,6 +211,7 @@ export async function getOrderLinkById(id: string) {
   const link = await prisma.orderLink.findUnique({
     where: { id },
     include: {
+      items: { orderBy: { sortOrder: "asc" } },
       linkedOrder: {
         select: {
           id: true,
@@ -191,16 +234,6 @@ export async function getOrderLinkByToken(token: string) {
     select: {
       id: true,
       token: true,
-      kind: true,
-      productName: true,
-      sizeLabel: true,
-      sizeGrams: true,
-      flavourId: true,
-      flavourName: true,
-      referenceImageUrl: true,
-      messageHint: true,
-      unitPrice: true,
-      qty: true,
       customerName: true,
       customerPhone: true,
       suggestedDate: true,
@@ -208,6 +241,23 @@ export async function getOrderLinkByToken(token: string) {
       suggestedSlotLabel: true,
       status: true,
       expiresAt: true,
+      items: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          kind: true,
+          productId: true,
+          productName: true,
+          sizeLabel: true,
+          sizeGrams: true,
+          flavourId: true,
+          flavourName: true,
+          referenceImageUrl: true,
+          messageHint: true,
+          unitPrice: true,
+          qty: true,
+        },
+      },
       linkedOrder: { select: { orderNumber: true } },
     },
   });
@@ -256,10 +306,7 @@ export const placeOrderLinkSchema = z.object({
   deliverySlotKey: z.string().min(1),
   deliverySlotLabel: z.string().min(1),
 
-  messageOnCake: z.string().trim().max(200).optional().nullable(),
   customerNotes: z.string().trim().max(500).optional().nullable(),
-
-  qty: z.coerce.number().int().positive().optional(),
 
   // How much the customer is paying now, and proof of the transfer.
   paymentMode: z.enum(["FULL", "ADVANCE"]).default("FULL"),
@@ -276,8 +323,13 @@ export async function placeOrderFromLink(
   const link = await prisma.orderLink.findUnique({
     where: { token },
     include: {
-      product: {
-        select: { id: true, gstRate: true, priceIsGstInclusive: true },
+      items: {
+        orderBy: { sortOrder: "asc" },
+        include: {
+          product: {
+            select: { gstRate: true, priceIsGstInclusive: true },
+          },
+        },
       },
     },
   });
@@ -297,6 +349,9 @@ export async function placeOrderFromLink(
       data: { status: "EXPIRED" },
     });
     throw HttpError.badRequest("This order link has expired");
+  }
+  if (link.items.length === 0) {
+    throw HttpError.badRequest("This order link has no items");
   }
 
   // Reject past dates (mirrors createOrder guard).
@@ -327,32 +382,64 @@ export async function placeOrderFromLink(
     deliveryFee = Number(info.deliveryFee);
   }
 
-  // Pricing + GST snapshot
-  const finalQty = input.qty ?? link.qty;
-  const unitPrice = Number(link.unitPrice);
-  const gstRate =
-    link.product?.gstRate != null
-      ? Number(link.product.gstRate)
-      : CUSTOM_GST_RATE;
-  const inclusive =
-    link.product?.priceIsGstInclusive != null
-      ? link.product.priceIsGstInclusive
-      : CUSTOM_GST_INCLUSIVE;
-
-  const lineIncl = unitPrice * finalQty;
-  const subtotal = lineIncl;
-  const taxableAmount = inclusive ? lineIncl / (1 + gstRate / 100) : lineIncl;
-  const gstAmount = inclusive
-    ? lineIncl - taxableAmount
-    : lineIncl * (gstRate / 100);
-
   const BUSINESS_STATE_CODE = "19";
   const isIntraState =
     input.fulfillment === "PICKUP" ||
     input.deliveryAddress?.stateCode === BUSINESS_STATE_CODE;
-  const cgstAmount = isIntraState ? gstAmount / 2 : 0;
-  const sgstAmount = isIntraState ? gstAmount / 2 : 0;
-  const igstAmount = isIntraState ? 0 : gstAmount;
+
+  // Per-item GST computation (mirrors placeOfflineOrder) — each item may be
+  // its own catalog product with its own GST rate.
+  let subtotal = 0;
+  let taxableAmount = 0;
+  let cgstAmount = 0;
+  let sgstAmount = 0;
+  let igstAmount = 0;
+  const itemCreates = link.items.map((item) => {
+    const gstRate =
+      item.product?.gstRate != null
+        ? Number(item.product.gstRate)
+        : CUSTOM_GST_RATE;
+    const inclusive =
+      item.product?.priceIsGstInclusive != null
+        ? item.product.priceIsGstInclusive
+        : CUSTOM_GST_INCLUSIVE;
+
+    const unitPrice = Number(item.unitPrice);
+    const lineIncl = unitPrice * item.qty;
+    const lineTaxable = inclusive ? lineIncl / (1 + gstRate / 100) : lineIncl;
+    const lineGst = inclusive
+      ? lineIncl - lineTaxable
+      : lineIncl * (gstRate / 100);
+
+    subtotal += lineIncl;
+    taxableAmount += lineTaxable;
+    if (isIntraState) {
+      cgstAmount += lineGst / 2;
+      sgstAmount += lineGst / 2;
+    } else {
+      igstAmount += lineGst;
+    }
+
+    return {
+      productId: item.productId,
+      productName: item.productName,
+      productSlug: null,
+      productImage: item.referenceImageUrl,
+      sizeGrams: item.sizeGrams,
+      sizeLabel: item.sizeLabel,
+      flavourId: item.flavourId,
+      flavourName: item.flavourName,
+      messageOnCake: item.messageHint ?? null,
+      instructions: null,
+      referenceImageUrl: item.kind === "CUSTOM" ? item.referenceImageUrl : null,
+      deliveryDate: dt,
+      deliverySlotKey: input.deliverySlotKey,
+      deliverySlotLabel: input.deliverySlotLabel,
+      unitPrice,
+      qty: item.qty,
+      lineTotal: lineIncl,
+    };
+  });
 
   const total = subtotal + deliveryFee;
 
@@ -398,30 +485,7 @@ export async function placeOrderFromLink(
         paymentScreenshotUrl: input.paymentScreenshotUrl ?? null,
         source: "OFFLINE_LINK",
         customerNotes: input.customerNotes ?? null,
-        items: {
-          create: [
-            {
-              productId: link.productId,
-              productName: link.productName,
-              productSlug: null,
-              productImage: link.referenceImageUrl,
-              sizeGrams: link.sizeGrams,
-              sizeLabel: link.sizeLabel,
-              flavourId: link.flavourId,
-              flavourName: link.flavourName,
-              messageOnCake: input.messageOnCake ?? link.messageHint ?? null,
-              instructions: null,
-              referenceImageUrl:
-                link.kind === "CUSTOM" ? link.referenceImageUrl : null,
-              deliveryDate: dt,
-              deliverySlotKey: input.deliverySlotKey,
-              deliverySlotLabel: input.deliverySlotLabel,
-              unitPrice,
-              qty: finalQty,
-              lineTotal: lineIncl,
-            },
-          ],
-        },
+        items: { create: itemCreates },
       },
       include: { items: true },
     });
@@ -494,17 +558,14 @@ export const updateOrderLinkSchema = z.object({
   adminNotes: z.string().trim().max(2000).nullable().optional(),
 
   // Spec edits — only honoured while status is OPEN.
-  kind: z.enum(["CUSTOM", "CATALOG"]).optional(),
-  productId: z.string().nullable().optional(),
-  productName: z.string().trim().min(2).optional(),
-  sizeLabel: z.string().trim().nullable().optional(),
-  sizeGrams: z.coerce.number().int().positive().nullable().optional(),
-  flavourId: z.string().nullable().optional(),
-  flavourName: z.string().trim().nullable().optional(),
-  referenceImageUrl: z.string().url().nullable().optional(),
-  messageHint: z.string().trim().max(200).nullable().optional(),
-  unitPrice: z.coerce.number().nonnegative().optional(),
-  qty: z.coerce.number().int().positive().optional(),
+  items: z
+    .array(orderLinkItemSchema)
+    .min(1, "Add at least one item")
+    .refine(itemsRefine, {
+      message: "productId required for CATALOG items",
+      path: ["items"],
+    })
+    .optional(),
   customerName: z.string().trim().nullable().optional(),
   customerPhone: z.string().trim().nullable().optional(),
 });
@@ -514,58 +575,42 @@ export type UpdateOrderLinkInput = z.infer<typeof updateOrderLinkSchema>;
 export async function updateOrderLink(id: string, input: UpdateOrderLinkInput) {
   const existing = await prisma.orderLink.findUnique({
     where: { id },
-    select: { id: true, status: true, kind: true, productId: true },
+    select: { id: true, status: true },
   });
   if (!existing) throw HttpError.notFound("Order link not found");
 
-  const specKeys = [
-    "kind",
-    "productId",
-    "productName",
-    "sizeLabel",
-    "sizeGrams",
-    "flavourId",
-    "flavourName",
-    "referenceImageUrl",
-    "messageHint",
-    "unitPrice",
-    "qty",
-    "customerName",
-    "customerPhone",
-  ] as const;
-  const editingSpec = specKeys.some((k) => input[k] !== undefined);
+  const editingSpec = input.items !== undefined;
   if (editingSpec && existing.status !== "OPEN") {
     throw HttpError.badRequest(
       "Cannot edit a link that has already been used or cancelled",
     );
   }
 
-  // Post-update kind determines what productId must look like.
-  const finalKind = input.kind ?? existing.kind;
-  const finalProductId =
-    input.productId !== undefined ? input.productId : existing.productId;
-  if (finalKind === "CATALOG" && !finalProductId) {
-    throw HttpError.badRequest("A catalog link needs a product");
-  }
-
   const data: Record<string, unknown> = {};
   if (input.status) data.status = input.status;
   if (input.adminNotes !== undefined) data.adminNotes = input.adminNotes;
+  if (input.customerName !== undefined) data.customerName = input.customerName;
+  if (input.customerPhone !== undefined)
+    data.customerPhone = input.customerPhone;
   if (input.expiresInDays !== undefined) {
     data.expiresAt = input.expiresInDays
       ? new Date(Date.now() + input.expiresInDays * 24 * 3600 * 1000)
       : null;
   }
-  for (const k of specKeys) {
-    if (input[k] !== undefined) data[k] = input[k];
+
+  if (input.items) {
+    const itemCreates = await buildItemCreates(input.items);
+    data.items = {
+      deleteMany: {},
+      create: itemCreates,
+    };
   }
-  // Switching to CUSTOM clears the productId even if the caller didn't send it.
-  if (finalKind === "CUSTOM") data.productId = null;
 
   return prisma.orderLink.update({
     where: { id },
     data,
     include: {
+      items: { orderBy: { sortOrder: "asc" } },
       linkedOrder: {
         select: {
           id: true,

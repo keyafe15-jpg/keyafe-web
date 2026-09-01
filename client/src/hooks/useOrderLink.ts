@@ -5,10 +5,10 @@ import type { Order } from "./useOrders";
 export type OrderLinkKind = "CUSTOM" | "CATALOG";
 export type OrderLinkStatus = "OPEN" | "ORDERED" | "EXPIRED" | "CANCELLED";
 
-export interface PublicOrderLink {
+export interface PublicOrderLinkItem {
   id: string;
-  token: string;
   kind: OrderLinkKind;
+  productId: string | null;
   productName: string;
   sizeLabel: string | null;
   sizeGrams: number | null;
@@ -18,6 +18,12 @@ export interface PublicOrderLink {
   messageHint: string | null;
   unitPrice: string;
   qty: number;
+}
+
+export interface PublicOrderLink {
+  id: string;
+  token: string;
+  items: PublicOrderLinkItem[];
   customerName: string | null;
   customerPhone: string | null;
   suggestedDate: string | null;
@@ -56,9 +62,7 @@ export interface PlaceOrderLinkPayload {
   deliveryDate: string;
   deliverySlotKey: string;
   deliverySlotLabel: string;
-  messageOnCake?: string | null;
   customerNotes?: string | null;
-  qty?: number;
 
   // How much is being paid now, and proof of the transfer. Both are absent
   // for COD (advanceAmount: 0, paymentScreenshotUrl: null).

@@ -4,9 +4,8 @@ import { api } from "@/lib/api";
 export type OrderLinkKind = "CUSTOM" | "CATALOG";
 export type OrderLinkStatus = "OPEN" | "ORDERED" | "EXPIRED" | "CANCELLED";
 
-export interface OrderLink {
+export interface OrderLinkItem {
   id: string;
-  token: string;
   kind: OrderLinkKind;
   productId: string | null;
   productName: string;
@@ -18,6 +17,12 @@ export interface OrderLink {
   messageHint: string | null;
   unitPrice: string;
   qty: number;
+}
+
+export interface OrderLink {
+  id: string;
+  token: string;
+  items: OrderLinkItem[];
   customerName: string | null;
   customerPhone: string | null;
   suggestedDate: string | null;
@@ -37,7 +42,7 @@ export interface OrderLink {
   updatedAt: string;
 }
 
-export interface CreateOrderLinkPayload {
+export interface OrderLinkItemPayload {
   kind: OrderLinkKind;
   productId?: string | null;
   productName: string;
@@ -49,6 +54,10 @@ export interface CreateOrderLinkPayload {
   messageHint?: string | null;
   unitPrice: number;
   qty: number;
+}
+
+export interface CreateOrderLinkPayload {
+  items: OrderLinkItemPayload[];
   customerName?: string | null;
   customerPhone?: string | null;
   suggested?: {
@@ -86,17 +95,7 @@ export interface UpdateOrderLinkPayload {
   adminNotes?: string | null;
 
   // Spec edits — server rejects if the link isn't OPEN.
-  kind?: OrderLinkKind;
-  productId?: string | null;
-  productName?: string;
-  sizeLabel?: string | null;
-  sizeGrams?: number | null;
-  flavourId?: string | null;
-  flavourName?: string | null;
-  referenceImageUrl?: string | null;
-  messageHint?: string | null;
-  unitPrice?: number;
-  qty?: number;
+  items?: OrderLinkItemPayload[];
   customerName?: string | null;
   customerPhone?: string | null;
 }

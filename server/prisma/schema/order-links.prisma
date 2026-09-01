@@ -19,6 +19,36 @@ model OrderLink {
   // URL-friendly public token used in /o/{token}. Not guessable but not a secret.
   token String @unique
 
+  // Optional prefills the customer can accept or override.
+  customerName       String?
+  customerPhone      String?
+  suggestedDate      DateTime?
+  suggestedSlotKey   String?
+  suggestedSlotLabel String?
+
+  // Internal — never shown to customer.
+  adminNotes String?
+
+  status    OrderLinkStatus @default(OPEN)
+  expiresAt DateTime?
+
+  // Set when the customer converts the link into a real Order.
+  linkedOrderId String? @unique
+  linkedOrder   Order?  @relation(fields: [linkedOrderId], references: [id], onDelete: SetNull)
+
+  items OrderLinkItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model OrderLinkItem {
+  id          String    @id @default(cuid())
+  orderLinkId String
+  orderLink   OrderLink @relation(fields: [orderLinkId], references: [id], onDelete: Cascade)
+
   kind OrderLinkKind
 
   // Catalog side (nullable for CUSTOM)
@@ -39,26 +69,9 @@ model OrderLink {
   // Price locked at link-creation time. Customer sees + accepts this.
   unitPrice Decimal @db.Decimal(10, 2)
   qty       Int     @default(1)
-
-  // Optional prefills the customer can accept or override.
-  customerName       String?
-  customerPhone      String?
-  suggestedDate      DateTime?
-  suggestedSlotKey   String?
-  suggestedSlotLabel String?
-
-  // Internal — never shown to customer.
-  adminNotes String?
-
-  status    OrderLinkStatus @default(OPEN)
-  expiresAt DateTime?
-
-  // Set when the customer converts the link into a real Order.
-  linkedOrderId String? @unique
-  linkedOrder   Order?  @relation(fields: [linkedOrderId], references: [id], onDelete: SetNull)
+  sortOrder Int     @default(0)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@index([status, createdAt])
+  @@index([orderLinkId])
 }

@@ -85,7 +85,7 @@ model Product {
   toppings     Topping[]        @relation("ProductToppings")
   tags         Tag[]            @relation("ProductTags")
   festivals    Festival[]       @relation("FestivalProducts")
-  orderLinks   OrderLink[]
+  orderLinkItems OrderLinkItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

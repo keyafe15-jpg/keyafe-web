@@ -149,7 +149,21 @@ function LinkRow({ link }: { link: OrderLink }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const whatsappMessage = `Hi ${link.customerName ? link.customerName : ""}👋 Your order link:\n\n🎂 ${link.productName}${link.sizeLabel ? ` · ${link.sizeLabel}` : ""}${link.flavourName ? ` · ${link.flavourName}` : ""}\n💰 ₹${Number(link.unitPrice).toFixed(0)}\n\nTap to confirm: ${url}`;
+  const firstItem = link.items[0];
+  const extraItemCount = link.items.length - 1;
+  const totalPrice = link.items.reduce(
+    (sum, it) => sum + Number(it.unitPrice) * it.qty,
+    0,
+  );
+
+  const itemLines = link.items
+    .map((it) => {
+      const spec = [it.sizeLabel, it.flavourName].filter(Boolean).join(" · ");
+      const qtyPart = it.qty > 1 ? ` × ${it.qty}` : "";
+      return `🎂 ${it.productName}${spec ? ` · ${spec}` : ""}${qtyPart} — ₹${(Number(it.unitPrice) * it.qty).toFixed(0)}`;
+    })
+    .join("\n");
+  const whatsappMessage = `Hi ${link.customerName ? link.customerName : ""}👋 Your order link:\n\n${itemLines}\n💰 Total: ₹${totalPrice.toFixed(0)}\n\nTap to confirm: ${url}`;
   const whatsappHref = link.customerPhone
     ? `https://wa.me/${link.customerPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(whatsappMessage)}`
     : `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
@@ -157,15 +171,15 @@ function LinkRow({ link }: { link: OrderLink }) {
   return (
     <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start">
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-20 sm:w-20">
-        {link.referenceImageUrl ? (
+        {firstItem?.referenceImageUrl ? (
           <img
-            src={link.referenceImageUrl}
+            src={firstItem.referenceImageUrl}
             alt=""
             className="h-full w-full object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-slate-400">
-            {link.kind === "CATALOG" ? (
+            {firstItem?.kind === "CATALOG" ? (
               <Package className="h-6 w-6" />
             ) : (
               <Sparkles className="h-6 w-6" />
@@ -178,36 +192,43 @@ function LinkRow({ link }: { link: OrderLink }) {
         <div className="flex flex-wrap items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                  link.kind === "CATALOG"
-                    ? "bg-blue-50 text-blue-700"
-                    : "bg-brand-100 text-brand-700",
-                )}
-              >
-                {link.kind === "CATALOG" ? (
-                  <Package className="h-3 w-3" />
-                ) : (
-                  <Sparkles className="h-3 w-3" />
-                )}
-                {link.kind}
-              </span>
+              {firstItem && (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    firstItem.kind === "CATALOG"
+                      ? "bg-blue-50 text-blue-700"
+                      : "bg-brand-100 text-brand-700",
+                  )}
+                >
+                  {firstItem.kind === "CATALOG" ? (
+                    <Package className="h-3 w-3" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  {firstItem.kind}
+                </span>
+              )}
               <StatusPill status={link.status} />
             </div>
             <p className="mt-1 truncate font-medium text-slate-900">
-              {link.productName}
+              {firstItem?.productName}
+              {extraItemCount > 0 && (
+                <span className="ml-1 text-xs font-normal text-slate-500">
+                  +{extraItemCount} more item{extraItemCount === 1 ? "" : "s"}
+                </span>
+              )}
             </p>
             <p className="truncate text-xs text-slate-500">
-              {[link.sizeLabel, link.flavourName].filter(Boolean).join(" · ")}
+              {firstItem &&
+                [firstItem.sizeLabel, firstItem.flavourName]
+                  .filter(Boolean)
+                  .join(" · ")}
             </p>
           </div>
           <div className="text-right">
             <p className="text-sm font-semibold tabular-nums text-slate-900">
-              ₹{Number(link.unitPrice).toFixed(0)}
-              {link.qty > 1 && (
-                <span className="text-xs text-slate-500"> × {link.qty}</span>
-              )}
+              ₹{totalPrice.toFixed(0)}
             </p>
             <p className="text-[11px] text-slate-500">
               {new Date(link.createdAt).toLocaleDateString("en-IN", {
