@@ -13,6 +13,11 @@ import { getQuoteSchema, type GetQuoteInput } from "@/lib/validators";
 import { QUOTE_COPY } from "@/content/quote";
 import { api } from "@/lib/api";
 import { uploadImages } from "@/lib/uploads";
+import {
+  closedDayMessage,
+  closureForDate,
+  useShopClosures,
+} from "@/hooks/useShopClosures";
 
 function todayIso() {
   const d = new Date();
@@ -29,10 +34,12 @@ export function GetQuotePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
 
+  const { data: closures = [] } = useShopClosures();
   const {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors },
   } = useForm<GetQuoteInput>({
     resolver: zodResolver(getQuoteSchema),
@@ -42,6 +49,12 @@ export function GetQuotePage() {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
+      const closed = closureForDate(closures, values.deliveryDate);
+      if (closed) {
+        setError("deliveryDate", { message: closedDayMessage(closed) });
+        setIsSubmitting(false);
+        return;
+      }
       const uploaded = referenceImages.length
         ? await uploadImages(referenceImages, "quote-reference")
         : [];

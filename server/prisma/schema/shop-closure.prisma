@@ -1,0 +1,14 @@
+// Shop-wide kitchen closures (holidays, travel, a few days off).
+// Blocks same-day and scheduled local delivery/pickup on these dates.
+// Pan-India items without a slot are not date-blocked.
+
+model ShopClosure {
+  id        String   @id @default(cuid())
+  startsOn  DateTime @db.Date
+  endsOn    DateTime @db.Date // inclusive
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startsOn, endsOn])
+}

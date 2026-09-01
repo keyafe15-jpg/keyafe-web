@@ -44,12 +44,24 @@ export async function computeSameDayStatus(
   const closedMessage =
     settings?.sameDayClosedMessage ?? DEFAULT_CLOSED_MESSAGE;
 
-  // 1. Admin kill switch — nukes everything else.
+  const { dayOfWeek, dateKey, hourMinute } = getWallTimeInZone(now, timezone);
+
+  // 0. Whole-shop days off — kitchen is closed, so same-day is too.
+  const shopOff = await findClosureCovering(dateKey);
+  if (shopOff) {
+    return {
+      isOpen: false,
+      message:
+        shopOff.reason?.trim() ||
+        "We're taking a few days off. Please order for a later date.",
+      timezone,
+    };
+  }
+
+  // 1. Admin kill switch — nukes same-day only.
   if (settings?.isSameDayStoreClosed) {
     return { isOpen: false, message: closedMessage, timezone };
   }
-
-  const { dayOfWeek, dateKey, hourMinute } = getWallTimeInZone(now, timezone);
 
   // 2. Date-specific exception (highest priority after kill switch).
   const exception = await prisma.sameDayScheduleException.findUnique({
@@ -157,7 +169,7 @@ function mergeWeekly(
 }
 
 export async function getStoreHours() {
-  const [settings, weeklyRows, status] = await Promise.all([
+  const [settings, weeklyRows, status, closures] = await Promise.all([
     prisma.businessSettings.findFirst({
       select: {
         timezone: true,
@@ -175,6 +187,7 @@ export async function getStoreHours() {
       },
     }),
     computeSameDayStatus(),
+    listUpcomingClosures(),
   ]);
 
   return {
@@ -183,6 +196,7 @@ export async function getStoreHours() {
     sameDayClosedMessage:
       settings?.sameDayClosedMessage ?? DEFAULT_CLOSED_MESSAGE,
     weekly: mergeWeekly(weeklyRows),
+    closures,
     status,
   };
 }
@@ -236,4 +250,92 @@ export async function updateStoreHours(input: UpdateStoreHoursInput) {
   ]);
 
   return getStoreHours();
+}
+
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+
+export function calendarDateUtc(isoYmd: string): Date {
+  const ymd = isoYmd.slice(0, 10);
+  if (!YMD.test(ymd)) throw HttpError.badRequest("Invalid date");
+  return new Date(`${ymd}T00:00:00.000Z`);
+}
+
+function serializeClosure(row: {
+  id: string;
+  startsOn: Date;
+  endsOn: Date;
+  reason: string | null;
+}) {
+  return {
+    id: row.id,
+    startsOn: row.startsOn.toISOString().slice(0, 10),
+    endsOn: row.endsOn.toISOString().slice(0, 10),
+    reason: row.reason,
+  };
+}
+
+export async function findClosureCovering(date: Date) {
+  return prisma.shopClosure.findFirst({
+    where: {
+      startsOn: { lte: date },
+      endsOn: { gte: date },
+    },
+    orderBy: { startsOn: "asc" },
+  });
+}
+
+export async function assertKitchenOpenOn(isoYmd: string) {
+  const covering = await findClosureCovering(calendarDateUtc(isoYmd));
+  if (!covering) return;
+  throw HttpError.badRequest(
+    covering.reason?.trim()
+      ? `We're closed that day — ${covering.reason.trim()}`
+      : "We're closed on that date. Please pick another day.",
+  );
+}
+
+export async function listUpcomingClosures() {
+  const today = calendarDateUtc(new Date().toISOString());
+  const rows = await prisma.shopClosure.findMany({
+    where: { endsOn: { gte: today } },
+    orderBy: { startsOn: "asc" },
+  });
+  return rows.map(serializeClosure);
+}
+
+export const createClosureSchema = z.object({
+  startsOn: z.string().regex(YMD),
+  endsOn: z.string().regex(YMD),
+  reason: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v : null)),
+});
+
+export async function createShopClosure(input: z.infer<typeof createClosureSchema>) {
+  const startsOn = calendarDateUtc(input.startsOn);
+  const endsOn = calendarDateUtc(input.endsOn);
+  if (endsOn < startsOn) {
+    throw HttpError.badRequest("End date must be on or after the start date");
+  }
+  const created = await prisma.shopClosure.create({
+    data: {
+      startsOn,
+      endsOn,
+      reason: input.reason,
+    },
+  });
+  return serializeClosure(created);
+}
+
+export async function deleteShopClosure(id: string) {
+  const existing = await prisma.shopClosure.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!existing) throw HttpError.notFound("Closure not found");
+  await prisma.shopClosure.delete({ where: { id } });
 }

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import {
   useStoreHours,
   useUpdateStoreHours,
+  useCreateShopClosure,
+  useDeleteShopClosure,
   type WeeklyHours,
 } from "@/hooks/useStoreHours";
 import {
@@ -42,12 +45,18 @@ function sortWeekly(weekly: WeeklyHours[]) {
 export function StoreHoursPage() {
   const { data, isLoading } = useStoreHours();
   const update = useUpdateStoreHours();
+  const createClosure = useCreateShopClosure();
+  const deleteClosure = useDeleteShopClosure();
 
   const [closedNow, setClosedNow] = useState(false);
   const [closedMessage, setClosedMessage] = useState("");
   const [weekly, setWeekly] = useState<WeeklyHours[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [offFrom, setOffFrom] = useState("");
+  const [offTo, setOffTo] = useState("");
+  const [offReason, setOffReason] = useState("");
+  const [offError, setOffError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -90,6 +99,26 @@ export function StoreHoursPage() {
     }
   };
 
+  const addDaysOff = async () => {
+    setOffError(null);
+    if (!offFrom) {
+      setOffError("Pick a start date");
+      return;
+    }
+    try {
+      await createClosure.mutateAsync({
+        startsOn: offFrom,
+        endsOn: offTo || offFrom,
+        reason: offReason.trim() || null,
+      });
+      setOffFrom("");
+      setOffTo("");
+      setOffReason("");
+    } catch (err) {
+      setOffError(err instanceof Error ? err.message : "Could not add days off");
+    }
+  };
+
   const status = data?.status;
 
   return (
@@ -97,8 +126,8 @@ export function StoreHoursPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">Store & Hours</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Same-day ordering window. Default is 11:00 AM – 11:00 PM every day.
-          Times are in {data?.timezone ?? "Asia/Kolkata"}.
+          Same-day hours, plus days the kitchen is fully off. Times are in{" "}
+          {data?.timezone ?? "Asia/Kolkata"}.
         </p>
       </div>
 
@@ -140,7 +169,8 @@ export function StoreHoursPage() {
               Close same-day store now
             </span>
             <span className="block text-xs text-slate-500">
-              Customers will see the message below until you uncheck this.
+              Only stops same-day. Scheduled dates still work unless you add
+              days off below.
             </span>
           </span>
         </label>
@@ -241,6 +271,88 @@ export function StoreHoursPage() {
             </tbody>
           </table>
         )}
+      </section>
+
+      <section className="mt-5 rounded-card border border-slate-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-slate-900">Days off</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Kitchen closed for everyone — no same-day or scheduled delivery on
+          these dates. Use this when you are travelling or taking a break.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <Field label="From" required>
+            <input
+              type="date"
+              value={offFrom}
+              onChange={(e) => setOffFrom(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="To" hint="Leave blank for a single day">
+            <input
+              type="date"
+              value={offTo}
+              min={offFrom || undefined}
+              onChange={(e) => setOffTo(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+        <div className="mt-3">
+          <Field label="Note (optional)">
+            <input
+              value={offReason}
+              onChange={(e) => setOffReason(e.target.value)}
+              placeholder="e.g. Family function, kitchen renovation"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void addDaysOff()}
+            disabled={createClosure.isPending}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {createClosure.isPending ? "Adding…" : "Add days off"}
+          </button>
+          {offError && <span className="text-xs text-brand-700">{offError}</span>}
+        </div>
+
+        <ul className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-100">
+          {(data?.closures ?? []).length === 0 && (
+            <li className="px-3 py-4 text-sm text-slate-500">
+              No upcoming days off.
+            </li>
+          )}
+          {(data?.closures ?? []).map((c) => (
+            <li
+              key={c.id}
+              className="flex items-center justify-between gap-3 px-3 py-2.5"
+            >
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  {c.startsOn === c.endsOn
+                    ? c.startsOn
+                    : `${c.startsOn} → ${c.endsOn}`}
+                </p>
+                {c.reason && (
+                  <p className="text-xs text-slate-500">{c.reason}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => void deleteClosure.mutateAsync(c.id)}
+                className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                aria-label="Remove days off"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <div className="mt-5 flex items-center gap-3">

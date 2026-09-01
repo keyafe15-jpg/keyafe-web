@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
-import { computeSameDayStatus, getStoreHours, updateStoreHours, updateStoreHoursSchema } from "./store.service.js";
+import { computeSameDayStatus, getStoreHours, updateStoreHours, updateStoreHoursSchema, listUpcomingClosures, createShopClosure, createClosureSchema, deleteShopClosure } from "./store.service.js";
 
 export const storeRouter = Router();
 export const adminBusinessRouter = Router();
@@ -12,6 +12,12 @@ storeRouter.get("/same-day-status", async (_req, res) => {
   const status = await computeSameDayStatus();
   res.setHeader("Cache-Control", "no-store");
   res.json(status);
+});
+
+storeRouter.get("/closures", async (_req, res) => {
+  const closures = await listUpcomingClosures();
+  res.setHeader("Cache-Control", "public, max-age=30");
+  res.json(closures);
 });
 
 storeRouter.get("/same-day-categories", async (_req, res) => {
@@ -90,4 +96,18 @@ adminStoreRouter.patch("/hours", async (req, res) => {
   }
   const hours = await updateStoreHours(parsed.data);
   res.json(hours);
+});
+
+adminStoreRouter.post("/closures", async (req, res) => {
+  const parsed = createClosureSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid closure", parsed.error.flatten());
+  }
+  const closure = await createShopClosure(parsed.data);
+  res.status(201).json(closure);
+});
+
+adminStoreRouter.delete("/closures/:id", async (req, res) => {
+  await deleteShopClosure(req.params.id);
+  res.json({ ok: true });
 });

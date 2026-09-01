@@ -10,6 +10,7 @@ import {
 } from "../email/templates.js";
 import { logger } from "../../utils/logger.js";
 import { emitNewOrder } from "../../lib/events.js";
+import { assertKitchenOpenOn } from "../store/store.service.js";
 
 const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
 
@@ -93,6 +94,7 @@ export async function createOrder(input: CreateOrderInput) {
         "Delivery date is in the past. Please pick a new date on the product page.",
       );
     }
+    await assertKitchenOpenOn(item.deliveryDate);
   }
 
   // Load current product snapshots so we don't trust the client-provided prices blindly

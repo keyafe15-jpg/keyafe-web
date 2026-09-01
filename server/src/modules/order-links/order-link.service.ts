@@ -11,6 +11,7 @@ import {
 import { logger } from "../../utils/logger.js";
 import { emitNewOrder } from "../../lib/events.js";
 import { buildOrderNumber } from "../orders/order.service.js";
+import { assertKitchenOpenOn } from "../store/store.service.js";
 
 // 31-char lower-safe alphabet (drops i, l, o, 1, 0 to avoid ambiguity).
 const tokenGen = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
@@ -363,6 +364,7 @@ export async function placeOrderFromLink(
       "Delivery date is in the past. Please pick a fresh date.",
     );
   }
+  await assertKitchenOpenOn(input.deliveryDate);
 
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
     throw HttpError.badRequest(
@@ -684,6 +686,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       "Delivery date is in the past. Please pick a fresh date.",
     );
   }
+  await assertKitchenOpenOn(input.deliveryDate);
 
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
     throw HttpError.badRequest(

@@ -1,5 +1,11 @@
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { PRODUCT_COPY } from "@/content/product";
+import {
+  useShopClosures,
+  closureForDate,
+  closedDayMessage,
+} from "@/hooks/useShopClosures";
 
 export function todayIso() {
   const d = new Date();
@@ -21,6 +27,21 @@ export function DateSlotPicker({
   slot: string;
   onSlotChange: (v: string) => void;
 }) {
+  const { data: closures = [] } = useShopClosures();
+  const selectedHit = closureForDate(closures, date);
+  const [pickError, setPickError] = useState<string | null>(null);
+
+  const handleDate = (next: string) => {
+    const hit = closureForDate(closures, next);
+    if (hit) {
+      setPickError(closedDayMessage(hit));
+      return;
+    }
+    setPickError(null);
+    onDateChange(next);
+  };
+
+  const dateError = pickError ?? (selectedHit ? closedDayMessage(selectedHit) : null);
   return (
     <div className="space-y-3">
       <div>
@@ -31,9 +52,12 @@ export function DateSlotPicker({
           type="date"
           value={date}
           min={todayIso()}
-          onChange={(e) => onDateChange(e.target.value)}
+          onChange={(e) => handleDate(e.target.value)}
           className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
         />
+        {dateError && (
+          <p className="mt-1 text-xs text-brand-700">{dateError}</p>
+        )}
       </div>
 
       <div>

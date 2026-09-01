@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { QuoteStatus } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
+import { assertKitchenOpenOn } from "../store/store.service.js";
 
 const PHONE_RE = /^(?:\+?[1-9]\d{7,14}|[6-9]\d{9})$/;
 
@@ -126,6 +127,7 @@ function serializeQuote<
 
 export async function createQuoteRequest(input: CreateQuoteInput) {
   const deliveryDate = parseDeliveryDate(input.deliveryDate);
+  await assertKitchenOpenOn(input.deliveryDate);
   const created = await prisma.quoteRequest.create({
     data: {
       name: input.name,
