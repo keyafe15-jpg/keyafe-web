@@ -20,6 +20,30 @@ const tokenGen = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
 const CUSTOM_GST_RATE = 5;
 const CUSTOM_GST_INCLUSIVE = true;
 
+// Shared by the order-link and offline-direct flows — turns a chosen
+// payment mode + raw advance amount into the amount/status/method to persist.
+// `paymentMethod` stays "cod" until Razorpay lands; a screenshot implies a
+// manual UPI/bank transfer was already verified.
+function resolvePayment(
+  paymentMode: "FULL" | "ADVANCE",
+  rawAdvanceAmount: number | undefined,
+  total: number,
+  paymentScreenshotUrl: string | null | undefined,
+) {
+  const advanceAmount =
+    paymentMode === "FULL"
+      ? total
+      : Math.min(Math.max(rawAdvanceAmount ?? 0, 0), total);
+  const paymentStatus =
+    advanceAmount <= 0
+      ? "PENDING"
+      : advanceAmount >= total
+        ? "PAID"
+        : "PARTIAL";
+  const paymentMethod = paymentScreenshotUrl ? "upi" : "cod";
+  return { advanceAmount, paymentStatus, paymentMethod } as const;
+}
+
 const suggestedSlotSchema = z
   .object({
     date: z.string().optional().nullable(),
@@ -236,6 +260,11 @@ export const placeOrderLinkSchema = z.object({
   customerNotes: z.string().trim().max(500).optional().nullable(),
 
   qty: z.coerce.number().int().positive().optional(),
+
+  // How much the customer is paying now, and proof of the transfer.
+  paymentMode: z.enum(["FULL", "ADVANCE"]).default("FULL"),
+  advanceAmount: z.coerce.number().nonnegative().optional().default(0),
+  paymentScreenshotUrl: z.string().url().nullable().optional(),
 });
 
 export type PlaceOrderLinkInput = z.infer<typeof placeOrderLinkSchema>;
@@ -327,6 +356,18 @@ export async function placeOrderFromLink(
 
   const total = subtotal + deliveryFee;
 
+  if (!input.paymentScreenshotUrl) {
+    throw HttpError.badRequest(
+      "Please upload a screenshot of your payment to confirm the order",
+    );
+  }
+  const { advanceAmount, paymentStatus, paymentMethod } = resolvePayment(
+    input.paymentMode,
+    input.advanceAmount,
+    total,
+    input.paymentScreenshotUrl,
+  );
+
   const orderNumber = buildOrderNumber();
 
   const order = await prisma.$transaction(async (tx) => {
@@ -348,7 +389,11 @@ export async function placeOrderFromLink(
         cgstAmount,
         sgstAmount,
         igstAmount,
-        paymentMethod: "cod",
+        paymentMethod,
+        paymentStatus,
+        paymentMode: input.paymentMode,
+        advanceAmount,
+        paymentScreenshotUrl: input.paymentScreenshotUrl,
         source: "OFFLINE_LINK",
         customerNotes: input.customerNotes ?? null,
         items: {
@@ -574,6 +619,11 @@ export const placeOfflineOrderSchema = z.object({
 
   customerNotes: z.string().trim().max(500).optional().nullable(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
+
+  // How much is being collected right now, and proof of it.
+  paymentMode: z.enum(["FULL", "ADVANCE"]).default("FULL"),
+  advanceAmount: z.coerce.number().nonnegative().optional().default(0),
+  paymentScreenshotUrl: z.string().url().nullable().optional(),
 });
 
 export type PlaceOfflineOrderInput = z.infer<typeof placeOfflineOrderSchema>;
@@ -723,6 +773,13 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   const total = subtotal + deliveryFee;
   const orderNumber = buildOrderNumber();
 
+  const { advanceAmount, paymentStatus, paymentMethod } = resolvePayment(
+    input.paymentMode,
+    input.advanceAmount,
+    total,
+    input.paymentScreenshotUrl,
+  );
+
   const order = await prisma.order.create({
     data: {
       orderNumber,
@@ -741,7 +798,11 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       cgstAmount,
       sgstAmount,
       igstAmount,
-      paymentMethod: "cod",
+      paymentMethod,
+      paymentStatus,
+      paymentMode: input.paymentMode,
+      advanceAmount,
+      paymentScreenshotUrl: input.paymentScreenshotUrl ?? null,
       source: "OFFLINE_DIRECT",
       customerNotes: input.customerNotes ?? null,
       adminNotes: input.adminNotes ?? null,

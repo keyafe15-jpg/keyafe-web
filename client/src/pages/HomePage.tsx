@@ -168,12 +168,12 @@ export function HomePage() {
           ))}
         </div>
 
-        <div className="mb-6 flex items-end justify-between sm:mb-8">
+        <div className="mb-6 flex items-center justify-center sm:mb-8">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
+            <p className="mb-2 text-xs text-center font-semibold uppercase tracking-[0.28em] text-brand-500">
               Explore
             </p>
-            <h2 className="text-3xl">
+            <h2 className="text-3xl text-center">
               {HOME_COPY.sectionHeadings.shopByCategory}
             </h2>
           </div>

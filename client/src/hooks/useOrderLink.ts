@@ -59,6 +59,11 @@ export interface PlaceOrderLinkPayload {
   messageOnCake?: string | null;
   customerNotes?: string | null;
   qty?: number;
+
+  // How much is being paid now, and proof of the transfer.
+  paymentMode: "FULL" | "ADVANCE";
+  advanceAmount?: number;
+  paymentScreenshotUrl: string;
 }
 
 export interface UsePlaceOrderLinkArgs {

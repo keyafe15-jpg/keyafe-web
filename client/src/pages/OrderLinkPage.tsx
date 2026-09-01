@@ -6,9 +6,11 @@ import {
   type PincodeCheckResult,
 } from "@/hooks/usePincodeCheck";
 import { PRODUCT_COPY } from "@/content/product";
+import { uploadImage } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
+type PaymentMode = "FULL" | "ADVANCE";
 
 const PHONE_RE = /^[0-9+\-\s]{7,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -100,6 +102,13 @@ function LinkForm({
   );
   const [message, setMessage] = useState(link.messageHint ?? "");
   const [notes, setNotes] = useState("");
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("FULL");
+  const [advanceAmount, setAdvanceAmount] = useState("");
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(
+    null,
+  );
+  const [screenshotUploading, setScreenshotUploading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const slot =
@@ -114,6 +123,16 @@ function LinkForm({
       ? pincodeResult.deliveryFee
       : 0;
   const total = subtotal + deliveryFee;
+
+  useEffect(() => {
+    if (!screenshotFile) {
+      setScreenshotPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(screenshotFile);
+    setScreenshotPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [screenshotFile]);
 
   useEffect(() => {
     if (fulfillment !== "DELIVERY") {
@@ -146,6 +165,14 @@ function LinkForm({
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
     }
+    if (!screenshotFile) e.screenshot = "Upload a screenshot of your payment";
+    if (
+      paymentMode === "ADVANCE" &&
+      (!advanceAmount.trim() ||
+        Number(advanceAmount) <= 0 ||
+        Number(advanceAmount) > total)
+    )
+      e.advanceAmount = `Enter an advance between ₹1 and ₹${total.toFixed(0)}`;
     return e;
   }, [
     name,
@@ -157,13 +184,24 @@ function LinkForm({
     pincode,
     pincodeResult,
     mapSearchQuery,
+    screenshotFile,
+    paymentMode,
+    advanceAmount,
+    total,
   ]);
   const isValid = Object.keys(errors).length === 0;
 
   const submit = async () => {
-    if (!isValid) return;
+    if (!isValid || !screenshotFile) return;
     setSubmitError(null);
     try {
+      setScreenshotUploading(true);
+      const { publicUrl } = await uploadImage(
+        screenshotFile,
+        "payment-screenshot",
+      );
+      setScreenshotUploading(false);
+
       const order = await place.mutateAsync({
         customerName: name.trim(),
         customerPhone: phone.trim(),
@@ -188,9 +226,14 @@ function LinkForm({
         deliverySlotLabel: slot.label,
         messageOnCake: message.trim() || null,
         customerNotes: notes.trim() || null,
+        paymentMode,
+        advanceAmount:
+          paymentMode === "ADVANCE" ? Number(advanceAmount) || 0 : undefined,
+        paymentScreenshotUrl: publicUrl,
       });
       navigate(`/order/${order.orderNumber}/success`, { replace: true });
     } catch (err) {
+      setScreenshotUploading(false);
       setSubmitError(
         err instanceof Error ? err.message : "Something went wrong",
       );
@@ -453,6 +496,62 @@ function LinkForm({
           />
         </Section>
 
+        <Section
+          title="Payment"
+          subtitle="Transfer via UPI/bank and upload the screenshot to confirm your order."
+        >
+          <div className="grid grid-cols-2 gap-2">
+            <FulfillmentButton
+              active={paymentMode === "FULL"}
+              onClick={() => setPaymentMode("FULL")}
+              title="Pay in full"
+            />
+            <FulfillmentButton
+              active={paymentMode === "ADVANCE"}
+              onClick={() => setPaymentMode("ADVANCE")}
+              title="Pay advance"
+            />
+          </div>
+
+          {paymentMode === "ADVANCE" && (
+            <Field
+              label="Advance amount"
+              required
+              error={errors.advanceAmount}
+              hint={`Rest (₹${Math.max(total - (Number(advanceAmount) || 0), 0).toFixed(0)}) is paid on delivery.`}
+              className="mt-3"
+            >
+              <Input
+                value={advanceAmount}
+                onChange={(v) => setAdvanceAmount(v.replace(/[^0-9.]/g, ""))}
+                placeholder="0"
+                inputMode="decimal"
+              />
+            </Field>
+          )}
+
+          <Field
+            label="Payment screenshot"
+            required
+            error={errors.screenshot}
+            className="mt-3"
+          >
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setScreenshotFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-xs text-ink-700 file:mr-3 file:rounded-md file:border-0 file:bg-cream-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink-700"
+            />
+            {screenshotPreview && (
+              <img
+                src={screenshotPreview}
+                alt="Payment screenshot preview"
+                className="mt-2 h-32 w-32 rounded-md border border-cream-200 object-cover"
+              />
+            )}
+          </Field>
+        </Section>
+
         <div className="rounded-card border border-cream-200 bg-cream-50 p-5">
           <SummaryRow label="Subtotal" value={subtotal} />
           {fulfillment === "DELIVERY" && (
@@ -469,6 +568,15 @@ function LinkForm({
               ₹{total.toFixed(2)}
             </span>
           </div>
+          {paymentMode === "ADVANCE" && Number(advanceAmount) > 0 && (
+            <>
+              <SummaryRow label="Paying now" value={Number(advanceAmount)} />
+              <SummaryRow
+                label="Due on delivery"
+                value={Math.max(total - Number(advanceAmount), 0)}
+              />
+            </>
+          )}
 
           {submitError && (
             <p className="mt-3 rounded-md bg-brand-100/60 px-3 py-2 text-xs text-brand-700">
@@ -479,13 +587,17 @@ function LinkForm({
           <button
             type="button"
             onClick={submit}
-            disabled={!isValid || place.isPending}
+            disabled={!isValid || place.isPending || screenshotUploading}
             className="mt-4 block w-full rounded-full bg-brand-500 py-3 text-center text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {place.isPending ? "Placing order…" : "Confirm order"}
+            {screenshotUploading
+              ? "Uploading screenshot…"
+              : place.isPending
+                ? "Placing order…"
+                : "Confirm order"}
           </button>
           <p className="mt-2 text-center text-[11px] text-ink-500">
-            Pay on delivery. By confirming you agree to the price locked above.
+            By confirming you agree to the price locked above.
           </p>
         </div>
       </div>
@@ -558,7 +670,7 @@ function Input({
   onChange: (v: string) => void;
   placeholder?: string;
   className?: string;
-  inputMode?: "numeric" | "tel" | "email";
+  inputMode?: "numeric" | "tel" | "email" | "decimal";
 }) {
   return (
     <input

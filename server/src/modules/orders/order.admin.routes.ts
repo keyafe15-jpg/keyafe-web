@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
-import type { OrderStatus, PaymentStatus } from "@prisma/client";
+import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { orderEvents, type NewOrderEvent } from "../../lib/events.js";
 
@@ -62,6 +62,9 @@ adminOrderRouter.get("/", async (req, res) => {
       status: true,
       paymentStatus: true,
       paymentMethod: true,
+      paymentMode: true,
+      advanceAmount: true,
+      paymentScreenshotUrl: true,
       source: true,
       createdAt: true,
       _count: { select: { items: true } },
@@ -95,6 +98,9 @@ adminOrderRouter.get("/", async (req, res) => {
       status: r.status,
       paymentStatus: r.paymentStatus,
       paymentMethod: r.paymentMethod,
+      paymentMode: r.paymentMode,
+      advanceAmount: r.advanceAmount,
+      paymentScreenshotUrl: r.paymentScreenshotUrl,
       source: r.source,
       createdAt: r.createdAt,
       itemCount: r._count.items,
@@ -327,8 +333,13 @@ adminOrderRouter.get("/:idOrNumber", async (req, res) => {
 const updateSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional(),
   paymentStatus: z
-    .enum(["PENDING", "PAID", "FAILED", "REFUNDED"])
+    .enum(["PENDING", "PARTIAL", "PAID", "FAILED", "REFUNDED"])
     .optional() satisfies z.ZodType<PaymentStatus | undefined>,
+  paymentMode: z.enum(["FULL", "ADVANCE"]).optional() satisfies z.ZodType<
+    PaymentMode | undefined
+  >,
+  advanceAmount: z.coerce.number().nonnegative().optional(),
+  paymentScreenshotUrl: z.string().url().nullable().optional(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
 });
 
@@ -337,9 +348,29 @@ adminOrderRouter.patch("/:id", async (req, res) => {
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid update", parsed.error.flatten());
   }
+  const { advanceAmount, paymentStatus, ...rest } = parsed.data;
+  const data: typeof parsed.data = { ...rest };
+
+  if (advanceAmount !== undefined) {
+    const existing = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      select: { total: true },
+    });
+    if (!existing) throw HttpError.notFound("Order not found");
+    const total = Number(existing.total);
+    const clamped = Math.min(Math.max(advanceAmount, 0), total);
+    data.advanceAmount = clamped;
+    // Only auto-derive the status when the caller didn't explicitly set one.
+    data.paymentStatus =
+      paymentStatus ??
+      (clamped <= 0 ? "PENDING" : clamped >= total ? "PAID" : "PARTIAL");
+  } else if (paymentStatus !== undefined) {
+    data.paymentStatus = paymentStatus;
+  }
+
   const updated = await prisma.order.update({
     where: { id: req.params.id },
-    data: parsed.data,
+    data,
     include: { items: true },
   });
   res.json(updated);

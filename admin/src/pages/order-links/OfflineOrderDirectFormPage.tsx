@@ -127,6 +127,12 @@ export function OfflineOrderDirectFormPage() {
 
   const [customerNotes, setCustomerNotes] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
+  const [paymentMode, setPaymentMode] = useState<"FULL" | "ADVANCE">("FULL");
+  const [advanceAmount, setAdvanceAmount] = useState("");
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const patchItem = (id: string, patch: Partial<LineItem>) => {
@@ -141,6 +147,16 @@ export function OfflineOrderDirectFormPage() {
   };
   const addItem = (kind: OrderLinkKind) =>
     setItems((prev) => [...prev, newItem(kind)]);
+
+  useEffect(() => {
+    if (!screenshotFile) {
+      setScreenshotPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(screenshotFile);
+    setScreenshotPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [screenshotFile]);
 
   // Refresh object-URL previews whenever an item's file changes.
   useEffect(() => {
@@ -210,6 +226,16 @@ export function OfflineOrderDirectFormPage() {
   );
   const grandTotal = subtotal + deliveryFee;
 
+  const advanceValid =
+    paymentMode === "FULL" ||
+    (advanceAmount.trim() !== "" &&
+      Number(advanceAmount) > 0 &&
+      Number(advanceAmount) <= grandTotal);
+  const pendingAmount =
+    paymentMode === "FULL"
+      ? 0
+      : Math.max(grandTotal - (Number(advanceAmount) || 0), 0);
+
   const addressValid =
     fulfillment === "PICKUP" ||
     (line1.trim().length >= 3 &&
@@ -231,6 +257,7 @@ export function OfflineOrderDirectFormPage() {
     /^[0-9+\-\s]{7,15}$/.test(customerPhone.trim()) &&
     !!deliveryDate &&
     addressValid &&
+    advanceValid &&
     !uploading &&
     !pincodeChecking;
 
@@ -293,6 +320,14 @@ export function OfflineOrderDirectFormPage() {
       }
       setUploading(false);
 
+      let paymentScreenshotUrl: string | null = null;
+      if (screenshotFile) {
+        setUploading(true);
+        const res = await uploadImage(screenshotFile, "payment-screenshot");
+        paymentScreenshotUrl = res.publicUrl;
+        setUploading(false);
+      }
+
       const payload = {
         items: itemPayloads,
 
@@ -321,6 +356,10 @@ export function OfflineOrderDirectFormPage() {
 
         customerNotes: customerNotes.trim() || null,
         adminNotes: adminNotes.trim() || null,
+        paymentMode,
+        advanceAmount:
+          paymentMode === "ADVANCE" ? Number(advanceAmount) || 0 : undefined,
+        paymentScreenshotUrl,
       };
 
       const order = await create.mutateAsync(payload);
@@ -554,6 +593,76 @@ export function OfflineOrderDirectFormPage() {
           </Section>
 
           <Section
+            title="Payment"
+            subtitle="How much is being collected right now, and proof of it."
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <KindButton
+                active={paymentMode === "FULL"}
+                onClick={() => setPaymentMode("FULL")}
+                icon={<Store className="h-5 w-5" />}
+                title="Full payment"
+                subtitle="Entire total collected now"
+              />
+              <KindButton
+                active={paymentMode === "ADVANCE"}
+                onClick={() => setPaymentMode("ADVANCE")}
+                icon={<Truck className="h-5 w-5" />}
+                title="Advance only"
+                subtitle="Rest stays pending"
+              />
+            </div>
+
+            {paymentMode === "ADVANCE" && (
+              <div className="mt-4">
+                <Field
+                  label="Advance amount"
+                  required
+                  hint={`Max ₹${grandTotal.toFixed(0)}.`}
+                >
+                  <input
+                    inputMode="decimal"
+                    value={advanceAmount}
+                    onChange={(e) =>
+                      setAdvanceAmount(e.target.value.replace(/[^0-9.]/g, ""))
+                    }
+                    placeholder="0"
+                    className={inputClass}
+                  />
+                  {!advanceValid && (
+                    <p className="mt-1 text-xs text-red-700">
+                      Enter an advance between ₹1 and ₹{grandTotal.toFixed(0)}.
+                    </p>
+                  )}
+                </Field>
+              </div>
+            )}
+
+            <div className="mt-4">
+              <Field
+                label="Payment screenshot"
+                hint="Optional. Upload proof of the UPI/bank transfer, if any."
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    setScreenshotFile(e.target.files?.[0] ?? null)
+                  }
+                  className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+                />
+                {screenshotPreview && (
+                  <img
+                    src={screenshotPreview}
+                    alt="Payment screenshot preview"
+                    className="mt-2 h-32 w-32 rounded-md border border-slate-200 object-cover"
+                  />
+                )}
+              </Field>
+            </div>
+          </Section>
+
+          <Section
             title="Admin notes"
             subtitle="Internal only. Never shown to customer."
           >
@@ -606,6 +715,22 @@ export function OfflineOrderDirectFormPage() {
                 <span>Total</span>
                 <span className="tabular-nums">₹{grandTotal.toFixed(0)}</span>
               </div>
+              {paymentMode === "ADVANCE" && Number(advanceAmount) > 0 && (
+                <>
+                  <div className="flex justify-between text-emerald-700">
+                    <span>Advance</span>
+                    <span className="tabular-nums">
+                      ₹{Number(advanceAmount).toFixed(0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-medium text-amber-700">
+                    <span>Pending</span>
+                    <span className="tabular-nums">
+                      ₹{pendingAmount.toFixed(0)}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
 
             {error && (

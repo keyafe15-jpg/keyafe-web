@@ -10,9 +10,15 @@ export type OrderStatus =
   | "DELIVERED"
   | "CANCELLED";
 
-export type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+export type PaymentStatus =
+  | "PENDING"
+  | "PARTIAL"
+  | "PAID"
+  | "FAILED"
+  | "REFUNDED";
 export type OrderFulfillment = "DELIVERY" | "PICKUP";
 export type OrderSource = "STOREFRONT" | "OFFLINE_LINK" | "OFFLINE_DIRECT";
+export type PaymentMode = "FULL" | "ADVANCE";
 
 export interface AdminOrderListItem {
   id: string;
@@ -27,6 +33,9 @@ export interface AdminOrderListItem {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: string;
+  paymentMode: PaymentMode;
+  advanceAmount: string;
+  paymentScreenshotUrl: string | null;
   source: OrderSource;
   createdAt: string;
   itemCount: number;
@@ -138,6 +147,9 @@ export function useAdminOrder(idOrNumber: string | undefined) {
 export interface UpdateOrderPayload {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
+  paymentMode?: PaymentMode;
+  advanceAmount?: number;
+  paymentScreenshotUrl?: string | null;
   adminNotes?: string | null;
 }
 

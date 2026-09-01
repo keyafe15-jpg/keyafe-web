@@ -18,6 +18,7 @@ import {
 import { StatusPill } from "./OrdersListPage";
 import { cn } from "@/lib/cn";
 import { textareaClass } from "@/components/form/Field";
+import { uploadImage } from "@/lib/uploads";
 
 const STATUS_FLOW: OrderStatus[] = [
   "PENDING",
@@ -37,6 +38,31 @@ export function OrderDetailPage() {
   useEffect(() => {
     if (order) setAdminNotes(order.adminNotes ?? "");
   }, [order?.adminNotes]);
+
+  const [advanceInput, setAdvanceInput] = useState("");
+  useEffect(() => {
+    if (order) setAdvanceInput(order.advanceAmount);
+  }, [order?.advanceAmount]);
+
+  const [screenshotUploading, setScreenshotUploading] = useState(false);
+  const [screenshotError, setScreenshotError] = useState<string | null>(null);
+
+  const uploadScreenshot = async (file: File) => {
+    if (!order) return;
+    setScreenshotError(null);
+    setScreenshotUploading(true);
+    try {
+      const res = await uploadImage(file, "payment-screenshot");
+      await update.mutateAsync({
+        id: order.id,
+        paymentScreenshotUrl: res.publicUrl,
+      });
+    } catch (err) {
+      setScreenshotError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setScreenshotUploading(false);
+    }
+  };
 
   if (isLoading)
     return (
@@ -201,6 +227,23 @@ export function OrderDetailPage() {
                 Payment: {order.paymentMethod.toUpperCase()} ·{" "}
                 {order.paymentStatus}
               </p>
+              {Number(order.advanceAmount) > 0 && (
+                <>
+                  <Row
+                    label="Advance received"
+                    value={Number(order.advanceAmount)}
+                    muted
+                  />
+                  <Row
+                    label="Pending"
+                    value={Math.max(
+                      Number(order.total) - Number(order.advanceAmount),
+                      0,
+                    )}
+                    muted
+                  />
+                </>
+              )}
             </div>
           </Card>
 
@@ -315,13 +358,22 @@ export function OrderDetailPage() {
 
           <Card title="Payment">
             <p className="text-sm text-slate-900">
-              {order.paymentMethod.toUpperCase()}
+              {order.paymentMethod.toUpperCase()} ·{" "}
+              {order.paymentMode === "ADVANCE" ? "Advance" : "Full"}
             </p>
             <div className="mt-1">
               <PaymentPill status={order.paymentStatus} />
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {(["PENDING", "PAID", "FAILED", "REFUNDED"] as PaymentStatus[])
+              {(
+                [
+                  "PENDING",
+                  "PARTIAL",
+                  "PAID",
+                  "FAILED",
+                  "REFUNDED",
+                ] as PaymentStatus[]
+              )
                 .filter((s) => s !== order.paymentStatus)
                 .map((s) => (
                   <button
@@ -335,6 +387,85 @@ export function OrderDetailPage() {
                     Mark {s.toLowerCase()}
                   </button>
                 ))}
+            </div>
+
+            <div className="mt-4 border-t border-slate-100 pt-3">
+              <label className="text-xs font-medium text-slate-700">
+                Advance amount
+              </label>
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  inputMode="decimal"
+                  value={advanceInput}
+                  onChange={(e) =>
+                    setAdvanceInput(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                  className="w-28 rounded-md border border-slate-200 px-2 py-1 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    update.mutate({
+                      id: order.id,
+                      advanceAmount: Number(advanceInput) || 0,
+                    })
+                  }
+                  disabled={
+                    update.isPending ||
+                    Number(advanceInput) === Number(order.advanceAmount) ||
+                    Number(advanceInput) > Number(order.total) ||
+                    Number(advanceInput) < 0
+                  }
+                  className="rounded-md bg-brand-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Pending: ₹
+                {Math.max(
+                  Number(order.total) - (Number(advanceInput) || 0),
+                  0,
+                ).toFixed(2)}
+              </p>
+            </div>
+
+            <div className="mt-4 border-t border-slate-100 pt-3">
+              <label className="text-xs font-medium text-slate-700">
+                Payment screenshot
+              </label>
+              {order.paymentScreenshotUrl && (
+                <a
+                  href={order.paymentScreenshotUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 block"
+                >
+                  <img
+                    src={order.paymentScreenshotUrl}
+                    alt="Payment proof"
+                    className="h-32 w-32 rounded-md border border-slate-200 object-cover"
+                  />
+                </a>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                disabled={screenshotUploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadScreenshot(file);
+                }}
+                className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+              />
+              {screenshotUploading && (
+                <p className="mt-1 text-[11px] text-slate-500">Uploading…</p>
+              )}
+              {screenshotError && (
+                <p className="mt-1 text-[11px] text-red-700">
+                  {screenshotError}
+                </p>
+              )}
             </div>
           </Card>
         </aside>
@@ -397,6 +528,7 @@ function Row({
 function PaymentPill({ status }: { status: PaymentStatus }) {
   const map: Record<PaymentStatus, string> = {
     PENDING: "bg-slate-100 text-slate-700",
+    PARTIAL: "bg-amber-50 text-amber-700",
     PAID: "bg-emerald-50 text-emerald-700",
     FAILED: "bg-red-50 text-red-700",
     REFUNDED: "bg-amber-50 text-amber-700",

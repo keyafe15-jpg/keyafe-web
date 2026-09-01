@@ -4,6 +4,7 @@
 
 export type UploadPurpose =
   | "quote-reference"
+  | "payment-screenshot"
   | "product"
   | "category"
   | "festival"

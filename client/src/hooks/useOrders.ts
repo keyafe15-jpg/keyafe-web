@@ -51,7 +51,10 @@ export interface Order {
   sgstAmount: string;
   igstAmount: string;
   paymentMethod: string;
-  paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+  paymentStatus: "PENDING" | "PARTIAL" | "PAID" | "FAILED" | "REFUNDED";
+  paymentMode: "FULL" | "ADVANCE";
+  advanceAmount: string;
+  paymentScreenshotUrl: string | null;
   status:
     | "PENDING"
     | "CONFIRMED"

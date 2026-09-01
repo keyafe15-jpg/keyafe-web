@@ -44,6 +44,11 @@ export interface PlaceOfflineOrderPayload {
 
   customerNotes?: string | null;
   adminNotes?: string | null;
+
+  // How much is being collected right now, and proof of the transfer.
+  paymentMode: "FULL" | "ADVANCE";
+  advanceAmount?: number;
+  paymentScreenshotUrl?: string | null;
 }
 
 export interface OfflineOrderResponse {
