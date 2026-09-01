@@ -1,10 +1,17 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, ImageOff } from "lucide-react";
 import { useAdminProducts } from "@/hooks/useAdminProducts";
+import { PaginationControls } from "@/components/ClientPagination";
 import { cn } from "@/lib/cn";
 
+const PAGE_SIZE = 20;
+
 export function ProductsListPage() {
-  const { data: products = [], isLoading } = useAdminProducts();
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useAdminProducts(page, PAGE_SIZE);
+  const products = data?.items ?? [];
+  const total = data?.total ?? 0;
   const navigate = useNavigate();
 
   return (
@@ -13,8 +20,8 @@ export function ProductsListPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Products</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Full catalogue — {products.length} product
-            {products.length === 1 ? "" : "s"}.
+            Full catalogue — {total} product
+            {total === 1 ? "" : "s"}.
           </p>
         </div>
         <Link
@@ -39,6 +46,7 @@ export function ProductsListPage() {
           </div>
         )}
         {!isLoading && products.length > 0 && (
+          <>
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
@@ -101,6 +109,23 @@ export function ProductsListPage() {
               ))}
             </tbody>
           </table>
+          <PaginationControls
+            page={data?.page ?? 1}
+            pageCount={data?.totalPages ?? 1}
+            total={total}
+            firstItem={
+              data && data.total > 0
+                ? (data.page - 1) * data.pageSize + 1
+                : 0
+            }
+            lastItem={
+              data ? Math.min(data.page * data.pageSize, data.total) : 0
+            }
+            onPageChange={setPage}
+            noun="products"
+            className="mx-4 mb-4"
+          />
+          </>
         )}
       </div>
     </div>

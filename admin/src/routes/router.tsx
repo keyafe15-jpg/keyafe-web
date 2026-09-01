@@ -17,6 +17,7 @@ import { OrderLinkFormPage } from "@/pages/order-links/OrderLinkFormPage";
 import { OfflineOrderDirectFormPage } from "@/pages/order-links/OfflineOrderDirectFormPage";
 import { DeliveryPincodesPage } from "@/pages/delivery/DeliveryPincodesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { StoreHoursPage } from "@/pages/store/StoreHoursPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -83,15 +84,10 @@ export const router = createBrowserRouter([
       },
       {
         path: "same-day",
-        element: (
-          <StubPage
-            title="Same-Day Store"
-            subtitle="Hours, kill switch, exceptions."
-          />
-        ),
+        element: <StoreHoursPage />,
       },
       {
-        path: "same-day/categories",
+        path: "same-day-categories",
         element: (
           <StubPage
             title="Same-Day Categories"

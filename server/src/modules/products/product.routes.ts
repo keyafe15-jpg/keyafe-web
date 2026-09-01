@@ -13,8 +13,11 @@ import {
 // TODO: gate behind requireAuth + requirePermission("products.*") once auth is wired.
 export const adminProductRouter = Router();
 
-adminProductRouter.get("/", async (_req, res) => {
-  const products = await listProducts();
+adminProductRouter.get("/", async (req, res) => {
+  const products = await listProducts(
+    Number(req.query.page ?? 1),
+    Number(req.query.pageSize ?? 20),
+  );
   res.json(products);
 });
 

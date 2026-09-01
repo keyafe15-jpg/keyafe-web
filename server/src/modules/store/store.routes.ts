@@ -2,10 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
-import { computeSameDayStatus } from "./store.service.js";
+import { computeSameDayStatus, getStoreHours, updateStoreHours, updateStoreHoursSchema } from "./store.service.js";
 
 export const storeRouter = Router();
 export const adminBusinessRouter = Router();
+export const adminStoreRouter = Router();
 
 storeRouter.get("/same-day-status", async (_req, res) => {
   const status = await computeSameDayStatus();
@@ -74,4 +75,19 @@ adminBusinessRouter.patch("/upi", async (req, res) => {
     select: { upiId: true, upiPayeeName: true },
   });
   res.json(updated);
+});
+
+// TODO: gate behind requireAuth + requirePermission("store.update") once auth lands.
+adminStoreRouter.get("/hours", async (_req, res) => {
+  const hours = await getStoreHours();
+  res.json(hours);
+});
+
+adminStoreRouter.patch("/hours", async (req, res) => {
+  const parsed = updateStoreHoursSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid store hours", parsed.error.flatten());
+  }
+  const hours = await updateStoreHours(parsed.data);
+  res.json(hours);
 });

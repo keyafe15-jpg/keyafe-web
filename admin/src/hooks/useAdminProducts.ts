@@ -34,10 +34,21 @@ export interface AdminProduct {
   category: { id: string; name: string; slug: string };
 }
 
-export function useAdminProducts() {
-  return useQuery<AdminProduct[]>({
-    queryKey: ["admin", "products"],
-    queryFn: () => api.get<AdminProduct[]>("/admin/products"),
+export interface AdminProductsPage {
+  items: AdminProduct[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export function useAdminProducts(page = 1, pageSize = 20) {
+  return useQuery<AdminProductsPage>({
+    queryKey: ["admin", "products", page, pageSize],
+    queryFn: () =>
+      api.get<AdminProductsPage>(
+        `/admin/products?page=${page}&pageSize=${pageSize}`,
+      ),
     staleTime: 30_000,
   });
 }

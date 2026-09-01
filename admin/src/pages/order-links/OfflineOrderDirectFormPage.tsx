@@ -98,7 +98,8 @@ function newItem(kind: OrderLinkKind = "CATALOG"): LineItem {
 export function OfflineOrderDirectFormPage() {
   const navigate = useNavigate();
   const create = useCreateOfflineOrder();
-  const { data: products = [] } = useAdminProducts();
+  const { data: productsPage } = useAdminProducts(1, 100);
+  const products = productsPage?.items ?? [];
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: cakeSizes = [] } = useAdminCakeSizes();

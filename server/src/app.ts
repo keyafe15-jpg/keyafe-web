@@ -14,6 +14,7 @@ import { uploadRouter } from "./modules/uploads/upload.routes.js";
 import {
   storeRouter,
   adminBusinessRouter,
+  adminStoreRouter,
 } from "./modules/store/store.routes.js";
 import {
   adminDeliveryRouter,
@@ -117,6 +118,7 @@ export function createApp() {
   app.use("/api/admin/delivery", adminDeliveryRouter);
   app.use("/api/admin/push", adminPushRouter);
   app.use("/api/admin/business", adminBusinessRouter);
+  app.use("/api/admin/store", adminStoreRouter);
   app.use("/api/admin/quotes", adminQuoteRouter);
 
   // Fan out new-order events to Web Push subscribers (in addition to SSE).

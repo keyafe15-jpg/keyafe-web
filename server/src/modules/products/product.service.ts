@@ -71,52 +71,82 @@ export const createProductSchema = z.object({
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 
-export async function listProducts() {
-  const products = await prisma.product.findMany({
-    orderBy: [{ createdAt: "desc" }],
+const ADMIN_LIST_SELECT = {
+  id: true,
+  slug: true,
+  name: true,
+  basePrice: true,
+  productType: true,
+  template: true,
+  isActive: true,
+  isAvailable: true,
+  isFeatured: true,
+  images: true,
+  createdAt: true,
+  category: { select: { id: true, name: true, slug: true } },
+  // Size group drives variant pricing (e.g. pizzas priced per-size with
+  // basePrice = 0). Admin list needs the resulting price range, not the
+  // raw basePrice, which can be misleadingly 0.
+  optionGroups: {
+    where: { key: "size" },
     select: {
-      id: true,
-      slug: true,
-      name: true,
-      basePrice: true,
-      productType: true,
-      template: true,
-      isActive: true,
-      isAvailable: true,
-      isFeatured: true,
-      images: true,
-      createdAt: true,
-      category: { select: { id: true, name: true, slug: true } },
-      // Size group drives variant pricing (e.g. pizzas priced per-size with
-      // basePrice = 0). Admin list needs the resulting price range, not the
-      // raw basePrice, which can be misleadingly 0.
-      optionGroups: {
-        where: { key: "size" },
-        select: {
-          priceMode: true,
-          options: {
-            where: { isActive: true },
-            select: { price: true },
-          },
-        },
+      priceMode: true,
+      options: {
+        where: { isActive: true },
+        select: { price: true },
       },
     },
-    take: 100,
-  });
+  },
+} as const;
 
-  return products.map(({ optionGroups, ...rest }) => {
-    const base = Number(rest.basePrice);
-    const sizeGroup = optionGroups[0];
-    if (!sizeGroup || sizeGroup.options.length === 0) {
-      return { ...rest, priceMin: base, priceMax: base };
-    }
-    const prices = sizeGroup.options.map((o) => Number(o.price));
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const priceMin = sizeGroup.priceMode === "ABSOLUTE" ? min : base + min;
-    const priceMax = sizeGroup.priceMode === "ABSOLUTE" ? max : base + max;
-    return { ...rest, priceMin, priceMax };
-  });
+function decorateAdminListRow<
+  T extends {
+    basePrice: unknown;
+    optionGroups: {
+      priceMode: "ABSOLUTE" | "DELTA";
+      options: { price: unknown }[];
+    }[];
+  },
+>(row: T) {
+  const { optionGroups, ...rest } = row;
+  const base = Number(rest.basePrice);
+  const sizeGroup = optionGroups[0];
+  if (!sizeGroup || sizeGroup.options.length === 0) {
+    return { ...rest, priceMin: base, priceMax: base };
+  }
+  const prices = sizeGroup.options.map((o) => Number(o.price));
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const priceMin = sizeGroup.priceMode === "ABSOLUTE" ? min : base + min;
+  const priceMax = sizeGroup.priceMode === "ABSOLUTE" ? max : base + max;
+  return { ...rest, priceMin, priceMax };
+}
+
+export async function listProducts(page = 1, pageSize = 20) {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
+  const skip = (safePage - 1) * safePageSize;
+
+  const [total, products] = await Promise.all([
+    prisma.product.count(),
+    prisma.product.findMany({
+      orderBy: [{ createdAt: "desc" }],
+      skip,
+      take: safePageSize,
+      select: ADMIN_LIST_SELECT,
+    }),
+  ]);
+
+  const items = products.map((p) => decorateAdminListRow(p));
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+
+  return {
+    items,
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    totalPages,
+  };
 }
 
 const PUBLIC_CARD_SELECT = {

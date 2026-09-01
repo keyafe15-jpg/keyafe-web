@@ -58,7 +58,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { to: "/same-day", label: "Store & Hours", icon: Zap },
       {
-        to: "/same-day/categories",
+        to: "/same-day-categories",
         label: "Same-Day Categories",
         icon: FolderTree,
       },

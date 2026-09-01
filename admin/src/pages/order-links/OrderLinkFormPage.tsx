@@ -77,7 +77,8 @@ export function OrderLinkFormPage() {
   const create = useCreateOrderLink();
   const update = useUpdateOrderLink();
   const { data: existing } = useAdminOrderLink(id);
-  const { data: products = [] } = useAdminProducts();
+  const { data: productsPage } = useAdminProducts(1, 100);
+  const products = productsPage?.items ?? [];
   const { data: flavours = [] } = useFlavours();
 
   const [items, setItems] = useState<ItemDraft[]>(() => [newItem("CUSTOM")]);
