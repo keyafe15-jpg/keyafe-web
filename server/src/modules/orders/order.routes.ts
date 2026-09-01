@@ -28,7 +28,7 @@ orderRouter.post("/", optionalAuth, async (req, res) => {
 });
 
 orderRouter.get("/me", requireAuth, async (req, res) => {
-  const userId = (req as any).user.id as string;
+  const userId = req.user.id;
 
   const orders = await prisma.order.findMany({
     where: { userId },

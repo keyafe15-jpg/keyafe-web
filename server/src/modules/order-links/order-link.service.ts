@@ -356,7 +356,9 @@ export async function placeOrderFromLink(
 
   const total = subtotal + deliveryFee;
 
-  if (!input.paymentScreenshotUrl) {
+  const payingNow =
+    input.paymentMode === "FULL" ? total : (input.advanceAmount ?? 0);
+  if (payingNow > 0 && !input.paymentScreenshotUrl) {
     throw HttpError.badRequest(
       "Please upload a screenshot of your payment to confirm the order",
     );
@@ -393,7 +395,7 @@ export async function placeOrderFromLink(
         paymentStatus,
         paymentMode: input.paymentMode,
         advanceAmount,
-        paymentScreenshotUrl: input.paymentScreenshotUrl,
+        paymentScreenshotUrl: input.paymentScreenshotUrl ?? null,
         source: "OFFLINE_LINK",
         customerNotes: input.customerNotes ?? null,
         items: {

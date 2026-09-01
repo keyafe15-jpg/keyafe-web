@@ -18,6 +18,11 @@ model BusinessSettings {
   orderNotificationEmail String?
   currency          String    @default("INR")
 
+  // Manual UPI collection (offline/order-link flows) — no gateway, no fees.
+  // Customers pay this VPA directly and upload a screenshot as proof.
+  upiId        String?
+  upiPayeeName String?
+
   // Delivery — global rules
   timezone            String  @default("Asia/Kolkata")
   sameDayCutoff       String  @default("17:30") // "HH:mm" in `timezone` (regular / book-ahead track)

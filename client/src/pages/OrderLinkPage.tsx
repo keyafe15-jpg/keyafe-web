@@ -7,10 +7,13 @@ import {
 } from "@/hooks/usePincodeCheck";
 import { PRODUCT_COPY } from "@/content/product";
 import { uploadImage } from "@/lib/uploads";
+import { usePaymentInfo } from "@/hooks/usePaymentInfo";
+import { buildUpiUri } from "@/lib/upi";
+import { UpiQrCode } from "@/components/UpiQrCode";
 import { cn } from "@/lib/cn";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
-type PaymentMode = "FULL" | "ADVANCE";
+type PayChoice = "FULL" | "ADVANCE" | "COD";
 
 const PHONE_RE = /^[0-9+\-\s]{7,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -81,6 +84,7 @@ function LinkForm({
   const navigate = useNavigate();
   const place = usePlaceOrderLink({ token: link.token });
   const pincodeCheck = usePincodeCheck();
+  const { data: paymentInfo } = usePaymentInfo();
 
   const [fulfillment, setFulfillment] = useState<Fulfillment>("DELIVERY");
   const [name, setName] = useState(link.customerName ?? "");
@@ -102,7 +106,7 @@ function LinkForm({
   );
   const [message, setMessage] = useState(link.messageHint ?? "");
   const [notes, setNotes] = useState("");
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("FULL");
+  const [payChoice, setPayChoice] = useState<PayChoice>("FULL");
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(
@@ -123,6 +127,23 @@ function LinkForm({
       ? pincodeResult.deliveryFee
       : 0;
   const total = subtotal + deliveryFee;
+
+  const payNowAmount =
+    payChoice === "FULL"
+      ? total
+      : payChoice === "ADVANCE"
+        ? Number(advanceAmount) || 0
+        : 0;
+  const upiUri =
+    paymentInfo?.upiId && payNowAmount > 0
+      ? buildUpiUri({
+          payeeVpa: paymentInfo.upiId,
+          payeeName: paymentInfo.payeeName,
+          amount: payNowAmount,
+          note: `Order ${link.productName}`.slice(0, 50),
+          refId: link.token,
+        })
+      : null;
 
   useEffect(() => {
     if (!screenshotFile) {
@@ -165,9 +186,10 @@ function LinkForm({
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
     }
-    if (!screenshotFile) e.screenshot = "Upload a screenshot of your payment";
+    if (payChoice !== "COD" && !screenshotFile)
+      e.screenshot = "Upload a screenshot of your payment";
     if (
-      paymentMode === "ADVANCE" &&
+      payChoice === "ADVANCE" &&
       (!advanceAmount.trim() ||
         Number(advanceAmount) <= 0 ||
         Number(advanceAmount) > total)
@@ -185,22 +207,24 @@ function LinkForm({
     pincodeResult,
     mapSearchQuery,
     screenshotFile,
-    paymentMode,
+    payChoice,
     advanceAmount,
     total,
   ]);
   const isValid = Object.keys(errors).length === 0;
 
   const submit = async () => {
-    if (!isValid || !screenshotFile) return;
+    if (!isValid) return;
+    if (payChoice !== "COD" && !screenshotFile) return;
     setSubmitError(null);
     try {
-      setScreenshotUploading(true);
-      const { publicUrl } = await uploadImage(
-        screenshotFile,
-        "payment-screenshot",
-      );
-      setScreenshotUploading(false);
+      let publicUrl: string | null = null;
+      if (screenshotFile) {
+        setScreenshotUploading(true);
+        const res = await uploadImage(screenshotFile, "payment-screenshot");
+        publicUrl = res.publicUrl;
+        setScreenshotUploading(false);
+      }
 
       const order = await place.mutateAsync({
         customerName: name.trim(),
@@ -226,9 +250,13 @@ function LinkForm({
         deliverySlotLabel: slot.label,
         messageOnCake: message.trim() || null,
         customerNotes: notes.trim() || null,
-        paymentMode,
+        paymentMode: payChoice === "FULL" ? "FULL" : "ADVANCE",
         advanceAmount:
-          paymentMode === "ADVANCE" ? Number(advanceAmount) || 0 : undefined,
+          payChoice === "ADVANCE"
+            ? Number(advanceAmount) || 0
+            : payChoice === "COD"
+              ? 0
+              : undefined,
         paymentScreenshotUrl: publicUrl,
       });
       navigate(`/order/${order.orderNumber}/success`, { replace: true });
@@ -498,22 +526,27 @@ function LinkForm({
 
         <Section
           title="Payment"
-          subtitle="Transfer via UPI/bank and upload the screenshot to confirm your order."
+          subtitle="Pay now via UPI, or pay when your order arrives."
         >
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <FulfillmentButton
-              active={paymentMode === "FULL"}
-              onClick={() => setPaymentMode("FULL")}
+              active={payChoice === "FULL"}
+              onClick={() => setPayChoice("FULL")}
               title="Pay in full"
             />
             <FulfillmentButton
-              active={paymentMode === "ADVANCE"}
-              onClick={() => setPaymentMode("ADVANCE")}
+              active={payChoice === "ADVANCE"}
+              onClick={() => setPayChoice("ADVANCE")}
               title="Pay advance"
+            />
+            <FulfillmentButton
+              active={payChoice === "COD"}
+              onClick={() => setPayChoice("COD")}
+              title="Pay on delivery"
             />
           </div>
 
-          {paymentMode === "ADVANCE" && (
+          {payChoice === "ADVANCE" && (
             <Field
               label="Advance amount"
               required
@@ -530,26 +563,68 @@ function LinkForm({
             </Field>
           )}
 
-          <Field
-            label="Payment screenshot"
-            required
-            error={errors.screenshot}
-            className="mt-3"
-          >
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setScreenshotFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-xs text-ink-700 file:mr-3 file:rounded-md file:border-0 file:bg-cream-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink-700"
-            />
-            {screenshotPreview && (
-              <img
-                src={screenshotPreview}
-                alt="Payment screenshot preview"
-                className="mt-2 h-32 w-32 rounded-md border border-cream-200 object-cover"
-              />
-            )}
-          </Field>
+          {payChoice === "COD" ? (
+            <p className="mt-4 rounded-md bg-cream-50 px-3 py-2 text-xs text-ink-500">
+              Pay the full amount in cash or UPI when your order is delivered or
+              picked up.
+            </p>
+          ) : (
+            <>
+              {upiUri ? (
+                <div className="mt-4 flex flex-col items-center gap-3 rounded-lg border border-cream-200 bg-cream-50 p-4 text-center">
+                  <UpiQrCode uri={upiUri} />
+                  <p className="text-sm font-medium text-ink-900">
+                    Pay ₹{payNowAmount.toFixed(2)} to{" "}
+                    <span className="text-brand-700">{paymentInfo?.upiId}</span>
+                  </p>
+                  <a
+                    href={upiUri}
+                    className="w-full rounded-full bg-brand-500 py-2.5 text-center text-sm font-medium text-white transition hover:bg-brand-700"
+                  >
+                    Pay with UPI app
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      paymentInfo?.upiId &&
+                      navigator.clipboard.writeText(paymentInfo.upiId)
+                    }
+                    className="text-xs text-ink-500 hover:text-brand-700 hover:underline"
+                  >
+                    Copy UPI ID
+                  </button>
+                </div>
+              ) : (
+                <p className="mt-4 rounded-md bg-cream-50 px-3 py-2 text-xs text-ink-500">
+                  Please transfer ₹{payNowAmount.toFixed(2)} via UPI/bank
+                  transfer as instructed, then upload the screenshot below.
+                </p>
+              )}
+
+              <Field
+                label="Payment screenshot"
+                required
+                error={errors.screenshot}
+                className="mt-3"
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    setScreenshotFile(e.target.files?.[0] ?? null)
+                  }
+                  className="block w-full text-xs text-ink-700 file:mr-3 file:rounded-md file:border-0 file:bg-cream-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink-700"
+                />
+                {screenshotPreview && (
+                  <img
+                    src={screenshotPreview}
+                    alt="Payment screenshot preview"
+                    className="mt-2 h-32 w-32 rounded-md border border-cream-200 object-cover"
+                  />
+                )}
+              </Field>
+            </>
+          )}
         </Section>
 
         <div className="rounded-card border border-cream-200 bg-cream-50 p-5">
@@ -568,7 +643,7 @@ function LinkForm({
               ₹{total.toFixed(2)}
             </span>
           </div>
-          {paymentMode === "ADVANCE" && Number(advanceAmount) > 0 && (
+          {payChoice === "ADVANCE" && Number(advanceAmount) > 0 && (
             <>
               <SummaryRow label="Paying now" value={Number(advanceAmount)} />
               <SummaryRow
@@ -576,6 +651,9 @@ function LinkForm({
                 value={Math.max(total - Number(advanceAmount), 0)}
               />
             </>
+          )}
+          {payChoice === "COD" && (
+            <SummaryRow label="Due on delivery" value={total} />
           )}
 
           {submitError && (

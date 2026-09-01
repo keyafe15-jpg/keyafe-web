@@ -15,7 +15,10 @@ import {
   type OrderStatus,
   type OrderSource,
 } from "@/hooks/useAdminOrders";
+import { PaginationControls } from "@/components/ClientPagination";
 import { cn } from "@/lib/cn";
+
+const PAGE_SIZE = 20;
 
 const TABS: { key: OrderStatus | "ALL"; label: string }[] = [
   { key: "ALL", label: "All" },
@@ -32,13 +35,22 @@ export function OrdersListPage() {
   const [tab, setTab] = useState<OrderStatus | "ALL">("ALL");
   const [deliveryFrom, setDeliveryFrom] = useState<string>("");
   const [deliveryTo, setDeliveryTo] = useState<string>("");
-  const { data: orders = [], isLoading } = useAdminOrders({
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useAdminOrders({
     status: tab === "ALL" ? null : tab,
     deliveryFrom: deliveryFrom || null,
     deliveryTo: deliveryTo || null,
+    page,
+    pageSize: PAGE_SIZE,
   });
+  const orders = data?.items ?? [];
   const { data: counts } = useAdminOrderCounts();
   const navigate = useNavigate();
+
+  const changeTab = (t: OrderStatus | "ALL") => {
+    setTab(t);
+    setPage(1);
+  };
 
   const rangeActive = !!(deliveryFrom || deliveryTo);
   const rangeInvalid = deliveryFrom && deliveryTo && deliveryFrom > deliveryTo;
@@ -46,6 +58,7 @@ export function OrdersListPage() {
   const clearRange = () => {
     setDeliveryFrom("");
     setDeliveryTo("");
+    setPage(1);
   };
   const setQuickRange = (fromOffset: number, toOffset: number) => {
     const iso = (offset: number) => {
@@ -56,6 +69,7 @@ export function OrdersListPage() {
     };
     setDeliveryFrom(iso(fromOffset));
     setDeliveryTo(iso(toOffset));
+    setPage(1);
   };
 
   return (
@@ -109,7 +123,10 @@ export function OrdersListPage() {
             <input
               type="date"
               value={deliveryFrom}
-              onChange={(e) => setDeliveryFrom(e.target.value)}
+              onChange={(e) => {
+                setDeliveryFrom(e.target.value);
+                setPage(1);
+              }}
               max={deliveryTo || undefined}
               className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:flex-none"
             />
@@ -117,7 +134,10 @@ export function OrdersListPage() {
             <input
               type="date"
               value={deliveryTo}
-              onChange={(e) => setDeliveryTo(e.target.value)}
+              onChange={(e) => {
+                setDeliveryTo(e.target.value);
+                setPage(1);
+              }}
               min={deliveryFrom || undefined}
               className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:flex-none"
             />
@@ -136,7 +156,7 @@ export function OrdersListPage() {
           {TABS.map((t) => (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => changeTab(t.key)}
               className={cn(
                 "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition",
                 tab === t.key
@@ -172,66 +192,147 @@ export function OrdersListPage() {
           </div>
         )}
 
-        {/* Table view — md+ screens */}
         {!isLoading && orders.length > 0 && (
-          <table className="hidden w-full text-left text-sm md:table">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Order</th>
-                <th className="px-4 py-2 font-medium">Customer</th>
-                <th className="px-4 py-2 font-medium">Source</th>
-                <th className="px-4 py-2 font-medium">Deliver on</th>
-                <th className="px-4 py-2 font-medium text-right">Amount</th>
-                <th className="px-4 py-2 font-medium">Status</th>
-                <th className="px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {orders.map((o) => (
-                <tr
-                  key={o.id}
-                  onClick={() => navigate(`/orders/${o.orderNumber}`)}
-                  className="cursor-pointer hover:bg-slate-50"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {o.fulfillment === "DELIVERY" ? (
-                        <Truck className="h-4 w-4 shrink-0 text-slate-400" />
+          <>
+            {/* Table view — md+ screens */}
+            <table className="hidden w-full text-left text-sm md:table">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Order</th>
+                  <th className="px-4 py-2 font-medium">Customer</th>
+                  <th className="px-4 py-2 font-medium">Source</th>
+                  <th className="px-4 py-2 font-medium">Deliver on</th>
+                  <th className="px-4 py-2 font-medium text-right">Amount</th>
+                  <th className="px-4 py-2 font-medium">Status</th>
+                  <th className="px-4 py-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {orders.map((o) => (
+                  <tr
+                    key={o.id}
+                    onClick={() => navigate(`/orders/${o.orderNumber}`)}
+                    className="cursor-pointer hover:bg-slate-50"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {o.fulfillment === "DELIVERY" ? (
+                          <Truck className="h-4 w-4 shrink-0 text-slate-400" />
+                        ) : (
+                          <Store className="h-4 w-4 shrink-0 text-slate-400" />
+                        )}
+                        <div>
+                          <p className="font-mono text-xs font-medium text-slate-900">
+                            {o.orderNumber}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {o.itemCount} item
+                            {o.itemCount === 1 ? "" : "s"} ·{" "}
+                            {new Date(o.createdAt).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-slate-900">
+                        {o.customerName}
+                      </p>
+                      <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                        <Phone className="h-3 w-3" />
+                        {o.customerPhone}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <SourceBadge source={o.source} />
+                    </td>
+                    <td className="px-4 py-3">
+                      {o.earliestDelivery ? (
+                        <>
+                          <p className="text-xs font-medium text-slate-900">
+                            {new Date(o.earliestDelivery).toLocaleDateString(
+                              "en-IN",
+                              {
+                                weekday: "short",
+                                day: "numeric",
+                                month: "short",
+                              },
+                            )}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {o.earliestSlotLabel}
+                          </p>
+                        </>
                       ) : (
-                        <Store className="h-4 w-4 shrink-0 text-slate-400" />
+                        <span className="text-xs text-slate-400">—</span>
                       )}
-                      <div>
-                        <p className="font-mono text-xs font-medium text-slate-900">
-                          {o.orderNumber}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <p className="text-sm font-medium tabular-nums text-slate-900">
+                        ₹{Number(o.total).toFixed(0)}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {o.paymentMethod.toUpperCase()} · {o.paymentStatus}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusPill status={o.status} />
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-400">
+                      <ChevronRight className="h-4 w-4" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Card list — small screens */}
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {orders.map((o) => (
+                <li key={o.id}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/orders/${o.orderNumber}`)}
+                    className="w-full px-4 py-3 text-left transition hover:bg-slate-50 active:bg-slate-100"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-2">
+                        {o.fulfillment === "DELIVERY" ? (
+                          <Truck className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                        ) : (
+                          <Store className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-mono text-xs font-medium text-slate-900">
+                            {o.orderNumber}
+                          </p>
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {o.customerName}
+                          </p>
+                          <p className="flex items-center gap-1 text-[11px] text-slate-500">
+                            <Phone className="h-3 w-3" />
+                            {o.customerPhone}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold tabular-nums text-slate-900">
+                          ₹{Number(o.total).toFixed(0)}
                         </p>
-                        <p className="text-[11px] text-slate-500">
-                          {o.itemCount} item{o.itemCount === 1 ? "" : "s"} ·{" "}
-                          {new Date(o.createdAt).toLocaleString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </p>
+                        <div className="mt-1">
+                          <StatusPill status={o.status} />
+                        </div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-slate-900">
-                      {o.customerName}
-                    </p>
-                    <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                      <Phone className="h-3 w-3" />
-                      {o.customerPhone}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <SourceBadge source={o.source} />
-                  </td>
-                  <td className="px-4 py-3">
-                    {o.earliestDelivery ? (
-                      <>
-                        <p className="text-xs font-medium text-slate-900">
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                      <SourceBadge source={o.source} />
+                      {o.earliestDelivery && (
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700">
                           {new Date(o.earliestDelivery).toLocaleDateString(
                             "en-IN",
                             {
@@ -240,101 +341,36 @@ export function OrdersListPage() {
                               month: "short",
                             },
                           )}
-                        </p>
-                        <p className="text-[11px] text-slate-500">
-                          {o.earliestSlotLabel}
-                        </p>
-                      </>
-                    ) : (
-                      <span className="text-xs text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <p className="text-sm font-medium tabular-nums text-slate-900">
-                      ₹{Number(o.total).toFixed(0)}
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      {o.paymentMethod.toUpperCase()} · {o.paymentStatus}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusPill status={o.status} />
-                  </td>
-                  <td className="px-4 py-3 text-right text-slate-400">
-                    <ChevronRight className="h-4 w-4" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {/* Card list — small screens */}
-        {!isLoading && orders.length > 0 && (
-          <ul className="divide-y divide-slate-100 md:hidden">
-            {orders.map((o) => (
-              <li key={o.id}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/orders/${o.orderNumber}`)}
-                  className="w-full px-4 py-3 text-left transition hover:bg-slate-50 active:bg-slate-100"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-2">
-                      {o.fulfillment === "DELIVERY" ? (
-                        <Truck className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                      ) : (
-                        <Store className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                          {o.earliestSlotLabel && ` · ${o.earliestSlotLabel}`}
+                        </span>
                       )}
-                      <div className="min-w-0">
-                        <p className="font-mono text-xs font-medium text-slate-900">
-                          {o.orderNumber}
-                        </p>
-                        <p className="truncate text-sm font-medium text-slate-900">
-                          {o.customerName}
-                        </p>
-                        <p className="flex items-center gap-1 text-[11px] text-slate-500">
-                          <Phone className="h-3 w-3" />
-                          {o.customerPhone}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-semibold tabular-nums text-slate-900">
-                        ₹{Number(o.total).toFixed(0)}
-                      </p>
-                      <div className="mt-1">
-                        <StatusPill status={o.status} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                    <SourceBadge source={o.source} />
-                    {o.earliestDelivery && (
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700">
-                        {new Date(o.earliestDelivery).toLocaleDateString(
-                          "en-IN",
-                          {
-                            weekday: "short",
-                            day: "numeric",
-                            month: "short",
-                          },
-                        )}
-                        {o.earliestSlotLabel && ` · ${o.earliestSlotLabel}`}
+                      <span>
+                        {o.itemCount} item{o.itemCount === 1 ? "" : "s"}
                       </span>
-                    )}
-                    <span>
-                      {o.itemCount} item{o.itemCount === 1 ? "" : "s"}
-                    </span>
-                    <span>
-                      · {o.paymentMethod.toUpperCase()} · {o.paymentStatus}
-                    </span>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
+                      <span>
+                        · {o.paymentMethod.toUpperCase()} · {o.paymentStatus}
+                      </span>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <PaginationControls
+              page={data?.page ?? 1}
+              pageCount={data?.totalPages ?? 1}
+              total={data?.total ?? 0}
+              firstItem={
+                data && data.total > 0 ? (data.page - 1) * data.pageSize + 1 : 0
+              }
+              lastItem={
+                data ? Math.min(data.page * data.pageSize, data.total) : 0
+              }
+              onPageChange={setPage}
+              noun="orders"
+              className="mx-4 mb-4"
+            />
+          </>
         )}
       </div>
     </div>

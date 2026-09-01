@@ -15,6 +15,7 @@ import { OrderLinksListPage } from "@/pages/order-links/OrderLinksListPage";
 import { OrderLinkFormPage } from "@/pages/order-links/OrderLinkFormPage";
 import { OfflineOrderDirectFormPage } from "@/pages/order-links/OfflineOrderDirectFormPage";
 import { DeliveryPincodesPage } from "@/pages/delivery/DeliveryPincodesPage";
+import { SettingsPage } from "@/pages/SettingsPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -121,9 +122,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "settings",
-        element: (
-          <StubPage title="Settings" subtitle="Business, GST, invoicing." />
-        ),
+        element: <SettingsPage />,
       },
     ],
   },

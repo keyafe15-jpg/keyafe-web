@@ -25,6 +25,8 @@ adminOrderRouter.get("/", async (req, res) => {
     typeof req.query.deliveryFrom === "string" ? req.query.deliveryFrom : null;
   const deliveryTo =
     typeof req.query.deliveryTo === "string" ? req.query.deliveryTo : null;
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
 
   const where: Record<string, unknown> = {};
   if (status && (ORDER_STATUSES as readonly string[]).includes(status)) {
@@ -45,47 +47,54 @@ adminOrderRouter.get("/", async (req, res) => {
     where.items = { some: { deliveryDate: dateFilter } };
   }
 
-  const rows = await prisma.order.findMany({
-    where: Object.keys(where).length ? where : undefined,
-    orderBy: { createdAt: "desc" },
-    take: 200,
-    select: {
-      id: true,
-      orderNumber: true,
-      customerName: true,
-      customerPhone: true,
-      customerEmail: true,
-      fulfillment: true,
-      subtotal: true,
-      deliveryFee: true,
-      total: true,
-      status: true,
-      paymentStatus: true,
-      paymentMethod: true,
-      paymentMode: true,
-      advanceAmount: true,
-      paymentScreenshotUrl: true,
-      source: true,
-      createdAt: true,
-      _count: { select: { items: true } },
-      items: {
-        select: {
-          id: true,
-          productName: true,
-          sizeLabel: true,
-          flavourName: true,
-          qty: true,
-          messageOnCake: true,
-          deliveryDate: true,
-          deliverySlotKey: true,
-          deliverySlotLabel: true,
+  const whereClause = Object.keys(where).length ? where : undefined;
+
+  const [total, rows] = await Promise.all([
+    prisma.order.count({ where: whereClause }),
+    prisma.order.findMany({
+      where: whereClause,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        orderNumber: true,
+        customerName: true,
+        customerPhone: true,
+        customerEmail: true,
+        fulfillment: true,
+        subtotal: true,
+        deliveryFee: true,
+        total: true,
+        status: true,
+        paymentStatus: true,
+        paymentMethod: true,
+        paymentMode: true,
+        advanceAmount: true,
+        paymentScreenshotUrl: true,
+        source: true,
+        createdAt: true,
+        _count: { select: { items: true } },
+        items: {
+          select: {
+            id: true,
+            productName: true,
+            sizeLabel: true,
+            flavourName: true,
+            qty: true,
+            messageOnCake: true,
+            deliveryDate: true,
+            deliverySlotKey: true,
+            deliverySlotLabel: true,
+          },
+          orderBy: { deliveryDate: "asc" },
         },
-        orderBy: { deliveryDate: "asc" },
       },
-    },
-  });
-  res.json(
-    rows.map((r) => ({
+    }),
+  ]);
+
+  res.json({
+    items: rows.map((r) => ({
       id: r.id,
       orderNumber: r.orderNumber,
       customerName: r.customerName,
@@ -108,7 +117,11 @@ adminOrderRouter.get("/", async (req, res) => {
       earliestSlotLabel: r.items[0]?.deliverySlotLabel ?? null,
       items: r.items,
     })),
-  );
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  });
 });
 
 adminOrderRouter.get("/counts", async (_req, res) => {

@@ -11,7 +11,10 @@ import { logger } from "./utils/logger.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 import { uploadRouter } from "./modules/uploads/upload.routes.js";
-import { storeRouter } from "./modules/store/store.routes.js";
+import {
+  storeRouter,
+  adminBusinessRouter,
+} from "./modules/store/store.routes.js";
 import {
   adminDeliveryRouter,
   deliveryRouter,
@@ -110,6 +113,7 @@ export function createApp() {
   app.use("/api/admin/offline-orders", adminOfflineOrderRouter);
   app.use("/api/admin/delivery", adminDeliveryRouter);
   app.use("/api/admin/push", adminPushRouter);
+  app.use("/api/admin/business", adminBusinessRouter);
 
   // Fan out new-order events to Web Push subscribers (in addition to SSE).
   attachPushToOrderEvents();

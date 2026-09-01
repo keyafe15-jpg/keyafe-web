@@ -101,27 +101,42 @@ export interface AdminOrdersFilter {
   status?: OrderStatus | null;
   deliveryFrom?: string | null; // YYYY-MM-DD (inclusive)
   deliveryTo?: string | null; // YYYY-MM-DD (inclusive)
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOrdersPage {
+  items: AdminOrderListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 export function useAdminOrders(filter?: AdminOrdersFilter) {
   const status = filter?.status ?? null;
   const deliveryFrom = filter?.deliveryFrom ?? null;
   const deliveryTo = filter?.deliveryTo ?? null;
+  const page = filter?.page ?? 1;
+  const pageSize = filter?.pageSize ?? 20;
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (deliveryFrom) params.set("deliveryFrom", deliveryFrom);
   if (deliveryTo) params.set("deliveryTo", deliveryTo);
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
   const qs = params.toString();
-  return useQuery<AdminOrderListItem[]>({
+  return useQuery<AdminOrdersPage>({
     queryKey: [
       "admin",
       "orders",
       status ?? "ALL",
       deliveryFrom ?? "*",
       deliveryTo ?? "*",
+      page,
+      pageSize,
     ],
-    queryFn: () =>
-      api.get<AdminOrderListItem[]>(`/admin/orders${qs ? `?${qs}` : ""}`),
+    queryFn: () => api.get<AdminOrdersPage>(`/admin/orders?${qs}`),
     staleTime: 15_000,
   });
 }

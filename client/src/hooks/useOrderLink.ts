@@ -60,10 +60,11 @@ export interface PlaceOrderLinkPayload {
   customerNotes?: string | null;
   qty?: number;
 
-  // How much is being paid now, and proof of the transfer.
+  // How much is being paid now, and proof of the transfer. Both are absent
+  // for COD (advanceAmount: 0, paymentScreenshotUrl: null).
   paymentMode: "FULL" | "ADVANCE";
   advanceAmount?: number;
-  paymentScreenshotUrl: string;
+  paymentScreenshotUrl: string | null;
 }
 
 export interface UsePlaceOrderLinkArgs {
