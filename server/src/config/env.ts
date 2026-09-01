@@ -47,6 +47,13 @@ const envSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default("mailto:admin@keyafe.in"),
 
+  // WhatsApp Cloud API (Meta). Leave blank until the bakery number is connected;
+  // sendStaffWhatsApp() then only logs. WHATSAPP_STAFF_TO is comma-separated
+  // E.164-ish numbers (e.g. 919330048665) that receive staff alerts.
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  WHATSAPP_STAFF_TO: z.string().optional(),
+
   JWT_SECRET: z
     .string()
     .min(32, "JWT_SECRET must be at least 32 chars")

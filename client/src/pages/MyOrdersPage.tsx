@@ -1,6 +1,7 @@
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/store/auth";
 import { useUserOrders } from "@/hooks/useOrders";
+import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 
 export function MyOrdersPage() {
   const user = useAuth((s) => s.user);
@@ -53,8 +54,14 @@ export function MyOrdersPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-brand-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-brand-700">
-                    {order.status}
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                      order.status === "CANCELLED"
+                        ? "bg-red-50 text-red-700"
+                        : "bg-brand-100 text-brand-700"
+                    }`}
+                  >
+                    {order.status.replace(/_/g, " ")}
                   </span>
                   <Link
                     to={`/order/${order.orderNumber}/success`}
@@ -97,11 +104,14 @@ export function MyOrdersPage() {
                 ))}
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-cream-100 pt-4 text-sm">
-                <span className="text-ink-500">Total</span>
-                <span className="font-medium tabular-nums text-ink-900">
-                  ₹{Number(order.total).toFixed(2)}
-                </span>
+              <div className="mt-4 flex flex-col gap-3 border-t border-cream-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center justify-between gap-4 text-sm sm:justify-start">
+                  <span className="text-ink-500">Total</span>
+                  <span className="font-medium tabular-nums text-ink-900">
+                    ₹{Number(order.total).toFixed(2)}
+                  </span>
+                </div>
+                <CancelOrderButton order={order} />
               </div>
             </div>
           ))}

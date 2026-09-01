@@ -3,6 +3,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/nav/Sidebar";
 import { TopBar } from "@/components/nav/TopBar";
 import { NewOrderAlertModal } from "@/components/NewOrderAlertModal";
+import { CancelledOrderToasts } from "@/components/CancelledOrderToasts";
 import { useAdminAuth } from "@/store/adminAuth";
 import { useOrderStream } from "@/hooks/useOrderStream";
 
@@ -39,6 +40,7 @@ export function AdminLayout() {
       </div>
 
       <NewOrderAlertModal />
+      <CancelledOrderToasts />
     </div>
   );
 }

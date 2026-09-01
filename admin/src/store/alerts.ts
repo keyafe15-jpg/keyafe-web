@@ -21,6 +21,19 @@ interface AlertsState {
   enqueue: (alert: PendingOrderAlert) => void;
   dequeue: (id: string) => void;
   clear: () => void;
+
+  cancelled: PendingCancelAlert[];
+  enqueueCancelled: (alert: PendingCancelAlert) => void;
+  dismissCancelled: (id: string) => void;
+}
+
+export interface PendingCancelAlert {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  total: string | number;
+  cancelledBy: "customer" | "admin";
+  arrivedAt: number;
 }
 
 // The mute preference persists across reloads; the pending queue does not.
@@ -40,6 +53,16 @@ export const useAlerts = create<AlertsState>()(
       dequeue: (id) =>
         set((s) => ({ pending: s.pending.filter((a) => a.id !== id) })),
       clear: () => set({ pending: [] }),
+
+      cancelled: [],
+      enqueueCancelled: (alert) =>
+        set((s) =>
+          s.cancelled.some((a) => a.id === alert.id)
+            ? s
+            : { cancelled: [...s.cancelled, alert] },
+        ),
+      dismissCancelled: (id) =>
+        set((s) => ({ cancelled: s.cancelled.filter((a) => a.id !== id) })),
     }),
     {
       name: "keyafe-admin-alerts",

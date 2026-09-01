@@ -228,3 +228,51 @@ export function renderAdminNotification(order: OrderWithItems) {
     html,
   };
 }
+
+export function renderCustomerCancelled(order: OrderWithItems) {
+  const html = shell(
+    `Order cancelled — ${order.orderNumber}`,
+    `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="display:inline-block;padding:4px 10px;background:#fde8e8;color:#b42318;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.4px;">CANCELLED</span>
+      <span style="font-family:monospace;color:#7d8590;font-size:13px;">${escapeHtml(order.orderNumber)}</span>
+    </div>
+    <h1 style="margin:6px 0 4px;font-size:24px;color:#2c3540;">Your order has been cancelled</h1>
+    <p style="margin:0 0 20px;color:#7d8590;">
+      Hi ${escapeHtml(order.customerName.split(" ")[0] ?? order.customerName)}, we've cancelled ${escapeHtml(order.orderNumber)}.
+      If you paid online, the bakery will confirm any refund separately.
+    </p>
+    <p style="margin:0;color:#7d8590;font-size:13px;">
+      Questions? Call us at
+      <a href="tel:+919330048665" style="color:#e31c79;text-decoration:none;">+91 93300 48665</a>.
+    </p>`,
+  );
+  return {
+    subject: `Order cancelled — ${order.orderNumber}`,
+    html,
+  };
+}
+
+export function renderAdminCancelled(
+  order: OrderWithItems,
+  by: "customer" | "admin",
+) {
+  const who = by === "customer" ? "Customer cancelled" : "Cancelled in admin";
+  const html = shell(
+    `Order cancelled — ${order.orderNumber}`,
+    `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="display:inline-block;padding:4px 10px;background:#fde8e8;color:#b42318;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.4px;">${escapeHtml(who.toUpperCase())}</span>
+      <span style="font-family:monospace;color:#7d8590;font-size:13px;">${escapeHtml(order.orderNumber)}</span>
+    </div>
+    <h1 style="margin:6px 0 4px;font-size:22px;color:#2c3540;">${money(order.total)} · ${escapeHtml(order.customerName)}</h1>
+    <p style="margin:0;color:#7d8590;">
+      ${escapeHtml(order.customerPhone)}
+      ${order.customerEmail ? ` · ${escapeHtml(order.customerEmail)}` : ""}
+    </p>`,
+  );
+  return {
+    subject: `Cancelled · ${order.orderNumber} · ${order.customerName}`,
+    html,
+  };
+}

@@ -2,7 +2,7 @@ import webpush from "web-push";
 import { env } from "../config/env.js";
 import { prisma } from "../config/db.js";
 import { logger } from "../utils/logger.js";
-import type { NewOrderEvent } from "./events.js";
+import type { NewOrderEvent, OrderCancelledEvent } from "./events.js";
 import { orderEvents } from "./events.js";
 
 const publicKey = env.VAPID_PUBLIC_KEY;
@@ -89,6 +89,18 @@ export function attachPushToOrderEvents() {
       source: ev.source,
     }).catch((err) => {
       logger.error({ err }, "push fan-out failed");
+    });
+  });
+
+  orderEvents.on("order-cancelled", (ev: OrderCancelledEvent) => {
+    const who = ev.cancelledBy === "customer" ? "Customer" : "Admin";
+    void sendPushToAll({
+      title: `Order cancelled · ${ev.orderNumber}`,
+      body: `${who} cancelled ${ev.customerName} · ₹${Number(ev.total).toFixed(0)}`,
+      orderNumber: ev.orderNumber,
+      type: "order-cancelled",
+    }).catch((err) => {
+      logger.error({ err }, "cancel push fan-out failed");
     });
   });
 }

@@ -4,7 +4,8 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
-import { orderEvents, type NewOrderEvent } from "../../lib/events.js";
+import { cancelOrderAsAdmin } from "./order.cancel.js";
+import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
 
 // TODO: gate behind requireAuth + requirePermission("orders.read/update") once auth is wired.
 export const adminOrderRouter = Router();
@@ -321,7 +322,11 @@ adminOrderRouter.get("/stream", (req, res) => {
   const onNewOrder = (event: NewOrderEvent) => {
     res.write(`event: new-order\ndata: ${JSON.stringify(event)}\n\n`);
   };
+  const onCancelled = (event: OrderCancelledEvent) => {
+    res.write(`event: order-cancelled\ndata: ${JSON.stringify(event)}\n\n`);
+  };
   orderEvents.on("new-order", onNewOrder);
+  orderEvents.on("order-cancelled", onCancelled);
 
   // Heartbeat every 25s so proxies / load balancers don't cut idle streams.
   const heartbeat = setInterval(() => {
@@ -331,6 +336,7 @@ adminOrderRouter.get("/stream", (req, res) => {
   req.on("close", () => {
     clearInterval(heartbeat);
     orderEvents.off("new-order", onNewOrder);
+    orderEvents.off("order-cancelled", onCancelled);
     res.end();
   });
 });
@@ -361,8 +367,14 @@ adminOrderRouter.patch("/:id", async (req, res) => {
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid update", parsed.error.flatten());
   }
-  const { advanceAmount, paymentStatus, ...rest } = parsed.data;
+  const { advanceAmount, paymentStatus, status, ...rest } = parsed.data;
   const data: typeof parsed.data = { ...rest };
+
+  if (status === "CANCELLED") {
+    await cancelOrderAsAdmin(req.params.id);
+  } else if (status !== undefined) {
+    data.status = status;
+  }
 
   if (advanceAmount !== undefined) {
     const existing = await prisma.order.findUnique({

@@ -110,7 +110,15 @@ export function OrderDetailPage() {
         </div>
         <StatusChanger
           currentStatus={order.status}
-          onChange={(status) => update.mutate({ id: order.id, status })}
+          onChange={(status) => {
+            if (status === "CANCELLED") {
+              const ok = window.confirm(
+                "Cancel this order? The customer will be emailed. You can cancel even if the kitchen has started.",
+              );
+              if (!ok) return;
+            }
+            update.mutate({ id: order.id, status });
+          }}
           pending={update.isPending}
         />
       </div>
@@ -570,6 +578,16 @@ function StatusChanger({
           className="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
           Mark {next.toLowerCase().replace(/_/g, " ")} →
+        </button>
+      )}
+      {currentStatus !== "CANCELLED" && (
+        <button
+          type="button"
+          onClick={() => onChange("CANCELLED")}
+          disabled={pending}
+          className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+        >
+          Cancel order
         </button>
       )}
       <select

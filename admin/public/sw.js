@@ -28,7 +28,7 @@ self.addEventListener("push", (event) => {
     tag: payload.orderNumber || "keyafe-order",
     // Keep the notification on-screen until the user interacts. Some browsers
     // ignore this on their platform but honour it on desktop.
-    requireInteraction: true,
+    requireInteraction: payload.type !== "order-cancelled",
     data: {
       orderNumber: payload.orderNumber,
       source: payload.source,

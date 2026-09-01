@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/useOrders";
+import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 
 export function OrderSuccessPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -34,11 +35,22 @@ export function OrderSuccessPage() {
   }
 
   const isDelivery = order.fulfillment === "DELIVERY";
+  const cancelled = order.status === "CANCELLED";
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-12">
-      <div className="rounded-card border border-emerald-200 bg-emerald-50/50 p-6 text-center sm:p-8">
-        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white">
+      <div
+        className={`rounded-card border p-6 text-center sm:p-8 ${
+          cancelled
+            ? "border-red-200 bg-red-50/50"
+            : "border-emerald-200 bg-emerald-50/50"
+        }`}
+      >
+        <div
+          className={`mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-white ${
+            cancelled ? "bg-red-500" : "bg-emerald-500"
+          }`}
+        >
           <svg
             width={28}
             height={28}
@@ -50,14 +62,26 @@ export function OrderSuccessPage() {
             strokeLinejoin="round"
             aria-hidden="true"
           >
-            <path d="M20 6L9 17l-5-5" />
+            {cancelled ? (
+              <path d="M18 6L6 18M6 6l12 12" />
+            ) : (
+              <path d="M20 6L9 17l-5-5" />
+            )}
           </svg>
         </div>
-        <h1 className="font-display text-3xl text-ink-900">Order confirmed!</h1>
+        <h1 className="font-display text-3xl text-ink-900">
+          {cancelled ? "Order cancelled" : "Order confirmed!"}
+        </h1>
         <p className="mt-1 text-sm text-ink-500">
-          Thanks {order.customerName.split(" ")[0]} — we've got your order.
+          {cancelled
+            ? "This order is no longer being prepared."
+            : `Thanks ${order.customerName.split(" ")[0]} — we've got your order.`}
         </p>
-        <p className="mt-3 inline-block rounded-full bg-white px-3 py-1 text-xs font-medium tabular-nums text-ink-700 ring-1 ring-emerald-200">
+        <p
+          className={`mt-3 inline-block rounded-full bg-white px-3 py-1 text-xs font-medium tabular-nums text-ink-700 ring-1 ${
+            cancelled ? "ring-red-200" : "ring-emerald-200"
+          }`}
+        >
           {order.orderNumber}
         </p>
       </div>
@@ -193,6 +217,12 @@ export function OrderSuccessPage() {
       </div>
 
       <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        <div className="w-full max-w-sm text-center sm:w-auto">
+          <CancelOrderButton order={order} />
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <Link
           to="/"
           className="rounded-full border border-ink-700 px-5 py-2 text-sm font-medium text-ink-700 transition hover:bg-cream-100"

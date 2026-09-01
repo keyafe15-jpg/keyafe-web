@@ -54,14 +54,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     ],
   },
   {
-    label: "Same-Day Store",
+    label: "Store Timings",
     items: [
       { to: "/same-day", label: "Store & Hours", icon: Zap },
-      {
-        to: "/same-day-categories",
-        label: "Same-Day Categories",
-        icon: FolderTree,
-      },
+      // {
+      //   to: "/same-day-categories",
+      //   label: "Same-Day Categories",
+      //   icon: FolderTree,
+      // },
     ],
   },
   {

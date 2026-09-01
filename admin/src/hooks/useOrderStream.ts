@@ -17,11 +17,17 @@ interface NewOrderEvent {
 export function useOrderStream() {
   const qc = useQueryClient();
   const enqueue = useAlerts((s) => s.enqueue);
+  const enqueueCancelled = useAlerts((s) => s.enqueueCancelled);
 
   useEffect(() => {
     const es = new EventSource("/api/admin/orders/stream", {
       withCredentials: true,
     });
+
+    const refreshOrders = () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "order-counts"] });
+    };
 
     es.addEventListener("new-order", (raw) => {
       let ev: NewOrderEvent;
@@ -31,9 +37,7 @@ export function useOrderStream() {
         return;
       }
 
-      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
-      void qc.invalidateQueries({ queryKey: ["admin", "order-counts"] });
-
+      refreshOrders();
       enqueue({
         id: ev.id,
         orderNumber: ev.orderNumber,
@@ -46,6 +50,35 @@ export function useOrderStream() {
       });
     });
 
+    es.addEventListener("order-cancelled", (raw) => {
+      let ev: {
+        id: string;
+        orderNumber: string;
+        customerName: string;
+        total: string | number;
+        cancelledBy: "customer" | "admin";
+      };
+      try {
+        ev = JSON.parse((raw as MessageEvent).data);
+      } catch {
+        return;
+      }
+
+      refreshOrders();
+      void qc.invalidateQueries({ queryKey: ["admin", "order", ev.id] });
+      void qc.invalidateQueries({
+        queryKey: ["admin", "order", ev.orderNumber],
+      });
+      enqueueCancelled({
+        id: ev.id,
+        orderNumber: ev.orderNumber,
+        customerName: ev.customerName,
+        total: ev.total,
+        cancelledBy: ev.cancelledBy,
+        arrivedAt: Date.now(),
+      });
+    });
+
     es.onerror = () => {
       // EventSource auto-reconnects; nothing to do here.
     };
@@ -53,5 +86,5 @@ export function useOrderStream() {
     return () => {
       es.close();
     };
-  }, [qc, enqueue]);
+  }, [qc, enqueue, enqueueCancelled]);
 }

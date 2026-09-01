@@ -2,7 +2,7 @@ import { BRAND } from "./brand";
 
 export const FOOTER_COPY = {
   brandBlurb: BRAND.tagline,
-  headline: ["Something sweet,", "made just for you."] as const,
+  headline: ["Something special and unique,", "made just for you."] as const,
   cta: { to: "/get-quote", label: "Get a quote" },
   sections: {
     shop: {

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { StatusCodes } from "http-status-codes";
-import { optionalAuth, requireAuth } from "../../middleware/auth.js";
+import { optionalAuth, requireAuth, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import {
@@ -9,6 +9,10 @@ import {
   getOrderById,
   getOrderByNumber,
 } from "./order.service.js";
+import {
+  cancelOrderAsCustomer,
+  withCustomerCancel,
+} from "./order.cancel.js";
 
 export const orderRouter = Router();
 
@@ -28,7 +32,7 @@ orderRouter.post("/", optionalAuth, async (req, res) => {
 });
 
 orderRouter.get("/me", requireAuth, async (req, res) => {
-  const userId = req.user.id;
+  const userId = (req as AuthenticatedRequest).user!.id;
 
   const orders = await prisma.order.findMany({
     where: { userId },
@@ -36,7 +40,12 @@ orderRouter.get("/me", requireAuth, async (req, res) => {
     include: { items: { orderBy: { deliveryDate: "asc" } } },
   });
 
-  res.json(orders);
+  res.json(orders.map(withCustomerCancel));
+});
+
+orderRouter.post("/:idOrNumber/cancel", async (req, res) => {
+  const order = await cancelOrderAsCustomer(req.params.idOrNumber);
+  res.json(order);
 });
 
 // Accepts either a cuid (order id) or KEY-YYMMDD-XXXXXX (order number)
@@ -46,5 +55,5 @@ orderRouter.get("/:idOrNumber", async (req, res) => {
   const order = key.startsWith("KEY-")
     ? await getOrderByNumber(key)
     : await getOrderById(key);
-  res.json(order);
+  res.json(withCustomerCancel(order));
 });

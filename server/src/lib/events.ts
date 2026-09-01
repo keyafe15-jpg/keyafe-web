@@ -20,3 +20,18 @@ export interface NewOrderEvent {
 export function emitNewOrder(event: NewOrderEvent) {
   orderEvents.emit("new-order", event);
 }
+
+export interface OrderCancelledEvent {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerPhone: string;
+  total: string | number;
+  itemCount: number;
+  cancelledBy: "customer" | "admin";
+  cancelledAt: string;
+}
+
+export function emitOrderCancelled(event: OrderCancelledEvent) {
+  orderEvents.emit("order-cancelled", event);
+}

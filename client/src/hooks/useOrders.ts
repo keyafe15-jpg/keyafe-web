@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/store/auth";
 
@@ -66,6 +66,11 @@ export interface Order {
   customerNotes: string | null;
   createdAt: string;
   items: OrderItem[];
+  customerCancel?: {
+    allowed: boolean;
+    reason: string | null;
+    deadlineAt: string | null;
+  };
 }
 
 export interface CreateOrderItem {
@@ -132,5 +137,18 @@ export function useUserOrders() {
     },
     enabled: !!useAuth.getState().accessToken,
     staleTime: 30_000,
+  });
+}
+
+export function useCancelOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (idOrNumber: string) =>
+      api.post<Order>(`/orders/${idOrNumber}/cancel`),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ["user-orders"] });
+      void qc.invalidateQueries({ queryKey: ["order", data.id] });
+      void qc.invalidateQueries({ queryKey: ["order", data.orderNumber] });
+    },
   });
 }
