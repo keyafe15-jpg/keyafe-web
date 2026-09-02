@@ -18,6 +18,7 @@ import { OfflineOrderDirectFormPage } from "@/pages/order-links/OfflineOrderDire
 import { DeliveryPincodesPage } from "@/pages/delivery/DeliveryPincodesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { StoreHoursPage } from "@/pages/store/StoreHoursPage";
+import { CouponsPage } from "@/pages/coupons/CouponsPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -97,7 +98,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "coupons",
-        element: <StubPage title="Coupons" subtitle="Discount codes." />,
+        element: <CouponsPage />,
       },
       {
         path: "delivery",

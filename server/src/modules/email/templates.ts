@@ -121,8 +121,21 @@ function totalsBlock(order: OrderWithItems): string {
       ${hasInterGst ? row("IGST", money(igst)) : ""}
       ${row("Subtotal (incl. GST)", money(order.subtotal))}
       ${
+        Number(order.discount) > 0
+          ? row(
+              order.couponCode
+                ? `Discount (${escapeHtml(order.couponCode)})`
+                : "Discount",
+              `−${money(order.discount)}`,
+            )
+          : ""
+      }
+      ${
         order.fulfillment === "DELIVERY"
-          ? row("Delivery", money(order.deliveryFee))
+          ? row(
+              Number(order.deliveryFee) === 0 ? "Delivery (free)" : "Delivery",
+              money(order.deliveryFee),
+            )
           : ""
       }
       <tr>
@@ -273,6 +286,46 @@ export function renderAdminCancelled(
   );
   return {
     subject: `Cancelled · ${order.orderNumber} · ${order.customerName}`,
+    html,
+  };
+}
+
+export function renderCouponShare(coupon: {
+  code: string;
+  type: "PERCENT" | "FLAT";
+  value: unknown;
+  validUntil: Date;
+  minCartAmount: unknown;
+}) {
+  const offer =
+    coupon.type === "PERCENT"
+      ? `${Number(coupon.value)}% off`
+      : `${money(coupon.value)} off`;
+  const until = coupon.validUntil.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const min =
+    coupon.minCartAmount != null
+      ? `<p style="color:#7d8590;font-size:13px;">Min cart ${money(coupon.minCartAmount)}</p>`
+      : "";
+  const html = shell(
+    `Your Keyafe coupon — ${coupon.code}`,
+    `
+    <h1 style="margin:0 0 8px;font-size:22px;color:#2c3540;">A little something from Keyafe</h1>
+    <p style="margin:0 0 16px;color:#7d8590;">Use this code at checkout on keyafe.in</p>
+    <div style="display:inline-block;padding:12px 20px;background:#fdeaf3;border-radius:8px;font-family:monospace;font-size:22px;font-weight:700;letter-spacing:2px;color:#e31c79;">
+      ${escapeHtml(coupon.code)}
+    </div>
+    <p style="margin:16px 0 0;color:#2c3540;font-weight:600;">${escapeHtml(offer)}</p>
+    <p style="margin:4px 0 0;color:#7d8590;font-size:13px;">Valid until ${escapeHtml(until)}</p>
+    ${min}
+    `,
+  );
+  return {
+    subject: `Your Keyafe coupon: ${coupon.code} · ${offer}`,
     html,
   };
 }

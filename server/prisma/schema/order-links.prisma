@@ -14,6 +14,11 @@ enum OrderLinkStatus {
   CANCELLED // admin cancelled
 }
 
+enum OfflineDiscountType {
+  FLAT
+  PERCENT
+}
+
 model OrderLink {
   id    String @id @default(cuid())
   // URL-friendly public token used in /o/{token}. Not guessable but not a secret.
@@ -28,6 +33,11 @@ model OrderLink {
 
   // Internal — never shown to customer.
   adminNotes String?
+
+  // Optional discount locked on the items total (not delivery). Applied when
+  // the customer completes the link. Direct offline orders pass this on place.
+  discountType  OfflineDiscountType?
+  discountValue Decimal?             @db.Decimal(10, 2)
 
   status    OrderLinkStatus @default(OPEN)
   expiresAt DateTime?

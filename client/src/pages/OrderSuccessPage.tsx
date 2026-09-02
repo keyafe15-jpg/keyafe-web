@@ -201,8 +201,23 @@ export function OrderSuccessPage() {
           label="Subtotal (incl. GST)"
           value={Number(order.subtotal)}
         />
+        {Number(order.discount) > 0 && (
+          <SummaryRow
+            label={
+              order.couponCode
+                ? `Discount (${order.couponCode})`
+                : "Discount"
+            }
+            value={-Number(order.discount)}
+          />
+        )}
         {isDelivery && (
-          <SummaryRow label="Delivery" value={Number(order.deliveryFee)} />
+          <SummaryRow
+            label={
+              Number(order.deliveryFee) === 0 ? "Delivery (free)" : "Delivery"
+            }
+            value={Number(order.deliveryFee)}
+          />
         )}
         <hr className="my-3 border-cream-200" />
         <div className="flex items-baseline justify-between">

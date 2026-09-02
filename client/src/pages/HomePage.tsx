@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { HeroSlider } from "@/components/hero/HeroSlider";
+import { HomePromoBanner } from "@/components/home/HomePromoBanner";
 import { PageMotifs } from "@/components/decor/PageMotifs";
 import { Reveal } from "@/components/motion/Reveal";
 import { HOME_COPY } from "@/content/home";
@@ -39,6 +40,8 @@ export function HomePage() {
   return (
     <div className="relative isolate overflow-hidden">
       <PageMotifs />
+
+      <HomePromoBanner />
 
       <div
         className="pointer-events-none absolute -left-32 top-[420px] -z-10 h-[420px] w-[420px] rounded-full bg-brand-300/25 blur-[110px]"

@@ -65,6 +65,7 @@ export interface Order {
     | "CANCELLED";
   customerNotes: string | null;
   createdAt: string;
+  couponCode?: string | null;
   items: OrderItem[];
   customerCancel?: {
     allowed: boolean;
@@ -98,6 +99,7 @@ export interface CreateOrderPayload {
   customerNotes?: string | null;
   paymentMethod: "cod" | "upi" | "razorpay";
   items: CreateOrderItem[];
+  couponCode?: string | null;
 }
 
 export function useCreateOrder() {

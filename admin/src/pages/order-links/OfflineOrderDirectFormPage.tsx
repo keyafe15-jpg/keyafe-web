@@ -28,6 +28,8 @@ import {
   submitClass,
   textareaClass,
 } from "@/components/form/Field";
+import { ManualDiscountFields } from "@/components/form/ManualDiscountFields";
+import { manualDiscountRupees, type ManualDiscountType } from "@/lib/manualDiscount";
 import { cn } from "@/lib/cn";
 
 interface PincodeInfo {
@@ -135,6 +137,8 @@ export function OfflineOrderDirectFormPage() {
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
+  const [discountValue, setDiscountValue] = useState("");
 
   const patchItem = (id: string, patch: Partial<LineItem>) => {
     setItems((prev) =>
@@ -225,7 +229,11 @@ export function OfflineOrderDirectFormPage() {
       ),
     [items],
   );
-  const grandTotal = subtotal + deliveryFee;
+  const discount = useMemo(
+    () => manualDiscountRupees(subtotal, discountType, discountValue),
+    [subtotal, discountType, discountValue],
+  );
+  const grandTotal = subtotal - discount + deliveryFee;
 
   const advanceValid =
     paymentMode === "FULL" ||
@@ -361,6 +369,8 @@ export function OfflineOrderDirectFormPage() {
         advanceAmount:
           paymentMode === "ADVANCE" ? Number(advanceAmount) || 0 : undefined,
         paymentScreenshotUrl,
+        discountType: discount > 0 ? discountType : null,
+        discountValue: discount > 0 ? Number(discountValue) : null,
       };
 
       const order = await create.mutateAsync(payload);
@@ -581,6 +591,18 @@ export function OfflineOrderDirectFormPage() {
           </Section>
 
           <Section
+            title="Discount"
+            subtitle="Optional. Flat rupees or a percent off the items — not delivery."
+          >
+            <ManualDiscountFields
+              type={discountType}
+              value={discountValue}
+              onType={setDiscountType}
+              onValue={setDiscountValue}
+            />
+          </Section>
+
+          <Section
             title="Customer notes"
             subtitle="Anything the kitchen or delivery partner should know."
           >
@@ -702,6 +724,15 @@ export function OfflineOrderDirectFormPage() {
                 <span>Subtotal</span>
                 <span className="tabular-nums">₹{subtotal.toFixed(0)}</span>
               </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <span>
+                    Discount
+                    {discountType === "PERCENT" ? ` (${discountValue}%)` : ""}
+                  </span>
+                  <span className="tabular-nums">−₹{discount.toFixed(0)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-700">
                 <span>Delivery</span>
                 <span className="tabular-nums">

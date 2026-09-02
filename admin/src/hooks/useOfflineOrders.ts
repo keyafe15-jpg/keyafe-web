@@ -49,6 +49,9 @@ export interface PlaceOfflineOrderPayload {
   paymentMode: "FULL" | "ADVANCE";
   advanceAmount?: number;
   paymentScreenshotUrl?: string | null;
+
+  discountType?: "FLAT" | "PERCENT" | null;
+  discountValue?: number | null;
 }
 
 export interface OfflineOrderResponse {

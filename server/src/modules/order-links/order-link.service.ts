@@ -12,6 +12,11 @@ import { logger } from "../../utils/logger.js";
 import { emitNewOrder } from "../../lib/events.js";
 import { buildOrderNumber } from "../orders/order.service.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
+import {
+  manualDiscountRupees,
+  scaleGstForCartDiscount,
+  type ManualDiscountType,
+} from "../coupons/coupon.service.js";
 
 // 31-char lower-safe alphabet (drops i, l, o, 1, 0 to avoid ambiguity).
 const tokenGen = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
@@ -72,6 +77,24 @@ type OrderLinkItemInput = z.infer<typeof orderLinkItemSchema>;
 const itemsRefine = (items: OrderLinkItemInput[]) =>
   items.every((i) => (i.kind === "CATALOG" ? !!i.productId : true));
 
+const manualDiscountFields = {
+  discountType: z.enum(["FLAT", "PERCENT"]).nullable().optional(),
+  discountValue: z.coerce.number().nonnegative().nullable().optional(),
+};
+
+function parsedManualDiscount(
+  type: ManualDiscountType | null | undefined,
+  value: number | null | undefined,
+): { discountType: ManualDiscountType | null; discountValue: number | null } {
+  if (!type || value == null || !Number.isFinite(value) || value <= 0) {
+    return { discountType: null, discountValue: null };
+  }
+  if (type === "PERCENT" && value > 100) {
+    throw HttpError.badRequest("Percent discount cannot exceed 100");
+  }
+  return { discountType: type, discountValue: value };
+}
+
 export const createOrderLinkSchema = z.object({
   items: z
     .array(orderLinkItemSchema)
@@ -94,6 +117,8 @@ export const createOrderLinkSchema = z.object({
     .max(365)
     .nullable()
     .optional(),
+
+  ...manualDiscountFields,
 });
 
 export type CreateOrderLinkInput = z.infer<typeof createOrderLinkSchema>;
@@ -167,6 +192,11 @@ export async function createOrderLink(input: CreateOrderLinkInput) {
     ? new Date(input.suggested.date)
     : null;
 
+  const discount = parsedManualDiscount(
+    input.discountType,
+    input.discountValue,
+  );
+
   const created = await prisma.orderLink.create({
     data: {
       token: tokenGen(),
@@ -177,6 +207,8 @@ export async function createOrderLink(input: CreateOrderLinkInput) {
       suggestedSlotLabel: input.suggested?.label ?? null,
       adminNotes: input.adminNotes ?? null,
       expiresAt,
+      discountType: discount.discountType,
+      discountValue: discount.discountValue,
       items: { create: itemCreates },
     },
     include: { items: { orderBy: { sortOrder: "asc" } } },
@@ -242,6 +274,8 @@ export async function getOrderLinkByToken(token: string) {
       suggestedSlotLabel: true,
       status: true,
       expiresAt: true,
+      discountType: true,
+      discountValue: true,
       items: {
         orderBy: { sortOrder: "asc" },
         select: {
@@ -443,7 +477,25 @@ export async function placeOrderFromLink(
     };
   });
 
-  const total = subtotal + deliveryFee;
+  const discount = manualDiscountRupees(
+    subtotal,
+    link.discountType,
+    link.discountValue != null ? Number(link.discountValue) : null,
+  );
+  const gst = scaleGstForCartDiscount(
+    taxableAmount,
+    cgstAmount,
+    sgstAmount,
+    igstAmount,
+    subtotal,
+    discount,
+  );
+  taxableAmount = gst.taxableAmount;
+  cgstAmount = gst.cgstAmount;
+  sgstAmount = gst.sgstAmount;
+  igstAmount = gst.igstAmount;
+
+  const total = subtotal - discount + deliveryFee;
 
   const payingNow =
     input.paymentMode === "FULL" ? total : (input.advanceAmount ?? 0);
@@ -475,6 +527,7 @@ export async function placeOrderFromLink(
             : undefined,
         subtotal,
         deliveryFee,
+        discount,
         total,
         taxableAmount,
         cgstAmount,
@@ -570,6 +623,7 @@ export const updateOrderLinkSchema = z.object({
     .optional(),
   customerName: z.string().trim().nullable().optional(),
   customerPhone: z.string().trim().nullable().optional(),
+  ...manualDiscountFields,
 });
 
 export type UpdateOrderLinkInput = z.infer<typeof updateOrderLinkSchema>;
@@ -598,6 +652,14 @@ export async function updateOrderLink(id: string, input: UpdateOrderLinkInput) {
     data.expiresAt = input.expiresInDays
       ? new Date(Date.now() + input.expiresInDays * 24 * 3600 * 1000)
       : null;
+  }
+  if (input.discountType !== undefined || input.discountValue !== undefined) {
+    const discount = parsedManualDiscount(
+      input.discountType,
+      input.discountValue,
+    );
+    data.discountType = discount.discountType;
+    data.discountValue = discount.discountValue;
   }
 
   if (input.items) {
@@ -673,6 +735,8 @@ export const placeOfflineOrderSchema = z.object({
   paymentMode: z.enum(["FULL", "ADVANCE"]).default("FULL"),
   advanceAmount: z.coerce.number().nonnegative().optional().default(0),
   paymentScreenshotUrl: z.string().url().nullable().optional(),
+
+  ...manualDiscountFields,
 });
 
 export type PlaceOfflineOrderInput = z.infer<typeof placeOfflineOrderSchema>;
@@ -820,7 +884,26 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     };
   });
 
-  const total = subtotal + deliveryFee;
+  const spec = parsedManualDiscount(input.discountType, input.discountValue);
+  const discount = manualDiscountRupees(
+    subtotal,
+    spec.discountType,
+    spec.discountValue,
+  );
+  const gst = scaleGstForCartDiscount(
+    taxableAmount,
+    cgstAmount,
+    sgstAmount,
+    igstAmount,
+    subtotal,
+    discount,
+  );
+  taxableAmount = gst.taxableAmount;
+  cgstAmount = gst.cgstAmount;
+  sgstAmount = gst.sgstAmount;
+  igstAmount = gst.igstAmount;
+
+  const total = subtotal - discount + deliveryFee;
   const orderNumber = buildOrderNumber();
 
   const { advanceAmount, paymentStatus, paymentMethod } = resolvePayment(
@@ -843,6 +926,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
           : undefined,
       subtotal,
       deliveryFee,
+      discount,
       total,
       taxableAmount,
       cgstAmount,

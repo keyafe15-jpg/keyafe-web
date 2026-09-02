@@ -76,6 +76,7 @@ export interface AdminOrderItem {
 
 export interface AdminOrder extends AdminOrderListItem {
   discount: string;
+  couponCode: string | null;
   taxableAmount: string;
   cgstAmount: string;
   sgstAmount: string;

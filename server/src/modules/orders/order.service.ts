@@ -11,6 +11,12 @@ import {
 import { logger } from "../../utils/logger.js";
 import { emitNewOrder } from "../../lib/events.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
+import {
+  discountedLineInclusives,
+  getPublicFreeDelivery,
+  quoteCoupon,
+  redeemCouponInTx,
+} from "../coupons/coupon.service.js";
 
 const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
 
@@ -61,6 +67,7 @@ export const createOrderSchema = z.object({
   paymentMethod: z.enum(["cod", "upi", "razorpay"]).default("cod"),
 
   items: z.array(itemSchema).min(1, "Add at least one item to the cart"),
+  couponCode: z.string().trim().max(24).optional().nullable(),
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
@@ -111,6 +118,7 @@ export async function createOrder(input: CreateOrderInput) {
       isAvailable: true,
       gstRate: true,
       priceIsGstInclusive: true,
+      categoryId: true,
     },
   });
   const productMap = new Map(products.map((p) => [p.id, p]));
@@ -135,17 +143,44 @@ export async function createOrder(input: CreateOrderInput) {
   }
 
   const subtotal = input.items.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
-  const total = subtotal + deliveryFee;
+
+  const couponQuote = input.couponCode
+    ? await quoteCoupon(input.couponCode, input.items, input.customerPhone)
+    : null;
+  const discount = couponQuote?.discount ?? 0;
+
+  const windowFree = await getPublicFreeDelivery(subtotal);
+  if (
+    input.fulfillment === "DELIVERY" &&
+    (windowFree.active || couponQuote?.waivesDelivery)
+  ) {
+    deliveryFee = 0;
+  }
+
+  const catMap = new Map(
+    products.map((p) => [p.id, { id: p.id, categoryId: p.categoryId, name: p.name }]),
+  );
+  const couponRow = couponQuote
+    ? await prisma.coupon.findUnique({ where: { code: couponQuote.code } })
+    : null;
+  const lineInclusives = discountedLineInclusives(
+    input.items,
+    catMap,
+    couponRow?.applicableCategoryIds ?? [],
+    discount,
+  );
+
+  const total = subtotal - discount + deliveryFee;
 
   // GST breakup — per item to respect different HSN rates, then aggregated
   // and split into CGST+SGST (intra-state, i.e. West Bengal) or IGST (other).
   const BUSINESS_STATE_CODE = "19";
   let taxableAmount = 0;
   let gstAmount = 0;
-  for (const i of input.items) {
+  input.items.forEach((i, idx) => {
     const p = productMap.get(i.productId)!;
     const rate = Number(p.gstRate);
-    const lineIncl = i.unitPrice * i.qty;
+    const lineIncl = lineInclusives[idx] ?? i.unitPrice * i.qty;
     if (p.priceIsGstInclusive) {
       const base = lineIncl / (1 + rate / 100);
       taxableAmount += base;
@@ -154,7 +189,7 @@ export async function createOrder(input: CreateOrderInput) {
       taxableAmount += lineIncl;
       gstAmount += lineIncl * (rate / 100);
     }
-  }
+  });
   const isIntraState =
     input.fulfillment === "PICKUP" ||
     input.deliveryAddress?.stateCode === BUSINESS_STATE_CODE;
@@ -164,50 +199,65 @@ export async function createOrder(input: CreateOrderInput) {
 
   const orderNumber = buildOrderNumber();
 
-  const created = await prisma.order.create({
-    data: {
-      userId: input.userId ?? null,
-      orderNumber,
-      customerName: input.customerName,
-      customerPhone: input.customerPhone,
-      customerEmail: input.customerEmail ?? null,
-      fulfillment: input.fulfillment,
-      deliveryAddress: input.deliveryAddress ?? undefined,
-      subtotal,
-      deliveryFee,
-      total,
-      taxableAmount,
-      cgstAmount,
-      sgstAmount,
-      igstAmount,
-      paymentMethod: input.paymentMethod,
-      source: "STOREFRONT",
-      customerNotes: input.customerNotes ?? null,
-      items: {
-        create: input.items.map((i) => {
-          const p = productMap.get(i.productId)!;
-          return {
-            productId: p.id,
-            productName: p.name,
-            productSlug: p.slug,
-            productImage: p.images[0] ?? null,
-            sizeGrams: i.sizeGrams ?? null,
-            sizeLabel: i.sizeLabel ?? null,
-            flavourId: i.flavourId ?? null,
-            flavourName: i.flavourName ?? null,
-            messageOnCake: i.messageOnCake ?? null,
-            instructions: i.instructions ?? null,
-            deliveryDate: i.deliveryDate ? new Date(i.deliveryDate) : null,
-            deliverySlotKey: i.deliverySlotKey,
-            deliverySlotLabel: i.deliverySlotLabel,
-            unitPrice: i.unitPrice,
-            qty: i.qty,
-            lineTotal: i.unitPrice * i.qty,
-          };
-        }),
+  const created = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.create({
+      data: {
+        userId: input.userId ?? null,
+        orderNumber,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone,
+        customerEmail: input.customerEmail ?? null,
+        fulfillment: input.fulfillment,
+        deliveryAddress: input.deliveryAddress ?? undefined,
+        subtotal,
+        deliveryFee,
+        discount,
+        couponCode: couponQuote?.code ?? null,
+        total,
+        taxableAmount,
+        cgstAmount,
+        sgstAmount,
+        igstAmount,
+        paymentMethod: input.paymentMethod,
+        source: "STOREFRONT",
+        customerNotes: input.customerNotes ?? null,
+        items: {
+          create: input.items.map((i) => {
+            const p = productMap.get(i.productId)!;
+            return {
+              productId: p.id,
+              productName: p.name,
+              productSlug: p.slug,
+              productImage: p.images[0] ?? null,
+              sizeGrams: i.sizeGrams ?? null,
+              sizeLabel: i.sizeLabel ?? null,
+              flavourId: i.flavourId ?? null,
+              flavourName: i.flavourName ?? null,
+              messageOnCake: i.messageOnCake ?? null,
+              instructions: i.instructions ?? null,
+              deliveryDate: i.deliveryDate ? new Date(i.deliveryDate) : null,
+              deliverySlotKey: i.deliverySlotKey,
+              deliverySlotLabel: i.deliverySlotLabel,
+              unitPrice: i.unitPrice,
+              qty: i.qty,
+              lineTotal: i.unitPrice * i.qty,
+            };
+          }),
+        },
       },
-    },
-    include: { items: true },
+      include: { items: true },
+    });
+
+    if (couponQuote) {
+      await redeemCouponInTx(
+        tx,
+        couponQuote,
+        order.id,
+        input.customerPhone,
+      );
+    }
+
+    return order;
   });
 
   // Fire-and-forget notifications. Failures are logged but never fail the order.

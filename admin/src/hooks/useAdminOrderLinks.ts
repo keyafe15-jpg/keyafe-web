@@ -31,6 +31,8 @@ export interface OrderLink {
   adminNotes: string | null;
   status: OrderLinkStatus;
   expiresAt: string | null;
+  discountType: "FLAT" | "PERCENT" | null;
+  discountValue: string | null;
   linkedOrder: {
     id: string;
     orderNumber: string;
@@ -67,6 +69,8 @@ export interface CreateOrderLinkPayload {
   } | null;
   adminNotes?: string | null;
   expiresInDays?: number | null;
+  discountType?: "FLAT" | "PERCENT" | null;
+  discountValue?: number | null;
 }
 
 export function useAdminOrderLinks(status?: OrderLinkStatus | "ALL") {
@@ -98,6 +102,8 @@ export interface UpdateOrderLinkPayload {
   items?: OrderLinkItemPayload[];
   customerName?: string | null;
   customerPhone?: string | null;
+  discountType?: "FLAT" | "PERCENT" | null;
+  discountValue?: number | null;
 }
 
 export function useAdminOrderLink(id: string | undefined) {

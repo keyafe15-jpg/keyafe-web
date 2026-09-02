@@ -220,7 +220,14 @@ export function OrderDetailPage() {
                 <Row label="Delivery fee" value={Number(order.deliveryFee)} />
               )}
               {Number(order.discount) > 0 && (
-                <Row label="Discount" value={-Number(order.discount)} />
+                <Row
+                  label={
+                    order.couponCode
+                      ? `Discount (${order.couponCode})`
+                      : "Discount"
+                  }
+                  value={-Number(order.discount)}
+                />
               )}
               <div className="my-2 border-t-2 border-slate-900" />
               <div className="flex items-baseline justify-between">

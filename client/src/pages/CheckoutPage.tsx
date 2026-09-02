@@ -5,6 +5,7 @@ import { useAuth } from "@/store/auth";
 import { useCart } from "@/store/cart";
 import { useSavedAddresses } from "@/store/addresses";
 import { useCreateOrder } from "@/hooks/useOrders";
+import { useFreeDelivery, usePreviewCoupon } from "@/hooks/useCoupons";
 import {
   usePincodeCheck,
   type PincodeCheckResult,
@@ -52,6 +53,16 @@ export function CheckoutPage() {
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [notes, setNotes] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount: number;
+    waivesDelivery: boolean;
+    label: string;
+  } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const previewCoupon = usePreviewCoupon();
+  const freeDelivery = useFreeDelivery(subtotal);
 
   useEffect(() => {
     if (user) {
@@ -107,12 +118,18 @@ export function CheckoutPage() {
   );
   const hasExpired = expiredLines.length > 0;
 
-  const deliveryFee = hasOnlyPanIndiaItems
+  const listedDeliveryFee = hasOnlyPanIndiaItems
     ? 0
     : fulfillment === "DELIVERY" && pincodeResult?.serviceable
       ? pincodeResult.deliveryFee
       : 0;
-  const total = subtotal + deliveryFee;
+  const deliveryIsFree =
+    listedDeliveryFee > 0 &&
+    (Boolean(appliedCoupon?.waivesDelivery) ||
+      Boolean(freeDelivery.data?.active));
+  const deliveryFee = deliveryIsFree ? 0 : listedDeliveryFee;
+  const discount = appliedCoupon?.discount ?? 0;
+  const total = Math.max(0, subtotal - discount + deliveryFee);
 
   // Auto-lookup pincode as soon as it's 6 digits.
   useEffect(() => {
@@ -252,6 +269,7 @@ export function CheckoutPage() {
             : null,
         customerNotes: notes.trim() || null,
         paymentMethod: "cod",
+        couponCode: appliedCoupon?.code ?? null,
         items: lines.map((l) => ({
           productId: l.productId,
           sizeGrams: l.sizeGrams ?? null,
@@ -789,13 +807,105 @@ export function CheckoutPage() {
             </ul>
             <hr className="my-3 border-cream-200" />
             <SummaryRow label="Subtotal" value={subtotal} />
-            {fulfillment === "DELIVERY" && (
+            {appliedCoupon && (
               <SummaryRow
-                label="Delivery"
-                value={pincodeResult?.serviceable ? deliveryFee : null}
-                hint={pincodeResult?.serviceable ? undefined : "Enter pincode"}
+                label={appliedCoupon.label}
+                value={-appliedCoupon.discount}
               />
             )}
+            {fulfillment === "DELIVERY" && (
+              <SummaryRow
+                label={deliveryIsFree ? "Delivery (free)" : "Delivery"}
+                value={
+                  pincodeResult?.serviceable
+                    ? deliveryIsFree
+                      ? 0
+                      : listedDeliveryFee
+                    : null
+                }
+                hint={
+                  pincodeResult?.serviceable
+                    ? deliveryIsFree
+                      ? (appliedCoupon?.waivesDelivery
+                          ? "Included with coupon"
+                          : freeDelivery.data?.label) ?? "Free delivery"
+                      : undefined
+                    : "Enter pincode"
+                }
+              />
+            )}
+            <div className="mt-3 space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+                Coupon
+              </p>
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="font-mono text-brand-700">
+                    {appliedCoupon.code}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs text-ink-500 underline"
+                    onClick={() => {
+                      setAppliedCoupon(null);
+                      setCouponInput("");
+                      setCouponError(null);
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    className="min-w-0 flex-1 rounded-lg border border-cream-200 px-3 py-2 text-sm uppercase"
+                    placeholder="LAUNCH50"
+                    value={couponInput}
+                    onChange={(e) => {
+                      setCouponInput(e.target.value);
+                      setCouponError(null);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="rounded-lg bg-ink-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+                    disabled={!couponInput.trim() || previewCoupon.isPending}
+                    onClick={async () => {
+                      setCouponError(null);
+                      try {
+                        const q = await previewCoupon.mutateAsync({
+                          code: couponInput,
+                          customerPhone: phone,
+                          subtotal,
+                          items: lines.map((l) => ({
+                            productId: l.productId,
+                            unitPrice: l.unitPrice,
+                            qty: l.qty,
+                          })),
+                        });
+                        setAppliedCoupon({
+                          code: q.code,
+                          discount: q.discount,
+                          waivesDelivery: q.waivesDelivery,
+                          label: q.label,
+                        });
+                      } catch (err) {
+                        setCouponError(
+                          err instanceof Error
+                            ? err.message
+                            : "Couldn’t apply coupon",
+                        );
+                      }
+                    }}
+                  >
+                    Apply
+                  </button>
+                </div>
+              )}
+              {couponError && (
+                <p className="text-xs text-red-700">{couponError}</p>
+              )}
+            </div>
             <hr className="my-3 border-cream-200" />
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-ink-700">Total</span>

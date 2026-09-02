@@ -11,6 +11,7 @@ import { usePaymentInfo } from "@/hooks/usePaymentInfo";
 import { buildUpiUri } from "@/lib/upi";
 import { UpiQrCode } from "@/components/UpiQrCode";
 import { cn } from "@/lib/cn";
+import { manualDiscountRupees } from "@/lib/manualDiscount";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
 type PayChoice = "FULL" | "ADVANCE" | "COD";
@@ -122,11 +123,16 @@ function LinkForm({
     (sum, it) => sum + Number(it.unitPrice) * it.qty,
     0,
   );
+  const discount = manualDiscountRupees(
+    subtotal,
+    link.discountType,
+    link.discountValue,
+  );
   const deliveryFee =
     fulfillment === "DELIVERY" && pincodeResult?.serviceable
       ? pincodeResult.deliveryFee
       : 0;
-  const total = subtotal + deliveryFee;
+  const total = subtotal - discount + deliveryFee;
 
   const payNowAmount =
     payChoice === "FULL"
@@ -633,6 +639,16 @@ function LinkForm({
 
         <div className="rounded-card border border-cream-200 bg-cream-50 p-5">
           <SummaryRow label="Subtotal" value={subtotal} />
+          {discount > 0 && (
+            <SummaryRow
+              label={
+                link.discountType === "PERCENT"
+                  ? `Discount (${Number(link.discountValue)}%)`
+                  : "Discount"
+              }
+              value={-discount}
+            />
+          )}
           {fulfillment === "DELIVERY" && (
             <SummaryRow
               label="Delivery"
@@ -809,7 +825,11 @@ function SummaryRow({
       <span
         className={cn("tabular-nums", value == null && "text-xs text-ink-500")}
       >
-        {value == null ? hint : `₹${value.toFixed(2)}`}
+        {value == null
+          ? hint
+          : value < 0
+            ? `−₹${Math.abs(value).toFixed(2)}`
+            : `₹${value.toFixed(2)}`}
       </span>
     </div>
   );

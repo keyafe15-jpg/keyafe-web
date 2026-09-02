@@ -57,6 +57,7 @@ model Order {
   subtotal    Decimal @db.Decimal(10, 2)
   deliveryFee Decimal @default(0) @db.Decimal(10, 2)
   discount    Decimal @default(0) @db.Decimal(10, 2)
+  couponCode  String?
   total       Decimal @db.Decimal(10, 2)
 
   // GST breakup snapshots. taxableAmount = subtotal minus GST when the item
@@ -86,6 +87,7 @@ model Order {
   adminNotes    String?
 
   items OrderItem[]
+  couponRedemption CouponRedemption?
   // Set (1:1) when this order was placed via a pre-filled OrderLink.
   sourceLink OrderLink?
 

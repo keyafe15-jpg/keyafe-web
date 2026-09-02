@@ -38,6 +38,11 @@ model BusinessSettings {
   isSameDayStoreClosed Boolean @default(false) // admin kill-switch; overrides any schedule
   sameDayClosedMessage String  @default("Sorry — we're closed right now. Please check back later.")
 
+  // Storefront-only free local delivery window. Null until = off.
+  freeDeliveryFrom    DateTime?
+  freeDeliveryUntil   DateTime?
+  freeDeliveryMinCart Decimal?  @db.Decimal(10, 2)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

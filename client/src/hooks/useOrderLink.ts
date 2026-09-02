@@ -31,6 +31,8 @@ export interface PublicOrderLink {
   suggestedSlotLabel: string | null;
   status: OrderLinkStatus;
   expiresAt: string | null;
+  discountType: "FLAT" | "PERCENT" | null;
+  discountValue: string | null;
   linkedOrder: { orderNumber: string } | null;
 }
 

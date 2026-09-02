@@ -28,6 +28,11 @@ import {
   textareaClass,
   submitClass,
 } from "@/components/form/Field";
+import { ManualDiscountFields } from "@/components/form/ManualDiscountFields";
+import {
+  manualDiscountRupees,
+  type ManualDiscountType,
+} from "@/lib/manualDiscount";
 import { cn } from "@/lib/cn";
 
 function publicUrl(token: string): string {
@@ -86,6 +91,8 @@ export function OrderLinkFormPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
   const [expiresInDays, setExpiresInDays] = useState<string>("7");
+  const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
+  const [discountValue, setDiscountValue] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{
@@ -129,6 +136,12 @@ export function OrderLinkFormPage() {
     setCustomerName(existing.customerName ?? "");
     setCustomerPhone(existing.customerPhone ?? "");
     setAdminNotes(existing.adminNotes ?? "");
+    setDiscountType(existing.discountType ?? "FLAT");
+    setDiscountValue(
+      existing.discountValue != null && Number(existing.discountValue) > 0
+        ? String(Number(existing.discountValue))
+        : "",
+    );
     if (existing.expiresAt) {
       const daysLeft = Math.max(
         1,
@@ -175,10 +188,21 @@ export function OrderLinkFormPage() {
   );
   const canSubmit = itemsValid && !uploading;
 
-  const grandTotal = items.reduce(
+  const itemsTotal = items.reduce(
     (sum, it) => sum + Number(it.unitPrice || 0) * Number(it.qty || 0),
     0,
   );
+  const discount = manualDiscountRupees(
+    itemsTotal,
+    discountType,
+    discountValue,
+  );
+  const grandTotal = itemsTotal - discount;
+
+  const discountPayload = {
+    discountType: discount > 0 ? discountType : null,
+    discountValue: discount > 0 ? Number(discountValue) : null,
+  };
 
   const submit = async () => {
     setError(null);
@@ -215,6 +239,7 @@ export function OrderLinkFormPage() {
           customerPhone: customerPhone.trim() || null,
           adminNotes: adminNotes.trim() || null,
           expiresInDays: expiresInDays ? Number(expiresInDays) : null,
+          ...discountPayload,
         });
         navigate("/offline-orders");
         return;
@@ -226,6 +251,7 @@ export function OrderLinkFormPage() {
         customerPhone: customerPhone.trim() || null,
         adminNotes: adminNotes.trim() || null,
         expiresInDays: expiresInDays ? Number(expiresInDays) : null,
+        ...discountPayload,
       };
 
       const link = await create.mutateAsync(payload);
@@ -296,6 +322,18 @@ export function OrderLinkFormPage() {
           </Section>
 
           <Section
+            title="Discount"
+            subtitle="Optional. Locked on the items total. Customer still pays delivery if they choose it."
+          >
+            <ManualDiscountFields
+              type={discountType}
+              value={discountValue}
+              onType={setDiscountType}
+              onValue={setDiscountValue}
+            />
+          </Section>
+
+          <Section
             title="Customer (optional)"
             subtitle="If you already know it from WhatsApp — helps pre-fill the WhatsApp share message."
           >
@@ -357,6 +395,15 @@ export function OrderLinkFormPage() {
             </div>
 
             <hr className="my-4 border-slate-100" />
+            {discount > 0 && (
+              <div className="mb-2 flex justify-between text-sm text-emerald-700">
+                <span>
+                  Discount
+                  {discountType === "PERCENT" ? ` (${discountValue}%)` : ""}
+                </span>
+                <span className="tabular-nums">−₹{discount.toFixed(0)}</span>
+              </div>
+            )}
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-slate-700">Locked price</span>
               <span className="text-2xl font-semibold tabular-nums text-slate-900">

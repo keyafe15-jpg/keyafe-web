@@ -15,9 +15,30 @@ model Coupon {
   usageCount            Int        @default(0)
   validFrom             DateTime
   validUntil            DateTime
+  waivesDelivery        Boolean    @default(false)
+  restrictedToPhone     String?
+  note                  String?
+  /// Public homepage promo. Complaint codes stay off.
+  showOnStorefront      Boolean    @default(false)
+  headline              String?
+  storefrontCopy        String?
   isActive              Boolean    @default(true)
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
+  redemptions CouponRedemption[]
+
   @@index([isActive, validFrom, validUntil])
+}
+
+model CouponRedemption {
+  id            String   @id @default(cuid())
+  couponCode    String
+  coupon        Coupon   @relation(fields: [couponCode], references: [code], onDelete: Cascade)
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customerPhone String
+  createdAt     DateTime @default(now())
+
+  @@index([couponCode, customerPhone])
 }
