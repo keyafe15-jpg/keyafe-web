@@ -564,18 +564,67 @@ export async function getAdminProductById(id: string) {
           options: { orderBy: [{ sortOrder: "asc" }, { key: "asc" }] },
         },
       },
+      variants: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: "asc" }, { label: "asc" }],
+      },
     },
   });
   if (!product) throw HttpError.notFound("Product not found");
-  const sizeGroup = product.optionGroups.find((g) => g.key === "size");
-  const crustGroup = product.optionGroups.find((g) => g.key === "crust");
+
+  const mapOption = (o: (typeof product.optionGroups)[0]["options"][0]) => ({
+    id: o.id,
+    key: o.key,
+    label: o.label,
+    price: Number(o.price),
+    weightGrams: o.weightGrams,
+    diameterMm: o.diameterMm,
+    isDefault: o.isDefault,
+    isActive: o.isActive,
+    sortOrder: o.sortOrder,
+  });
+
+  const optionGroups = product.optionGroups.map((g) => ({
+    id: g.id,
+    key: g.key,
+    label: g.label,
+    priceMode: g.priceMode,
+    selectionType: g.selectionType,
+    isRequired: g.isRequired,
+    sortOrder: g.sortOrder,
+    options: g.options.filter((o) => o.isActive).map(mapOption),
+  }));
+
+  const sizeGroup = optionGroups.find((g) => g.key === "size");
+  const crustGroup = optionGroups.find((g) => g.key === "crust");
+
+  const {
+    flavors,
+    tags,
+    toppings,
+    optionGroups: _optionGroups,
+    variants,
+    ...rest
+  } = product;
+
   return {
-    ...product,
-    flavorIds: product.flavors.map((f) => f.id),
-    tagIds: product.tags.map((t) => t.id),
-    toppingIds: product.toppings.map((t) => t.id),
+    ...rest,
+    flavorIds: flavors.map((f) => f.id),
+    tagIds: tags.map((t) => t.id),
+    toppingIds: toppings.map((t) => t.id),
+    optionGroups,
     sizeOptions: sizeGroup?.options ?? [],
     crustOptions: crustGroup?.options ?? [],
+    fixedVariants: variants.map((v) => ({
+      id: v.id,
+      sku: v.sku,
+      label: v.label,
+      price: Number(v.price),
+      attributes: v.attributes as Record<string, unknown> | null,
+      isActive: v.isActive,
+      isAvailable: v.isAvailable,
+      sortOrder: v.sortOrder,
+    })),
   };
 }
 

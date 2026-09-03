@@ -29,6 +29,7 @@ import {
   submitClass,
 } from "@/components/form/Field";
 import { ManualDiscountFields } from "@/components/form/ManualDiscountFields";
+import { SearchableSelect } from "@/components/form/SearchableSelect";
 import {
   manualDiscountRupees,
   type ManualDiscountType,
@@ -555,20 +556,16 @@ function ItemRow({
 
       {item.kind === "CATALOG" && (
         <Field label="Pick a product" required>
-          <select
+          <SearchableSelect
             value={item.productId}
-            onChange={(e) =>
-              onPatch({ productId: e.target.value, productName: "" })
-            }
-            className={selectClass}
-          >
-            <option value="">— Choose —</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} · ₹{Number(p.basePrice).toFixed(0)}
-              </option>
-            ))}
-          </select>
+            onChange={(productId) => onPatch({ productId, productName: "" })}
+            searchPlaceholder="Search products…"
+            options={products.map((p) => ({
+              value: p.id,
+              label: `${p.name} · ₹${Number(p.basePrice).toFixed(0)}`,
+              keywords: p.name,
+            }))}
+          />
         </Field>
       )}
 

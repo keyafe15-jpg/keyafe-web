@@ -29,7 +29,19 @@ import {
   textareaClass,
 } from "@/components/form/Field";
 import { ManualDiscountFields } from "@/components/form/ManualDiscountFields";
+import { SearchableSelect } from "@/components/form/SearchableSelect";
 import { manualDiscountRupees, type ManualDiscountType } from "@/lib/manualDiscount";
+import {
+  formatCatalogProductLabel,
+  resetCatalogProductPick,
+} from "@/lib/catalogProductOptions";
+import {
+  availableFixedSkus,
+  formatOptionSelectLabel,
+  getSizeOptionGroup,
+  optionUnitPrice,
+} from "@/lib/productConfiguration";
+import type { AdminProduct } from "@/hooks/useAdminProducts";
 import { cn } from "@/lib/cn";
 
 interface PincodeInfo {
@@ -65,6 +77,9 @@ interface LineItem {
 
   // Cake-only picker state (auto-populated when a CAKE product is selected).
   cakeSizeId: string;
+
+  // Fixed-variant SKU (dry cakes, tubs, etc.).
+  variantId: string;
 }
 
 function todayIso(): string {
@@ -94,6 +109,7 @@ function newItem(kind: OrderLinkKind = "CATALOG"): LineItem {
     crustLabel: "",
     toppingSelections: [],
     cakeSizeId: "",
+    variantId: "",
   };
 }
 
@@ -809,12 +825,7 @@ function ItemRow({
 }: {
   index: number;
   item: LineItem;
-  products: Array<{
-    id: string;
-    name: string;
-    basePrice: string;
-    template: "CAKE" | "PIZZA" | "OTHER";
-  }>;
+  products: AdminProduct[];
   flavours: Array<{ id: string; name: string; additionalAmount: string }>;
   allToppings: AdminTopping[];
   cakeSizes: CakeSize[];
@@ -827,19 +838,22 @@ function ItemRow({
     [products, item.productId],
   );
 
-  const isPizza =
-    item.kind === "CATALOG" && selectedProduct?.template === "PIZZA";
-  const isCakeCatalog =
-    item.kind === "CATALOG" && (selectedProduct?.template ?? "CAKE") === "CAKE";
-
-  // Fetch full product detail (with optionGroups + toppingIds + pound settings)
-  // for both cakes (needs sellByPound + min/maxGrams + flavorIds) and pizzas.
   const { data: productDetail } = useAdminProduct(
-    isPizza || isCakeCatalog ? item.productId : undefined,
+    item.kind === "CATALOG" && item.productId ? item.productId : undefined,
   );
 
-  const sizeOptions = productDetail?.sizeOptions ?? [];
+  const template = productDetail?.template ?? selectedProduct?.template;
+
+  const isPizza = item.kind === "CATALOG" && template === "PIZZA";
+  const isCakeCatalog =
+    item.kind === "CATALOG" && (template ?? "CAKE") === "CAKE";
+
+  const sizeGroup = getSizeOptionGroup(productDetail);
+  const sizeOptions = sizeGroup?.options ?? [];
+  const sizePriceMode = sizeGroup?.priceMode ?? "ABSOLUTE";
   const crustOptions = productDetail?.crustOptions ?? [];
+  const fixedSkus = availableFixedSkus(productDetail);
+  const hasFixedSkus = fixedSkus.length > 0;
   const linkedToppingIds = new Set(productDetail?.toppingIds ?? []);
   const linkedToppings = allToppings.filter((t) => linkedToppingIds.has(t.id));
   const availToppings = linkedToppings.filter((t) => t.kind === "TOPPING");
@@ -847,6 +861,11 @@ function ItemRow({
 
   // Cake pound picker: only when the product opts in via sellByPound.
   const isPoundCake = isCakeCatalog && productDetail?.sellByPound === true;
+  // Size choices from OptionGroup (not ProductVariant table).
+  const hasOptionGroupSize =
+    sizeOptions.length > 0 && !isPizza && !isPoundCake && !hasFixedSkus;
+  const autoPriced =
+    isPizza || isPoundCake || hasOptionGroupSize || hasFixedSkus;
   const availableCakeSizes = useMemo(() => {
     if (!isPoundCake) return [];
     return cakeSizes.filter((s) => {
@@ -872,14 +891,52 @@ function ItemRow({
   const showCakeFields = item.kind === "CUSTOM" || isCakeCatalog;
 
   useEffect(() => {
-    if (item.kind !== "CATALOG" || !selectedProduct) return;
+    if (item.kind !== "CATALOG" || !selectedProduct || !productDetail) return;
     const patch: Partial<LineItem> = {};
     if (!item.productName) patch.productName = selectedProduct.name;
-    if (!item.unitPrice && !isPizza && !isPoundCake)
+    const simpleProduct = !autoPriced;
+    if (!item.unitPrice && simpleProduct) {
       patch.unitPrice = Number(selectedProduct.basePrice).toFixed(0);
+    }
     if (Object.keys(patch).length) onPatch(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProduct]);
+  }, [selectedProduct, productDetail, autoPriced]);
+
+  // Preselect default size from the size OptionGroup (non-pizza).
+  useEffect(() => {
+    if (!hasOptionGroupSize || !productDetail || item.sizeOptionId) return;
+    const def = sizeOptions.find((o) => o.isDefault) ?? sizeOptions[0];
+    if (def?.id) onPatch({ sizeOptionId: def.id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasOptionGroupSize, productDetail]);
+
+  // ProductVariant SKU (FIXED_VARIANTS table) — separate from optionGroups.
+  useEffect(() => {
+    if (!hasFixedSkus || !item.variantId) return;
+    const sku = fixedSkus.find((v) => v.id === item.variantId);
+    if (!sku) return;
+    const attrs = sku.attributes as { weightGrams?: number } | null;
+    onPatch({
+      unitPrice: sku.price.toFixed(0),
+      sizeLabel: sku.label,
+      sizeGrams: attrs?.weightGrams ? String(attrs.weightGrams) : "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasFixedSkus, item.variantId, productDetail]);
+
+  // OptionGroup size — price respects ABSOLUTE vs DELTA on the group.
+  useEffect(() => {
+    if (!hasOptionGroupSize || !productDetail) return;
+    const picked = sizeOptions.find((o) => o.id === item.sizeOptionId);
+    if (!picked) return;
+    const base = Number(productDetail.basePrice);
+    onPatch({
+      unitPrice: optionUnitPrice(base, picked, sizePriceMode).toFixed(0),
+      sizeLabel: picked.label,
+      sizeGrams: picked.weightGrams ? String(picked.weightGrams) : "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasOptionGroupSize, item.sizeOptionId, productDetail]);
 
   // Preselect default size + crust when the pizza detail arrives.
   useEffect(() => {
@@ -988,21 +1045,63 @@ function ItemRow({
           </div>
 
           {item.kind === "CATALOG" && (
-            <div className="mt-3">
+            <div className="mt-3 space-y-3">
               <Field label="Product" required>
-                <select
+                <SearchableSelect
                   value={item.productId}
-                  onChange={(e) => onPatch({ productId: e.target.value })}
-                  className={selectClass}
-                >
-                  <option value="">— Choose —</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · ₹{Number(p.basePrice).toFixed(0)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(productId) =>
+                    onPatch({ productId, ...resetCatalogProductPick() })
+                  }
+                  searchPlaceholder="Search products…"
+                  options={products.map((p) => ({
+                    value: p.id,
+                    label: formatCatalogProductLabel(p),
+                    keywords: p.name,
+                  }))}
+                />
               </Field>
+
+              {item.productId && productDetail && hasFixedSkus && (
+                <Field label="Variant (SKU)" required>
+                  <SearchableSelect
+                    value={item.variantId}
+                    onChange={(variantId) => onPatch({ variantId })}
+                    searchPlaceholder="Search SKUs…"
+                    allowEmpty={false}
+                    placeholder="— Pick SKU —"
+                    options={fixedSkus.map((v) => ({
+                      value: v.id,
+                      label: `${v.label} · ₹${v.price.toFixed(0)}`,
+                      keywords: `${v.label} ${v.sku}`,
+                    }))}
+                  />
+                </Field>
+              )}
+
+              {item.productId && productDetail && hasOptionGroupSize && (
+                <Field
+                  label={sizeGroup?.label ?? "Size"}
+                  required
+                  hint="From product option groups"
+                >
+                  <SearchableSelect
+                    value={item.sizeOptionId}
+                    onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
+                    searchPlaceholder="Search sizes…"
+                    allowEmpty={false}
+                    placeholder="— Pick size —"
+                    options={sizeOptions.map((o) => ({
+                      value: o.id!,
+                      label: formatOptionSelectLabel(
+                        o,
+                        Number(productDetail.basePrice),
+                        sizePriceMode,
+                      ),
+                      keywords: o.label,
+                    }))}
+                  />
+                </Field>
+              )}
             </div>
           )}
 
@@ -1023,9 +1122,7 @@ function ItemRow({
               />
             </Field>
             <Field
-              label={
-                isPizza || isPoundCake ? "Unit price (auto)" : "Unit price (₹)"
-              }
+              label={autoPriced ? "Unit price (auto)" : "Unit price (₹)"}
               required
             >
               <input
@@ -1036,10 +1133,10 @@ function ItemRow({
                   onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })
                 }
                 placeholder="500"
-                disabled={isPizza || isPoundCake}
+                disabled={autoPriced}
                 className={cn(
                   inputClass,
-                  (isPizza || isPoundCake) && "bg-slate-100 text-slate-600",
+                  autoPriced && "bg-slate-100 text-slate-600",
                 )}
               />
             </Field>
@@ -1120,18 +1217,22 @@ function ItemRow({
             <div className="mt-3 space-y-3 rounded-md border border-sky-100 bg-sky-50/40 p-3">
               {sizeOptions.length > 0 && (
                 <Field label="Size" required>
-                  <select
+                  <SearchableSelect
                     value={item.sizeOptionId}
-                    onChange={(e) => onPatch({ sizeOptionId: e.target.value })}
-                    className={selectClass}
-                  >
-                    <option value="">— Choose —</option>
-                    {sizeOptions.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.label} · ₹{Number(o.price).toFixed(0)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
+                    searchPlaceholder="Search sizes…"
+                    allowEmpty={false}
+                    placeholder="— Pick size —"
+                    options={sizeOptions.map((o) => ({
+                      value: o.id!,
+                      label: formatOptionSelectLabel(
+                        o,
+                        Number(productDetail.basePrice),
+                        sizePriceMode,
+                      ),
+                      keywords: o.label,
+                    }))}
+                  />
                 </Field>
               )}
               {crustOptions.length > 0 && (
@@ -1222,7 +1323,7 @@ function ItemRow({
             </div>
           )}
 
-          {!isPizza && !isPoundCake && (
+          {!isPizza && !isPoundCake && !hasFixedSkus && !hasOptionGroupSize && (
             <button
               type="button"
               onClick={() => onPatch({ expanded: !item.expanded })}

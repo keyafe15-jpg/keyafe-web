@@ -15,6 +15,28 @@ export interface ProductOptionInput {
   sortOrder: number;
 }
 
+export interface AdminOptionGroup {
+  id: string;
+  key: string;
+  label: string;
+  priceMode: "ABSOLUTE" | "DELTA";
+  selectionType: "SINGLE" | "MULTIPLE";
+  isRequired: boolean;
+  sortOrder: number;
+  options: ProductOptionInput[];
+}
+
+export interface AdminProductVariant {
+  id: string;
+  sku: string;
+  label: string;
+  price: number;
+  attributes: Record<string, unknown> | null;
+  isActive: boolean;
+  isAvailable: boolean;
+  sortOrder: number;
+}
+
 export interface AdminProduct {
   id: string;
   slug: string;
@@ -111,6 +133,10 @@ export interface AdminProductDetail extends CreateProductPayload {
   id: string;
   updatedAt: string;
   category: { id: string; name: string; slug: string };
+  /** From OptionGroup rows (size, crust, tier, …). */
+  optionGroups: AdminOptionGroup[];
+  /** From ProductVariant table — only for FIXED_VARIANTS SKUs. */
+  fixedVariants: AdminProductVariant[];
 }
 
 export function useAdminProduct(id: string | undefined) {
