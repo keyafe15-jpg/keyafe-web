@@ -52,3 +52,33 @@ export function availableFixedSkus(
 ): AdminProductVariant[] {
   return (detail?.fixedVariants ?? []).filter((v) => v.isAvailable);
 }
+
+/** 500g = 1 pound = 1× basePrice on the storefront. */
+export const CAKE_BASE_GRAMS = 500;
+
+export function computeCakeUnitPrice(
+  basePrice: number,
+  grams: number,
+  flavourAdditional = 0,
+  flavourPricedIn = false,
+): number {
+  const multiplier = grams / CAKE_BASE_GRAMS;
+  const delta = flavourPricedIn ? 0 : flavourAdditional;
+  return Math.round((basePrice + delta) * multiplier);
+}
+
+export function cakeSizeSelectLabel(
+  sizeLabel: string,
+  grams: number,
+  basePrice: number,
+  flavourAdditional = 0,
+  flavourPricedIn = false,
+): string {
+  const price = computeCakeUnitPrice(
+    basePrice,
+    grams,
+    flavourAdditional,
+    flavourPricedIn,
+  );
+  return `${sizeLabel} · ₹${price.toFixed(0)}`;
+}

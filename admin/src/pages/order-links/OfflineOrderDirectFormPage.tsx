@@ -37,6 +37,8 @@ import {
 } from "@/lib/catalogProductOptions";
 import {
   availableFixedSkus,
+  cakeSizeSelectLabel,
+  computeCakeUnitPrice,
   formatOptionSelectLabel,
   getSizeOptionGroup,
   optionUnitPrice,
@@ -854,41 +856,41 @@ function ItemRow({
   const crustOptions = productDetail?.crustOptions ?? [];
   const fixedSkus = availableFixedSkus(productDetail);
   const hasFixedSkus = fixedSkus.length > 0;
+  const productFlavourIds = new Set(productDetail?.flavorIds ?? []);
+  // Size choices from OptionGroup (not ProductVariant table).
+  const hasOptionGroupSize =
+    sizeOptions.length > 0 && !isPizza && !hasFixedSkus;
   const linkedToppingIds = new Set(productDetail?.toppingIds ?? []);
   const linkedToppings = allToppings.filter((t) => linkedToppingIds.has(t.id));
   const availToppings = linkedToppings.filter((t) => t.kind === "TOPPING");
   const availCondiments = linkedToppings.filter((t) => t.kind === "CONDIMENT");
 
-  // Cake pound picker: only when the product opts in via sellByPound.
-  const isPoundCake = isCakeCatalog && productDetail?.sellByPound === true;
-  // Size choices from OptionGroup (not ProductVariant table).
-  const hasOptionGroupSize =
-    sizeOptions.length > 0 && !isPizza && !isPoundCake && !hasFixedSkus;
-  const autoPriced =
-    isPizza || isPoundCake || hasOptionGroupSize || hasFixedSkus;
+  // Cake configurator — flavour + pounds with auto price (all CAKE catalog items).
+  const isCakeConfigurator =
+    isCakeCatalog && !isPizza && !hasFixedSkus && !hasOptionGroupSize;
+  const hasAttachedFlavours = productFlavourIds.size > 0;
+  const pickerFlavours = hasAttachedFlavours
+    ? flavours.filter((f) => productFlavourIds.has(f.id))
+    : flavours;
   const availableCakeSizes = useMemo(() => {
-    if (!isPoundCake) return [];
+    if (!isCakeConfigurator) return [];
     return cakeSizes.filter((s) => {
       if (!s.isActive) return false;
-      if (productDetail?.minGrams != null && s.grams < productDetail.minGrams)
-        return false;
-      if (productDetail?.maxGrams != null && s.grams > productDetail.maxGrams)
-        return false;
+      if (productDetail?.sellByPound) {
+        if (productDetail.minGrams != null && s.grams < productDetail.minGrams)
+          return false;
+        if (productDetail.maxGrams != null && s.grams > productDetail.maxGrams)
+          return false;
+      }
       return true;
     });
-  }, [isPoundCake, cakeSizes, productDetail]);
+  }, [isCakeConfigurator, cakeSizes, productDetail]);
 
-  // Flavours the product actually offers — fall back to master list if none
-  // were linked, matching the client-side PDP behaviour.
-  const productFlavourIds = new Set(productDetail?.flavorIds ?? []);
-  const availableFlavours =
-    productFlavourIds.size > 0
-      ? flavours.filter((f) => productFlavourIds.has(f.id))
-      : flavours;
+  const autoPriced =
+    isPizza || isCakeConfigurator || hasOptionGroupSize || hasFixedSkus;
 
-  // For CATALOG items, hide cake-specific fields when the picked product is
-  // a pizza / other so the admin isn't asked for flavour on a pizza.
-  const showCakeFields = item.kind === "CUSTOM" || isCakeCatalog;
+  // For CUSTOM items only — expanded manual fields.
+  const showCakeFields = item.kind === "CUSTOM";
 
   useEffect(() => {
     if (item.kind !== "CATALOG" || !selectedProduct || !productDetail) return;
@@ -954,9 +956,9 @@ function ItemRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPizza, productDetail]);
 
-  // Preselect default cake size (500g = 1 pound if allowed, else first).
+  // Preselect default pound size when cake detail arrives.
   useEffect(() => {
-    if (!isPoundCake || availableCakeSizes.length === 0) return;
+    if (!isCakeConfigurator || availableCakeSizes.length === 0) return;
     if (item.cakeSizeId) return;
     const oneLb = availableCakeSizes.find((s) => s.grams === 500);
     const pick = oneLb ?? availableCakeSizes[0];
@@ -966,7 +968,15 @@ function ItemRow({
       sizeLabel: pick.label,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPoundCake, availableCakeSizes]);
+  }, [isCakeConfigurator, availableCakeSizes, productDetail?.id]);
+
+  // Preselect flavour when there's an obvious default.
+  useEffect(() => {
+    if (!isCakeConfigurator || item.flavourId || pickerFlavours.length === 0)
+      return;
+    onPatch({ flavourId: pickerFlavours[0].id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCakeConfigurator, productDetail?.id, pickerFlavours.length]);
 
   // Recompute unit price + size label when any pizza selection changes.
   const pickedSize = sizeOptions.find((o) => o.id === item.sizeOptionId);
@@ -977,21 +987,31 @@ function ItemRow({
 
   // Recompute cake price when size or flavour changes.
   useEffect(() => {
-    if (!isPoundCake || !productDetail) return;
+    if (!isCakeConfigurator || !productDetail) return;
     const size = availableCakeSizes.find((s) => s.id === item.cakeSizeId);
     if (!size) return;
     const base = Number(productDetail.basePrice);
-    const flavour = flavours.find((f) => f.id === item.flavourId);
-    const flavourDelta = flavour ? Number(flavour.additionalAmount) : 0;
-    const multiplier = size.grams / 500;
-    const computed = (base + flavourDelta) * multiplier;
+    const flavour = pickerFlavours.find((f) => f.id === item.flavourId);
+    const flavourAdditional = flavour ? Number(flavour.additionalAmount) : 0;
+    const computed = computeCakeUnitPrice(
+      base,
+      size.grams,
+      flavourAdditional,
+      hasAttachedFlavours,
+    );
     onPatch({
       unitPrice: computed.toFixed(0),
       sizeGrams: String(size.grams),
       sizeLabel: size.label,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPoundCake, item.cakeSizeId, item.flavourId, productDetail]);
+  }, [
+    isCakeConfigurator,
+    item.cakeSizeId,
+    item.flavourId,
+    productDetail,
+    hasAttachedFlavours,
+  ]);
 
   useEffect(() => {
     if (!isPizza || !productDetail) return;
@@ -1020,6 +1040,12 @@ function ItemRow({
       : [...item.toppingSelections, id];
     onPatch({ toppingSelections: next });
   };
+
+  const cakeBasePrice = productDetail ? Number(productDetail.basePrice) : 0;
+  const pickedCakeFlavour = pickerFlavours.find((f) => f.id === item.flavourId);
+  const cakeFlavourAdditional = pickedCakeFlavour
+    ? Number(pickedCakeFlavour.additionalAmount)
+    : 0;
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
@@ -1154,54 +1180,66 @@ function ItemRow({
             </Field>
           </div>
 
-          {isPoundCake && productDetail && (
+          {isCakeConfigurator && productDetail && (
             <div className="mt-3 space-y-3 rounded-md border border-amber-100 bg-amber-50/40 p-3">
+              <p className="text-xs text-amber-900/70">
+                {hasAttachedFlavours
+                  ? `Base ₹${cakeBasePrice.toFixed(0)}/lb — flavour is part of this recipe.`
+                  : `Base ₹${cakeBasePrice.toFixed(0)}/lb — flavour adds per pound on top.`}
+              </p>
               {availableCakeSizes.length > 0 && (
                 <Field label="Size (pounds)" required>
-                  <select
+                  <SearchableSelect
                     value={item.cakeSizeId}
-                    onChange={(e) => onPatch({ cakeSizeId: e.target.value })}
-                    className={selectClass}
-                  >
-                    <option value="">— Choose —</option>
-                    {availableCakeSizes.map((s) => {
-                      const flavour = flavours.find(
-                        (f) => f.id === item.flavourId,
-                      );
-                      const flavourDelta = flavour
-                        ? Number(flavour.additionalAmount)
-                        : 0;
-                      const base = productDetail
-                        ? Number(productDetail.basePrice)
-                        : 0;
-                      const price = (base + flavourDelta) * (s.grams / 500);
-                      return (
-                        <option key={s.id} value={s.id}>
-                          {s.label} · ₹{price.toFixed(0)}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    onChange={(cakeSizeId) => onPatch({ cakeSizeId })}
+                    searchPlaceholder="Search sizes…"
+                    allowEmpty={false}
+                    placeholder="— Pick size —"
+                    options={availableCakeSizes.map((s) => ({
+                      value: s.id,
+                      label: cakeSizeSelectLabel(
+                        s.label,
+                        s.grams,
+                        cakeBasePrice,
+                        cakeFlavourAdditional,
+                        hasAttachedFlavours,
+                      ),
+                      keywords: s.label,
+                    }))}
+                  />
                 </Field>
               )}
-              <Field label="Flavour">
-                <select
-                  value={item.flavourId}
-                  onChange={(e) => onPatch({ flavourId: e.target.value })}
-                  className={selectClass}
+              {pickerFlavours.length > 0 && (
+                <Field
+                  label="Flavour"
+                  required={!hasAttachedFlavours}
+                  hint={
+                    hasAttachedFlavours
+                      ? "Linked to this product in the catalog."
+                      : "Optional add-on per pound."
+                  }
                 >
-                  <option value="">— None —</option>
-                  {availableFlavours.map((f) => {
-                    const delta = Number(f.additionalAmount);
-                    return (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                        {delta > 0 ? ` (+₹${delta.toFixed(0)}/lb)` : ""}
-                      </option>
-                    );
-                  })}
-                </select>
-              </Field>
+                  <SearchableSelect
+                    value={item.flavourId}
+                    onChange={(flavourId) => onPatch({ flavourId })}
+                    searchPlaceholder="Search flavours…"
+                    allowEmpty={hasAttachedFlavours}
+                    placeholder="— Pick flavour —"
+                    options={pickerFlavours.map((f) => {
+                      const delta = Number(f.additionalAmount);
+                      return {
+                        value: f.id,
+                        label: hasAttachedFlavours
+                          ? f.name
+                          : delta > 0
+                            ? `${f.name} (+₹${delta.toFixed(0)}/lb)`
+                            : f.name,
+                        keywords: f.name,
+                      };
+                    })}
+                  />
+                </Field>
+              )}
               <Field label="Message on cake">
                 <input
                   value={item.messageOnCake}
@@ -1323,7 +1361,7 @@ function ItemRow({
             </div>
           )}
 
-          {!isPizza && !isPoundCake && !hasFixedSkus && !hasOptionGroupSize && (
+          {item.kind === "CUSTOM" && (
             <button
               type="button"
               onClick={() => onPatch({ expanded: !item.expanded })}
@@ -1334,13 +1372,12 @@ function ItemRow({
               ) : (
                 <ChevronRight className="h-3 w-3" />
               )}
-              {item.expanded ? "Hide" : "Show"} details (size
-              {showCakeFields ? ", flavour, message" : ""}
-              {item.kind === "CUSTOM" ? ", reference image" : ""})
+              {item.expanded ? "Hide" : "Show"} details (size, flavour, message,
+              reference image)
             </button>
           )}
 
-          {!isPizza && !isPoundCake && item.expanded && (
+          {item.kind === "CUSTOM" && item.expanded && (
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Field label="Size label">
                 <input
