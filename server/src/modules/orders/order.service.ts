@@ -17,6 +17,7 @@ import {
   quoteCoupon,
   redeemCouponInTx,
 } from "../coupons/coupon.service.js";
+import { ensureCustomerForOrder } from "../customers/customer.service.js";
 
 const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
 
@@ -200,9 +201,16 @@ export async function createOrder(input: CreateOrderInput) {
   const orderNumber = buildOrderNumber();
 
   const created = await prisma.$transaction(async (tx) => {
+    const userId = await ensureCustomerForOrder(tx, {
+      userId: input.userId ?? null,
+      name: input.customerName,
+      phone: input.customerPhone,
+      email: input.customerEmail,
+    });
+
     const order = await tx.order.create({
       data: {
-        userId: input.userId ?? null,
+        userId,
         orderNumber,
         customerName: input.customerName,
         customerPhone: input.customerPhone,

@@ -5,10 +5,12 @@ import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { env } from "../../config/env.js";
 import { HttpError } from "../../utils/httpError.js";
+import { normalizeCustomerPhone } from "../../lib/phone.js";
+import { ensureCustomerRole } from "../customers/customer.service.js";
 
 export const authRouter = Router();
 
-const normalizePhone = (value: string) => value.trim().replace(/[\s().-]/g, "");
+const normalizePhone = normalizeCustomerPhone;
 
 const phoneSchema = z
   .string()
@@ -51,18 +53,8 @@ function signAccessToken(userId: string, phone: string): string {
   });
 }
 
-async function ensureCustomerRole() {
-  return prisma.role.upsert({
-    where: { slug: "customer" },
-    update: {},
-    create: {
-      slug: "customer",
-      name: "Customer",
-      description: "Customer role",
-      isSystem: true,
-      isSuperuser: false,
-    },
-  });
+async function ensureCustomerRoleForAuth() {
+  return ensureCustomerRole();
 }
 
 function serializeUser(user: {
@@ -166,7 +158,7 @@ authRouter.post("/verify-otp", async (req, res) => {
       });
     }
 
-    const role = await ensureCustomerRole();
+    const role = await ensureCustomerRoleForAuth();
     const existingEmail = email
       ? await prisma.user.findUnique({ where: { email } })
       : null;
@@ -180,6 +172,33 @@ authRouter.post("/verify-otp", async (req, res) => {
         phone: normalizedPhone,
         email: email ?? null,
         roleId: role.id,
+        phoneVerifiedAt: new Date(),
+        lastLoginAt: new Date(),
+      },
+      include: {
+        role: {
+          include: {
+            permissions: { include: { permission: true } },
+          },
+        },
+      },
+    });
+  } else {
+    const emailConflict =
+      email && !user.email
+        ? await prisma.user.findUnique({ where: { email } })
+        : null;
+    if (emailConflict && emailConflict.id !== user.id) {
+      throw HttpError.conflict("An account with this email already exists");
+    }
+
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: new Date(),
+        phoneVerifiedAt: user.phoneVerifiedAt ?? new Date(),
+        ...(!user.phoneVerifiedAt && name ? { name } : {}),
+        ...(email && !user.email ? { email } : {}),
       },
       include: {
         role: {

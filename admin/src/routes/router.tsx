@@ -19,6 +19,7 @@ import { DeliveryPincodesPage } from "@/pages/delivery/DeliveryPincodesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { StoreHoursPage } from "@/pages/store/StoreHoursPage";
 import { CouponsPage } from "@/pages/coupons/CouponsPage";
+import { CustomersListPage } from "@/pages/customers/CustomersListPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -103,6 +104,10 @@ export const router = createBrowserRouter([
       {
         path: "delivery",
         element: <DeliveryPincodesPage />,
+      },
+      {
+        path: "customers",
+        element: <CustomersListPage />,
       },
       {
         path: "users",

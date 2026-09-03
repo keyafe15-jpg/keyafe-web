@@ -11,6 +11,7 @@ import {
   Truck,
   Ticket,
   Users,
+  UserCircle,
   Settings,
   FileText,
   type LucideIcon,
@@ -74,7 +75,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     label: "People",
-    items: [{ to: "/users", label: "Users & Roles", icon: Users }],
+    items: [
+      { to: "/customers", label: "Customers", icon: UserCircle },
+      { to: "/users", label: "Users & Roles", icon: Users },
+    ],
   },
   {
     label: "System",

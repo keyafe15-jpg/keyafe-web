@@ -13,6 +13,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
+    "backfill:customers": "tsx scripts/backfill-customers.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

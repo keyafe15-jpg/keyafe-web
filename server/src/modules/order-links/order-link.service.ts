@@ -17,6 +17,7 @@ import {
   scaleGstForCartDiscount,
   type ManualDiscountType,
 } from "../coupons/coupon.service.js";
+import { ensureCustomerForOrder } from "../customers/customer.service.js";
 
 // 31-char lower-safe alphabet (drops i, l, o, 1, 0 to avoid ambiguity).
 const tokenGen = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
@@ -514,8 +515,15 @@ export async function placeOrderFromLink(
   const orderNumber = buildOrderNumber();
 
   const order = await prisma.$transaction(async (tx) => {
+    const userId = await ensureCustomerForOrder(tx, {
+      name: input.customerName,
+      phone: input.customerPhone,
+      email: input.customerEmail,
+    });
+
     const created = await tx.order.create({
       data: {
+        userId,
         orderNumber,
         customerName: input.customerName,
         customerPhone: input.customerPhone,
@@ -913,8 +921,16 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     input.paymentScreenshotUrl,
   );
 
+  const userId = await ensureCustomerForOrder(prisma, {
+    name: input.customerName,
+    phone: input.customerPhone,
+    email: input.customerEmail,
+    allowRegisteredLink: true,
+  });
+
   const order = await prisma.order.create({
     data: {
+      userId,
       orderNumber,
       customerName: input.customerName,
       customerPhone: input.customerPhone,

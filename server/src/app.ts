@@ -51,6 +51,7 @@ import { couponRouter } from "./modules/coupons/coupon.routes.js";
 import { adminCouponRouter } from "./modules/coupons/coupon.admin.routes.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { addressRouter } from "./modules/addresses/address.routes.js";
+import { adminCustomerRouter } from "./modules/customers/customer.admin.routes.js";
 import { attachPushToOrderEvents } from "./lib/push.js";
 
 export function createApp() {
@@ -124,6 +125,7 @@ export function createApp() {
   app.use("/api/admin/store", adminStoreRouter);
   app.use("/api/admin/quotes", adminQuoteRouter);
   app.use("/api/admin/coupons", adminCouponRouter);
+  app.use("/api/admin/customers", adminCustomerRouter);
 
   // Fan out new-order events to Web Push subscribers (in addition to SSE).
   attachPushToOrderEvents();
