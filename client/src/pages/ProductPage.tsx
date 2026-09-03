@@ -5,6 +5,7 @@ import { PRODUCT_COPY } from "@/content/product";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { PincodeChecker } from "@/components/product/PincodeChecker";
 import { SameDayDeliveryPicker } from "@/components/product/SameDayDeliveryPicker";
+import { ProductTagBadge } from "@/components/product/ProductTagBadge";
 import type { PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import {
   useProduct,
@@ -133,7 +134,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
     !customOutOfRange &&
     (product.canBeDeliveredPanIndia ||
       fulfillment === "pickup" ||
-      pincodeResult?.serviceable === true) &&
+      fulfillment === "delivery") &&
     (product.canBeDeliveredPanIndia || (date !== "" && slotKey !== ""));
 
   const handleAddToCart = () => {
@@ -275,17 +276,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
               </span>
             )}
             {product.tags.map((t) => (
-              <span
-                key={t.id}
-                className="rounded-full bg-cream-100 px-3 py-1 text-xs font-medium text-ink-700"
-                style={
-                  t.colorHex
-                    ? { backgroundColor: `${t.colorHex}22`, color: t.colorHex }
-                    : undefined
-                }
-              >
-                {t.name}
-              </span>
+              <ProductTagBadge key={t.id} tag={t} size="md" />
             ))}
           </div>
 
@@ -572,9 +563,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
               <p className="mt-2 text-center text-xs text-ink-500">
                 {product.canBeDeliveredPanIndia
                   ? ""
-                  : fulfillment === "delivery" && !pincodeResult?.serviceable
-                    ? "Check delivery pincode to continue."
-                    : "Pick a delivery date and slot to continue."}
+                  : "Pick a delivery date and slot to continue."}
               </p>
             )}
           </div>
@@ -839,7 +828,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
     (!sizeGroup || pickedSize != null) &&
     (product.canBeDeliveredPanIndia ||
       fulfillment === "pickup" ||
-      pincodeResult?.serviceable === true) &&
+      fulfillment === "delivery") &&
     (product.canBeDeliveredPanIndia || (date !== "" && slotKey !== ""));
 
   const galleryImages =
@@ -960,17 +949,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
               </span>
             )}
             {product.tags.map((t) => (
-              <span
-                key={t.id}
-                className="rounded-full bg-cream-100 px-3 py-1 text-xs font-medium text-ink-700"
-                style={
-                  t.colorHex
-                    ? { backgroundColor: `${t.colorHex}22`, color: t.colorHex }
-                    : undefined
-                }
-              >
-                {t.name}
-              </span>
+              <ProductTagBadge key={t.id} tag={t} size="md" />
             ))}
           </div>
 
@@ -1169,9 +1148,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
                   ? "Pick a size to continue."
                   : product.canBeDeliveredPanIndia
                     ? ""
-                    : fulfillment === "delivery" && !pincodeResult?.serviceable
-                      ? "Check delivery pincode to continue."
-                      : "Pick a delivery date and slot to continue."}
+                    : "Pick a delivery date and slot to continue."}
               </p>
             )}
           </div>

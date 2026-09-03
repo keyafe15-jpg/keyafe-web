@@ -43,3 +43,9 @@ export function phoneLookupVariants(phone: string): string[] {
 
   return [...variants];
 }
+
+/** True when two stored/input phones refer to the same number (incl. +91 vs 10-digit). */
+export function phonesMatch(a: string, b: string): boolean {
+  const variantsA = new Set(phoneLookupVariants(a));
+  return phoneLookupVariants(b).some((variant) => variantsA.has(variant));
+}

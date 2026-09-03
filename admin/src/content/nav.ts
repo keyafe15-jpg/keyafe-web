@@ -10,6 +10,7 @@ import {
   Zap,
   Truck,
   Ticket,
+  Tag,
   Users,
   UserCircle,
   Settings,
@@ -52,6 +53,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { to: "/flavours", label: "Flavours", icon: Palette },
       { to: "/cake-sizes", label: "Cake sizes", icon: Cake },
       { to: "/toppings", label: "Toppings", icon: Pizza },
+      { to: "/tags", label: "Tags", icon: Tag },
     ],
   },
   {

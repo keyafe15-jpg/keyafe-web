@@ -1,11 +1,16 @@
 import crypto from "node:crypto";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { env } from "../../config/env.js";
 import { HttpError } from "../../utils/httpError.js";
-import { normalizeCustomerPhone } from "../../lib/phone.js";
+import {
+  normalizeCustomerPhone,
+  phoneLookupVariants,
+  phonesMatch,
+} from "../../lib/phone.js";
 import { ensureCustomerRole } from "../customers/customer.service.js";
 
 export const authRouter = Router();
@@ -42,6 +47,42 @@ const verifyOtpSchema = z.object({
 });
 
 const otpStore = new Map<string, { code: string; expiresAt: number }>();
+
+const userInclude = {
+  role: {
+    include: {
+      permissions: { include: { permission: true } },
+    },
+  },
+} as const;
+
+async function findUserByPhone(phone: string) {
+  for (const variant of phoneLookupVariants(phone)) {
+    const user = await prisma.user.findUnique({
+      where: { phone: variant },
+      include: userInclude,
+    });
+    if (user) return user;
+  }
+  return null;
+}
+
+async function completeRegistration(
+  user: { id: string; phone: string; phoneVerifiedAt: Date | null; email: string | null },
+  input: { phone: string; name?: string; email?: string },
+) {
+  return prisma.user.update({
+    where: { id: user.id },
+    data: {
+      lastLoginAt: new Date(),
+      phoneVerifiedAt: user.phoneVerifiedAt ?? new Date(),
+      ...(input.phone !== user.phone ? { phone: input.phone } : {}),
+      ...(input.name ? { name: input.name } : {}),
+      ...(input.email && !user.email ? { email: input.email } : {}),
+    },
+    include: userInclude,
+  });
+}
 
 function hashRefreshToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -138,16 +179,7 @@ authRouter.post("/verify-otp", async (req, res) => {
     throw HttpError.unauthorized("Invalid or expired OTP");
   }
 
-  let user = await prisma.user.findUnique({
-    where: { phone: normalizedPhone },
-    include: {
-      role: {
-        include: {
-          permissions: { include: { permission: true } },
-        },
-      },
-    },
-  });
+  let user = await findUserByPhone(normalizedPhone);
 
   if (!user) {
     if (!name) {
@@ -158,31 +190,51 @@ authRouter.post("/verify-otp", async (req, res) => {
       });
     }
 
-    const role = await ensureCustomerRoleForAuth();
     const existingEmail = email
-      ? await prisma.user.findUnique({ where: { email } })
+      ? await prisma.user.findUnique({ where: { email }, include: userInclude })
       : null;
-    if (existingEmail) {
-      throw HttpError.conflict("An account with this email already exists");
-    }
 
-    user = await prisma.user.create({
-      data: {
-        name,
-        phone: normalizedPhone,
-        email: email ?? null,
-        roleId: role.id,
-        phoneVerifiedAt: new Date(),
-        lastLoginAt: new Date(),
-      },
-      include: {
-        role: {
-          include: {
-            permissions: { include: { permission: true } },
+    if (existingEmail) {
+      if (phonesMatch(existingEmail.phone, normalizedPhone)) {
+        user = await completeRegistration(existingEmail, {
+          phone: normalizedPhone,
+          name,
+          email,
+        });
+      } else {
+        throw HttpError.conflict("An account with this email already exists");
+      }
+    } else {
+      const role = await ensureCustomerRoleForAuth();
+      try {
+        user = await prisma.user.create({
+          data: {
+            name,
+            phone: normalizedPhone,
+            email: email ?? null,
+            roleId: role.id,
+            phoneVerifiedAt: new Date(),
+            lastLoginAt: new Date(),
           },
-        },
-      },
-    });
+          include: userInclude,
+        });
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
+          const retry = await findUserByPhone(normalizedPhone);
+          if (!retry) throw err;
+          user = await completeRegistration(retry, {
+            phone: normalizedPhone,
+            name,
+            email,
+          });
+        } else {
+          throw err;
+        }
+      }
+    }
   } else {
     const emailConflict =
       email && !user.email
@@ -192,21 +244,10 @@ authRouter.post("/verify-otp", async (req, res) => {
       throw HttpError.conflict("An account with this email already exists");
     }
 
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        lastLoginAt: new Date(),
-        phoneVerifiedAt: user.phoneVerifiedAt ?? new Date(),
-        ...(!user.phoneVerifiedAt && name ? { name } : {}),
-        ...(email && !user.email ? { email } : {}),
-      },
-      include: {
-        role: {
-          include: {
-            permissions: { include: { permission: true } },
-          },
-        },
-      },
+    user = await completeRegistration(user, {
+      phone: normalizedPhone,
+      name,
+      email,
     });
   }
 

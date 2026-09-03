@@ -9,7 +9,7 @@ export const PRODUCT_COPY = {
     deliveryOrPickup: "Delivery or pickup?",
     delivery: "Home delivery",
     pickup: "Store pickup",
-    pincodeLabel: "Delivery pincode",
+    pincodeLabel: "Delivery pincode (optional)",
     pincodePlaceholder: "6-digit pincode",
     checkCta: "Check",
     date: "Delivery date",
@@ -57,7 +57,7 @@ export const PRODUCT_COPY = {
     },
   ],
   pincode: {
-    idle: "Enter your pincode to check delivery.",
+    idle: "Optional — check delivery fee and same-day availability.",
     unserviceable:
       "We may still deliver here, please call or WhatsApp us to confirm, or you can opt for pickup.",
     serviceable: (city: string, fee: number) =>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -651,7 +651,11 @@ export function ProductFormPage() {
           >
             {tags.length === 0 ? (
               <p className="text-xs text-slate-500">
-                No tags yet — create tags from the taxonomy admin (coming soon).
+                No tags yet —{" "}
+                <Link to="/tags" className="text-brand-600 hover:underline">
+                  create tags
+                </Link>{" "}
+                first, then assign them here.
               </p>
             ) : (
               <ChipPicker

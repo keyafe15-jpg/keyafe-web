@@ -1421,6 +1421,24 @@ async function seedSampleOrders() {
   );
 }
 
+async function seedTags() {
+  const tags = [
+    { slug: "new-launch", name: "New launch", colorHex: "#E31C79" },
+    { slug: "best-seller", name: "Best seller", colorHex: "#F59E0B" },
+    { slug: "same-day", name: "Same-day", colorHex: "#10B981" },
+    { slug: "eggless", name: "Eggless", colorHex: "#3B82F6" },
+  ];
+
+  for (const tag of tags) {
+    await prisma.tag.upsert({
+      where: { slug: tag.slug },
+      create: tag,
+      update: { name: tag.name, colorHex: tag.colorHex },
+    });
+  }
+  logger.info(`Seeded ${tags.length} product tags`);
+}
+
 async function main() {
   await seedBusinessSettings();
   await seedSameDayWeeklySchedule();
@@ -1428,6 +1446,7 @@ async function main() {
   await seedFlavors();
   await seedCakeSizes();
   await seedCategories();
+  await seedTags();
   await seedProducts();
   await seedSameDayCategories();
   await seedSampleOrders();

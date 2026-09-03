@@ -5,6 +5,7 @@ import { useSameDayStatus } from "@/hooks/useSameDayStatus";
 import { useSameDayProducts, type ProductCard } from "@/hooks/useProducts";
 import { useCategories, type CategoryNode } from "@/hooks/useCategories";
 import { LeadTimeChip } from "@/components/product/LeadTimeChip";
+import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { Reveal } from "@/components/motion/Reveal";
 import { SAMEDAY_COPY } from "@/content/sameday";
 import {
@@ -557,7 +558,13 @@ function ProductCardView({
   return (
     <article className="group rounded-card border border-cream-200 bg-white p-3 shadow-sm transition hover:shadow-md">
       <Link to={`/product/${product.slug}`} className="block">
-        <div className="mb-3 aspect-square overflow-hidden rounded-lg bg-cream-100">
+        <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-cream-100">
+          {product.tags.length > 0 && (
+            <ProductCardTags
+              tags={product.tags}
+              className="absolute left-2 top-2 z-10 flex flex-wrap gap-1"
+            />
+          )}
           {product.images[0] && (
             <img
               src={product.images[0]}

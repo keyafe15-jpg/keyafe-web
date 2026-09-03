@@ -10,6 +10,7 @@ import { FlavoursPage } from "@/pages/flavours/FlavoursPage";
 import { CakeSizesPage } from "@/pages/cake-sizes/CakeSizesPage";
 import { CategoriesPage } from "@/pages/categories/CategoriesPage";
 import { ToppingsPage } from "@/pages/toppings/ToppingsPage";
+import { TagsPage } from "@/pages/tags/TagsPage";
 import { OrdersListPage } from "@/pages/orders/OrdersListPage";
 import { OrderDetailPage } from "@/pages/orders/OrderDetailPage";
 import { OrderLinksListPage } from "@/pages/order-links/OrderLinksListPage";
@@ -83,6 +84,10 @@ export const router = createBrowserRouter([
       {
         path: "toppings",
         element: <ToppingsPage />,
+      },
+      {
+        path: "tags",
+        element: <TagsPage />,
       },
       {
         path: "same-day",

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePanIndiaProducts, type ProductCard } from "@/hooks/useProducts";
 import { Reveal } from "@/components/motion/Reveal";
+import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { PANINDIA_COPY } from "@/content/panindia";
 import { cn } from "@/lib/cn";
 import {
@@ -135,7 +136,13 @@ function PanIndiaProductCard({ product }: { product: ProductCard }) {
       to={`/product/${product.slug}`}
       className="group block overflow-hidden rounded-card border border-cream-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
     >
-      <div className="aspect-square overflow-hidden bg-cream-100">
+      <div className="relative aspect-square overflow-hidden bg-cream-100">
+        {product.tags.length > 0 && (
+          <ProductCardTags
+            tags={product.tags}
+            className="absolute left-2 top-2 z-10 flex flex-wrap gap-1"
+          />
+        )}
         {product.images[0] ? (
           <img
             src={product.images[0]}

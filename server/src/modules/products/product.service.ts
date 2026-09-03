@@ -188,6 +188,10 @@ const PUBLIC_CARD_SELECT = {
   canBeDeliveredPanIndia: true,
   isHealthyTreat: true,
   category: { select: { id: true, slug: true, name: true } },
+  tags: {
+    select: { id: true, slug: true, name: true, colorHex: true },
+    orderBy: { name: "asc" as const },
+  },
   // Read the size group's options so we can surface a "starts from" price
   // for variant-priced products (pizzas, etc.) where basePrice = 0.
   optionGroups: {
@@ -217,6 +221,12 @@ type PublicCardRow = {
   canBeDeliveredPanIndia: boolean;
   isHealthyTreat: boolean;
   category: { id: string; slug: string; name: string };
+  tags: {
+    id: string;
+    slug: string;
+    name: string;
+    colorHex: string | null;
+  }[];
   optionGroups: {
     priceMode: "ABSOLUTE" | "DELTA";
     options: { price: unknown }[];

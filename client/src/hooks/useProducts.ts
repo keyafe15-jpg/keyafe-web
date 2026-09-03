@@ -19,6 +19,14 @@ export interface ProductCard {
   canBeDeliveredPanIndia: boolean;
   isHealthyTreat: boolean;
   category: { id: string; slug: string; name: string };
+  tags: ProductTag[];
+}
+
+export interface ProductTag {
+  id: string;
+  slug: string;
+  name: string;
+  colorHex: string | null;
 }
 
 export interface PaginatedProductsResponse {

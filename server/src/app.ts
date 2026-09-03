@@ -26,7 +26,7 @@ import {
   flavorRouter,
   adminFlavorRouter,
 } from "./modules/flavors/flavor.routes.js";
-import { tagRouter } from "./modules/tags/tag.routes.js";
+import { adminTagRouter, tagRouter } from "./modules/tags/tag.routes.js";
 import { adminProductRouter } from "./modules/products/product.routes.js";
 import { publicProductRouter } from "./modules/products/product.public.routes.js";
 import {
@@ -116,6 +116,7 @@ export function createApp() {
   app.use("/api/admin/flavours", adminFlavorRouter);
   app.use("/api/admin/cake-sizes", adminCakeSizeRouter);
   app.use("/api/admin/toppings", adminToppingRouter);
+  app.use("/api/admin/tags", adminTagRouter);
   app.use("/api/admin/orders", adminOrderRouter);
   app.use("/api/admin/order-links", adminOrderLinkRouter);
   app.use("/api/admin/offline-orders", adminOfflineOrderRouter);

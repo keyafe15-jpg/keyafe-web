@@ -6,6 +6,7 @@ import { CATEGORY_PLACEHOLDER_COPY } from "@/content/misc";
 import { Reveal } from "@/components/motion/Reveal";
 import { cn } from "@/lib/cn";
 import { PaginationControls } from "@/components/ClientPagination";
+import { ProductCardTags } from "@/components/product/ProductTagBadge";
 
 const PAGE_SIZE = 12;
 
@@ -234,7 +235,13 @@ function ProductCard({
       to={`/product/${product.slug}`}
       className="group block overflow-hidden rounded-card border border-cream-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
     >
-      <div className="aspect-square overflow-hidden bg-cream-100">
+      <div className="relative aspect-square overflow-hidden bg-cream-100">
+        {product.tags.length > 0 && (
+          <ProductCardTags
+            tags={product.tags}
+            className="absolute left-2 top-2 z-10 flex flex-wrap gap-1"
+          />
+        )}
         {product.images[0] ? (
           <img
             src={product.images[0]}
