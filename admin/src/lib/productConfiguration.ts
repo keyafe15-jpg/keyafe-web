@@ -56,6 +56,36 @@ export function availableFixedSkus(
 /** 500g = 1 pound = 1× basePrice on the storefront. */
 export const CAKE_BASE_GRAMS = 500;
 
+export function parseCustomPounds(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+export function customPoundsToGrams(pounds: number): number {
+  return Math.round(pounds * CAKE_BASE_GRAMS);
+}
+
+export function isGramsWithinBounds(
+  grams: number,
+  minGrams: number | null | undefined,
+  maxGrams: number | null | undefined,
+): boolean {
+  if (minGrams != null && grams < minGrams) return false;
+  if (maxGrams != null && grams > maxGrams) return false;
+  return true;
+}
+
+export function formatCustomPoundLabel(pounds: number): string {
+  const rounded = Math.round(pounds * 10) / 10;
+  const text = Number.isInteger(rounded)
+    ? String(rounded)
+    : rounded.toFixed(1);
+  return `${text} lb (custom)`;
+}
+
 export function computeCakeUnitPrice(
   basePrice: number,
   grams: number,

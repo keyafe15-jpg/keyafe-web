@@ -1,14 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  Sparkles,
-  Package,
   ArrowLeft,
   Copy,
   Check,
-  X,
-  Plus,
-  Trash2,
 } from "lucide-react";
 import {
   useAdminOrderLink,
@@ -16,64 +11,34 @@ import {
   useUpdateOrderLink,
   type CreateOrderLinkPayload,
   type OrderLinkItemPayload,
-  type OrderLinkKind,
 } from "@/hooks/useAdminOrderLinks";
-import { useAdminProducts } from "@/hooks/useAdminProducts";
 import { useFlavours } from "@/hooks/useFlavours";
-import { uploadImage } from "@/lib/uploads";
 import {
   Field,
   inputClass,
-  selectClass,
   textareaClass,
   submitClass,
 } from "@/components/form/Field";
 import { ManualDiscountFields } from "@/components/form/ManualDiscountFields";
-import { SearchableSelect } from "@/components/form/SearchableSelect";
 import {
   manualDiscountRupees,
   type ManualDiscountType,
 } from "@/lib/manualDiscount";
+import {
+  OrderItemsEditor,
+  orderLinkItemToDraft,
+  resolveReferenceImageUrl,
+  toOrderLinkItemPayload,
+  useOrderItemRefPreviews,
+  useOrderItemsState,
+  validateOrderItems,
+} from "@/components/order-items";
+import { useAdminToppings } from "@/hooks/useToppings";
 import { cn } from "@/lib/cn";
 
 function publicUrl(token: string): string {
   const base = window.location.origin.replace(/:517[5-9]$/, ":5173");
   return `${base}/o/${token}`;
-}
-
-interface ItemDraft {
-  id: string; // client-side only, for React keys
-  kind: OrderLinkKind;
-  productId: string;
-  productName: string;
-  sizeLabel: string;
-  sizeGrams: string;
-  flavourId: string;
-  messageHint: string;
-  unitPrice: string;
-  qty: string;
-  refFile: File | null;
-  refPreview: string | null;
-  // Existing image URL kept in edit mode (unless user clears or uploads a new one).
-  keptImageUrl: string | null;
-}
-
-function newItem(kind: OrderLinkKind = "CUSTOM"): ItemDraft {
-  return {
-    id: crypto.randomUUID(),
-    kind,
-    productId: "",
-    productName: "",
-    sizeLabel: "",
-    sizeGrams: "",
-    flavourId: "",
-    messageHint: "",
-    unitPrice: "",
-    qty: "1",
-    refFile: null,
-    refPreview: null,
-    keptImageUrl: null,
-  };
 }
 
 export function OrderLinkFormPage() {
@@ -83,11 +48,10 @@ export function OrderLinkFormPage() {
   const create = useCreateOrderLink();
   const update = useUpdateOrderLink();
   const { data: existing } = useAdminOrderLink(id);
-  const { data: productsPage } = useAdminProducts(1, 100);
-  const products = productsPage?.items ?? [];
   const { data: flavours = [] } = useFlavours();
-
-  const [items, setItems] = useState<ItemDraft[]>(() => [newItem("CUSTOM")]);
+  const { data: allToppings = [] } = useAdminToppings();
+  const { items, setItems, patchItem, removeItem, addItem } =
+    useOrderItemsState("CUSTOM");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
@@ -101,39 +65,12 @@ export function OrderLinkFormPage() {
     url: string;
   } | null>(null);
 
-  const patchItem = (itemId: string, patch: Partial<ItemDraft>) => {
-    setItems((prev) =>
-      prev.map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
-    );
-  };
-  const removeItem = (itemId: string) => {
-    setItems((prev) =>
-      prev.length === 1 ? prev : prev.filter((it) => it.id !== itemId),
-    );
-  };
-  const addItem = (kind: OrderLinkKind) =>
-    setItems((prev) => [...prev, newItem(kind)]);
+  useOrderItemRefPreviews(items, setItems);
 
   // Prefill from existing link on edit.
   useEffect(() => {
     if (!existing) return;
-    setItems(
-      existing.items.map((it) => ({
-        id: it.id,
-        kind: it.kind,
-        productId: it.productId ?? "",
-        productName: it.productName,
-        sizeLabel: it.sizeLabel ?? "",
-        sizeGrams: it.sizeGrams ? String(it.sizeGrams) : "",
-        flavourId: it.flavourId ?? "",
-        messageHint: it.messageHint ?? "",
-        unitPrice: Number(it.unitPrice).toFixed(0),
-        qty: String(it.qty),
-        refFile: null,
-        refPreview: null,
-        keptImageUrl: it.referenceImageUrl,
-      })),
-    );
+    setItems(existing.items.map(orderLinkItemToDraft));
     setCustomerName(existing.customerName ?? "");
     setCustomerPhone(existing.customerPhone ?? "");
     setAdminNotes(existing.adminNotes ?? "");
@@ -157,36 +94,7 @@ export function OrderLinkFormPage() {
     }
   }, [existing]);
 
-  // Refresh object-URL previews whenever an item's file changes.
-  useEffect(() => {
-    const createdUrls: string[] = [];
-    setItems((prev) =>
-      prev.map((it) => {
-        if (it.refFile) {
-          if (it.refPreview?.startsWith("blob:")) return it;
-          const url = URL.createObjectURL(it.refFile);
-          createdUrls.push(url);
-          return { ...it, refPreview: url };
-        }
-        return it.refPreview ? { ...it, refPreview: null } : it;
-      }),
-    );
-    return () => {
-      createdUrls.forEach((u) => URL.revokeObjectURL(u));
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.map((i) => i.refFile).join("|")]);
-
-  const flavourName = (flavourId: string) =>
-    flavours.find((f) => f.id === flavourId)?.name ?? null;
-
-  const itemsValid = items.every(
-    (it) =>
-      it.productName.trim().length >= 2 &&
-      Number(it.unitPrice) > 0 &&
-      Number(it.qty) > 0 &&
-      (it.kind === "CUSTOM" || it.productId),
-  );
+  const itemsValid = validateOrderItems(items);
   const canSubmit = itemsValid && !uploading;
 
   const itemsTotal = items.reduce(
@@ -210,25 +118,16 @@ export function OrderLinkFormPage() {
     try {
       const itemPayloads: OrderLinkItemPayload[] = [];
       for (const it of items) {
-        let referenceImageUrl: string | null = it.keptImageUrl;
-        if (it.refFile) {
-          setUploading(true);
-          const res = await uploadImage(it.refFile, "quote-reference");
-          referenceImageUrl = res.publicUrl;
-        }
-        itemPayloads.push({
-          kind: it.kind,
-          productId: it.kind === "CATALOG" ? it.productId : null,
-          productName: it.productName.trim(),
-          sizeLabel: it.sizeLabel.trim() || null,
-          sizeGrams: it.sizeGrams ? Number(it.sizeGrams) : null,
-          flavourId: it.flavourId || null,
-          flavourName: flavourName(it.flavourId),
-          referenceImageUrl,
-          messageHint: it.messageHint.trim() || null,
-          unitPrice: Number(it.unitPrice),
-          qty: Number(it.qty) || 1,
-        });
+        setUploading(true);
+        const referenceImageUrl = await resolveReferenceImageUrl(it);
+        itemPayloads.push(
+          toOrderLinkItemPayload(
+            it,
+            referenceImageUrl,
+            flavours,
+            allToppings,
+          ),
+        );
       }
       setUploading(false);
 
@@ -284,43 +183,13 @@ export function OrderLinkFormPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          <Section
-            title="Items"
-            subtitle="Catalog picks a product from your menu; Custom is a one-off item."
-            action={
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => addItem("CATALOG")}
-                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
-                >
-                  <Plus className="h-3 w-3" /> Catalog item
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addItem("CUSTOM")}
-                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
-                >
-                  <Plus className="h-3 w-3" /> Custom item
-                </button>
-              </div>
-            }
-          >
-            <div className="space-y-4">
-              {items.map((item, idx) => (
-                <ItemRow
-                  key={item.id}
-                  index={idx}
-                  item={item}
-                  products={products}
-                  flavours={flavours}
-                  onPatch={(patch) => patchItem(item.id, patch)}
-                  onRemove={() => removeItem(item.id)}
-                  canRemove={items.length > 1}
-                />
-              ))}
-            </div>
-          </Section>
+          <OrderItemsEditor
+            items={items}
+            patchItem={patchItem}
+            removeItem={removeItem}
+            addItem={addItem}
+            listClassName="space-y-4"
+          />
 
           <Section
             title="Discount"
@@ -488,229 +357,6 @@ function Section({
   );
 }
 
-function ItemRow({
-  index,
-  item,
-  products,
-  flavours,
-  onPatch,
-  onRemove,
-  canRemove,
-}: {
-  index: number;
-  item: ItemDraft;
-  products: Array<{ id: string; name: string; basePrice: string }>;
-  flavours: Array<{ id: string; name: string }>;
-  onPatch: (patch: Partial<ItemDraft>) => void;
-  onRemove: () => void;
-  canRemove: boolean;
-}) {
-  const selectedProduct = useMemo(
-    () => products.find((p) => p.id === item.productId),
-    [products, item.productId],
-  );
-
-  // Auto-fill snapshotted fields when a catalog product is picked.
-  useEffect(() => {
-    if (item.kind !== "CATALOG" || !selectedProduct) return;
-    if (!item.productName) onPatch({ productName: selectedProduct.name });
-    if (!item.unitPrice)
-      onPatch({ unitPrice: Number(selectedProduct.basePrice).toFixed(0) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.kind, selectedProduct]);
-
-  return (
-    <div className="rounded-lg border border-slate-200 p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Item {index + 1}
-          </p>
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-              item.kind === "CATALOG"
-                ? "bg-blue-50 text-blue-700"
-                : "bg-brand-100 text-brand-700",
-            )}
-          >
-            {item.kind === "CATALOG" ? (
-              <Package className="h-3 w-3" />
-            ) : (
-              <Sparkles className="h-3 w-3" />
-            )}
-            {item.kind === "CATALOG" ? "Catalog" : "Custom"}
-          </span>
-        </div>
-        {canRemove && (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="text-slate-400 hover:text-red-600"
-            aria-label="Remove item"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-
-      {item.kind === "CATALOG" && (
-        <Field label="Pick a product" required>
-          <SearchableSelect
-            value={item.productId}
-            onChange={(productId) => onPatch({ productId, productName: "" })}
-            searchPlaceholder="Search products…"
-            options={products.map((p) => ({
-              value: p.id,
-              label: `${p.name} · ₹${Number(p.basePrice).toFixed(0)}`,
-              keywords: p.name,
-            }))}
-          />
-        </Field>
-      )}
-
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field
-          label={item.kind === "CATALOG" ? "Name (override)" : "Name"}
-          required
-        >
-          <input
-            value={item.productName}
-            onChange={(e) => onPatch({ productName: e.target.value })}
-            placeholder="2 pound chocolate cake"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Flavour">
-          <select
-            value={item.flavourId}
-            onChange={(e) => onPatch({ flavourId: e.target.value })}
-            className={selectClass}
-          >
-            <option value="">— None —</option>
-            {flavours.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Size label">
-          <input
-            value={item.sizeLabel}
-            onChange={(e) => onPatch({ sizeLabel: e.target.value })}
-            placeholder="1 pound / 500g"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Size (grams)" hint="Optional. e.g. 500 for 1 lb.">
-          <input
-            type="number"
-            min={1}
-            value={item.sizeGrams}
-            onChange={(e) => onPatch({ sizeGrams: e.target.value })}
-            className={inputClass}
-          />
-        </Field>
-        <Field
-          label="Message on cake (suggestion)"
-          hint="Customer can override this at checkout."
-          className="sm:col-span-2"
-        >
-          <input
-            value={item.messageHint}
-            onChange={(e) => onPatch({ messageHint: e.target.value })}
-            placeholder="Happy Birthday Aarav"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Unit price (₹)" required>
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={item.unitPrice}
-            onChange={(e) => onPatch({ unitPrice: e.target.value })}
-            placeholder="1500"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Qty" required>
-          <input
-            type="number"
-            min={1}
-            value={item.qty}
-            onChange={(e) => onPatch({ qty: e.target.value })}
-            className={inputClass}
-          />
-        </Field>
-      </div>
-
-      <Field
-        label="Reference image"
-        hint={
-          item.kind === "CATALOG"
-            ? "Optional — leave blank to use the product's primary photo."
-            : "Upload the photo the customer sent."
-        }
-        className="mt-3"
-      >
-        <div className="flex flex-col items-start gap-3 sm:flex-row">
-          {item.refPreview ? (
-            <img
-              src={item.refPreview}
-              alt="Reference"
-              className="h-24 w-24 shrink-0 rounded-lg object-cover ring-1 ring-slate-200"
-            />
-          ) : item.keptImageUrl ? (
-            <div className="relative h-24 w-24 shrink-0">
-              <img
-                src={item.keptImageUrl}
-                alt="Reference"
-                className="h-full w-full rounded-lg object-cover ring-1 ring-slate-200"
-              />
-              <button
-                type="button"
-                onClick={() => onPatch({ keptImageUrl: null })}
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-slate-900"
-                aria-label="Remove image"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
-              No image
-            </div>
-          )}
-          <div className="flex-1">
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
-              onChange={(e) => {
-                const file = e.target.files?.[0] ?? null;
-                onPatch({
-                  refFile: file,
-                  keptImageUrl: file ? null : item.keptImageUrl,
-                });
-              }}
-              className="block text-xs text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-50"
-            />
-            {(item.refFile || item.keptImageUrl) && (
-              <button
-                type="button"
-                onClick={() => onPatch({ refFile: null, keptImageUrl: null })}
-                className="mt-2 text-xs text-slate-500 hover:text-brand-500"
-              >
-                Remove image
-              </button>
-            )}
-          </div>
-        </div>
-      </Field>
-    </div>
-  );
-}
 
 function CreatedView({ created }: { created: { token: string; url: string } }) {
   const [copied, setCopied] = useState(false);

@@ -20,6 +20,7 @@ export function resetCatalogProductPick(): {
   crustOptionId: string;
   crustLabel: string;
   cakeSizeId: string;
+  customPounds: string;
   toppingSelections: string[];
 } {
   return {
@@ -33,6 +34,7 @@ export function resetCatalogProductPick(): {
     crustOptionId: "",
     crustLabel: "",
     cakeSizeId: "",
+    customPounds: "",
     toppingSelections: [],
   };
 }

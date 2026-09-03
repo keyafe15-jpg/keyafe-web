@@ -2,22 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
-  ChevronDown,
-  ChevronRight,
-  Package,
-  Plus,
-  Sparkles,
   Store,
-  Trash2,
   Truck,
-  X,
 } from "lucide-react";
-import { useAdminProducts, useAdminProduct } from "@/hooks/useAdminProducts";
-import { useFlavours } from "@/hooks/useFlavours";
-import { useAdminToppings, type AdminTopping } from "@/hooks/useToppings";
-import { useAdminCakeSizes, type CakeSize } from "@/hooks/useCakeSizes";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
-import type { OrderLinkKind } from "@/hooks/useAdminOrderLinks";
 import { TIME_SLOTS } from "@/content/slots";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/uploads";
@@ -29,21 +17,17 @@ import {
   textareaClass,
 } from "@/components/form/Field";
 import { ManualDiscountFields } from "@/components/form/ManualDiscountFields";
-import { SearchableSelect } from "@/components/form/SearchableSelect";
 import { manualDiscountRupees, type ManualDiscountType } from "@/lib/manualDiscount";
 import {
-  formatCatalogProductLabel,
-  resetCatalogProductPick,
-} from "@/lib/catalogProductOptions";
-import {
-  availableFixedSkus,
-  cakeSizeSelectLabel,
-  computeCakeUnitPrice,
-  formatOptionSelectLabel,
-  getSizeOptionGroup,
-  optionUnitPrice,
-} from "@/lib/productConfiguration";
-import type { AdminProduct } from "@/hooks/useAdminProducts";
+  OrderItemsEditor,
+  resolveReferenceImageUrl,
+  toOfflineOrderItemPayload,
+  useOrderItemRefPreviews,
+  useOrderItemsState,
+  validateOrderItems,
+} from "@/components/order-items";
+import { useFlavours } from "@/hooks/useFlavours";
+import { useAdminToppings } from "@/hooks/useToppings";
 import { cn } from "@/lib/cn";
 
 interface PincodeInfo {
@@ -55,76 +39,19 @@ interface PincodeInfo {
   deliveryFee: number;
 }
 
-interface LineItem {
-  id: string; // client-side only, for React keys
-  kind: OrderLinkKind;
-  productId: string;
-  productName: string;
-  sizeLabel: string;
-  sizeGrams: string;
-  flavourId: string;
-  messageOnCake: string;
-  instructions: string;
-  unitPrice: string;
-  qty: string;
-  refFile: File | null;
-  refPreview: string | null;
-  expanded: boolean;
-
-  // Pizza-only picker state (auto-populated when a PIZZA product is selected).
-  sizeOptionId: string;
-  crustOptionId: string;
-  crustLabel: string;
-  toppingSelections: string[]; // topping IDs (both toppings + condiments)
-
-  // Cake-only picker state (auto-populated when a CAKE product is selected).
-  cakeSizeId: string;
-
-  // Fixed-variant SKU (dry cakes, tubs, etc.).
-  variantId: string;
-}
-
 function todayIso(): string {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d.toISOString().slice(0, 10);
 }
 
-function newItem(kind: OrderLinkKind = "CATALOG"): LineItem {
-  return {
-    id: crypto.randomUUID(),
-    kind,
-    productId: "",
-    productName: "",
-    sizeLabel: "",
-    sizeGrams: "",
-    flavourId: "",
-    messageOnCake: "",
-    instructions: "",
-    unitPrice: "",
-    qty: "1",
-    refFile: null,
-    refPreview: null,
-    expanded: false,
-    sizeOptionId: "",
-    crustOptionId: "",
-    crustLabel: "",
-    toppingSelections: [],
-    cakeSizeId: "",
-    variantId: "",
-  };
-}
-
 export function OfflineOrderDirectFormPage() {
   const navigate = useNavigate();
   const create = useCreateOfflineOrder();
-  const { data: productsPage } = useAdminProducts(1, 100);
-  const products = productsPage?.items ?? [];
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
-  const { data: cakeSizes = [] } = useAdminCakeSizes();
-
-  const [items, setItems] = useState<LineItem[]>(() => [newItem("CATALOG")]);
+  const { items, patchItem, removeItem, addItem, setItems } =
+    useOrderItemsState("CATALOG");
   const [uploading, setUploading] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
@@ -158,18 +85,7 @@ export function OfflineOrderDirectFormPage() {
   const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
 
-  const patchItem = (id: string, patch: Partial<LineItem>) => {
-    setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, ...patch } : it)),
-    );
-  };
-  const removeItem = (id: string) => {
-    setItems((prev) =>
-      prev.length === 1 ? prev : prev.filter((it) => it.id !== id),
-    );
-  };
-  const addItem = (kind: OrderLinkKind) =>
-    setItems((prev) => [...prev, newItem(kind)]);
+  useOrderItemRefPreviews(items, setItems);
 
   useEffect(() => {
     if (!screenshotFile) {
@@ -180,26 +96,6 @@ export function OfflineOrderDirectFormPage() {
     setScreenshotPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [screenshotFile]);
-
-  // Refresh object-URL previews whenever an item's file changes.
-  useEffect(() => {
-    const created: string[] = [];
-    setItems((prev) =>
-      prev.map((it) => {
-        if (it.refFile) {
-          if (it.refPreview?.startsWith("blob:")) return it;
-          const url = URL.createObjectURL(it.refFile);
-          created.push(url);
-          return { ...it, refPreview: url };
-        }
-        return it.refPreview ? { ...it, refPreview: null } : it;
-      }),
-    );
-    return () => {
-      created.forEach((u) => URL.revokeObjectURL(u));
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.map((i) => i.refFile).join("|")]);
 
   useEffect(() => {
     setPincodeInfo(null);
@@ -270,13 +166,7 @@ export function OfflineOrderDirectFormPage() {
       /^\d{6}$/.test(pincode) &&
       pincodeInfo?.serviceable === true);
 
-  const itemsValid = items.every(
-    (it) =>
-      it.productName.trim().length >= 2 &&
-      Number(it.unitPrice) > 0 &&
-      Number(it.qty) > 0 &&
-      (it.kind === "CUSTOM" || it.productId),
-  );
+  const itemsValid = validateOrderItems(items);
 
   const canSubmit =
     itemsValid &&
@@ -298,52 +188,16 @@ export function OfflineOrderDirectFormPage() {
     try {
       const itemPayloads = [];
       for (const it of items) {
-        let referenceImageUrl: string | null = null;
-        if (it.refFile) {
-          setUploading(true);
-          const res = await uploadImage(it.refFile, "quote-reference");
-          referenceImageUrl = res.publicUrl;
-        }
-        const flavourName =
-          flavours.find((f) => f.id === it.flavourId)?.name ?? null;
-
-        // Compose pizza selections into instructions (crust + toppings + condiments).
-        const pickedToppingNames = allToppings.filter((t) =>
-          it.toppingSelections.includes(t.id),
+        setUploading(true);
+        const referenceImageUrl = await resolveReferenceImageUrl(it);
+        itemPayloads.push(
+          toOfflineOrderItemPayload(
+            it,
+            referenceImageUrl,
+            flavours,
+            allToppings,
+          ),
         );
-        const parts: string[] = [];
-        if (it.crustLabel) parts.push(`Crust: ${it.crustLabel}`);
-        const toppingsPart = pickedToppingNames
-          .filter((t) => t.kind === "TOPPING")
-          .map((t) => t.name)
-          .join(", ");
-        if (toppingsPart) parts.push(`Toppings: ${toppingsPart}`);
-        const condimentsPart = pickedToppingNames
-          .filter((t) => t.kind === "CONDIMENT")
-          .map((t) => t.name)
-          .join(", ");
-        if (condimentsPart) parts.push(`Condiments: ${condimentsPart}`);
-        const composedPrefix = parts.join(" · ");
-        const finalInstructions = it.instructions.trim();
-        const mergedInstructions =
-          composedPrefix && finalInstructions
-            ? `${composedPrefix}\n${finalInstructions}`
-            : composedPrefix || finalInstructions || null;
-
-        itemPayloads.push({
-          kind: it.kind,
-          productId: it.kind === "CATALOG" ? it.productId : null,
-          productName: it.productName.trim(),
-          sizeLabel: it.sizeLabel.trim() || null,
-          sizeGrams: it.sizeGrams ? Number(it.sizeGrams) : null,
-          flavourId: it.flavourId || null,
-          flavourName,
-          referenceImageUrl,
-          messageOnCake: it.messageOnCake.trim() || null,
-          instructions: mergedInstructions,
-          unitPrice: Number(it.unitPrice),
-          qty: Number(it.qty) || 1,
-        });
       }
       setUploading(false);
 
@@ -417,45 +271,12 @@ export function OfflineOrderDirectFormPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          <Section
-            title="Items"
-            subtitle="Catalog picks a product from your menu; Custom is a one-off item."
-            action={
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => addItem("CATALOG")}
-                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
-                >
-                  <Plus className="h-3 w-3" /> Catalog item
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addItem("CUSTOM")}
-                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
-                >
-                  <Plus className="h-3 w-3" /> Custom item
-                </button>
-              </div>
-            }
-          >
-            <div className="space-y-3">
-              {items.map((it, idx) => (
-                <ItemRow
-                  key={it.id}
-                  index={idx}
-                  item={it}
-                  products={products}
-                  flavours={flavours}
-                  allToppings={allToppings}
-                  cakeSizes={cakeSizes}
-                  onPatch={(patch) => patchItem(it.id, patch)}
-                  onRemove={() => removeItem(it.id)}
-                  canRemove={items.length > 1}
-                />
-              ))}
-            </div>
-          </Section>
+          <OrderItemsEditor
+            items={items}
+            patchItem={patchItem}
+            removeItem={removeItem}
+            addItem={addItem}
+          />
 
           <Section title="Customer">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -814,678 +635,6 @@ export function OfflineOrderDirectFormPage() {
   );
 }
 
-function ItemRow({
-  index,
-  item,
-  products,
-  flavours,
-  allToppings,
-  cakeSizes,
-  onPatch,
-  onRemove,
-  canRemove,
-}: {
-  index: number;
-  item: LineItem;
-  products: AdminProduct[];
-  flavours: Array<{ id: string; name: string; additionalAmount: string }>;
-  allToppings: AdminTopping[];
-  cakeSizes: CakeSize[];
-  onPatch: (patch: Partial<LineItem>) => void;
-  onRemove: () => void;
-  canRemove: boolean;
-}) {
-  const selectedProduct = useMemo(
-    () => products.find((p) => p.id === item.productId),
-    [products, item.productId],
-  );
-
-  const { data: productDetail } = useAdminProduct(
-    item.kind === "CATALOG" && item.productId ? item.productId : undefined,
-  );
-
-  const template = productDetail?.template ?? selectedProduct?.template;
-
-  const isPizza = item.kind === "CATALOG" && template === "PIZZA";
-  const isCakeCatalog =
-    item.kind === "CATALOG" && (template ?? "CAKE") === "CAKE";
-
-  const sizeGroup = getSizeOptionGroup(productDetail);
-  const sizeOptions = sizeGroup?.options ?? [];
-  const sizePriceMode = sizeGroup?.priceMode ?? "ABSOLUTE";
-  const crustOptions = productDetail?.crustOptions ?? [];
-  const fixedSkus = availableFixedSkus(productDetail);
-  const hasFixedSkus = fixedSkus.length > 0;
-  const productFlavourIds = new Set(productDetail?.flavorIds ?? []);
-  // Size choices from OptionGroup (not ProductVariant table).
-  const hasOptionGroupSize =
-    sizeOptions.length > 0 && !isPizza && !hasFixedSkus;
-  const linkedToppingIds = new Set(productDetail?.toppingIds ?? []);
-  const linkedToppings = allToppings.filter((t) => linkedToppingIds.has(t.id));
-  const availToppings = linkedToppings.filter((t) => t.kind === "TOPPING");
-  const availCondiments = linkedToppings.filter((t) => t.kind === "CONDIMENT");
-
-  // Cake configurator — flavour + pounds with auto price (all CAKE catalog items).
-  const isCakeConfigurator =
-    isCakeCatalog && !isPizza && !hasFixedSkus && !hasOptionGroupSize;
-  const hasAttachedFlavours = productFlavourIds.size > 0;
-  const pickerFlavours = hasAttachedFlavours
-    ? flavours.filter((f) => productFlavourIds.has(f.id))
-    : flavours;
-  const availableCakeSizes = useMemo(() => {
-    if (!isCakeConfigurator) return [];
-    return cakeSizes.filter((s) => {
-      if (!s.isActive) return false;
-      if (productDetail?.sellByPound) {
-        if (productDetail.minGrams != null && s.grams < productDetail.minGrams)
-          return false;
-        if (productDetail.maxGrams != null && s.grams > productDetail.maxGrams)
-          return false;
-      }
-      return true;
-    });
-  }, [isCakeConfigurator, cakeSizes, productDetail]);
-
-  const autoPriced =
-    isPizza || isCakeConfigurator || hasOptionGroupSize || hasFixedSkus;
-
-  // For CUSTOM items only — expanded manual fields.
-  const showCakeFields = item.kind === "CUSTOM";
-
-  useEffect(() => {
-    if (item.kind !== "CATALOG" || !selectedProduct || !productDetail) return;
-    const patch: Partial<LineItem> = {};
-    if (!item.productName) patch.productName = selectedProduct.name;
-    const simpleProduct = !autoPriced;
-    if (!item.unitPrice && simpleProduct) {
-      patch.unitPrice = Number(selectedProduct.basePrice).toFixed(0);
-    }
-    if (Object.keys(patch).length) onPatch(patch);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProduct, productDetail, autoPriced]);
-
-  // Preselect default size from the size OptionGroup (non-pizza).
-  useEffect(() => {
-    if (!hasOptionGroupSize || !productDetail || item.sizeOptionId) return;
-    const def = sizeOptions.find((o) => o.isDefault) ?? sizeOptions[0];
-    if (def?.id) onPatch({ sizeOptionId: def.id });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasOptionGroupSize, productDetail]);
-
-  // ProductVariant SKU (FIXED_VARIANTS table) — separate from optionGroups.
-  useEffect(() => {
-    if (!hasFixedSkus || !item.variantId) return;
-    const sku = fixedSkus.find((v) => v.id === item.variantId);
-    if (!sku) return;
-    const attrs = sku.attributes as { weightGrams?: number } | null;
-    onPatch({
-      unitPrice: sku.price.toFixed(0),
-      sizeLabel: sku.label,
-      sizeGrams: attrs?.weightGrams ? String(attrs.weightGrams) : "",
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasFixedSkus, item.variantId, productDetail]);
-
-  // OptionGroup size — price respects ABSOLUTE vs DELTA on the group.
-  useEffect(() => {
-    if (!hasOptionGroupSize || !productDetail) return;
-    const picked = sizeOptions.find((o) => o.id === item.sizeOptionId);
-    if (!picked) return;
-    const base = Number(productDetail.basePrice);
-    onPatch({
-      unitPrice: optionUnitPrice(base, picked, sizePriceMode).toFixed(0),
-      sizeLabel: picked.label,
-      sizeGrams: picked.weightGrams ? String(picked.weightGrams) : "",
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasOptionGroupSize, item.sizeOptionId, productDetail]);
-
-  // Preselect default size + crust when the pizza detail arrives.
-  useEffect(() => {
-    if (!isPizza || !productDetail) return;
-    const patch: Partial<LineItem> = {};
-    if (!item.sizeOptionId && sizeOptions.length > 0) {
-      patch.sizeOptionId =
-        sizeOptions.find((o) => o.isDefault)?.id ?? sizeOptions[0].id ?? "";
-    }
-    if (!item.crustOptionId && crustOptions.length > 0) {
-      patch.crustOptionId =
-        crustOptions.find((o) => o.isDefault)?.id ?? crustOptions[0].id ?? "";
-    }
-    if (Object.keys(patch).length) onPatch(patch);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPizza, productDetail]);
-
-  // Preselect default pound size when cake detail arrives.
-  useEffect(() => {
-    if (!isCakeConfigurator || availableCakeSizes.length === 0) return;
-    if (item.cakeSizeId) return;
-    const oneLb = availableCakeSizes.find((s) => s.grams === 500);
-    const pick = oneLb ?? availableCakeSizes[0];
-    onPatch({
-      cakeSizeId: pick.id,
-      sizeGrams: String(pick.grams),
-      sizeLabel: pick.label,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCakeConfigurator, availableCakeSizes, productDetail?.id]);
-
-  // Preselect flavour when there's an obvious default.
-  useEffect(() => {
-    if (!isCakeConfigurator || item.flavourId || pickerFlavours.length === 0)
-      return;
-    onPatch({ flavourId: pickerFlavours[0].id });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCakeConfigurator, productDetail?.id, pickerFlavours.length]);
-
-  // Recompute unit price + size label when any pizza selection changes.
-  const pickedSize = sizeOptions.find((o) => o.id === item.sizeOptionId);
-  const pickedCrust = crustOptions.find((o) => o.id === item.crustOptionId);
-  const pickedToppingsFull = allToppings.filter((t) =>
-    item.toppingSelections.includes(t.id),
-  );
-
-  // Recompute cake price when size or flavour changes.
-  useEffect(() => {
-    if (!isCakeConfigurator || !productDetail) return;
-    const size = availableCakeSizes.find((s) => s.id === item.cakeSizeId);
-    if (!size) return;
-    const base = Number(productDetail.basePrice);
-    const flavour = pickerFlavours.find((f) => f.id === item.flavourId);
-    const flavourAdditional = flavour ? Number(flavour.additionalAmount) : 0;
-    const computed = computeCakeUnitPrice(
-      base,
-      size.grams,
-      flavourAdditional,
-      hasAttachedFlavours,
-    );
-    onPatch({
-      unitPrice: computed.toFixed(0),
-      sizeGrams: String(size.grams),
-      sizeLabel: size.label,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isCakeConfigurator,
-    item.cakeSizeId,
-    item.flavourId,
-    productDetail,
-    hasAttachedFlavours,
-  ]);
-
-  useEffect(() => {
-    if (!isPizza || !productDetail) return;
-    const sizePrice = pickedSize ? Number(pickedSize.price) : 0;
-    const crustDelta = pickedCrust ? Number(pickedCrust.price) : 0;
-    const toppingsDelta = pickedToppingsFull.reduce(
-      (s, t) => s + Number(t.priceDelta),
-      0,
-    );
-    const computed = sizePrice + crustDelta + toppingsDelta;
-    const patch: Partial<LineItem> = { unitPrice: computed.toFixed(0) };
-    if (pickedSize) patch.sizeLabel = pickedSize.label;
-    patch.crustLabel = pickedCrust ? pickedCrust.label : "";
-    onPatch(patch);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isPizza,
-    item.sizeOptionId,
-    item.crustOptionId,
-    item.toppingSelections.join("|"),
-  ]);
-
-  const toggleTopping = (id: string) => {
-    const next = item.toppingSelections.includes(id)
-      ? item.toppingSelections.filter((x) => x !== id)
-      : [...item.toppingSelections, id];
-    onPatch({ toppingSelections: next });
-  };
-
-  const cakeBasePrice = productDetail ? Number(productDetail.basePrice) : 0;
-  const pickedCakeFlavour = pickerFlavours.find((f) => f.id === item.flavourId);
-  const cakeFlavourAdditional = pickedCakeFlavour
-    ? Number(pickedCakeFlavour.additionalAmount)
-    : 0;
-
-  return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                item.kind === "CATALOG"
-                  ? "bg-sky-100 text-sky-700"
-                  : "bg-brand-100 text-brand-700",
-              )}
-            >
-              {item.kind === "CATALOG" ? (
-                <Package className="h-3 w-3" />
-              ) : (
-                <Sparkles className="h-3 w-3" />
-              )}
-              {item.kind === "CATALOG" ? "Catalog" : "Custom"}
-            </span>
-            <span className="text-xs text-slate-400">#{index + 1}</span>
-          </div>
-
-          {item.kind === "CATALOG" && (
-            <div className="mt-3 space-y-3">
-              <Field label="Product" required>
-                <SearchableSelect
-                  value={item.productId}
-                  onChange={(productId) =>
-                    onPatch({ productId, ...resetCatalogProductPick() })
-                  }
-                  searchPlaceholder="Search products…"
-                  options={products.map((p) => ({
-                    value: p.id,
-                    label: formatCatalogProductLabel(p),
-                    keywords: p.name,
-                  }))}
-                />
-              </Field>
-
-              {item.productId && productDetail && hasFixedSkus && (
-                <Field label="Variant (SKU)" required>
-                  <SearchableSelect
-                    value={item.variantId}
-                    onChange={(variantId) => onPatch({ variantId })}
-                    searchPlaceholder="Search SKUs…"
-                    allowEmpty={false}
-                    placeholder="— Pick SKU —"
-                    options={fixedSkus.map((v) => ({
-                      value: v.id,
-                      label: `${v.label} · ₹${v.price.toFixed(0)}`,
-                      keywords: `${v.label} ${v.sku}`,
-                    }))}
-                  />
-                </Field>
-              )}
-
-              {item.productId && productDetail && hasOptionGroupSize && (
-                <Field
-                  label={sizeGroup?.label ?? "Size"}
-                  required
-                  hint="From product option groups"
-                >
-                  <SearchableSelect
-                    value={item.sizeOptionId}
-                    onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
-                    searchPlaceholder="Search sizes…"
-                    allowEmpty={false}
-                    placeholder="— Pick size —"
-                    options={sizeOptions.map((o) => ({
-                      value: o.id!,
-                      label: formatOptionSelectLabel(
-                        o,
-                        Number(productDetail.basePrice),
-                        sizePriceMode,
-                      ),
-                      keywords: o.label,
-                    }))}
-                  />
-                </Field>
-              )}
-            </div>
-          )}
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
-            <Field
-              label={item.kind === "CATALOG" ? "Name (override)" : "Name"}
-              required
-            >
-              <input
-                value={item.productName}
-                onChange={(e) => onPatch({ productName: e.target.value })}
-                placeholder={
-                  item.kind === "CATALOG"
-                    ? "Uses product name if blank"
-                    : "1 pound chocolate cake"
-                }
-                className={inputClass}
-              />
-            </Field>
-            <Field
-              label={autoPriced ? "Unit price (auto)" : "Unit price (₹)"}
-              required
-            >
-              <input
-                type="text"
-                inputMode="decimal"
-                value={item.unitPrice}
-                onChange={(e) =>
-                  onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })
-                }
-                placeholder="500"
-                disabled={autoPriced}
-                className={cn(
-                  inputClass,
-                  autoPriced && "bg-slate-100 text-slate-600",
-                )}
-              />
-            </Field>
-            <Field label="Qty" required>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={item.qty}
-                onChange={(e) =>
-                  onPatch({ qty: e.target.value.replace(/\D/g, "") })
-                }
-                placeholder="1"
-                className={inputClass}
-              />
-            </Field>
-          </div>
-
-          {isCakeConfigurator && productDetail && (
-            <div className="mt-3 space-y-3 rounded-md border border-amber-100 bg-amber-50/40 p-3">
-              <p className="text-xs text-amber-900/70">
-                {hasAttachedFlavours
-                  ? `Base ₹${cakeBasePrice.toFixed(0)}/lb — flavour is part of this recipe.`
-                  : `Base ₹${cakeBasePrice.toFixed(0)}/lb — flavour adds per pound on top.`}
-              </p>
-              {availableCakeSizes.length > 0 && (
-                <Field label="Size (pounds)" required>
-                  <SearchableSelect
-                    value={item.cakeSizeId}
-                    onChange={(cakeSizeId) => onPatch({ cakeSizeId })}
-                    searchPlaceholder="Search sizes…"
-                    allowEmpty={false}
-                    placeholder="— Pick size —"
-                    options={availableCakeSizes.map((s) => ({
-                      value: s.id,
-                      label: cakeSizeSelectLabel(
-                        s.label,
-                        s.grams,
-                        cakeBasePrice,
-                        cakeFlavourAdditional,
-                        hasAttachedFlavours,
-                      ),
-                      keywords: s.label,
-                    }))}
-                  />
-                </Field>
-              )}
-              {pickerFlavours.length > 0 && (
-                <Field
-                  label="Flavour"
-                  required={!hasAttachedFlavours}
-                  hint={
-                    hasAttachedFlavours
-                      ? "Linked to this product in the catalog."
-                      : "Optional add-on per pound."
-                  }
-                >
-                  <SearchableSelect
-                    value={item.flavourId}
-                    onChange={(flavourId) => onPatch({ flavourId })}
-                    searchPlaceholder="Search flavours…"
-                    allowEmpty={hasAttachedFlavours}
-                    placeholder="— Pick flavour —"
-                    options={pickerFlavours.map((f) => {
-                      const delta = Number(f.additionalAmount);
-                      return {
-                        value: f.id,
-                        label: hasAttachedFlavours
-                          ? f.name
-                          : delta > 0
-                            ? `${f.name} (+₹${delta.toFixed(0)}/lb)`
-                            : f.name,
-                        keywords: f.name,
-                      };
-                    })}
-                  />
-                </Field>
-              )}
-              <Field label="Message on cake">
-                <input
-                  value={item.messageOnCake}
-                  onChange={(e) => onPatch({ messageOnCake: e.target.value })}
-                  placeholder="Happy Birthday Aarav"
-                  className={inputClass}
-                />
-              </Field>
-            </div>
-          )}
-
-          {isPizza && productDetail && (
-            <div className="mt-3 space-y-3 rounded-md border border-sky-100 bg-sky-50/40 p-3">
-              {sizeOptions.length > 0 && (
-                <Field label="Size" required>
-                  <SearchableSelect
-                    value={item.sizeOptionId}
-                    onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
-                    searchPlaceholder="Search sizes…"
-                    allowEmpty={false}
-                    placeholder="— Pick size —"
-                    options={sizeOptions.map((o) => ({
-                      value: o.id!,
-                      label: formatOptionSelectLabel(
-                        o,
-                        Number(productDetail.basePrice),
-                        sizePriceMode,
-                      ),
-                      keywords: o.label,
-                    }))}
-                  />
-                </Field>
-              )}
-              {crustOptions.length > 0 && (
-                <Field label="Crust">
-                  <select
-                    value={item.crustOptionId}
-                    onChange={(e) => onPatch({ crustOptionId: e.target.value })}
-                    className={selectClass}
-                  >
-                    {crustOptions.map((o) => {
-                      const delta = Number(o.price);
-                      return (
-                        <option key={o.id} value={o.id}>
-                          {o.label}
-                          {delta === 0 ? "" : ` (+₹${delta.toFixed(0)})`}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </Field>
-              )}
-              {availToppings.length > 0 && (
-                <div>
-                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Toppings
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availToppings.map((t) => {
-                      const on = item.toppingSelections.includes(t.id);
-                      const delta = Number(t.priceDelta);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => toggleTopping(t.id)}
-                          className={cn(
-                            "rounded-full border px-2.5 py-1 text-xs font-medium transition",
-                            on
-                              ? "border-brand-500 bg-brand-100 text-brand-700"
-                              : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
-                          )}
-                        >
-                          {t.name}
-                          {delta > 0 && (
-                            <span className="ml-1 text-slate-500">
-                              +₹{delta.toFixed(0)}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {availCondiments.length > 0 && (
-                <div>
-                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Condiments / Extras
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availCondiments.map((t) => {
-                      const on = item.toppingSelections.includes(t.id);
-                      const delta = Number(t.priceDelta);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => toggleTopping(t.id)}
-                          className={cn(
-                            "rounded-full border px-2.5 py-1 text-xs font-medium transition",
-                            on
-                              ? "border-brand-500 bg-brand-100 text-brand-700"
-                              : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
-                          )}
-                        >
-                          {t.name}
-                          {delta > 0 && (
-                            <span className="ml-1 text-slate-500">
-                              +₹{delta.toFixed(0)}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {item.kind === "CUSTOM" && (
-            <button
-              type="button"
-              onClick={() => onPatch({ expanded: !item.expanded })}
-              className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-brand-700"
-            >
-              {item.expanded ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
-              {item.expanded ? "Hide" : "Show"} details (size, flavour, message,
-              reference image)
-            </button>
-          )}
-
-          {item.kind === "CUSTOM" && item.expanded && (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Size label">
-                <input
-                  value={item.sizeLabel}
-                  onChange={(e) => onPatch({ sizeLabel: e.target.value })}
-                  placeholder="1 pound / 500g"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Size (grams)">
-                <input
-                  type="number"
-                  min={1}
-                  value={item.sizeGrams}
-                  onChange={(e) => onPatch({ sizeGrams: e.target.value })}
-                  className={inputClass}
-                />
-              </Field>
-              {showCakeFields && (
-                <>
-                  <Field label="Flavour">
-                    <select
-                      value={item.flavourId}
-                      onChange={(e) => onPatch({ flavourId: e.target.value })}
-                      className={selectClass}
-                    >
-                      <option value="">— None —</option>
-                      {flavours.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Message on cake">
-                    <input
-                      value={item.messageOnCake}
-                      onChange={(e) =>
-                        onPatch({ messageOnCake: e.target.value })
-                      }
-                      placeholder="Happy Birthday Aarav"
-                      className={inputClass}
-                    />
-                  </Field>
-                </>
-              )}
-              <Field label="Instructions" className="sm:col-span-2">
-                <input
-                  value={item.instructions}
-                  onChange={(e) => onPatch({ instructions: e.target.value })}
-                  placeholder="Extra frosting, no nuts…"
-                  className={inputClass}
-                />
-              </Field>
-              {item.kind === "CUSTOM" && (
-                <Field label="Reference image" className="sm:col-span-2">
-                  <div className="flex items-start gap-3">
-                    {item.refPreview ? (
-                      <div className="relative h-20 w-20 shrink-0">
-                        <img
-                          src={item.refPreview}
-                          alt="Reference"
-                          className="h-full w-full rounded-md object-cover ring-1 ring-slate-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onPatch({ refFile: null, refPreview: null })
-                          }
-                          className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-900/70 text-white hover:bg-slate-900"
-                          aria-label="Remove image"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-[10px] text-slate-400">
-                        No image
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
-                      onChange={(e) =>
-                        onPatch({ refFile: e.target.files?.[0] ?? null })
-                      }
-                      className="block text-xs text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-50"
-                    />
-                  </div>
-                </Field>
-              )}
-            </div>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={!canRemove}
-          className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-          aria-label="Remove item"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function Section({
   title,
