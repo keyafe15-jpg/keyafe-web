@@ -15,19 +15,10 @@ import {
   type OrderStatus,
   type PaymentStatus,
 } from "@/hooks/useAdminOrders";
-import { StatusPill } from "./OrdersListPage";
+import { StatusPill, STATUS_FLOW } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
 import { textareaClass } from "@/components/form/Field";
 import { uploadImage } from "@/lib/uploads";
-
-const STATUS_FLOW: OrderStatus[] = [
-  "PENDING",
-  "CONFIRMED",
-  "IN_KITCHEN",
-  "READY",
-  "OUT_FOR_DELIVERY",
-  "DELIVERED",
-];
 
 export function OrderDetailPage() {
   const { idOrNumber = "" } = useParams<{ idOrNumber: string }>();

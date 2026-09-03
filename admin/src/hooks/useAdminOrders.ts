@@ -44,10 +44,13 @@ export interface AdminOrderListItem {
   items: {
     id: string;
     productName: string;
+    productImage: string | null;
     sizeLabel: string | null;
     flavourName: string | null;
     qty: number;
     messageOnCake: string | null;
+    instructions: string | null;
+    referenceImageUrl: string | null;
     deliveryDate: string | null;
     deliverySlotKey: string | null;
     deliverySlotLabel: string | null;
@@ -103,6 +106,7 @@ export interface AdminOrdersFilter {
   deliveryFrom?: string | null; // YYYY-MM-DD (inclusive)
   deliveryTo?: string | null; // YYYY-MM-DD (inclusive)
   search?: string | null;
+  excludeStatuses?: OrderStatus[];
   page?: number;
   pageSize?: number;
 }
@@ -120,6 +124,7 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
   const deliveryFrom = filter?.deliveryFrom ?? null;
   const deliveryTo = filter?.deliveryTo ?? null;
   const search = filter?.search?.trim() ?? "";
+  const excludeStatuses = filter?.excludeStatuses ?? [];
   const page = filter?.page ?? 1;
   const pageSize = filter?.pageSize ?? 20;
   const params = new URLSearchParams();
@@ -127,6 +132,9 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
   if (deliveryFrom) params.set("deliveryFrom", deliveryFrom);
   if (deliveryTo) params.set("deliveryTo", deliveryTo);
   if (search) params.set("search", search);
+  if (excludeStatuses.length > 0) {
+    params.set("excludeStatus", excludeStatuses.join(","));
+  }
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
   const qs = params.toString();
@@ -138,6 +146,7 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
       deliveryFrom ?? "*",
       deliveryTo ?? "*",
       search || "*",
+      excludeStatuses.join(",") || "*",
       page,
       pageSize,
     ],

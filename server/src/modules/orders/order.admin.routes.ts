@@ -25,6 +25,7 @@ function buildAdminOrderListWhere(opts: {
   deliveryFrom?: string | null;
   deliveryTo?: string | null;
   search?: string | null;
+  excludeStatuses?: string[];
 }): Record<string, unknown> | undefined {
   const and: Record<string, unknown>[] = [];
 
@@ -33,6 +34,15 @@ function buildAdminOrderListWhere(opts: {
     (ORDER_STATUSES as readonly string[]).includes(opts.status)
   ) {
     and.push({ status: opts.status });
+  }
+
+  if (opts.excludeStatuses && opts.excludeStatuses.length > 0) {
+    const valid = opts.excludeStatuses.filter((s) =>
+      (ORDER_STATUSES as readonly string[]).includes(s),
+    );
+    if (valid.length > 0) {
+      and.push({ status: { notIn: valid } });
+    }
   }
 
   const dateFilter: { gte?: Date; lt?: Date } = {};
@@ -78,6 +88,13 @@ adminOrderRouter.get("/", async (req, res) => {
     typeof req.query.deliveryTo === "string" ? req.query.deliveryTo : null;
   const search =
     typeof req.query.search === "string" ? req.query.search : null;
+  const excludeStatus =
+    typeof req.query.excludeStatus === "string"
+      ? req.query.excludeStatus
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
 
@@ -86,6 +103,7 @@ adminOrderRouter.get("/", async (req, res) => {
     deliveryFrom,
     deliveryTo,
     search,
+    excludeStatuses: excludeStatus,
   });
 
   const [total, rows] = await Promise.all([
@@ -118,10 +136,13 @@ adminOrderRouter.get("/", async (req, res) => {
           select: {
             id: true,
             productName: true,
+            productImage: true,
             sizeLabel: true,
             flavourName: true,
             qty: true,
             messageOnCake: true,
+            instructions: true,
+            referenceImageUrl: true,
             deliveryDate: true,
             deliverySlotKey: true,
             deliverySlotLabel: true,
