@@ -71,6 +71,12 @@ export const createProductSchema = z.object({
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 
+/** Storefront only shows active products that are in stock. */
+const PUBLIC_LIST_WHERE = {
+  isActive: true,
+  isAvailable: true,
+} as const;
+
 const ADMIN_LIST_SELECT = {
   id: true,
   slug: true,
@@ -122,14 +128,32 @@ function decorateAdminListRow<
   return { ...rest, priceMin, priceMax };
 }
 
-export async function listProducts(page = 1, pageSize = 20) {
+function buildAdminProductSearchWhere(search?: string) {
+  const q = search?.trim();
+  if (!q) return {};
+  return {
+    OR: [
+      { name: { contains: q, mode: "insensitive" as const } },
+      { slug: { contains: q, mode: "insensitive" as const } },
+      { category: { name: { contains: q, mode: "insensitive" as const } } },
+    ],
+  };
+}
+
+export async function listProducts(
+  page = 1,
+  pageSize = 20,
+  search?: string,
+) {
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
   const skip = (safePage - 1) * safePageSize;
+  const where = buildAdminProductSearchWhere(search);
 
   const [total, products] = await Promise.all([
-    prisma.product.count(),
+    prisma.product.count({ where }),
     prisma.product.findMany({
+      where,
       orderBy: [{ createdAt: "desc" }],
       skip,
       take: safePageSize,
@@ -246,13 +270,13 @@ export async function listPublicProductsByCategorySlug(
   const [total, products] = await Promise.all([
     prisma.product.count({
       where: {
-        isActive: true,
+        ...PUBLIC_LIST_WHERE,
         categoryId: { in: categoryIds },
       },
     }),
     prisma.product.findMany({
       where: {
-        isActive: true,
+        ...PUBLIC_LIST_WHERE,
         categoryId: { in: categoryIds },
       },
       orderBy: [
@@ -285,7 +309,7 @@ export async function listPublicProductsByCategorySlug(
 export async function listSameDayProducts() {
   const products = await prisma.product.findMany({
     where: {
-      isActive: true,
+      ...PUBLIC_LIST_WHERE,
       supportsSameDayDelivery: true,
     },
     orderBy: [
@@ -303,7 +327,7 @@ export async function listSameDayProducts() {
 export async function listPanIndiaProducts() {
   const products = await prisma.product.findMany({
     where: {
-      isActive: true,
+      ...PUBLIC_LIST_WHERE,
       canBeDeliveredPanIndia: true,
     },
     orderBy: [
@@ -322,7 +346,7 @@ export async function listPanIndiaProducts() {
 export async function listHealthyTreatProducts() {
   const products = await prisma.product.findMany({
     where: {
-      isActive: true,
+      ...PUBLIC_LIST_WHERE,
       isHealthyTreat: true,
     },
     orderBy: [
@@ -336,8 +360,7 @@ export async function listHealthyTreatProducts() {
   return products.map((p) => decorateCard(p as unknown as PublicCardRow));
 }
 
-// Full product detail for the PDP. Only returns active rows; unavailable ones
-// still return (so shoppers see "sold out") — hidden inactive rows 404.
+// Full product detail for the PDP. Inactive or out-of-stock products 404.
 export async function getPublicProductBySlug(slug: string) {
   const product = await prisma.product.findUnique({
     where: { slug },
@@ -431,7 +454,7 @@ export async function getPublicProductBySlug(slug: string) {
     },
   });
 
-  if (!product || !product.isActive) {
+  if (!product || !product.isActive || !product.isAvailable) {
     throw HttpError.notFound("Product not found");
   }
 

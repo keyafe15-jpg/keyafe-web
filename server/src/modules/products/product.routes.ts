@@ -14,9 +14,12 @@ import {
 export const adminProductRouter = Router();
 
 adminProductRouter.get("/", async (req, res) => {
+  const search =
+    typeof req.query.search === "string" ? req.query.search : undefined;
   const products = await listProducts(
     Number(req.query.page ?? 1),
     Number(req.query.pageSize ?? 20),
+    search,
   );
   res.json(products);
 });

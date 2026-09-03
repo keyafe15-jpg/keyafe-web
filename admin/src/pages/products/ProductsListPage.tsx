@@ -1,35 +1,76 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, ImageOff } from "lucide-react";
-import { useAdminProducts } from "@/hooks/useAdminProducts";
+import { Plus, ImageOff, Search, X } from "lucide-react";
+import { useAdminProducts, useUpdateProduct } from "@/hooks/useAdminProducts";
 import { PaginationControls } from "@/components/ClientPagination";
+import { inputClass } from "@/components/form/Field";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 20;
 
 export function ProductsListPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useAdminProducts(page, PAGE_SIZE);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const { data, isLoading, isFetching } = useAdminProducts(
+    page,
+    PAGE_SIZE,
+    search,
+  );
   const products = data?.items ?? [];
   const total = data?.total ?? 0;
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  const searching = search.length > 0;
+
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Products</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Full catalogue — {total} product
-            {total === 1 ? "" : "s"}.
+            {searching
+              ? `${total} match${total === 1 ? "" : "es"} for “${search}”`
+              : `Full catalogue — ${total} product${total === 1 ? "" : "s"}.`}
           </p>
         </div>
         <Link
           to="/products/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
+          className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
         >
           <Plus className="h-4 w-4" /> New product
         </Link>
+      </div>
+
+      <div className="mb-4">
+        <div className="relative max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search by name, slug, or category…"
+            className={cn(inputClass, "pl-9 pr-9")}
+          />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => setSearchInput("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
@@ -38,15 +79,29 @@ export function ProductsListPage() {
         )}
         {!isLoading && products.length === 0 && (
           <div className="p-8 text-center text-sm text-slate-500">
-            No products yet.{" "}
-            <Link to="/products/new" className="text-brand-500 hover:underline">
-              Add your first product
-            </Link>
-            .
+            {searching ? (
+              <>No products match “{search}”.</>
+            ) : (
+              <>
+                No products yet.{" "}
+                <Link
+                  to="/products/new"
+                  className="text-brand-500 hover:underline"
+                >
+                  Add your first product
+                </Link>
+                .
+              </>
+            )}
           </div>
         )}
         {!isLoading && products.length > 0 && (
           <>
+          {isFetching && !isLoading && (
+            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+              Updating results…
+            </div>
+          )}
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
@@ -100,6 +155,7 @@ export function ProductsListPage() {
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadges
+                      productId={p.id}
                       isActive={p.isActive}
                       isAvailable={p.isAvailable}
                       isFeatured={p.isFeatured}
@@ -150,14 +206,33 @@ function PriceCell({
 }
 
 function StatusBadges({
+  productId,
   isActive,
   isAvailable,
   isFeatured,
 }: {
+  productId: string;
   isActive: boolean;
   isAvailable: boolean;
   isFeatured: boolean;
 }) {
+  const update = useUpdateProduct();
+  const [pending, setPending] = useState(false);
+
+  const toggleStock = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (pending || !isActive) return;
+    setPending(true);
+    try {
+      await update.mutateAsync({
+        id: productId,
+        isAvailable: !isAvailable,
+      });
+    } finally {
+      setPending(false);
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-1">
       <Chip
@@ -165,11 +240,27 @@ function StatusBadges({
         label={isActive ? "Active" : "Draft"}
         tone={isActive ? "green" : "slate"}
       />
-      <Chip
-        active={isAvailable}
-        label={isAvailable ? "In stock" : "Sold out"}
-        tone={isAvailable ? "green" : "amber"}
-      />
+      <button
+        type="button"
+        onClick={toggleStock}
+        disabled={!isActive || pending}
+        title={
+          !isActive
+            ? "Activate the product before changing stock"
+            : isAvailable
+              ? "Mark out of stock (hidden on storefront)"
+              : "Mark in stock (visible on storefront)"
+        }
+        className={cn(
+          "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium transition",
+          !isActive && "cursor-not-allowed opacity-50",
+          isAvailable
+            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            : "bg-amber-50 text-amber-700 hover:bg-amber-100",
+        )}
+      >
+        {pending ? "…" : isAvailable ? "In stock" : "Out of stock"}
+      </button>
       {isFeatured && <Chip active label="Featured" tone="brand" />}
     </div>
   );

@@ -64,13 +64,18 @@ export interface AdminProductsPage {
   totalPages: number;
 }
 
-export function useAdminProducts(page = 1, pageSize = 20) {
+export function useAdminProducts(page = 1, pageSize = 20, search = "") {
+  const q = search.trim();
   return useQuery<AdminProductsPage>({
-    queryKey: ["admin", "products", page, pageSize],
-    queryFn: () =>
-      api.get<AdminProductsPage>(
-        `/admin/products?page=${page}&pageSize=${pageSize}`,
-      ),
+    queryKey: ["admin", "products", page, pageSize, q],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      if (q) params.set("search", q);
+      return api.get<AdminProductsPage>(`/admin/products?${params}`);
+    },
     staleTime: 30_000,
   });
 }

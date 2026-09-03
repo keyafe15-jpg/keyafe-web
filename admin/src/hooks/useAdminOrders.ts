@@ -102,6 +102,7 @@ export interface AdminOrdersFilter {
   status?: OrderStatus | null;
   deliveryFrom?: string | null; // YYYY-MM-DD (inclusive)
   deliveryTo?: string | null; // YYYY-MM-DD (inclusive)
+  search?: string | null;
   page?: number;
   pageSize?: number;
 }
@@ -118,12 +119,14 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
   const status = filter?.status ?? null;
   const deliveryFrom = filter?.deliveryFrom ?? null;
   const deliveryTo = filter?.deliveryTo ?? null;
+  const search = filter?.search?.trim() ?? "";
   const page = filter?.page ?? 1;
   const pageSize = filter?.pageSize ?? 20;
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (deliveryFrom) params.set("deliveryFrom", deliveryFrom);
   if (deliveryTo) params.set("deliveryTo", deliveryTo);
+  if (search) params.set("search", search);
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
   const qs = params.toString();
@@ -134,6 +137,7 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
       status ?? "ALL",
       deliveryFrom ?? "*",
       deliveryTo ?? "*",
+      search || "*",
       page,
       pageSize,
     ],

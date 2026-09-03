@@ -20,35 +20,73 @@ const ORDER_STATUSES = [
   "CANCELLED",
 ] as const satisfies readonly OrderStatus[];
 
+function buildAdminOrderListWhere(opts: {
+  status?: string | null;
+  deliveryFrom?: string | null;
+  deliveryTo?: string | null;
+  search?: string | null;
+}): Record<string, unknown> | undefined {
+  const and: Record<string, unknown>[] = [];
+
+  if (
+    opts.status &&
+    (ORDER_STATUSES as readonly string[]).includes(opts.status)
+  ) {
+    and.push({ status: opts.status });
+  }
+
+  const dateFilter: { gte?: Date; lt?: Date } = {};
+  if (opts.deliveryFrom && /^\d{4}-\d{2}-\d{2}$/.test(opts.deliveryFrom)) {
+    const [y, m, d] = opts.deliveryFrom.split("-").map(Number);
+    dateFilter.gte = new Date(y!, m! - 1, d!, 0, 0, 0);
+  }
+  if (opts.deliveryTo && /^\d{4}-\d{2}-\d{2}$/.test(opts.deliveryTo)) {
+    const [y, m, d] = opts.deliveryTo.split("-").map(Number);
+    dateFilter.lt = new Date(y!, m! - 1, d! + 1, 0, 0, 0);
+  }
+  if (dateFilter.gte || dateFilter.lt) {
+    and.push({ items: { some: { deliveryDate: dateFilter } } });
+  }
+
+  const q = opts.search?.trim();
+  if (q) {
+    and.push({
+      OR: [
+        { orderNumber: { contains: q, mode: "insensitive" } },
+        { customerName: { contains: q, mode: "insensitive" } },
+        { customerPhone: { contains: q, mode: "insensitive" } },
+        { customerEmail: { contains: q, mode: "insensitive" } },
+        {
+          items: {
+            some: { productName: { contains: q, mode: "insensitive" } },
+          },
+        },
+      ],
+    });
+  }
+
+  if (and.length === 0) return undefined;
+  if (and.length === 1) return and[0];
+  return { AND: and };
+}
+
 adminOrderRouter.get("/", async (req, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : null;
   const deliveryFrom =
     typeof req.query.deliveryFrom === "string" ? req.query.deliveryFrom : null;
   const deliveryTo =
     typeof req.query.deliveryTo === "string" ? req.query.deliveryTo : null;
+  const search =
+    typeof req.query.search === "string" ? req.query.search : null;
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
 
-  const where: Record<string, unknown> = {};
-  if (status && (ORDER_STATUSES as readonly string[]).includes(status)) {
-    where.status = status as OrderStatus;
-  }
-
-  const dateFilter: { gte?: Date; lt?: Date } = {};
-  if (deliveryFrom && /^\d{4}-\d{2}-\d{2}$/.test(deliveryFrom)) {
-    const [y, m, d] = deliveryFrom.split("-").map(Number);
-    dateFilter.gte = new Date(y!, m! - 1, d!, 0, 0, 0);
-  }
-  if (deliveryTo && /^\d{4}-\d{2}-\d{2}$/.test(deliveryTo)) {
-    const [y, m, d] = deliveryTo.split("-").map(Number);
-    // `lt` next-day-midnight so the whole `to` day is included.
-    dateFilter.lt = new Date(y!, m! - 1, d! + 1, 0, 0, 0);
-  }
-  if (dateFilter.gte || dateFilter.lt) {
-    where.items = { some: { deliveryDate: dateFilter } };
-  }
-
-  const whereClause = Object.keys(where).length ? where : undefined;
+  const whereClause = buildAdminOrderListWhere({
+    status,
+    deliveryFrom,
+    deliveryTo,
+    search,
+  });
 
   const [total, rows] = await Promise.all([
     prisma.order.count({ where: whereClause }),

@@ -803,8 +803,8 @@ export function ProductFormPage() {
             />
             <Checkbox
               {...register("isAvailable")}
-              label="Available for order"
-              hint="Uncheck to show 'Sold out'."
+              label="In stock"
+              hint="Uncheck to mark out of stock — hidden from the storefront."
             />
             <Checkbox
               {...register("isFeatured")}

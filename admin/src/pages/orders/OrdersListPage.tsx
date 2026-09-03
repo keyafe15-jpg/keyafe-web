@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Truck,
@@ -8,6 +8,8 @@ import {
   Globe,
   Link2,
   PhoneCall,
+  Search,
+  X,
 } from "lucide-react";
 import {
   useAdminOrders,
@@ -16,6 +18,7 @@ import {
   type OrderSource,
 } from "@/hooks/useAdminOrders";
 import { PaginationControls } from "@/components/ClientPagination";
+import { inputClass } from "@/components/form/Field";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 20;
@@ -35,17 +38,30 @@ export function OrdersListPage() {
   const [tab, setTab] = useState<OrderStatus | "ALL">("ALL");
   const [deliveryFrom, setDeliveryFrom] = useState<string>("");
   const [deliveryTo, setDeliveryTo] = useState<string>("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useAdminOrders({
+  const { data, isLoading, isFetching } = useAdminOrders({
     status: tab === "ALL" ? null : tab,
     deliveryFrom: deliveryFrom || null,
     deliveryTo: deliveryTo || null,
+    search: search || null,
     page,
     pageSize: PAGE_SIZE,
   });
   const orders = data?.items ?? [];
   const { data: counts } = useAdminOrderCounts();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  const searching = search.length > 0;
 
   const changeTab = (t: OrderStatus | "ALL") => {
     setTab(t);
@@ -78,7 +94,9 @@ export function OrdersListPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Orders</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Web + offline orders across all channels.
+            {searching
+              ? `${data?.total ?? 0} match${data?.total === 1 ? "" : "es"} for “${search}”`
+              : "Web + offline orders across all channels."}
           </p>
         </div>
 
@@ -151,6 +169,29 @@ export function OrdersListPage() {
         </div>
       </div>
 
+      <div className="mb-4">
+        <div className="relative max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search order #, customer, phone, or product…"
+            className={cn(inputClass, "pl-9 pr-9")}
+          />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => setSearchInput("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="mb-5 -mx-4 overflow-x-auto sm:mx-0">
         <div className="mx-4 inline-flex min-w-full flex-wrap gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 sm:mx-0">
           {TABS.map((t) => (
@@ -188,12 +229,19 @@ export function OrdersListPage() {
         )}
         {!isLoading && orders.length === 0 && (
           <div className="p-12 text-center text-sm text-slate-500">
-            No orders in this bucket yet.
+            {searching
+              ? `No orders match “${search}”.`
+              : "No orders in this bucket yet."}
           </div>
         )}
 
         {!isLoading && orders.length > 0 && (
           <>
+            {isFetching && !isLoading && (
+              <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+                Updating results…
+              </div>
+            )}
             {/* Table view — md+ screens */}
             <table className="hidden w-full text-left text-sm md:table">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
