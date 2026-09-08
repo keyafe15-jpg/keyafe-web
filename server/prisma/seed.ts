@@ -1439,7 +1439,13 @@ async function seedTags() {
   logger.info(`Seeded ${tags.length} product tags`);
 }
 
+async function seedRbacCatalog() {
+  const { seedRbac } = await import("../src/modules/staff/rbac.seed.js");
+  await seedRbac();
+}
+
 async function main() {
+  await seedRbacCatalog();
   await seedBusinessSettings();
   await seedSameDayWeeklySchedule();
   await seedDeliveryPincodes();

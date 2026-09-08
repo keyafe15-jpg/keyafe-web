@@ -8,6 +8,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useAdminAuth } from "@/store/adminAuth";
+import { staffHasPermission } from "@/lib/permissions";
 
 interface DashboardAnalyticsResponse {
   summary: {
@@ -54,6 +56,8 @@ const defaultMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 export function DashboardPage() {
   const [from, setFrom] = useState(toInputDate(defaultMonthStart));
   const [to, setTo] = useState(toInputDate(today));
+  const user = useAdminAuth((s) => s.user);
+  const canReadDashboard = staffHasPermission(user, "dashboard.read");
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -69,6 +73,7 @@ export function DashboardPage() {
         `/admin/orders/analytics${queryParams.size ? `?${queryParams.toString()}` : ""}`,
       ),
     staleTime: 30_000,
+    enabled: canReadDashboard,
   });
 
   const summary = data?.summary ?? {

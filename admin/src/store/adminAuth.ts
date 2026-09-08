@@ -1,10 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { api, setAdminAccessToken } from "@/lib/api";
 
 export interface AdminUser {
   id: string;
   name: string;
-  email: string;
+  phone: string;
+  email?: string;
   role: {
     slug: string;
     isSuperuser: boolean;
@@ -12,53 +14,101 @@ export interface AdminUser {
   };
 }
 
-interface AdminAuthState {
-  user: AdminUser | null;
-  isSubmitting: boolean;
-  error: string | null;
-  login: (input: { email: string; password: string }) => Promise<void>;
-  logout: () => Promise<void>;
+interface AuthApiResponse {
+  user: AdminUser;
+  accessToken: string;
+  refreshToken: string;
 }
 
-// Mocked until Phase 6.5 (real auth wiring).
-const fakeDelay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+interface AdminAuthState {
+  user: AdminUser | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isSubmitting: boolean;
+  error: string | null;
+  sendOtp: (phone: string) => Promise<string | null>;
+  verifyOtp: (input: { phone: string; otp: string }) => Promise<boolean>;
+  logout: () => Promise<void>;
+  clearError: () => void;
+}
+
+function applySession(user: AdminUser, accessToken: string, refreshToken: string) {
+  setAdminAccessToken(accessToken);
+  return { user, accessToken, refreshToken, isSubmitting: false, error: null };
+}
 
 export const useAdminAuth = create<AdminAuthState>()(
   persist(
     (set) => ({
       user: null,
+      accessToken: null,
+      refreshToken: null,
       isSubmitting: false,
       error: null,
-      async login({ email, password }) {
+
+      async sendOtp(phone) {
         set({ isSubmitting: true, error: null });
         try {
-          await fakeDelay(500);
-          if (password.length < 6) throw new Error("Invalid credentials");
-          set({
-            user: {
-              id: "admin-1",
-              name: "Owner",
-              email,
-              role: {
-                slug: "admin",
-                isSuperuser: true,
-                permissions: [],
-              },
-            },
-            isSubmitting: false,
-          });
+          const data = await api.post<{
+            message: string;
+            expiresInSeconds: number;
+            otp?: string;
+          }>("/auth/send-otp", { phone });
+          set({ isSubmitting: false });
+          return data.otp ?? null;
         } catch (err) {
           set({
             isSubmitting: false,
-            error: err instanceof Error ? err.message : "Login failed",
+            error: err instanceof Error ? err.message : "Unable to send OTP",
           });
+          return null;
         }
       },
-      async logout() {
-        await fakeDelay(150);
-        set({ user: null });
+
+      async verifyOtp({ phone, otp }) {
+        set({ isSubmitting: true, error: null });
+        try {
+          const data = await api.post<AuthApiResponse>("/auth/verify-otp", {
+            phone,
+            otp,
+            audience: "admin",
+          });
+          set(applySession(data.user, data.accessToken, data.refreshToken));
+          return true;
+        } catch (err) {
+          set({
+            isSubmitting: false,
+            error: err instanceof Error ? err.message : "Authentication failed",
+          });
+          return false;
+        }
       },
+
+      async logout() {
+        setAdminAccessToken(null);
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          error: null,
+        });
+      },
+
+      clearError: () => set({ error: null }),
     }),
-    { name: "keyafe-admin-auth" },
+    {
+      name: "keyafe-admin-auth",
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state && state.user && !state.accessToken) {
+          state.user = null;
+        }
+        setAdminAccessToken(state?.accessToken ?? null);
+      },
+    },
   ),
 );

@@ -34,56 +34,127 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Overview",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, requiresPermission: "dashboard.read" },
       {
         to: "/orders",
         label: "Orders",
         icon: ShoppingBag,
         requiresPermission: "orders.read",
       },
-      { to: "/offline-orders", label: "Offline orders", icon: Link2 },
-      { to: "/quotes", label: "Quote Requests", icon: FileText },
+      {
+        to: "/offline-orders",
+        label: "Offline orders",
+        icon: Link2,
+        requiresPermission: "offline-orders.read",
+      },
+      {
+        to: "/quotes",
+        label: "Quote Requests",
+        icon: FileText,
+        requiresPermission: "quotes.read",
+      },
     ],
   },
   {
     label: "Catalog",
     items: [
-      { to: "/products", label: "Products", icon: Package },
-      { to: "/categories", label: "Categories", icon: FolderTree },
-      { to: "/flavours", label: "Flavours", icon: Palette },
-      { to: "/cake-sizes", label: "Cake sizes", icon: Cake },
-      { to: "/toppings", label: "Toppings", icon: Pizza },
-      { to: "/tags", label: "Tags", icon: Tag },
+      {
+        to: "/products",
+        label: "Products",
+        icon: Package,
+        requiresPermission: "products.write",
+      },
+      {
+        to: "/categories",
+        label: "Categories",
+        icon: FolderTree,
+        requiresPermission: "categories.write",
+      },
+      {
+        to: "/flavours",
+        label: "Flavours",
+        icon: Palette,
+        requiresPermission: "flavours.write",
+      },
+      {
+        to: "/cake-sizes",
+        label: "Cake sizes",
+        icon: Cake,
+        requiresPermission: "cake-sizes.write",
+      },
+      {
+        to: "/toppings",
+        label: "Toppings",
+        icon: Pizza,
+        requiresPermission: "toppings.write",
+      },
+      {
+        to: "/tags",
+        label: "Tags",
+        icon: Tag,
+        requiresPermission: "tags.write",
+      },
     ],
   },
   {
     label: "Store Timings",
     items: [
-      { to: "/same-day", label: "Store & Hours", icon: Zap },
-      // {
-      //   to: "/same-day-categories",
-      //   label: "Same-Day Categories",
-      //   icon: FolderTree,
-      // },
+      {
+        to: "/same-day",
+        label: "Store & Hours",
+        icon: Zap,
+        requiresPermission: "store.write",
+      },
     ],
   },
   {
     label: "Marketing",
-    items: [{ to: "/coupons", label: "Coupons", icon: Ticket }],
+    items: [
+      {
+        to: "/coupons",
+        label: "Coupons",
+        icon: Ticket,
+        requiresPermission: "coupons.write",
+      },
+    ],
   },
   {
     label: "Operations",
-    items: [{ to: "/delivery", label: "Delivery Zones", icon: Truck }],
+    items: [
+      {
+        to: "/delivery",
+        label: "Delivery Zones",
+        icon: Truck,
+        requiresPermission: "delivery.write",
+      },
+    ],
   },
   {
     label: "People",
     items: [
-      { to: "/customers", label: "Customers", icon: UserCircle },
-      { to: "/users", label: "Users & Roles", icon: Users },
+      {
+        to: "/customers",
+        label: "Customers",
+        icon: UserCircle,
+        requiresPermission: "customers.read",
+      },
+      {
+        to: "/users",
+        label: "Users & Roles",
+        icon: Users,
+        requiresPermission: "users.manage",
+      },
     ],
   },
   {
     label: "System",
-    items: [{ to: "/settings", label: "Settings", icon: Settings }],
+    items: [
+      {
+        to: "/settings",
+        label: "Settings",
+        icon: Settings,
+        requiresPermission: "settings.update",
+      },
+    ],
   },
 ];

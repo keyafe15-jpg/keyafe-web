@@ -15,21 +15,23 @@ import {
   updateOrderLinkSchema,
 } from "./order-link.service.js";
 
-// TODO: gate behind requireAuth + requirePermission("order-links.*") once auth lands.
+import { requirePermission } from "../../middleware/auth.js";
+
 export const adminOrderLinkRouter = Router();
 
-adminOrderLinkRouter.get("/", async (req, res) => {
+adminOrderLinkRouter.get("/", requirePermission("offline-orders.read"), async (req, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : null;
   const rows = await listOrderLinks(status);
   res.json(rows);
 });
 
-adminOrderLinkRouter.get("/:id", async (req, res) => {
-  const link = await getOrderLinkById(req.params.id);
+adminOrderLinkRouter.get("/:id", requirePermission("offline-orders.read"), async (req, res) => {
+  const id = req.params.id ?? "";
+  const link = await getOrderLinkById(id);
   res.json(link);
 });
 
-adminOrderLinkRouter.post("/", async (req, res) => {
+adminOrderLinkRouter.post("/", requirePermission("offline-orders.write"), async (req, res) => {
   const parsed = createOrderLinkSchema.safeParse(req.body);
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid order link", parsed.error.flatten());
@@ -38,12 +40,12 @@ adminOrderLinkRouter.post("/", async (req, res) => {
   res.status(StatusCodes.CREATED).json(link);
 });
 
-adminOrderLinkRouter.patch("/:id", async (req, res) => {
+adminOrderLinkRouter.patch("/:id", requirePermission("offline-orders.write"), async (req, res) => {
   const parsed = updateOrderLinkSchema.safeParse(req.body);
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid update", parsed.error.flatten());
   }
-  const updated = await updateOrderLink(req.params.id, parsed.data);
+  const updated = await updateOrderLink(req.params.id ?? "", parsed.data);
   res.json(updated);
 });
 
@@ -69,7 +71,10 @@ publicOrderLinkRouter.post("/:token/place", async (req, res) => {
 // TODO: gate behind requireAuth + requirePermission("orders.create") once auth lands.
 export const adminOfflineOrderRouter = Router();
 
-adminOfflineOrderRouter.post("/place", async (req, res) => {
+adminOfflineOrderRouter.post(
+  "/place",
+  requirePermission("offline-orders.write"),
+  async (req, res) => {
   const parsed = placeOfflineOrderSchema.safeParse(req.body);
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid order", parsed.error.flatten());

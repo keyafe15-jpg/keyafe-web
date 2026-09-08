@@ -120,6 +120,7 @@ export async function createOrder(input: CreateOrderInput) {
       gstRate: true,
       priceIsGstInclusive: true,
       categoryId: true,
+      canBeDeliveredPanIndia: true,
     },
   });
   const productMap = new Map(products.map((p) => [p.id, p]));
@@ -131,16 +132,28 @@ export async function createOrder(input: CreateOrderInput) {
     }
   }
 
-  // Delivery fee lookup — pincode-based. Pickup orders skip this.
+  const allPanIndia =
+    products.length > 0 &&
+    input.items.every((item) => {
+      const p = productMap.get(item.productId);
+      return Boolean(p?.canBeDeliveredPanIndia);
+    });
+
+  // Local cakes stay zone-restricted. Courier-only carts can ship anywhere
+  // in India (still need a 6-digit pincode on the address).
   let deliveryFee = 0;
   if (input.fulfillment === "DELIVERY" && input.deliveryAddress) {
-    const info = await checkPincode(input.deliveryAddress.pincode);
-    if (!info.serviceable) {
-      throw HttpError.badRequest(
-        "We don't currently deliver to this pincode. Choose pickup or a different address.",
-      );
+    if (allPanIndia) {
+      deliveryFee = 0;
+    } else {
+      const info = await checkPincode(input.deliveryAddress.pincode);
+      if (!info.serviceable) {
+        throw HttpError.badRequest(
+          "We don't currently deliver to this pincode. Choose pickup or a different address.",
+        );
+      }
+      deliveryFee = Number(info.deliveryFee);
     }
-    deliveryFee = Number(info.deliveryFee);
   }
 
   const subtotal = input.items.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);

@@ -21,6 +21,8 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import { StoreHoursPage } from "@/pages/store/StoreHoursPage";
 import { CouponsPage } from "@/pages/coupons/CouponsPage";
 import { CustomersListPage } from "@/pages/customers/CustomersListPage";
+import { UsersRolesPage } from "@/pages/staff/UsersRolesPage";
+import { RequirePermission } from "@/components/nav/RequirePermission";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -28,6 +30,9 @@ export const router = createBrowserRouter([
     path: "/",
     element: <AdminLayout />,
     children: [
+      {
+        element: <RequirePermission />,
+        children: [
       { index: true, element: <DashboardPage /> },
       {
         path: "orders",
@@ -116,16 +121,13 @@ export const router = createBrowserRouter([
       },
       {
         path: "users",
-        element: (
-          <StubPage
-            title="Users & Roles"
-            subtitle="Staff accounts + permission grants."
-          />
-        ),
+        element: <UsersRolesPage />,
       },
       {
         path: "settings",
         element: <SettingsPage />,
+      },
+        ],
       },
     ],
   },

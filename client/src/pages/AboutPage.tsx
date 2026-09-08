@@ -31,7 +31,7 @@ const makers = [
     name: "Srijita Thakur",
     role: "Founder • Full-stack developer • dreamer",
     image:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=900&q=80",
+      "/srijitathakur.jpg",
     description:
       "I am Srijita Thakur — the founder, builder of this website, and a full-stack developer who wanted Keyafe to feel as warm and personal as the food itself.",
   },
@@ -39,7 +39,7 @@ const makers = [
     name: "Subrata Thakur",
     role: "The backbone of our logistics & delivery",
     image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=80",
+      "/subratathakur.jpg",
     description:
       "At 68, my father is the pillar of this business — he manages delivery, operations, and the unseen chaos behind every smooth order.",
   },
@@ -47,7 +47,7 @@ const makers = [
     name: "Keya Thakur",
     role: "Family support • sweet-thinking partner",
     image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80",
+      "/keyathakur.jpg",
     description:
       "Keya brings warmth, care and constant support to the work behind every celebration and every batch of freshly baked treats.",
   },
@@ -55,7 +55,7 @@ const makers = [
     name: "Souvik Thakur",
     role: "A steady hand in the family journey",
     image:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=80",
+      "/souvikthakur.jpg",
     description:
       "Souvik stands with the family in building Keyafe with love, patience and belief in the work we do together.",
   },

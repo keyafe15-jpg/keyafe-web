@@ -52,6 +52,8 @@ import { adminCouponRouter } from "./modules/coupons/coupon.admin.routes.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { addressRouter } from "./modules/addresses/address.routes.js";
 import { adminCustomerRouter } from "./modules/customers/customer.admin.routes.js";
+import { adminStaffRouter } from "./modules/staff/staff.routes.js";
+import { requirePermission, requireStaff } from "./middleware/auth.js";
 import { attachPushToOrderEvents } from "./lib/push.js";
 
 export function createApp() {
@@ -111,22 +113,78 @@ export function createApp() {
   app.use("/api/order-links", publicOrderLinkRouter);
   app.use("/api/quotes", publicQuoteRouter);
   app.use("/api/coupons", couponRouter);
-  app.use("/api/admin/products", adminProductRouter);
-  app.use("/api/admin/categories", adminCategoryRouter);
-  app.use("/api/admin/flavours", adminFlavorRouter);
-  app.use("/api/admin/cake-sizes", adminCakeSizeRouter);
-  app.use("/api/admin/toppings", adminToppingRouter);
-  app.use("/api/admin/tags", adminTagRouter);
-  app.use("/api/admin/orders", adminOrderRouter);
-  app.use("/api/admin/order-links", adminOrderLinkRouter);
-  app.use("/api/admin/offline-orders", adminOfflineOrderRouter);
-  app.use("/api/admin/delivery", adminDeliveryRouter);
-  app.use("/api/admin/push", adminPushRouter);
-  app.use("/api/admin/business", adminBusinessRouter);
-  app.use("/api/admin/store", adminStoreRouter);
-  app.use("/api/admin/quotes", adminQuoteRouter);
-  app.use("/api/admin/coupons", adminCouponRouter);
-  app.use("/api/admin/customers", adminCustomerRouter);
+  app.use(
+    "/api/admin/products",
+    requireStaff,
+    requirePermission("products.write"),
+    adminProductRouter,
+  );
+  app.use(
+    "/api/admin/categories",
+    requireStaff,
+    requirePermission("categories.write"),
+    adminCategoryRouter,
+  );
+  app.use(
+    "/api/admin/flavours",
+    requireStaff,
+    requirePermission("flavours.write"),
+    adminFlavorRouter,
+  );
+  app.use(
+    "/api/admin/cake-sizes",
+    requireStaff,
+    requirePermission("cake-sizes.write"),
+    adminCakeSizeRouter,
+  );
+  app.use(
+    "/api/admin/toppings",
+    requireStaff,
+    requirePermission("toppings.write"),
+    adminToppingRouter,
+  );
+  app.use(
+    "/api/admin/tags",
+    requireStaff,
+    requirePermission("tags.write"),
+    adminTagRouter,
+  );
+  app.use("/api/admin/orders", requireStaff, adminOrderRouter);
+  app.use("/api/admin/order-links", requireStaff, adminOrderLinkRouter);
+  app.use("/api/admin/offline-orders", requireStaff, adminOfflineOrderRouter);
+  app.use(
+    "/api/admin/delivery",
+    requireStaff,
+    requirePermission("delivery.write"),
+    adminDeliveryRouter,
+  );
+  app.use("/api/admin/push", requireStaff, adminPushRouter);
+  app.use(
+    "/api/admin/business",
+    requireStaff,
+    requirePermission("settings.update"),
+    adminBusinessRouter,
+  );
+  app.use(
+    "/api/admin/store",
+    requireStaff,
+    requirePermission("store.write"),
+    adminStoreRouter,
+  );
+  app.use("/api/admin/quotes", requireStaff, adminQuoteRouter);
+  app.use(
+    "/api/admin/coupons",
+    requireStaff,
+    requirePermission("coupons.write"),
+    adminCouponRouter,
+  );
+  app.use(
+    "/api/admin/customers",
+    requireStaff,
+    requirePermission("customers.read"),
+    adminCustomerRouter,
+  );
+  app.use("/api/admin/staff", requireStaff, adminStaffRouter);
 
   // Fan out new-order events to Web Push subscribers (in addition to SSE).
   attachPushToOrderEvents();

@@ -455,6 +455,7 @@ export function CheckoutPage() {
                         value={pincode}
                         result={pincodeResult}
                         isChecking={pincodeCheck.isPending}
+                        panIndiaOnly={hasOnlyPanIndiaItems}
                       />
                     </div>
                   </Field>
@@ -593,6 +594,7 @@ export function CheckoutPage() {
                             value={pincode}
                             result={pincodeResult}
                             isChecking={pincodeCheck.isPending}
+                            panIndiaOnly={hasOnlyPanIndiaItems}
                           />
                         </div>
                       </Field>
@@ -815,22 +817,32 @@ export function CheckoutPage() {
             )}
             {fulfillment === "DELIVERY" && (
               <SummaryRow
-                label={deliveryIsFree ? "Delivery (free)" : "Delivery"}
+                label={
+                  hasOnlyPanIndiaItems
+                    ? "Courier"
+                    : deliveryIsFree
+                      ? "Delivery (free)"
+                      : "Delivery"
+                }
                 value={
-                  pincodeResult?.serviceable
-                    ? deliveryIsFree
-                      ? 0
-                      : listedDeliveryFee
-                    : null
+                  hasOnlyPanIndiaItems
+                    ? listedDeliveryFee
+                    : pincodeResult?.serviceable
+                      ? deliveryIsFree
+                        ? 0
+                        : listedDeliveryFee
+                      : null
                 }
                 hint={
-                  pincodeResult?.serviceable
-                    ? deliveryIsFree
-                      ? (appliedCoupon?.waivesDelivery
-                          ? "Included with coupon"
-                          : freeDelivery.data?.label) ?? "Free delivery"
-                      : undefined
-                    : "Enter pincode"
+                  hasOnlyPanIndiaItems
+                    ? "Ships pan-India"
+                    : pincodeResult?.serviceable
+                      ? deliveryIsFree
+                        ? (appliedCoupon?.waivesDelivery
+                            ? "Included with coupon"
+                            : freeDelivery.data?.label) ?? "Free delivery"
+                        : undefined
+                      : "Enter pincode"
                 }
               />
             )}
@@ -1054,12 +1066,21 @@ function PincodeStatus({
   value,
   result,
   isChecking,
+  panIndiaOnly,
 }: {
   value: string;
   result: PincodeCheckResult | null;
   isChecking: boolean;
+  panIndiaOnly?: boolean;
 }) {
   if (!PINCODE_RE.test(value)) return null;
+  if (panIndiaOnly) {
+    return (
+      <span className="text-xs text-emerald-700">
+        Ships pan-India via courier
+      </span>
+    );
+  }
   if (isChecking)
     return <span className="text-xs text-ink-500">Checking…</span>;
   if (!result) return null;

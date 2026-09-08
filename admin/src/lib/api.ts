@@ -1,10 +1,17 @@
 const BASE = "/api";
 
+let accessToken: string | null = null;
+
+export function setAdminAccessToken(token: string | null) {
+  accessToken = token;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(init?.headers ?? {}),
     },
     credentials: "include",

@@ -1,8 +1,21 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { ADMIN_NAV } from "@/content/nav";
+import { useAdminAuth } from "@/store/adminAuth";
+import { staffHasPermission } from "@/lib/permissions";
 
 export function Sidebar({ open }: { open: boolean }) {
+  const user = useAdminAuth((s) => s.user);
+
+  const groups = ADMIN_NAV.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) =>
+        !item.requiresPermission ||
+        staffHasPermission(user, item.requiresPermission),
+    ),
+  })).filter((group) => group.items.length > 0);
+
   return (
     <aside
       className={cn(
@@ -17,13 +30,13 @@ export function Sidebar({ open }: { open: boolean }) {
             Keyafe
           </p>
           <p className="text-[10px] uppercase tracking-widest text-slate-500">
-            Admin
+            {user?.role.slug === "chef" ? "Kitchen" : "Admin"}
           </p>
         </div>
       </div>
 
       <nav className="h-[calc(100vh-3.5rem)] overflow-y-auto py-4">
-        {ADMIN_NAV.map((group) => (
+        {groups.map((group) => (
           <div key={group.label} className="mb-4 px-3">
             <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
               {group.label}

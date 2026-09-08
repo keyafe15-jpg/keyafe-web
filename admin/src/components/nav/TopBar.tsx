@@ -161,7 +161,9 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
                 <p className="text-sm font-medium text-slate-900">
                   {user?.name}
                 </p>
-                <p className="truncate text-xs text-slate-500">{user?.email}</p>
+                <p className="truncate text-xs text-slate-500">
+                  {user?.phone}
+                </p>
               </div>
               <Dropdown.Item asChild>
                 <button

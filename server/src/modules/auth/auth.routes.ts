@@ -12,6 +12,8 @@ import {
   phonesMatch,
 } from "../../lib/phone.js";
 import { ensureCustomerRole } from "../customers/customer.service.js";
+import { isStaffRole } from "../../middleware/auth.js";
+import { CUSTOMER_ROLE_SLUG } from "../staff/rbac.catalog.js";
 
 export const authRouter = Router();
 
@@ -37,6 +39,7 @@ const sendOtpSchema = z.object({
 const verifyOtpSchema = z.object({
   phone: phoneSchema,
   otp: otpSchema,
+  audience: z.enum(["storefront", "admin"]).optional(),
   name: z.string().trim().min(2, "Please enter your name").optional(),
   email: z
     .string()
@@ -172,8 +175,9 @@ authRouter.post("/verify-otp", async (req, res) => {
     throw HttpError.badRequest("Invalid OTP request", parsed.error.flatten());
   }
 
-  const { phone, otp, name, email } = parsed.data;
+  const { phone, otp, name, email, audience } = parsed.data;
   const normalizedPhone = normalizePhone(phone);
+  const isAdminAudience = audience === "admin";
 
   if (!validateOtp(normalizedPhone, otp)) {
     throw HttpError.unauthorized("Invalid or expired OTP");
@@ -181,7 +185,23 @@ authRouter.post("/verify-otp", async (req, res) => {
 
   let user = await findUserByPhone(normalizedPhone);
 
-  if (!user) {
+  if (isAdminAudience) {
+    if (!user) {
+      throw HttpError.forbidden(
+        "No staff account for this phone. Ask an admin to add you.",
+      );
+    }
+    if (!user.isActive) {
+      throw HttpError.forbidden("This staff account is disabled");
+    }
+    if (!isStaffRole(user.role) || user.role.slug === CUSTOMER_ROLE_SLUG) {
+      throw HttpError.forbidden(
+        "This phone is a customer account, not staff",
+      );
+    }
+  }
+
+  if (!user && !isAdminAudience) {
     if (!name) {
       return res.status(202).json({
         requiresProfile: true,
@@ -236,6 +256,9 @@ authRouter.post("/verify-otp", async (req, res) => {
       }
     }
   } else {
+    if (!user) {
+      throw HttpError.unauthorized("Invalid or expired OTP");
+    }
     const emailConflict =
       email && !user.email
         ? await prisma.user.findUnique({ where: { email } })

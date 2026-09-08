@@ -6,8 +6,12 @@ import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
 import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
+import {
+  requirePermission,
+  staffHasPermission,
+  type AuthenticatedRequest,
+} from "../../middleware/auth.js";
 
-// TODO: gate behind requireAuth + requirePermission("orders.read/update") once auth is wired.
 export const adminOrderRouter = Router();
 
 const ORDER_STATUSES = [
@@ -80,7 +84,7 @@ function buildAdminOrderListWhere(opts: {
   return { AND: and };
 }
 
-adminOrderRouter.get("/", async (req, res) => {
+adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : null;
   const deliveryFrom =
     typeof req.query.deliveryFrom === "string" ? req.query.deliveryFrom : null;
@@ -184,7 +188,7 @@ adminOrderRouter.get("/", async (req, res) => {
   });
 });
 
-adminOrderRouter.get("/counts", async (_req, res) => {
+adminOrderRouter.get("/counts", requirePermission("orders.read"), async (_req, res) => {
   const grouped = await prisma.order.groupBy({
     by: ["status"],
     _count: { _all: true },
@@ -196,7 +200,7 @@ adminOrderRouter.get("/counts", async (_req, res) => {
   res.json(counts);
 });
 
-adminOrderRouter.get("/analytics", async (req, res) => {
+adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (req, res) => {
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -368,7 +372,7 @@ adminOrderRouter.get("/analytics", async (req, res) => {
 
 // Server-Sent Events channel — admin subscribes here and gets a `new-order`
 // message every time an order is placed (any source).
-adminOrderRouter.get("/stream", (req, res) => {
+adminOrderRouter.get("/stream", requirePermission("orders.read"), (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
@@ -400,8 +404,9 @@ adminOrderRouter.get("/stream", (req, res) => {
   });
 });
 
-adminOrderRouter.get("/:idOrNumber", async (req, res) => {
-  const key = req.params.idOrNumber;
+adminOrderRouter.get("/:idOrNumber", requirePermission("orders.read"), async (req, res) => {
+  const key = req.params.idOrNumber ?? "";
+  if (!key) throw HttpError.badRequest("Missing order id");
   const order = key.startsWith("KEY-")
     ? await getOrderByNumber(key)
     : await getOrderById(key);
@@ -421,7 +426,9 @@ const updateSchema = z.object({
   adminNotes: z.string().trim().max(2000).nullable().optional(),
 });
 
-adminOrderRouter.patch("/:id", async (req, res) => {
+adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, res) => {
+  const id = req.params.id ?? "";
+  if (!id) throw HttpError.badRequest("Missing order id");
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid update", parsed.error.flatten());
@@ -430,14 +437,18 @@ adminOrderRouter.patch("/:id", async (req, res) => {
   const data: typeof parsed.data = { ...rest };
 
   if (status === "CANCELLED") {
-    await cancelOrderAsAdmin(req.params.id);
+    const staff = (req as AuthenticatedRequest).staff;
+    if (!staff || !staffHasPermission(staff, "orders.cancel")) {
+      throw HttpError.forbidden("You don't have permission to cancel orders");
+    }
+    await cancelOrderAsAdmin(id);
   } else if (status !== undefined) {
     data.status = status;
   }
 
   if (advanceAmount !== undefined) {
     const existing = await prisma.order.findUnique({
-      where: { id: req.params.id },
+      where: { id },
       select: { total: true },
     });
     if (!existing) throw HttpError.notFound("Order not found");
@@ -453,7 +464,7 @@ adminOrderRouter.patch("/:id", async (req, res) => {
   }
 
   const updated = await prisma.order.update({
-    where: { id: req.params.id },
+    where: { id },
     data,
     include: { items: true },
   });

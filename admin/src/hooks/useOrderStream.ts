@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAlerts, type PendingOrderAlert } from "@/store/alerts";
+import { useAdminAuth } from "@/store/adminAuth";
 
 interface NewOrderEvent {
   id: string;
@@ -20,7 +21,11 @@ export function useOrderStream() {
   const enqueueCancelled = useAlerts((s) => s.enqueueCancelled);
 
   useEffect(() => {
-    const es = new EventSource("/api/admin/orders/stream", {
+    const token = useAdminAuth.getState().accessToken;
+    const url = token
+      ? `/api/admin/orders/stream?access_token=${encodeURIComponent(token)}`
+      : "/api/admin/orders/stream";
+    const es = new EventSource(url, {
       withCredentials: true,
     });
 
