@@ -124,7 +124,14 @@ export function Header() {
         )}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2">
-          <Link to="/" className="flex shrink-0 items-center gap-2.5">
+          <Link
+            to="/"
+            className={cn(
+              "flex shrink-0 items-center gap-2.5",
+              overlay &&
+                "rounded-full border border-white/50 bg-white/40 pl-1 pr-3 shadow-sm backdrop-blur-md",
+            )}
+          >
             <img
               src={BRAND.logoSrc}
               alt={BRAND.logoAlt}

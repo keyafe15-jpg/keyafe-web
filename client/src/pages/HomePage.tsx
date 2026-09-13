@@ -90,9 +90,9 @@ export function HomePage() {
           <HeroSlider slides={slides} />
         </div>
 
-        <div className="mx-auto mt-8 max-w-3xl px-4 text-center md:mt-10">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-200 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700">
-            <span className="inline-block h-2 w-2 rounded-full bg-brand-500" />
+        <div className="mx-auto mt-5 max-w-3xl px-4 text-center md:mt-7">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-brand-200 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700">
+            <span className="inline-block h-2 w-2 rounded-sm bg-brand-500" />
             <span>{HOME_COPY.hero.eyebrow}</span>
           </div>
 
@@ -120,13 +120,13 @@ export function HomePage() {
           <div className="mt-4 flex flex-wrap justify-center gap-3 md:mt-6">
             <Link
               to={HOME_COPY.hero.primaryCta.to}
-              className="rounded-full bg-brand-500 px-6 py-3 text-sm font-medium text-white shadow-[0_12px_24px_rgba(227,28,121,0.25)] transition hover:-translate-y-0.5 hover:bg-brand-700"
+              className="rounded-md bg-brand-500 px-6 py-3 text-sm font-medium text-white shadow-[0_12px_24px_rgba(227,28,121,0.25)] transition hover:-translate-y-0.5 hover:bg-brand-700"
             >
               {HOME_COPY.hero.primaryCta.label}
             </Link>
             <Link
               to={HOME_COPY.hero.secondaryCta.to}
-              className="rounded-full border border-ink-700 bg-transparent px-6 py-3 text-sm font-medium text-ink-700 transition hover:bg-cream-100"
+              className="rounded-md border border-ink-700 bg-transparent px-6 py-3 text-sm font-medium text-ink-700 transition hover:bg-cream-100"
             >
               {HOME_COPY.hero.secondaryCta.label}
             </Link>
@@ -136,7 +136,7 @@ export function HomePage() {
             {valuePills.map((item) => (
               <span
                 key={item}
-                className="rounded-full border border-cream-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-ink-700 shadow-sm"
+                className="rounded-md border border-cream-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-ink-700 shadow-sm"
               >
                 {item}
               </span>

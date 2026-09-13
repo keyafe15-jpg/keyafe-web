@@ -11,12 +11,14 @@ export type CollectionSlide = {
   imageUrlMobile: string | null;
 };
 
+const slideFrame =
+  "relative aspect-[16/9] min-h-[280px] w-full sm:aspect-auto sm:min-h-0 sm:h-[400px] md:h-[440px] lg:h-[480px]";
+
 export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [wideLayout, setWideLayout] = useState(false);
   const count = slides.length;
 
   const goToPrevious = () => {
@@ -30,19 +32,11 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
   };
 
   useEffect(() => {
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const wide = window.matchMedia("(min-width: 640px)");
-    const sync = () => {
-      setReduceMotion(motion.matches);
-      setWideLayout(wide.matches);
-    };
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduceMotion(media.matches);
     sync();
-    motion.addEventListener("change", sync);
-    wide.addEventListener("change", sync);
-    return () => {
-      motion.removeEventListener("change", sync);
-      wide.removeEventListener("change", sync);
-    };
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
   }, []);
 
   useEffect(() => {
@@ -78,9 +72,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
   const totalLabel = String(count).padStart(2, "0");
 
   if (count === 0) {
-    return (
-      <div className="aspect-[16/9] min-h-[280px] animate-pulse bg-[#f7f2eb] sm:aspect-auto sm:min-h-0 sm:h-[300px] md:h-[340px] lg:h-[380px]" />
-    );
+    return <div className={cn(slideFrame, "animate-pulse bg-[#f7f2eb]")} />;
   }
 
   return (
@@ -102,35 +94,23 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
           onTouchEnd={handleTouchEnd}
         >
           <div
-            className="flex items-center gap-0 transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:gap-4"
-            style={{
-              transform: wideLayout
-                ? `translateX(calc(${-selectedIndex} * (90% + 1rem) + 5%))`
-                : `translateX(${-selectedIndex * 100}%)`,
-            }}
+            className="flex transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            style={{ transform: `translateX(${-selectedIndex * 100}%)` }}
           >
             {slides.map((slide, index) => {
               const active = index === selectedIndex;
               return (
                 <div
                   key={slide.to}
-                  className={cn(
-                    "w-full shrink-0 transition-all duration-700 sm:w-[90%]",
-                    active
-                      ? "z-10 scale-100 opacity-100"
-                      : "opacity-100 sm:scale-[0.94] sm:opacity-60",
-                  )}
+                  className="w-full shrink-0"
                   aria-hidden={!active}
                 >
                   <Link
                     to={slide.to}
                     tabIndex={active ? 0 : -1}
-                    className={cn(
-                      "group relative block overflow-hidden rounded-none outline-offset-4",
-                      active && "shadow-none",
-                    )}
+                    className="group relative block overflow-hidden rounded-none outline-offset-4"
                   >
-                    <div className="relative aspect-[16/9] min-h-[280px] w-full sm:aspect-auto sm:min-h-0 sm:h-[300px] md:h-[340px] lg:h-[380px]">
+                    <div className={slideFrame}>
                       {slide.imageUrl || slide.imageUrlMobile ? (
                         <picture>
                           {slide.imageUrlMobile && (
@@ -143,7 +123,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                             src={slide.imageUrl ?? slide.imageUrlMobile ?? ""}
                             alt=""
                             className={cn(
-                              "h-full w-full object-cover object-center sm:object-center",
+                              "h-full w-full object-cover object-center",
                               active && !reduceMotion && "collection-ken",
                             )}
                           />
@@ -153,22 +133,21 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                       )}
 
                       {active && (
-                        <div className="absolute inset-x-4 bottom-4 sm:inset-auto sm:bottom-6 sm:left-6 sm:max-w-sm">
-                          <div className="rounded-2xl border border-white/50 bg-white/88 p-4 shadow-[0_12px_30px_rgba(26,33,42,0.12)] backdrop-blur-md sm:p-5">
-                            <div className="mb-2 flex items-center justify-between gap-3">
-                              <span className="inline-flex rounded-full bg-brand-500 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-                                {HOME_COPY.collections.badge}
-                              </span>
-                              <span className="font-mono text-[11px] tracking-[0.2em] text-ink-500">
-                                {indexLabel} — {totalLabel}
-                              </span>
+                        <div className="absolute inset-0 z-[1] flex items-center justify-center p-4">
+                          <div className="max-w-[20rem] text-center sm:max-w-md">
+                            <div className="rounded-lg border border-white/25 bg-black/20 px-5 py-4 shadow-[0_12px_40px_rgba(26,33,42,0.2)] backdrop-blur-md sm:px-7 sm:py-5">
+                              <div className="mb-2 flex items-center justify-center gap-3">
+                                <span className="inline-flex rounded-md bg-brand-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                                  {HOME_COPY.collections.badge}
+                                </span>
+                              </div>
+                              <p className="font-display text-2xl leading-tight text-white drop-shadow-sm sm:text-3xl">
+                                {slide.title}
+                              </p>
+                              <p className="mt-1 text-sm leading-5 text-white/90 drop-shadow-sm">
+                                {slide.line}
+                              </p>
                             </div>
-                            <p className="font-display text-2xl leading-tight text-ink-900 sm:text-3xl">
-                              {slide.title}
-                            </p>
-                            <p className="mt-1 text-sm leading-6 text-ink-600">
-                              {slide.line}
-                            </p>
                           </div>
                         </div>
                       )}
@@ -180,7 +159,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
           </div>
         </div>
 
-        <div className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden items-center justify-between px-1 sm:flex">
+        <div className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden items-center justify-between px-3 sm:flex">
           <button
             type="button"
             onClick={goToPrevious}
@@ -189,7 +168,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                 ? `Previous collection, ${prevTitle}`
                 : "Previous collection"
             }
-            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/70 bg-white/90 text-xl text-ink-800 shadow-md backdrop-blur transition hover:bg-white hover:text-brand-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-md border border-white/70 bg-white/80 text-xl text-ink-800 shadow-md backdrop-blur transition hover:bg-white hover:text-brand-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             ‹
           </button>
@@ -199,37 +178,50 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
             aria-label={
               nextTitle ? `Next collection, ${nextTitle}` : "Next collection"
             }
-            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/70 bg-white/90 text-xl text-ink-800 shadow-md backdrop-blur transition hover:bg-white hover:text-brand-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-md border border-white/70 bg-white/80 text-xl text-ink-800 shadow-md backdrop-blur transition hover:bg-white hover:text-brand-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             ›
           </button>
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col items-center gap-3 px-4 sm:block">
+      <div className="mt-4 flex flex-col items-center gap-3 px-4 sm:mt-5">
         <div
           role="tablist"
           aria-label="Collections"
-          className="flex flex-wrap justify-center gap-2"
+          className="flex w-full max-w-4xl justify-start gap-0 overflow-x-auto border-b border-cream-200 sm:justify-center"
         >
-        {slides.map((slide, index) => (
-          <button
-            type="button"
-            key={slide.to}
-            role="tab"
-            aria-selected={index === selectedIndex}
-            aria-current={index === selectedIndex ? "true" : undefined}
-            onClick={() => setSelectedIndex(index)}
-            className={cn(
-              "rounded-full px-3.5 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500",
-              index === selectedIndex
-                ? "bg-ink-900 text-white shadow-[0_8px_18px_rgba(26,33,42,0.18)]"
-                : "bg-white/80 text-ink-600 ring-1 ring-cream-200 hover:text-brand-600",
-            )}
-          >
-            {slide.title}
-          </button>
-        ))}
+          {slides.map((slide, index) => {
+            const active = index === selectedIndex;
+            return (
+              <button
+                type="button"
+                key={slide.to}
+                role="tab"
+                aria-selected={active}
+                aria-current={active ? "true" : undefined}
+                onClick={() => setSelectedIndex(index)}
+                className={cn(
+                  "relative shrink-0 px-4 pb-3 pt-1 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:text-center",
+                  active ? "text-ink-900" : "text-ink-400 hover:text-ink-700",
+                )}
+              >
+                <span className="block font-mono text-[10px] tracking-[0.22em] text-brand-500">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="mt-0.5 block whitespace-nowrap text-sm font-medium tracking-wide">
+                  {slide.title}
+                </span>
+                <span
+                  className={cn(
+                    "absolute inset-x-4 -bottom-px h-[2px] origin-center bg-brand-500 transition-transform duration-300",
+                    active ? "scale-x-100" : "scale-x-0",
+                  )}
+                  aria-hidden="true"
+                />
+              </button>
+            );
+          })}
         </div>
         <div className="flex items-center gap-2 sm:hidden">
           <button
@@ -240,7 +232,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                 ? `Previous collection, ${prevTitle}`
                 : "Previous collection"
             }
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg text-ink-800 ring-1 ring-cream-200"
+            className="flex h-9 w-9 items-center justify-center rounded-md bg-white text-lg text-ink-800 ring-1 ring-cream-200"
           >
             ‹
           </button>
@@ -250,7 +242,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
             aria-label={
               nextTitle ? `Next collection, ${nextTitle}` : "Next collection"
             }
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg text-ink-800 ring-1 ring-cream-200"
+            className="flex h-9 w-9 items-center justify-center rounded-md bg-white text-lg text-ink-800 ring-1 ring-cream-200"
           >
             ›
           </button>

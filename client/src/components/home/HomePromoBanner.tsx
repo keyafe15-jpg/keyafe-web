@@ -14,7 +14,7 @@ function CopyCode({ code }: { code: string }) {
           window.setTimeout(() => setCopied(false), 1600);
         });
       }}
-      className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 font-mono text-xs font-semibold tracking-wide text-brand-700 shadow-sm ring-1 ring-white/60 transition hover:bg-cream-50"
+      className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1 font-mono text-xs font-semibold tracking-wide text-brand-700 shadow-sm ring-1 ring-white/60 transition hover:bg-cream-50"
     >
       {code}
       <span className="text-[9px] font-sans font-semibold uppercase tracking-wider text-ink-500">
@@ -33,7 +33,7 @@ function PromoCard({ coupon }: { coupon: PublicCoupon }) {
       : null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-500 via-brand-600 to-ink-900 px-4 py-2.5 text-white shadow-[0_10px_24px_rgba(227,28,121,0.22)] sm:px-5 sm:py-3">
+    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-brand-500 via-brand-600 to-ink-900 px-4 py-2.5 text-white shadow-[0_10px_24px_rgba(227,28,121,0.22)] sm:px-5 sm:py-3">
       <div
         className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full bg-white/15 blur-2xl"
         aria-hidden="true"
@@ -57,18 +57,18 @@ function PromoCard({ coupon }: { coupon: PublicCoupon }) {
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <CopyCode code={coupon.code} />
           {remainingLabel && (
-            <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium">
+            <span className="rounded-md bg-white/15 px-2 py-0.5 text-[10px] font-medium">
               {remainingLabel}
             </span>
           )}
           {coupon.waivesDelivery && (
-            <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium">
+            <span className="rounded-md bg-white/15 px-2 py-0.5 text-[10px] font-medium">
               Free delivery
             </span>
           )}
           <Link
             to={HOME_COPY.hero.primaryCta.to}
-            className="rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-brand-700 shadow-sm transition hover:-translate-y-0.5"
+            className="rounded-md bg-white px-3.5 py-1.5 text-xs font-semibold text-brand-700 shadow-sm transition hover:-translate-y-0.5"
           >
             Shop now
           </Link>
