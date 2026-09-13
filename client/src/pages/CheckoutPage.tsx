@@ -164,13 +164,13 @@ export function CheckoutPage() {
     if (fulfillment === "DELIVERY") {
       if (line1.trim().length < 3) e.line1 = "Street address is required";
       if (!PINCODE_RE.test(pincode)) e.pincode = "6-digit pincode";
-      else if (
-        !hasOnlyPanIndiaItems &&
-        pincodeResult &&
-        !pincodeResult.serviceable
-      )
-        e.pincode =
-          "We may still deliver here, please call or WhatsApp us to confirm";
+      // else if (
+      //   !hasOnlyPanIndiaItems &&
+      //   pincodeResult &&
+      //   !pincodeResult.serviceable
+      // )
+      //   e.pincode =
+      //     "We may still deliver here, please call or WhatsApp us to confirm";
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
     }
