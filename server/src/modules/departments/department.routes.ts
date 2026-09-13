@@ -10,6 +10,9 @@ const departmentSelect = {
   name: true,
   sortOrder: true,
   isActive: true,
+  accentHex: true,
+  softHex: true,
+  deepHex: true,
 } as const;
 
 export const departmentRouter = Router();
@@ -23,6 +26,9 @@ departmentRouter.get("/", async (_req, res) => {
       slug: true,
       name: true,
       sortOrder: true,
+      accentHex: true,
+      softHex: true,
+      deepHex: true,
     },
   });
   res.setHeader("Cache-Control", "public, max-age=60");
@@ -48,6 +54,11 @@ adminDepartmentRouter.get("/", async (_req, res) => {
 });
 
 const slugRegex = /^[a-z0-9-]+$/;
+const hexColor = z
+  .string()
+  .trim()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "Use a hex color like #E31C79")
+  .transform((value) => value.toUpperCase());
 
 const createSchema = z.object({
   name: z.string().trim().min(2),
@@ -57,6 +68,9 @@ const createSchema = z.object({
     .regex(slugRegex, "Lowercase letters, digits, hyphens"),
   sortOrder: z.coerce.number().int().default(0),
   isActive: z.boolean().default(true),
+  accentHex: hexColor.default("#E31C79"),
+  softHex: hexColor.default("#F8D7E6"),
+  deepHex: hexColor.default("#B0155F"),
 });
 
 adminDepartmentRouter.post("/", async (req, res) => {

@@ -1,8 +1,12 @@
 import { Link } from "react-router-dom";
 import { BRAND } from "@/content/brand";
 import { FOOTER_COPY } from "@/content/footer";
-import { HEALTHY_NAV, PANINDIA_NAV, SAMEDAY_NAV } from "@/content/nav";
-import { useCategories } from "@/hooks/useCategories";
+import { HEALTHY_NAV, PANINDIA_NAV, SAMEDAY_NAV, storeNavItem } from "@/content/nav";
+import {
+  groupCategoriesByDepartment,
+  useCategories,
+  useDepartments,
+} from "@/hooks/useCategories";
 import { cn } from "@/lib/cn";
 import {
   ArrowUp,
@@ -29,6 +33,8 @@ const ORDER_LINKS = [
 
 export function Footer() {
   const { data: categories = [] } = useCategories();
+  const { data: departments = [] } = useDepartments();
+  const categoryGroups = groupCategoriesByDepartment(categories, departments);
   const year = new Date().getFullYear();
 
   const scrollToTop = () => {
@@ -84,15 +90,29 @@ export function Footer() {
             aria-label={FOOTER_COPY.sections.shop.heading}
             className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px]"
           >
-            {categories.map((category) => (
-              <Link
-                key={category.id}
-                to={`/category/${category.slug}`}
-                className="text-cream-100/80 transition hover:text-white"
-              >
-                {category.name}
-              </Link>
-            ))}
+            {departments.map((store) => {
+              const item = storeNavItem(store);
+              return (
+                <Link
+                  key={store.id}
+                  to={item.to}
+                  className="font-medium text-white transition hover:text-brand-300"
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+            {categoryGroups.flatMap((group) =>
+              group.categories.map((category) => (
+                <Link
+                  key={category.id}
+                  to={`/category/${category.slug}`}
+                  className="text-cream-100/80 transition hover:text-white"
+                >
+                  {category.name}
+                </Link>
+              )),
+            )}
             {ORDER_LINKS.map((link) => (
               <Link
                 key={link.to}

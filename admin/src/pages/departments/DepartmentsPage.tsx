@@ -17,6 +17,12 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
+const DEFAULT_DOOR = {
+  accentHex: "#E31C79",
+  softHex: "#F8D7E6",
+  deepHex: "#B0155F",
+};
+
 export function DepartmentsPage() {
   const { data: stores = [], isLoading } = useAdminDepartments();
 
@@ -26,7 +32,7 @@ export function DepartmentsPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Stores</h1>
         <p className="mt-1 text-sm text-slate-500">
           Groupings such as Dessert and Savoury. Top-level categories pick one;
-          sub-categories inherit it. Add more whenever you need a new shop.
+          sub-categories inherit it. Shopfront colors paint the home store doors.
         </p>
       </div>
 
@@ -46,6 +52,7 @@ export function DepartmentsPage() {
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-2 font-medium">Store</th>
+                <th className="px-4 py-2 font-medium">Shopfront</th>
                 <th className="w-24 px-4 py-2 font-medium">Sort</th>
                 <th className="w-24 px-4 py-2 font-medium">Active</th>
                 <th className="w-28 px-4 py-2 text-right font-medium">
@@ -66,9 +73,39 @@ export function DepartmentsPage() {
   );
 }
 
+function ColorPicker({
+  label,
+  value,
+  onChange,
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  onChange: (hex: string) => void;
+  onCommit?: () => void;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
+      <input
+        type="color"
+        value={value}
+        title={label}
+        aria-label={label}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => onCommit?.()}
+        className="h-8 w-8 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
 function NewStoreRow() {
   const create = useCreateDepartment();
   const [name, setName] = useState("");
+  const [accentHex, setAccentHex] = useState(DEFAULT_DOOR.accentHex);
+  const [softHex, setSoftHex] = useState(DEFAULT_DOOR.softHex);
+  const [deepHex, setDeepHex] = useState(DEFAULT_DOOR.deepHex);
   const [error, setError] = useState<string | null>(null);
 
   const canSubmit = name.trim().length >= 2;
@@ -80,8 +117,14 @@ function NewStoreRow() {
         name: name.trim(),
         slug: slugify(name),
         sortOrder: 0,
+        accentHex,
+        softHex,
+        deepHex,
       });
       setName("");
+      setAccentHex(DEFAULT_DOOR.accentHex);
+      setSoftHex(DEFAULT_DOOR.softHex);
+      setDeepHex(DEFAULT_DOOR.deepHex);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create");
     }
@@ -89,7 +132,7 @@ function NewStoreRow() {
 
   return (
     <div className="rounded-card border border-slate-200 bg-white p-4">
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+      <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
         <Field label="New store">
           <input
             value={name}
@@ -97,6 +140,13 @@ function NewStoreRow() {
             placeholder="Dessert"
             className={inputClass}
           />
+        </Field>
+        <Field label="Shopfront colors">
+          <div className="flex flex-wrap items-center gap-3 py-1">
+            <ColorPicker label="Accent" value={accentHex} onChange={setAccentHex} />
+            <ColorPicker label="Soft" value={softHex} onChange={setSoftHex} />
+            <ColorPicker label="Deep" value={deepHex} onChange={setDeepHex} />
+          </div>
         </Field>
         <div className="self-end">
           <button
@@ -123,7 +173,11 @@ function StoreRow({ store }: { store: AdminDepartment }) {
   const del = useDeleteDepartment();
   const [name, setName] = useState(store.name);
   const [sortOrder, setSortOrder] = useState(String(store.sortOrder));
+  const [accentHex, setAccentHex] = useState(store.accentHex ?? DEFAULT_DOOR.accentHex);
+  const [softHex, setSoftHex] = useState(store.softHex ?? DEFAULT_DOOR.softHex);
+  const [deepHex, setDeepHex] = useState(store.deepHex ?? DEFAULT_DOOR.deepHex);
   const [nameDirty, setNameDirty] = useState(false);
+  const [colorsDirty, setColorsDirty] = useState(false);
 
   const commitName = async () => {
     const next = name.trim();
@@ -145,6 +199,17 @@ function StoreRow({ store }: { store: AdminDepartment }) {
     await update.mutateAsync({ id: store.id, sortOrder: n });
   };
 
+  const commitColors = async () => {
+    if (!colorsDirty) return;
+    await update.mutateAsync({
+      id: store.id,
+      accentHex,
+      softHex,
+      deepHex,
+    });
+    setColorsDirty(false);
+  };
+
   return (
     <tr className="hover:bg-slate-50">
       <td className="px-4 py-3">
@@ -164,6 +229,37 @@ function StoreRow({ store }: { store: AdminDepartment }) {
           className="w-full rounded-md border border-transparent bg-transparent py-1 font-medium text-slate-900 outline-none focus:border-slate-200 focus:bg-white focus:px-2"
         />
         <p className="text-xs text-slate-500">/{store.slug}</p>
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <ColorPicker
+            label="Accent"
+            value={accentHex}
+            onChange={(hex) => {
+              setAccentHex(hex);
+              setColorsDirty(true);
+            }}
+            onCommit={() => void commitColors()}
+          />
+          <ColorPicker
+            label="Soft"
+            value={softHex}
+            onChange={(hex) => {
+              setSoftHex(hex);
+              setColorsDirty(true);
+            }}
+            onCommit={() => void commitColors()}
+          />
+          <ColorPicker
+            label="Deep"
+            value={deepHex}
+            onChange={(hex) => {
+              setDeepHex(hex);
+              setColorsDirty(true);
+            }}
+            onCommit={() => void commitColors()}
+          />
+        </div>
       </td>
       <td className="px-4 py-3">
         <input

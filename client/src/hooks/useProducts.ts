@@ -68,6 +68,22 @@ export function useProductsByCategory(
   });
 }
 
+export function useProductsByDepartment(
+  slug: string | undefined,
+  page = 1,
+  pageSize = 12,
+) {
+  return useQuery<PaginatedProductsResponse>({
+    queryKey: ["products", "department", slug, page, pageSize],
+    queryFn: () =>
+      api.get<PaginatedProductsResponse>(
+        `/products?department=${encodeURIComponent(slug!)}&page=${page}&pageSize=${pageSize}`,
+      ),
+    enabled: !!slug,
+    staleTime: 60_000,
+  });
+}
+
 export function useSameDayProducts() {
   return useQuery<ProductCard[]>({
     queryKey: ["products", "same-day"],

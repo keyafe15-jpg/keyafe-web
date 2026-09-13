@@ -336,6 +336,74 @@ export async function listPublicProductsByCategorySlug(
   };
 }
 
+// Products whose linked category (or its parent) belongs to this store slug.
+export async function listPublicProductsByDepartmentSlug(
+  slug: string,
+  page = 1,
+  pageSize = 12,
+) {
+  const department = await prisma.department.findFirst({
+    where: { slug, isActive: true },
+    select: { id: true, slug: true, name: true },
+  });
+  if (!department) throw HttpError.notFound("Store not found");
+
+  const inDepartment = {
+    categoryLinks: {
+      some: {
+        category: {
+          isActive: true,
+          OR: [
+            { departmentId: department.id },
+            { parent: { isActive: true, departmentId: department.id } },
+          ],
+        },
+      },
+    },
+  };
+
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
+  const skip = (safePage - 1) * safePageSize;
+
+  const [total, products] = await Promise.all([
+    prisma.product.count({
+      where: {
+        ...PUBLIC_LIST_WHERE,
+        ...inDepartment,
+      },
+    }),
+    prisma.product.findMany({
+      where: {
+        ...PUBLIC_LIST_WHERE,
+        ...inDepartment,
+      },
+      orderBy: [
+        { isFeatured: "desc" },
+        { sortOrder: "asc" },
+        { createdAt: "desc" },
+      ],
+      skip,
+      take: safePageSize,
+      select: PUBLIC_CARD_SELECT,
+    }),
+  ]);
+
+  const items = products.map((p) =>
+    decorateCard(p as unknown as PublicCardRow),
+  );
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+
+  return {
+    items,
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    totalPages,
+    department,
+  };
+}
+
 // All same-day-eligible products, ordered like the category listings. Client
 // groups them by category — server just filters.
 export async function listSameDayProducts() {

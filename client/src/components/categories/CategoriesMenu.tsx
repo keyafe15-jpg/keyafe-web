@@ -1,13 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
-import { useCategories, type CategoryNode } from "@/hooks/useCategories";
+import {
+  groupCategoriesByDepartment,
+  storePath,
+  useCategories,
+  useDepartments,
+  type CategoryNode,
+} from "@/hooks/useCategories";
 
 export function CategoriesMenu() {
   const { data: categories = [], isLoading } = useCategories();
+  const { data: departments = [] } = useDepartments();
   const [open, setOpen] = useState(false);
   const [hoveredParent, setHoveredParent] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const groups = groupCategoriesByDepartment(categories, departments);
+  const twoCols = groups.length === 2;
 
   useEffect(() => {
     if (!open) return;
@@ -70,7 +80,8 @@ export function CategoriesMenu() {
       <div
         role="menu"
         className={cn(
-          "absolute left-0 top-full z-40 mt-2 min-w-[240px] origin-top-left rounded-xl border border-cream-200 bg-white p-2 shadow-lg transition",
+          "absolute left-0 top-full z-40 mt-2 origin-top-left rounded-xl border border-cream-200 bg-white p-2 shadow-lg transition",
+          twoCols ? "flex min-w-[460px] gap-1" : "min-w-[240px]",
           open
             ? "pointer-events-auto scale-100 opacity-100"
             : "pointer-events-none scale-95 opacity-0",
@@ -80,17 +91,45 @@ export function CategoriesMenu() {
         {isLoading && (
           <p className="px-3 py-2 text-xs text-ink-500">Loading…</p>
         )}
-        {!isLoading && categories.length === 0 && (
+        {!isLoading && groups.length === 0 && (
           <p className="px-3 py-2 text-xs text-ink-500">No categories yet.</p>
         )}
-        {categories.map((cat) => (
-          <CategoryRow
-            key={cat.id}
-            category={cat}
-            isSubOpen={hoveredParent === cat.id}
-            onHover={() => setHoveredParent(cat.id)}
-            onNavigate={closeAll}
-          />
+        {groups.map((group, index) => (
+          <div
+            key={group.department?.id ?? "ungrouped"}
+            className={cn(
+              "min-w-[220px] flex-1",
+              !twoCols && index > 0 && "mt-2 border-t border-cream-100 pt-2",
+              twoCols &&
+                index > 0 &&
+                "border-l border-cream-100 pl-1",
+            )}
+          >
+            {group.department ? (
+              <Link
+                to={storePath(group.department.slug)}
+                onClick={closeAll}
+                className="mb-1 block rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600 transition hover:bg-cream-50"
+                role="menuitem"
+              >
+                {group.department.name} store
+              </Link>
+            ) : (
+              <p className="mb-1 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                More
+              </p>
+            )}
+            {group.categories.map((cat) => (
+              <CategoryRow
+                key={cat.id}
+                category={cat}
+                isSubOpen={hoveredParent === cat.id}
+                flyoutSide={twoCols && index === groups.length - 1 ? "left" : "right"}
+                onHover={() => setHoveredParent(cat.id)}
+                onNavigate={closeAll}
+              />
+            ))}
+          </div>
         ))}
       </div>
     </div>
@@ -100,11 +139,13 @@ export function CategoriesMenu() {
 function CategoryRow({
   category,
   isSubOpen,
+  flyoutSide,
   onHover,
   onNavigate,
 }: {
   category: CategoryNode;
   isSubOpen: boolean;
+  flyoutSide: "left" | "right";
   onHover: () => void;
   onNavigate: () => void;
 }) {
@@ -129,6 +170,7 @@ function CategoryRow({
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden="true"
+            className={cn(flyoutSide === "left" && "rotate-180")}
           >
             <polyline points="9 18 15 12 9 6" />
           </svg>
@@ -138,7 +180,10 @@ function CategoryRow({
       {hasChildren && isSubOpen && (
         <div
           role="menu"
-          className="absolute left-full top-0 z-40 ml-1 min-w-[220px] rounded-xl border border-cream-200 bg-white p-2 shadow-lg"
+          className={cn(
+            "absolute top-0 z-40 min-w-[220px] rounded-xl border border-cream-200 bg-white p-2 shadow-lg",
+            flyoutSide === "right" ? "left-full ml-1" : "right-full mr-1",
+          )}
         >
           {category.children.map((child) => (
             <Link

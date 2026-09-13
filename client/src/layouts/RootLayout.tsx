@@ -6,7 +6,7 @@ import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 
 export function RootLayout() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-clip">
       <ShopClosedBanner />
       <AnnouncementBar />
       <Header />

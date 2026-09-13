@@ -822,8 +822,22 @@ async function seedCakeSizes() {
 
 async function seedDepartments() {
   const stores = [
-    { slug: "dessert", name: "Dessert", sortOrder: 10 },
-    { slug: "savory", name: "Savoury", sortOrder: 20 },
+    {
+      slug: "dessert",
+      name: "Dessert",
+      sortOrder: 10,
+      accentHex: "#E31C79",
+      softHex: "#F8D7E6",
+      deepHex: "#B0155F",
+    },
+    {
+      slug: "savory",
+      name: "Savoury",
+      sortOrder: 20,
+      accentHex: "#D97706",
+      softHex: "#F3E0C4",
+      deepHex: "#7A4A1E",
+    },
   ];
   for (const store of stores) {
     await prisma.department.upsert({

@@ -3,6 +3,7 @@ import { HttpError } from "../../utils/httpError.js";
 import {
   getPublicProductBySlug,
   listPublicProductsByCategorySlug,
+  listPublicProductsByDepartmentSlug,
   listPanIndiaProducts,
   listSameDayProducts,
   listHealthyTreatProducts,
@@ -31,18 +32,35 @@ publicProductRouter.get("/healthy", async (_req, res) => {
 });
 
 publicProductRouter.get("/", async (req, res) => {
-  const { category, page, pageSize } = req.query;
-  if (typeof category !== "string" || !category) {
-    throw HttpError.badRequest("Query param 'category' is required");
+  const { category, department, page, pageSize } = req.query;
+  const pageNum = Number(page ?? 1);
+  const sizeNum = Number(pageSize ?? 12);
+
+  if (typeof category === "string" && category) {
+    const products = await listPublicProductsByCategorySlug(
+      category,
+      pageNum,
+      sizeNum,
+    );
+    res.setHeader("Cache-Control", "public, max-age=30");
+    res.json(products);
+    return;
   }
 
-  const products = await listPublicProductsByCategorySlug(
-    category,
-    Number(page ?? 1),
-    Number(pageSize ?? 12),
+  if (typeof department === "string" && department) {
+    const products = await listPublicProductsByDepartmentSlug(
+      department,
+      pageNum,
+      sizeNum,
+    );
+    res.setHeader("Cache-Control", "public, max-age=30");
+    res.json(products);
+    return;
+  }
+
+  throw HttpError.badRequest(
+    "Query param 'category' or 'department' is required",
   );
-  res.setHeader("Cache-Control", "public, max-age=30");
-  res.json(products);
 });
 
 publicProductRouter.get("/:slug", async (req, res) => {

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useCart } from "@/store/cart";
 import { useAuth } from "@/store/auth";
 import { cn } from "@/lib/cn";
@@ -7,9 +7,14 @@ import { AuthDialog } from "@/components/auth/AuthDialog";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { CategoriesMenu } from "@/components/categories/CategoriesMenu";
 import { BRAND } from "@/content/brand";
-import { SAMEDAY_NAV, HEALTHY_NAV, PANINDIA_NAV } from "@/content/nav";
+import { SAMEDAY_NAV, HEALTHY_NAV, PANINDIA_NAV, storeNavItem } from "@/content/nav";
 import { AUTH_COPY } from "@/content/auth";
-import { useCategories } from "@/hooks/useCategories";
+import {
+  groupCategoriesByDepartment,
+  storePath,
+  useCategories,
+  useDepartments,
+} from "@/hooks/useCategories";
 import { Menu, ShoppingCart, X } from "lucide-react";
 
 type Accent = "brand" | "emerald" | "amber";
@@ -79,11 +84,28 @@ export function Header() {
   const count = useCart((s) => s.itemCount());
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
+  const { pathname } = useLocation();
+  const isHome = pathname === "/";
   const { data: categories = [] } = useCategories();
+  const { data: departments = [] } = useDepartments();
+  const categoryGroups = groupCategoriesByDepartment(categories, departments);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(
     null,
   );
+  const [scrolled, setScrolled] = useState(false);
+  const overlay = isHome && !scrolled;
+
+  useEffect(() => {
+    if (!isHome) {
+      setScrolled(false);
+      return;
+    }
+    const onScroll = () => setScrolled(window.scrollY > 32);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isHome]);
 
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
@@ -92,7 +114,15 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-cream-200 bg-cream-50/85 backdrop-blur">
+      <header
+        className={cn(
+          "sticky top-0 z-40 transition-[background-color,border-color,box-shadow] duration-300",
+          isHome && "-mb-[3.75rem] md:-mb-16",
+          overlay
+            ? "border-b border-transparent bg-transparent"
+            : "border-b border-cream-200 bg-cream-50/85 shadow-sm backdrop-blur",
+        )}
+      >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2">
           <Link to="/" className="flex shrink-0 items-center gap-2.5">
             <img
@@ -104,8 +134,29 @@ export function Header() {
           </Link>
 
           {/* Middle — Categories dropdown + highlighted tabs. Hidden on small and tablet screens. */}
-          <nav className="ml-auto hidden items-center gap-0.5 rounded-full border border-cream-200 bg-white/70 p-1 shadow-sm backdrop-blur-md lg:flex">
+          <nav
+            className={cn(
+              "ml-auto hidden items-center gap-0.5 rounded-full p-1 lg:flex",
+              overlay
+                ? "border border-white/50 bg-white/40 shadow-sm backdrop-blur-md"
+                : "border border-cream-200/80 bg-white/75 shadow-sm backdrop-blur-md",
+            )}
+          >
             <CategoriesMenu />
+            {departments.map((store) => (
+              <NavLink
+                key={store.id}
+                to={storePath(store.slug)}
+                className={({ isActive }) =>
+                  cn(
+                    "whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium text-ink-700 transition hover:bg-cream-100",
+                    isActive && "bg-cream-100 text-ink-900",
+                  )
+                }
+              >
+                {store.name}
+              </NavLink>
+            ))}
             <span
               className="mx-1 h-5 w-px shrink-0 bg-cream-200"
               aria-hidden="true"
@@ -198,7 +249,12 @@ export function Header() {
                   trigger={
                     <button
                       type="button"
-                      className="rounded-full border border-ink-700 px-4 py-1.5 text-sm font-medium text-ink-700 transition hover:bg-cream-100"
+                      className={cn(
+                        "rounded-full px-4 py-1.5 text-sm font-medium transition",
+                        overlay
+                          ? "border border-white/50 bg-white/40 text-ink-800 backdrop-blur-md hover:bg-white/60"
+                          : "border border-ink-700 text-ink-700 hover:bg-cream-100",
+                      )}
                     >
                       {AUTH_COPY.headerButton}
                     </button>
@@ -325,6 +381,36 @@ export function Header() {
                 />
               )}
 
+              {departments.length > 0 && (
+                <div>
+                  <p className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">
+                    Stores
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {departments.map((store) => {
+                      const item = storeNavItem(store);
+                      return (
+                        <NavLink
+                          key={store.id}
+                          to={item.to}
+                          onClick={closeMobileMenu}
+                          className={({ isActive }) =>
+                            cn(
+                              "flex items-center justify-center rounded-2xl border border-cream-200 bg-gradient-to-b from-cream-50 to-white px-2 py-3 text-center transition active:scale-95",
+                              isActive && "ring-2 ring-brand-300",
+                            )
+                          }
+                        >
+                          <span className="text-xs font-semibold leading-tight text-ink-800">
+                            {item.label}
+                          </span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <p className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">
                   Quick links
@@ -405,71 +491,96 @@ export function Header() {
                 <p className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">
                   Categories
                 </p>
-                <div className="divide-y divide-cream-100 overflow-hidden rounded-2xl border border-cream-100">
-                  {categories.length === 0 && (
-                    <p className="p-3 text-sm text-ink-500">
+                <div className="space-y-3">
+                  {categoryGroups.length === 0 && (
+                    <p className="rounded-2xl border border-cream-100 p-3 text-sm text-ink-500">
                       No categories yet.
                     </p>
                   )}
-                  {categories.map((category) => {
-                    const hasChildren = category.children.length > 0;
-                    const isExpanded = expandedCategoryId === category.id;
+                  {categoryGroups.map((group) => (
+                    <div
+                      key={group.department?.id ?? "ungrouped"}
+                      className="overflow-hidden rounded-2xl border border-cream-100"
+                    >
+                      {group.department ? (
+                        <Link
+                          to={storePath(group.department.slug)}
+                          onClick={closeMobileMenu}
+                          className="block bg-cream-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600"
+                        >
+                          {group.department.name} store
+                        </Link>
+                      ) : (
+                        <p className="bg-cream-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                          More
+                        </p>
+                      )}
+                      <div className="divide-y divide-cream-100">
+                        {group.categories.map((category) => {
+                          const hasChildren = category.children.length > 0;
+                          const isExpanded =
+                            expandedCategoryId === category.id;
 
-                    return (
-                      <div key={category.id} className="bg-white">
-                        <div className="flex items-center justify-between gap-3 pl-4 pr-2">
-                          <Link
-                            to={`/category/${category.slug}`}
-                            onClick={closeMobileMenu}
-                            className="flex-1 py-3 text-sm font-medium text-ink-800 transition hover:text-brand-500"
-                          >
-                            {category.name}
-                          </Link>
-                          {hasChildren && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setExpandedCategoryId((current) =>
-                                  current === category.id ? null : category.id,
-                                )
-                              }
-                              aria-label={
-                                isExpanded
-                                  ? `Collapse ${category.name}`
-                                  : `Expand ${category.name}`
-                              }
-                              aria-expanded={isExpanded}
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-500 transition hover:bg-cream-100"
-                            >
-                              <span
-                                className={cn(
-                                  "inline-block text-sm transition-transform duration-200",
-                                  isExpanded && "rotate-90",
+                          return (
+                            <div key={category.id} className="bg-white">
+                              <div className="flex items-center justify-between gap-3 pl-4 pr-2">
+                                <Link
+                                  to={`/category/${category.slug}`}
+                                  onClick={closeMobileMenu}
+                                  className="flex-1 py-3 text-sm font-medium text-ink-800 transition hover:text-brand-500"
+                                >
+                                  {category.name}
+                                </Link>
+                                {hasChildren && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedCategoryId((current) =>
+                                        current === category.id
+                                          ? null
+                                          : category.id,
+                                      )
+                                    }
+                                    aria-label={
+                                      isExpanded
+                                        ? `Collapse ${category.name}`
+                                        : `Expand ${category.name}`
+                                    }
+                                    aria-expanded={isExpanded}
+                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-500 transition hover:bg-cream-100"
+                                  >
+                                    <span
+                                      className={cn(
+                                        "inline-block text-sm transition-transform duration-200",
+                                        isExpanded && "rotate-90",
+                                      )}
+                                    >
+                                      ›
+                                    </span>
+                                  </button>
                                 )}
-                              >
-                                ›
-                              </span>
-                            </button>
-                          )}
-                        </div>
+                              </div>
 
-                        {hasChildren && isExpanded && (
-                          <div className="space-y-0.5 bg-cream-50/60 py-1.5 pl-7 pr-3">
-                            {category.children.map((child) => (
-                              <Link
-                                key={child.id}
-                                to={`/category/${child.slug}`}
-                                onClick={closeMobileMenu}
-                                className="block rounded-lg px-2 py-1.5 text-sm text-ink-600 transition hover:bg-white hover:text-brand-500"
-                              >
-                                {child.name}
-                              </Link>
-                            ))}
-                          </div>
-                        )}
+                              {hasChildren && isExpanded && (
+                                <div className="space-y-0.5 bg-cream-50/60 py-1.5 pl-7 pr-3">
+                                  {category.children.map((child) => (
+                                    <Link
+                                      key={child.id}
+                                      to={`/category/${child.slug}`}
+                                      onClick={closeMobileMenu}
+                                      className="block rounded-lg px-2 py-1.5 text-sm text-ink-600 transition hover:bg-white hover:text-brand-500"
+                                    >
+                                      {child.name}
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

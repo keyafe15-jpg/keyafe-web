@@ -7,6 +7,9 @@ export interface AdminDepartment {
   name: string;
   sortOrder: number;
   isActive: boolean;
+  accentHex: string;
+  softHex: string;
+  deepHex: string;
   categoryCount: number;
 }
 
@@ -23,6 +26,9 @@ export interface DepartmentPayload {
   slug: string;
   sortOrder?: number;
   isActive?: boolean;
+  accentHex?: string;
+  softHex?: string;
+  deepHex?: string;
 }
 
 const invalidate = (qc: ReturnType<typeof useQueryClient>) => {

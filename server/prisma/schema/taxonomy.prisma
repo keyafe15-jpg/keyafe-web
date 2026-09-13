@@ -5,6 +5,10 @@ model Department {
   name       String
   sortOrder  Int        @default(0)
   isActive   Boolean    @default(true)
+  // Shopfront door palette (home StoreDoor).
+  accentHex  String     @default("#E31C79")
+  softHex    String     @default("#F8D7E6")
+  deepHex    String     @default("#B0155F")
   categories Category[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
