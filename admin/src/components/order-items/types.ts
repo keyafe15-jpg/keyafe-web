@@ -27,6 +27,7 @@ export interface OrderItemDraft {
   crustOptionId: string;
   crustLabel: string;
   toppingSelections: string[];
+  addonSelections: string[];
 
   cakeSizeId: string;
   customPounds: string;
@@ -58,6 +59,7 @@ export function newOrderItem(kind: OrderLinkKind = "CATALOG"): OrderItemDraft {
     crustOptionId: "",
     crustLabel: "",
     toppingSelections: [],
+    addonSelections: [],
     cakeSizeId: "",
     customPounds: "",
     customPizzaSize: "",
@@ -89,6 +91,7 @@ export function orderLinkItemToDraft(it: OrderLinkItem): OrderItemDraft {
     crustOptionId: "",
     crustLabel: "",
     toppingSelections: [],
+    addonSelections: [],
     cakeSizeId: "",
     customPounds: "",
     customPizzaSize: "",

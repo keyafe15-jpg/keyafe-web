@@ -3,6 +3,8 @@ export { OrderItemRow } from "./OrderItemRow";
 export { OrderItemsEditor } from "./OrderItemsEditor";
 export {
   composePizzaNotes,
+  composeAddonNotes,
+  composeLineNotes,
   mergeInstructions,
   resolveFlavourName,
   resolveReferenceImageUrl,

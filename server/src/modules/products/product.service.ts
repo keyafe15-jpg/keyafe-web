@@ -526,12 +526,61 @@ export async function getPublicProductBySlug(slug: string) {
       })
     : [];
 
-  const { categoryLinks, ...rest } = product;
+  const { categoryLinks, addons: attachedAddons, ...rest } = product;
+  const categoryAddons = await addonsDefaultedToCategories(
+    categoryLinks.map((l) => l.category.id),
+  );
+
   return {
     ...rest,
     categories: categoryLinks.map((l) => l.category),
+    addons: mergeAddonsById(attachedAddons, categoryAddons),
     sizes,
   };
+}
+
+const addonOfferSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  group: true,
+  priceDelta: true,
+  imageUrl: true,
+} as const;
+
+/** Add-ons mapped to these categories or their parents (2-level tree). */
+async function addonsDefaultedToCategories(categoryIds: string[]) {
+  if (categoryIds.length === 0) return [];
+  const rows = await prisma.category.findMany({
+    where: { id: { in: categoryIds } },
+    select: { id: true, parentId: true },
+  });
+  const scope = [
+    ...new Set([
+      ...categoryIds,
+      ...rows
+        .map((r) => r.parentId)
+        .filter((id): id is string => Boolean(id)),
+    ]),
+  ];
+  return prisma.addon.findMany({
+    where: {
+      isActive: true,
+      defaultCategories: { some: { id: { in: scope } } },
+    },
+    orderBy: [{ group: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+    select: addonOfferSelect,
+  });
+}
+
+function mergeAddonsById<T extends { id: string }>(
+  attached: T[],
+  fromCategories: T[],
+): T[] {
+  const map = new Map<string, T>();
+  for (const addon of fromCategories) map.set(addon.id, addon);
+  for (const addon of attached) map.set(addon.id, addon);
+  return [...map.values()];
 }
 
 export async function createProduct(input: CreateProductInput) {
@@ -707,6 +756,12 @@ export async function getAdminProductById(id: string) {
     ...rest
   } = product;
 
+  const categoryAddonIds = (
+    await addonsDefaultedToCategories(
+      categoryLinks.map((l) => l.category.id),
+    )
+  ).map((a) => a.id);
+
   return {
     ...rest,
     categoryIds: categoryLinks.map((l) => l.category.id),
@@ -715,6 +770,7 @@ export async function getAdminProductById(id: string) {
     tagIds: tags.map((t) => t.id),
     toppingIds: toppings.map((t) => t.id),
     addonIds: addons.map((a) => a.id),
+    offeredAddonIds: [...new Set([...addons.map((a) => a.id), ...categoryAddonIds])],
     optionGroups,
     sizeOptions: sizeGroup?.options ?? [],
     crustOptions: crustGroup?.options ?? [],

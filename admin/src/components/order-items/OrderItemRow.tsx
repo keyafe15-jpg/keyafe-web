@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
+import type { AdminAddon } from "@/hooks/useAddons";
 import type { CakeSize } from "@/hooks/useCakeSizes";
 import {
   Field,
@@ -45,6 +46,7 @@ export function OrderItemRow({
   products,
   flavours,
   allToppings,
+  allAddons,
   cakeSizes,
   onPatch,
   onRemove,
@@ -55,6 +57,7 @@ export function OrderItemRow({
   products: AdminProduct[];
   flavours: Array<{ id: string; name: string; additionalAmount: string }>;
   allToppings: AdminTopping[];
+  allAddons: AdminAddon[];
   cakeSizes: CakeSize[];
   onPatch: (patch: Partial<OrderItemDraft>) => void;
   onRemove: () => void;
@@ -88,6 +91,13 @@ export function OrderItemRow({
   const linkedToppingIds = new Set(productDetail?.toppingIds ?? []);
   const linkedToppings = allToppings.filter((t) => linkedToppingIds.has(t.id));
   const availToppings = linkedToppings.filter((t) => t.kind === "TOPPING");
+  const linkedAddonIds = new Set(
+    productDetail?.offeredAddonIds ?? productDetail?.addonIds ?? [],
+  );
+  const catalogAddons = allAddons.filter(
+    (a) => a.isActive && linkedAddonIds.has(a.id),
+  );
+  const customAddons = allAddons.filter((a) => a.isActive);
   const availCondiments = linkedToppings.filter((t) => t.kind === "CONDIMENT");
 
   // Cake configurator — flavour + pounds with auto price (all CAKE catalog items).
@@ -277,8 +287,11 @@ export function OrderItemRow({
       flavourAdditional,
       hasAttachedFlavours,
     );
+    const addonsDelta = allAddons
+      .filter((a) => item.addonSelections.includes(a.id))
+      .reduce((s, a) => s + Number(a.priceDelta), 0);
     onPatch({
-      unitPrice: computed.toFixed(0),
+      unitPrice: (computed + addonsDelta).toFixed(0),
       sizeGrams: String(grams),
       sizeLabel,
     });
@@ -288,6 +301,7 @@ export function OrderItemRow({
     item.cakeSizeId,
     item.customPounds,
     item.flavourId,
+    item.addonSelections.join("|"),
     productDetail,
     hasAttachedFlavours,
   ]);
@@ -300,7 +314,10 @@ export function OrderItemRow({
       (s, t) => s + Number(t.priceDelta),
       0,
     );
-    const computed = sizePrice + crustDelta + toppingsDelta;
+    const addonsDelta = allAddons
+      .filter((a) => item.addonSelections.includes(a.id))
+      .reduce((s, a) => s + Number(a.priceDelta), 0);
+    const computed = sizePrice + crustDelta + toppingsDelta + addonsDelta;
     const patch: Partial<OrderItemDraft> = { unitPrice: computed.toFixed(0) };
     if (pickedSize) patch.sizeLabel = pickedSize.label;
     patch.crustLabel = pickedCrust ? pickedCrust.label : "";
@@ -311,6 +328,7 @@ export function OrderItemRow({
     item.sizeOptionId,
     item.crustOptionId,
     item.toppingSelections.join("|"),
+    item.addonSelections.join("|"),
   ]);
 
   // Custom cake — sync size label/grams from pound picker or custom pounds.
@@ -418,6 +436,29 @@ export function OrderItemRow({
     }
 
     onPatch({ toppingSelections: next });
+  };
+
+  const toggleAddon = (id: string) => {
+    const isOn = item.addonSelections.includes(id);
+    const addon = allAddons.find((a) => a.id === id);
+    const delta = addon ? Number(addon.priceDelta) : 0;
+    const next = isOn
+      ? item.addonSelections.filter((x) => x !== id)
+      : [...item.addonSelections, id];
+    const priceIsManual =
+      item.kind === "CUSTOM" || (!isPizza && !isCakeConfigurator);
+    if (priceIsManual) {
+      const priceAdjust = isOn ? -delta : delta;
+      onPatch({
+        addonSelections: next,
+        unitPrice: Math.max(
+          0,
+          Number(item.unitPrice || 0) + priceAdjust,
+        ).toFixed(0),
+      });
+      return;
+    }
+    onPatch({ addonSelections: next });
   };
 
   const cakeBasePrice = productDetail ? Number(productDetail.basePrice) : 0;
@@ -813,6 +854,16 @@ export function OrderItemRow({
             </div>
           )}
 
+          {item.kind === "CATALOG" && catalogAddons.length > 0 && (
+            <div className="mt-3">
+              <AddonGroupPicker
+                addons={catalogAddons}
+                selected={item.addonSelections}
+                onToggle={toggleAddon}
+              />
+            </div>
+          )}
+
           {item.kind === "CUSTOM" && (
             <button
               type="button"
@@ -848,6 +899,7 @@ export function OrderItemRow({
                       crustOptionId: "",
                       crustLabel: "",
                       toppingSelections: [],
+                      addonSelections: [],
                     })
                   }
                   className={selectClass}
@@ -1158,6 +1210,14 @@ export function OrderItemRow({
                 </div>
               )}
 
+              {customAddons.length > 0 && (
+                <AddonGroupPicker
+                  addons={customAddons}
+                  selected={item.addonSelections}
+                  onToggle={toggleAddon}
+                />
+              )}
+
               <Field label="Instructions">
                 <input
                   value={item.instructions}
@@ -1243,6 +1303,71 @@ export function OrderItemRow({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
+    </div>
+  );
+}
+
+function AddonGroupPicker({
+  addons,
+  selected,
+  onToggle,
+}: {
+  addons: AdminAddon[];
+  selected: string[];
+  onToggle: (id: string) => void;
+}) {
+  const groups = new Map<string, AdminAddon[]>();
+  for (const addon of addons) {
+    const key = addon.group?.trim() || "Add-ons";
+    const list = groups.get(key) ?? [];
+    list.push(addon);
+    groups.set(key, list);
+  }
+
+  return (
+    <div className="space-y-3">
+      {[...groups.entries()].map(([group, items]) => (
+        <div key={group}>
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+            {group}{" "}
+            <span className="font-normal normal-case tracking-normal text-slate-400">
+              (optional)
+            </span>
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {items.map((addon) => {
+              const on = selected.includes(addon.id);
+              const delta = Number(addon.priceDelta);
+              return (
+                <button
+                  key={addon.id}
+                  type="button"
+                  onClick={() => onToggle(addon.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border py-1 text-xs font-medium transition",
+                    addon.imageUrl ? "pl-1 pr-2.5" : "px-2.5",
+                    on
+                      ? "border-brand-500 bg-brand-100 text-brand-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
+                  )}
+                >
+                  {addon.imageUrl && (
+                    <img
+                      src={addon.imageUrl}
+                      alt=""
+                      className="h-5 w-5 rounded-full object-cover"
+                    />
+                  )}
+                  {addon.name}
+                  {delta > 0 && (
+                    <span className="text-slate-500">+₹{delta.toFixed(0)}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

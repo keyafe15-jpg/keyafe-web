@@ -34,6 +34,7 @@ import {
   validateOrderItems,
 } from "@/components/order-items";
 import { useAdminToppings } from "@/hooks/useToppings";
+import { useAdminAddons } from "@/hooks/useAddons";
 import { cn } from "@/lib/cn";
 
 function publicUrl(token: string): string {
@@ -50,6 +51,7 @@ export function OrderLinkFormPage() {
   const { data: existing } = useAdminOrderLink(id);
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
+  const { data: allAddons = [] } = useAdminAddons();
   const { items, setItems, patchItem, removeItem, addItem } =
     useOrderItemsState("CUSTOM");
   const [customerName, setCustomerName] = useState("");
@@ -126,6 +128,7 @@ export function OrderLinkFormPage() {
             referenceImageUrl,
             flavours,
             allToppings,
+            allAddons,
           ),
         );
       }

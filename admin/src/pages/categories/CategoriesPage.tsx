@@ -14,11 +14,13 @@ import {
   useDeleteCategory,
   type AdminCategory,
 } from "@/hooks/useAdminCategories";
+import { useAdminDepartments } from "@/hooks/useAdminDepartments";
 import { uploadImage } from "@/lib/uploads";
 import {
   inputClass,
   textareaClass,
   submitClass,
+  selectClass,
 } from "@/components/form/Field";
 import { cn } from "@/lib/cn";
 
@@ -45,7 +47,7 @@ export function CategoriesPage() {
           <h1 className="text-2xl font-semibold text-slate-900">Categories</h1>
           <p className="mt-1 text-sm text-slate-500">
             Main catalogue taxonomy. Two levels supported — top-level and
-            sub-categories.
+            sub-categories. Assign each top-level to a store.
           </p>
         </div>
         <button
@@ -252,6 +254,12 @@ function CategoryRow({
         </p>
         <p className="truncate text-xs text-slate-500">
           /{category.slug}
+          {category.department && (
+            <span className="ml-2">
+              · {category.department.name}
+              {!isTop && " (from parent)"}
+            </span>
+          )}
           {category.productCount > 0 && (
             <span className="ml-2">
               · {category.productCount} product
@@ -357,6 +365,7 @@ function CategoryForm({
 }) {
   const create = useCreateCategory();
   const update = useUpdateCategory();
+  const { data: stores = [] } = useAdminDepartments();
 
   const [name, setName] = useState(existing?.name ?? "");
   const [slug, setSlug] = useState(existing?.slug ?? "");
@@ -370,6 +379,9 @@ function CategoryForm({
   );
   const [sortOrder, setSortOrder] = useState(existing?.sortOrder ?? 0);
   const [isActive, setIsActive] = useState(existing?.isActive ?? true);
+  const [departmentId, setDepartmentId] = useState(
+    existing?.departmentId ?? "",
+  );
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -406,12 +418,17 @@ function CategoryForm({
     if (!/^[a-z0-9-]+$/.test(slug))
       return setError("Slug: lowercase letters, digits, hyphens only");
 
+    if (!selectedParent && !departmentId) {
+      return setError("Pick a store for a top-level category");
+    }
+
     const payload = {
       name: name.trim(),
       slug,
       description: description.trim() || null,
       imageUrl,
       parentId: selectedParent,
+      departmentId: selectedParent ? null : departmentId,
       sortOrder,
       isActive,
     };
@@ -428,6 +445,10 @@ function CategoryForm({
     }
   };
 
+  const inheritedStore =
+    existing?.department ??
+    allCategories.find((c) => c.id === selectedParent)?.department ??
+    null;
   const saving = create.isPending || update.isPending;
 
   return (
@@ -493,6 +514,37 @@ function CategoryForm({
           placeholder="Shown on the category landing page."
         />
       </label>
+
+      {!selectedParent ? (
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-600">
+            Store <span className="text-brand-500">*</span>
+          </span>
+          <select
+            value={departmentId}
+            onChange={(e) => setDepartmentId(e.target.value)}
+            className={selectClass}
+            required
+          >
+            <option value="">— Pick one —</option>
+            {stores
+              .filter((s) => s.isActive || s.id === existing?.departmentId)
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+          </select>
+          <span className="mt-1 block text-[11px] text-slate-500">
+            Sub-categories inherit this. Manage stores under Catalog → Stores.
+          </span>
+        </label>
+      ) : (
+        <p className="text-xs text-slate-500">
+          Store is inherited from the parent category
+          {inheritedStore ? ` (${inheritedStore.name})` : ""}.
+        </p>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
         <label className="block">

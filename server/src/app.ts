@@ -23,6 +23,10 @@ import {
 import { categoryRouter } from "./modules/categories/category.routes.js";
 import { adminCategoryRouter } from "./modules/categories/category.admin.routes.js";
 import {
+  adminDepartmentRouter,
+  departmentRouter,
+} from "./modules/departments/department.routes.js";
+import {
   flavorRouter,
   adminFlavorRouter,
 } from "./modules/flavors/flavor.routes.js";
@@ -108,6 +112,7 @@ export function createApp() {
   app.use("/api/store", storeRouter);
   app.use("/api/delivery", deliveryRouter);
   app.use("/api/categories", categoryRouter);
+  app.use("/api/departments", departmentRouter);
   app.use("/api/products", publicProductRouter);
   app.use("/api/flavours", flavorRouter);
   app.use("/api/tags", tagRouter);
@@ -129,6 +134,12 @@ export function createApp() {
     requireStaff,
     requirePermission("categories.write"),
     adminCategoryRouter,
+  );
+  app.use(
+    "/api/admin/departments",
+    requireStaff,
+    requirePermission("categories.write"),
+    adminDepartmentRouter,
   );
   app.use(
     "/api/admin/flavours",

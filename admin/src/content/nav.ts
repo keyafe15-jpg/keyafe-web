@@ -3,6 +3,7 @@ import {
   ShoppingBag,
   Package,
   FolderTree,
+  Store,
   Palette,
   Cake,
   Pizza,
@@ -65,6 +66,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Products",
         icon: Package,
         requiresPermission: "products.write",
+      },
+      {
+        to: "/stores",
+        label: "Stores",
+        icon: Store,
+        requiresPermission: "categories.write",
       },
       {
         to: "/categories",

@@ -1,3 +1,15 @@
+// Admin-managed store grouping (Dessert, Savoury, or whatever you add).
+model Department {
+  id         String     @id @default(cuid())
+  slug       String     @unique
+  name       String
+  sortOrder  Int        @default(0)
+  isActive   Boolean    @default(true)
+  categories Category[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
 model Category {
   id          String  @id @default(cuid())
   slug        String  @unique
@@ -6,6 +18,9 @@ model Category {
   imageUrl    String?
   sortOrder   Int     @default(0)
   isActive    Boolean @default(true)
+  // Set on top-level categories only. Children inherit via parent.
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
   // Self-referencing hierarchy (adjacency list). 2 levels for now:
   // top-level (parentId = null) and sub-categories (parentId = <parent>).
@@ -20,6 +35,7 @@ model Category {
 
   @@index([isActive, sortOrder])
   @@index([parentId, isActive, sortOrder])
+  @@index([departmentId])
 }
 
 // Cross-cutting labels: "2-Tier", "Fondant", "Eggless", "Same-Day", "Bestseller"

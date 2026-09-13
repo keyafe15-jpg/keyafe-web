@@ -8,6 +8,7 @@ export interface CategoryNode {
   description: string | null;
   imageUrl: string | null;
   sortOrder: number;
+  department: { id: string; slug: string; name: string } | null;
   children: CategoryNode[];
 }
 

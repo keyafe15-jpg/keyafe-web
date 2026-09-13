@@ -820,6 +820,22 @@ async function seedCakeSizes() {
   logger.info(`Seeded ${sizes.length} cake sizes`);
 }
 
+async function seedDepartments() {
+  const stores = [
+    { slug: "dessert", name: "Dessert", sortOrder: 10 },
+    { slug: "savory", name: "Savoury", sortOrder: 20 },
+  ];
+  for (const store of stores) {
+    await prisma.department.upsert({
+      where: { slug: store.slug },
+      create: store,
+      // Keep admin renames / sort / active state.
+      update: {},
+    });
+  }
+  logger.info(`Seeded ${stores.length} stores`);
+}
+
 async function seedCategories() {
   // Two-level hierarchy. Parents first, then children reference by slug lookup.
   const tree: {
@@ -827,6 +843,7 @@ async function seedCategories() {
     name: string;
     description?: string;
     sortOrder: number;
+    departmentSlug: "dessert" | "savory";
     children?: { slug: string; name: string; sortOrder: number }[];
   }[] = [
     {
@@ -834,6 +851,7 @@ async function seedCategories() {
       name: "Celebration Cakes",
       description: "Custom flavours, tiers & fondant art for every occasion.",
       sortOrder: 10,
+      departmentSlug: "dessert",
       children: [
         { slug: "birthday-cakes", name: "Birthday", sortOrder: 10 },
         { slug: "anniversary-cakes", name: "Anniversary", sortOrder: 20 },
@@ -848,41 +866,56 @@ async function seedCategories() {
       name: "Dry Cakes",
       description: "Loaves & tea cakes for every day.",
       sortOrder: 20,
+      departmentSlug: "dessert",
     },
     {
       slug: "tubs",
       name: "Cake & Cookie Tubs",
       description: "Bite-sized joy in a jar.",
       sortOrder: 30,
+      departmentSlug: "dessert",
     },
     {
       slug: "pizzas",
       name: "Pizzas",
       description: "Hand-tossed, wood-fired.",
       sortOrder: 40,
+      departmentSlug: "savory",
     },
     {
       slug: "panuozzo",
       name: "Panuozzo",
       description: "Italian sandwiches on baked pizza dough.",
       sortOrder: 50,
+      departmentSlug: "savory",
     },
     {
       slug: "focaccia-sandwich",
       name: "Focaccia Sandwich",
       description: "Herbed focaccia with hearty fillings.",
       sortOrder: 60,
+      departmentSlug: "savory",
     },
     {
       slug: "house-special-snacks",
       name: "Other House Special Snacks",
       description: "Savoury specials from our kitchen.",
       sortOrder: 70,
+      departmentSlug: "savory",
     },
   ];
 
+  const departments = await prisma.department.findMany({
+    select: { id: true, slug: true },
+  });
+  const departmentIdBySlug = new Map(departments.map((d) => [d.slug, d.id]));
+
   // Upsert parents first so children can reference their id.
   for (const parent of tree) {
+    const departmentId = departmentIdBySlug.get(parent.departmentSlug);
+    if (!departmentId) {
+      throw new Error(`Missing store slug ${parent.departmentSlug}`);
+    }
     const parentRow = await prisma.category.upsert({
       where: { slug: parent.slug },
       create: {
@@ -890,6 +923,7 @@ async function seedCategories() {
         name: parent.name,
         description: parent.description ?? null,
         sortOrder: parent.sortOrder,
+        departmentId,
       },
       update: {
         name: parent.name,
@@ -1454,6 +1488,7 @@ async function main() {
   await seedDeliveryPincodes();
   await seedFlavors();
   await seedCakeSizes();
+  await seedDepartments();
   await seedCategories();
   await seedTags();
   await seedProducts();

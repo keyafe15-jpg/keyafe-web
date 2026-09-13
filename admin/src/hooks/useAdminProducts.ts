@@ -118,6 +118,8 @@ export interface CreateProductPayload {
   tagIds: string[];
   toppingIds?: string[];
   addonIds?: string[];
+  /** Attached add-ons plus category defaults (including parent categories). */
+  offeredAddonIds?: string[];
   sizeOptions?: ProductOptionInput[];
   crustOptions?: ProductOptionInput[];
 }

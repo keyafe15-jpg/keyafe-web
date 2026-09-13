@@ -9,6 +9,7 @@ import { ProductFormPage } from "@/pages/products/ProductFormPage";
 import { FlavoursPage } from "@/pages/flavours/FlavoursPage";
 import { CakeSizesPage } from "@/pages/cake-sizes/CakeSizesPage";
 import { CategoriesPage } from "@/pages/categories/CategoriesPage";
+import { DepartmentsPage } from "@/pages/departments/DepartmentsPage";
 import { ToppingsPage } from "@/pages/toppings/ToppingsPage";
 import { AddonsPage } from "@/pages/addons/AddonsPage";
 import { TagsPage } from "@/pages/tags/TagsPage";
@@ -75,6 +76,10 @@ export const router = createBrowserRouter([
       {
         path: "products/:id",
         element: <ProductFormPage />,
+      },
+      {
+        path: "stores",
+        element: <DepartmentsPage />,
       },
       {
         path: "categories",

@@ -1,6 +1,7 @@
 import type { OrderLinkItemPayload } from "@/hooks/useAdminOrderLinks";
 import type { OfflineOrderItemPayload } from "@/hooks/useOfflineOrders";
 import type { AdminTopping } from "@/hooks/useToppings";
+import type { AdminAddon } from "@/hooks/useAddons";
 import { uploadImage } from "@/lib/uploads";
 import type { OrderItemDraft } from "./types";
 
@@ -33,6 +34,38 @@ export function composePizzaNotes(
     .map((t) => t.name)
     .join(", ");
   if (condimentsPart) parts.push(`Condiments: ${condimentsPart}`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+export function composeAddonNotes(
+  item: OrderItemDraft,
+  allAddons: AdminAddon[],
+): string | null {
+  const picked = allAddons.filter((a) =>
+    (item.addonSelections ?? []).includes(a.id),
+  );
+  if (picked.length === 0) return null;
+  const groups = new Map<string, string[]>();
+  for (const addon of picked) {
+    const group = addon.group?.trim() || "Add-ons";
+    const names = groups.get(group) ?? [];
+    names.push(addon.name);
+    groups.set(group, names);
+  }
+  return [...groups.entries()]
+    .map(([group, names]) => `${group}: ${names.join(", ")}`)
+    .join(" · ");
+}
+
+export function composeLineNotes(
+  item: OrderItemDraft,
+  allToppings: AdminTopping[],
+  allAddons: AdminAddon[],
+): string | null {
+  const parts = [
+    composePizzaNotes(item, allToppings),
+    composeAddonNotes(item, allAddons),
+  ].filter((p): p is string => Boolean(p));
   return parts.length ? parts.join(" · ") : null;
 }
 
@@ -71,10 +104,11 @@ export function toOrderLinkItemPayload(
   referenceImageUrl: string | null,
   flavours: Array<{ id: string; name: string }>,
   allToppings: AdminTopping[],
+  allAddons: AdminAddon[] = [],
 ): OrderLinkItemPayload {
-  const pizzaNotes = composePizzaNotes(item, allToppings);
+  const lineNotes = composeLineNotes(item, allToppings, allAddons);
   const messageHint = mergeInstructions(
-    pizzaNotes,
+    lineNotes,
     item.messageOnCake.trim() || "",
   );
 
@@ -98,8 +132,9 @@ export function toOfflineOrderItemPayload(
   referenceImageUrl: string | null,
   flavours: Array<{ id: string; name: string }>,
   allToppings: AdminTopping[],
+  allAddons: AdminAddon[] = [],
 ): OfflineOrderItemPayload {
-  const pizzaNotes = composePizzaNotes(item, allToppings);
+  const lineNotes = composeLineNotes(item, allToppings, allAddons);
 
   return {
     kind: item.kind,
@@ -111,7 +146,7 @@ export function toOfflineOrderItemPayload(
     flavourName: resolveFlavourName(item, flavours),
     referenceImageUrl,
     messageOnCake: item.messageOnCake.trim() || null,
-    instructions: mergeInstructions(pizzaNotes, item.instructions),
+    instructions: mergeInstructions(lineNotes, item.instructions),
     unitPrice: Number(item.unitPrice),
     qty: Number(item.qty) || 1,
   };

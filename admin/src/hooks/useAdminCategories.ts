@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
+export interface CategoryDepartment {
+  id: string;
+  slug: string;
+  name: string;
+}
+
 export interface AdminCategory {
   id: string;
   slug: string;
@@ -10,6 +16,8 @@ export interface AdminCategory {
   sortOrder: number;
   isActive: boolean;
   parentId: string | null;
+  departmentId: string | null;
+  department: CategoryDepartment | null;
   parentName: string | null;
   parentSlug: string | null;
   productCount: number;
@@ -30,6 +38,7 @@ export interface CategoryPayload {
   description?: string | null;
   imageUrl?: string | null;
   parentId?: string | null;
+  departmentId?: string | null;
   sortOrder?: number;
   isActive?: boolean;
 }

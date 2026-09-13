@@ -12,6 +12,7 @@ import {
   type ProductDetail,
   type ProductFlavour,
   type ProductSize,
+  type ProductAddon,
 } from "@/hooks/useProducts";
 import { useMasterFlavours } from "@/hooks/useFlavours";
 import { useCart } from "@/store/cart";
@@ -91,6 +92,13 @@ function PdpContent({ product }: { product: ProductDetail }) {
   const [message, setMessage] = useState("");
   const [instructions, setInstructions] = useState("");
   const [qty, setQty] = useState(1);
+  const [addonIds, setAddonIds] = useState<Set<string>>(new Set());
+  const addons = product.addons ?? [];
+  const pickedAddons = addons.filter((a) => addonIds.has(a.id));
+  const addonsDelta = pickedAddons.reduce(
+    (s, a) => s + Number(a.priceDelta),
+    0,
+  );
 
   const size = useMemo(
     () => product.sizes.find((s) => s.id === sizeId) ?? null,
@@ -121,7 +129,8 @@ function PdpContent({ product }: { product: ProductDetail }) {
     ? Number(pickedFlavour.additionalAmount)
     : 0;
   const multiplier = effectiveGrams ? effectiveGrams / BASE_PRICE_GRAMS : 1;
-  const unitPrice = (basePrice + flavourDelta) * multiplier + slotSurcharge;
+  const unitPrice =
+    (basePrice + flavourDelta) * multiplier + addonsDelta + slotSurcharge;
 
   const deliveryFee =
     fulfillment === "delivery" && pincodeResult?.serviceable
@@ -145,6 +154,12 @@ function PdpContent({ product }: { product: ProductDetail }) {
         : size?.label;
     const effectiveSizeGrams =
       customGrams && !customOutOfRange ? customGrams : size?.grams;
+    const addonNotes = composeAddonNotes(pickedAddons);
+    const extraNotes = instructions.trim();
+    const composed =
+      addonNotes && extraNotes
+        ? `${addonNotes}\n${extraNotes}`
+        : addonNotes || extraNotes || undefined;
 
     addLine({
       productId: product.id,
@@ -157,7 +172,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
       flavourId: chosenFlavour?.id,
       flavourName: chosenFlavour?.name,
       messageOnCake: message.trim() || undefined,
-      instructions: instructions.trim() || undefined,
+      instructions: composed,
       fulfillment,
       date: product.canBeDeliveredPanIndia ? undefined : date,
       slotKey: product.canBeDeliveredPanIndia ? undefined : slotKey,
@@ -471,6 +486,18 @@ function PdpContent({ product }: { product: ProductDetail }) {
             </div>
           )}
 
+          {addons.length > 0 && (
+            <AddonsPicker
+              addons={addons}
+              selected={addonIds}
+              onToggle={(id) => {
+                const next = new Set(addonIds);
+                next.has(id) ? next.delete(id) : next.add(id);
+                setAddonIds(next);
+              }}
+            />
+          )}
+
           <hr className="border-cream-200" />
 
           {!product.canBeDeliveredPanIndia && (
@@ -780,6 +807,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
     defaultCrust?.id ?? null,
   );
   const [toppingIds, setToppingIds] = useState<Set<string>>(new Set());
+  const [addonIds, setAddonIds] = useState<Set<string>>(new Set());
   const [fulfillment, setFulfillment] = useState<Fulfillment>("delivery");
   const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(
     null,
@@ -804,6 +832,8 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
     [crustGroup, crustId],
   );
   const pickedToppings = product.toppings.filter((t) => toppingIds.has(t.id));
+  const addons = product.addons ?? [];
+  const pickedAddons = addons.filter((a) => addonIds.has(a.id));
 
   const basePrice = Number(product.basePrice);
   const sizePrice = pickedSize ? Number(pickedSize.price) : basePrice;
@@ -812,7 +842,12 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
     (s, t) => s + Number(t.priceDelta),
     0,
   );
-  const unitPrice = sizePrice + crustDelta + toppingsDelta + slotSurcharge;
+  const addonsDelta = pickedAddons.reduce(
+    (s, a) => s + Number(a.priceDelta),
+    0,
+  );
+  const unitPrice =
+    sizePrice + crustDelta + toppingsDelta + addonsDelta + slotSurcharge;
 
   const deliveryFee =
     fulfillment === "delivery" && pincodeResult?.serviceable
@@ -864,6 +899,8 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
           .join(", ")}`,
       );
     }
+    const addonNotes = composeAddonNotes(pickedAddons);
+    if (addonNotes) parts.push(addonNotes);
     const composed = parts.join(" · ");
     if (instructions.trim() && composed)
       return `${composed}\n${instructions.trim()}`;
@@ -1051,6 +1088,18 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
             />
           )}
 
+          {addons.length > 0 && (
+            <AddonsPicker
+              addons={addons}
+              selected={addonIds}
+              onToggle={(id) => {
+                const next = new Set(addonIds);
+                next.has(id) ? next.delete(id) : next.add(id);
+                setAddonIds(next);
+              }}
+            />
+          )}
+
           <hr className="border-cream-200" />
 
           {!product.canBeDeliveredPanIndia && (
@@ -1222,6 +1271,90 @@ function ToppingsPicker({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function composeAddonNotes(addons: ProductAddon[]): string | null {
+  if (addons.length === 0) return null;
+  const groups = new Map<string, string[]>();
+  for (const addon of addons) {
+    const group = addon.group?.trim() || "Add-ons";
+    const names = groups.get(group) ?? [];
+    names.push(addon.name);
+    groups.set(group, names);
+  }
+  return [...groups.entries()]
+    .map(([group, names]) => `${group}: ${names.join(", ")}`)
+    .join(" · ");
+}
+
+function AddonsPicker({
+  addons,
+  selected,
+  onToggle,
+}: {
+  addons: ProductAddon[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  const groups = useMemo(() => {
+    const map = new Map<string, ProductAddon[]>();
+    for (const addon of addons) {
+      const key = addon.group?.trim() || "Add-ons";
+      const list = map.get(key) ?? [];
+      list.push(addon);
+      map.set(key, list);
+    }
+    return [...map.entries()];
+  }, [addons]);
+
+  return (
+    <div className="space-y-4">
+      {groups.map(([group, items]) => (
+        <div key={group}>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
+            {group}{" "}
+            <span className="font-normal normal-case tracking-normal text-ink-400">
+              (optional)
+            </span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {items.map((addon) => {
+              const on = selected.has(addon.id);
+              const delta = Number(addon.priceDelta);
+              return (
+                <button
+                  key={addon.id}
+                  type="button"
+                  onClick={() => onToggle(addon.id)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border py-1.5 pr-3 text-left text-xs font-medium transition",
+                    addon.imageUrl ? "pl-1.5" : "pl-3",
+                    on
+                      ? "border-brand-500 bg-brand-100 text-brand-700"
+                      : "border-cream-200 bg-white text-ink-700 hover:border-brand-300",
+                  )}
+                >
+                  {addon.imageUrl && (
+                    <img
+                      src={addon.imageUrl}
+                      alt=""
+                      className="h-8 w-8 rounded-md object-cover"
+                    />
+                  )}
+                  <span>
+                    <span className="block">{addon.name}</span>
+                    <span className="mt-0.5 block text-[11px] font-normal text-ink-500">
+                      {delta === 0 ? "no extra" : `+₹${delta.toFixed(0)}`}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

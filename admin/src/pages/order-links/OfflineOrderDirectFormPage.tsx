@@ -28,6 +28,7 @@ import {
 } from "@/components/order-items";
 import { useFlavours } from "@/hooks/useFlavours";
 import { useAdminToppings } from "@/hooks/useToppings";
+import { useAdminAddons } from "@/hooks/useAddons";
 import { cn } from "@/lib/cn";
 
 interface PincodeInfo {
@@ -50,6 +51,7 @@ export function OfflineOrderDirectFormPage() {
   const create = useCreateOfflineOrder();
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
+  const { data: allAddons = [] } = useAdminAddons();
   const { items, patchItem, removeItem, addItem, setItems } =
     useOrderItemsState("CATALOG");
   const [uploading, setUploading] = useState(false);
@@ -196,6 +198,7 @@ export function OfflineOrderDirectFormPage() {
             referenceImageUrl,
             flavours,
             allToppings,
+            allAddons,
           ),
         );
       }

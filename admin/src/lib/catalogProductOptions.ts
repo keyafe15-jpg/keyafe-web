@@ -22,6 +22,7 @@ export function resetCatalogProductPick(): {
   cakeSizeId: string;
   customPounds: string;
   toppingSelections: string[];
+  addonSelections: string[];
 } {
   return {
     productName: "",
@@ -36,5 +37,6 @@ export function resetCatalogProductPick(): {
     cakeSizeId: "",
     customPounds: "",
     toppingSelections: [],
+    addonSelections: [],
   };
 }

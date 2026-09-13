@@ -4,6 +4,8 @@ import { StatusCodes } from "http-status-codes";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 
+const departmentSelect = { id: true, slug: true, name: true } as const;
+
 export const adminCategoryRouter = Router();
 
 // Flat list with parent info + product/children counts so the admin table can render
@@ -20,25 +22,41 @@ adminCategoryRouter.get("/", async (_req, res) => {
       sortOrder: true,
       isActive: true,
       parentId: true,
-      parent: { select: { id: true, name: true, slug: true } },
+      departmentId: true,
+      department: { select: departmentSelect },
+      parent: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          department: { select: departmentSelect },
+        },
+      },
       _count: { select: { productLinks: true, children: true } },
     },
   });
   res.json(
-    rows.map((r) => ({
-      id: r.id,
-      slug: r.slug,
-      name: r.name,
-      description: r.description,
-      imageUrl: r.imageUrl,
-      sortOrder: r.sortOrder,
-      isActive: r.isActive,
-      parentId: r.parentId,
-      parentName: r.parent?.name ?? null,
-      parentSlug: r.parent?.slug ?? null,
-      productCount: r._count.productLinks,
-      childCount: r._count.children,
-    })),
+    rows.map((r) => {
+      const department = r.parentId
+        ? (r.parent?.department ?? null)
+        : r.department;
+      return {
+        id: r.id,
+        slug: r.slug,
+        name: r.name,
+        description: r.description,
+        imageUrl: r.imageUrl,
+        sortOrder: r.sortOrder,
+        isActive: r.isActive,
+        parentId: r.parentId,
+        departmentId: department?.id ?? null,
+        department,
+        parentName: r.parent?.name ?? null,
+        parentSlug: r.parent?.slug ?? null,
+        productCount: r._count.productLinks,
+        childCount: r._count.children,
+      };
+    }),
   );
 });
 
@@ -53,16 +71,26 @@ const createSchema = z.object({
   description: z.string().trim().nullable().optional(),
   imageUrl: z.string().url().nullable().optional(),
   parentId: z.string().nullable().optional(),
+  departmentId: z.string().nullable().optional(),
   sortOrder: z.coerce.number().int().default(0),
   isActive: z.boolean().default(true),
 });
+
+async function assertDepartment(id: string) {
+  const dept = await prisma.department.findUnique({
+    where: { id },
+    select: { id: true, isActive: true },
+  });
+  if (!dept) throw HttpError.badRequest("Store not found");
+  return dept;
+}
 
 adminCategoryRouter.post("/", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid category", parsed.error.flatten());
   }
-  const { parentId, ...rest } = parsed.data;
+  const { parentId, departmentId, ...rest } = parsed.data;
 
   const dup = await prisma.category.findUnique({
     where: { slug: rest.slug },
@@ -81,10 +109,18 @@ adminCategoryRouter.post("/", async (req, res) => {
       throw HttpError.badRequest(
         "Only 2 levels supported — pick a top-level parent",
       );
+  } else if (!departmentId) {
+    throw HttpError.badRequest("Pick a store for a top-level category");
+  } else {
+    await assertDepartment(departmentId);
   }
 
   const created = await prisma.category.create({
-    data: { ...rest, parentId: parentId ?? null },
+    data: {
+      ...rest,
+      parentId: parentId ?? null,
+      departmentId: parentId ? null : departmentId,
+    },
   });
   res.status(StatusCodes.CREATED).json(created);
 });
@@ -132,9 +168,30 @@ adminCategoryRouter.patch("/:id", async (req, res) => {
     }
   }
 
+  const nextParentId =
+    parsed.data.parentId !== undefined
+      ? parsed.data.parentId
+      : existing.parentId;
+
+  if (!nextParentId && parsed.data.departmentId === null) {
+    throw HttpError.badRequest("Pick a store for a top-level category");
+  }
+
+  if (!nextParentId && parsed.data.departmentId) {
+    await assertDepartment(parsed.data.departmentId);
+  }
+
+  const { departmentId, ...rest } = parsed.data;
   const updated = await prisma.category.update({
     where: { id: existing.id },
-    data: parsed.data,
+    data: {
+      ...rest,
+      ...(nextParentId
+        ? { departmentId: null }
+        : departmentId !== undefined
+          ? { departmentId }
+          : {}),
+    },
   });
   res.json(updated);
 });
