@@ -17,13 +17,18 @@ import {
 } from "@/hooks/useAdminOrders";
 import { StatusPill, STATUS_FLOW } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
-import { textareaClass } from "@/components/form/Field";
+import { textareaClass, inputClass, selectClass } from "@/components/form/Field";
 import { uploadImage } from "@/lib/uploads";
+import { TIME_SLOTS } from "@/content/slots";
+import { useStaffPermission } from "@/lib/permissions";
 
 export function OrderDetailPage() {
   const { idOrNumber = "" } = useParams<{ idOrNumber: string }>();
   const { data: order, isLoading, isError } = useAdminOrder(idOrNumber);
   const update = useUpdateOrder();
+  const canUpdate = useStaffPermission("orders.update");
+  const scheduleLocked =
+    order?.status === "DELIVERED" || order?.status === "CANCELLED";
 
   const [adminNotes, setAdminNotes] = useState("");
   useEffect(() => {
@@ -117,6 +122,22 @@ export function OrderDetailPage() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
           <Card title="Items">
+            {canUpdate && order.items.length > 1 && !scheduleLocked && (
+              <BulkScheduleBar
+                pending={update.isPending}
+                onApply={async (deliveryDate, slotKey, slotLabel) => {
+                  await update.mutateAsync({
+                    id: order.id,
+                    items: order.items.map((it) => ({
+                      id: it.id,
+                      deliveryDate,
+                      deliverySlotKey: deliveryDate ? slotKey : null,
+                      deliverySlotLabel: deliveryDate ? slotLabel : null,
+                    })),
+                  });
+                }}
+              />
+            )}
             <ul className="divide-y divide-slate-100">
               {order.items.map((it) => (
                 <li key={it.id} className="flex items-start gap-3 py-3">
@@ -151,9 +172,8 @@ export function OrderDetailPage() {
                       </p>
                     )}
                     <p className="mt-1 text-[11px] font-medium text-brand-700">
-                      {it.deliveryDate && it.deliverySlotLabel ? (
-                        <>
-                          {new Date(it.deliveryDate).toLocaleDateString(
+                      {it.deliveryDate && it.deliverySlotLabel
+                        ? `${new Date(it.deliveryDate).toLocaleDateString(
                             "en-IN",
                             {
                               weekday: "short",
@@ -161,13 +181,26 @@ export function OrderDetailPage() {
                               month: "short",
                               year: "numeric",
                             },
-                          )}{" "}
-                          · {it.deliverySlotLabel}
-                        </>
-                      ) : (
-                        "Ships pan-India via courier"
-                      )}
+                          )} · ${it.deliverySlotLabel}`
+                        : "Ships pan-India via courier"}
                     </p>
+                    {canUpdate && (
+                      <ItemScheduleEditor
+                        itemId={it.id}
+                        orderId={order.id}
+                        locked={scheduleLocked}
+                        deliveryDate={it.deliveryDate}
+                        deliverySlotKey={it.deliverySlotKey}
+                        deliverySlotLabel={it.deliverySlotLabel}
+                        pending={update.isPending}
+                        onSave={(payload) =>
+                          update.mutateAsync({
+                            id: order.id,
+                            items: [payload],
+                          })
+                        }
+                      />
+                    )}
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-xs text-slate-500">
@@ -476,6 +509,185 @@ export function OrderDetailPage() {
           </Card>
         </aside>
       </div>
+    </div>
+  );
+}
+
+function toYmd(iso: string | null) {
+  if (!iso) return "";
+  return iso.slice(0, 10);
+}
+
+function slotLabelFor(key: string) {
+  const known = TIME_SLOTS.find((s) => s.key === key);
+  if (known) return known.label;
+  if (key === "SAME_DAY") return "Same day";
+  return key;
+}
+
+function SlotSelect({
+  value,
+  onChange,
+  extraKey,
+  extraLabel,
+  disabled,
+}: {
+  value: string;
+  onChange: (key: string) => void;
+  extraKey?: string | null;
+  extraLabel?: string | null;
+  disabled?: boolean;
+}) {
+  const extra =
+    extraKey && !TIME_SLOTS.some((s) => s.key === extraKey)
+      ? { key: extraKey, label: extraLabel || extraKey }
+      : null;
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      className={cn(selectClass, "min-w-0")}
+    >
+      {extra && <option value={extra.key}>{extra.label}</option>}
+      {TIME_SLOTS.map((s) => (
+        <option key={s.key} value={s.key}>
+          {s.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function BulkScheduleBar({
+  pending,
+  onApply,
+}: {
+  pending: boolean;
+  onApply: (
+    deliveryDate: string | null,
+    slotKey: string,
+    slotLabel: string,
+  ) => Promise<unknown>;
+}) {
+  const [date, setDate] = useState("");
+  const [slotKey, setSlotKey] = useState<string>(TIME_SLOTS[0].key);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <p className="mb-2 text-xs font-medium text-slate-600">
+        Set date & slot for every item
+      </p>
+      <div className="flex flex-wrap items-end gap-2">
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className={cn(inputClass, "w-auto")}
+        />
+        <SlotSelect value={slotKey} onChange={setSlotKey} disabled={pending} />
+        <button
+          type="button"
+          disabled={pending || !date}
+          onClick={async () => {
+            setError(null);
+            try {
+              await onApply(date, slotKey, slotLabelFor(slotKey));
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Could not update");
+            }
+          }}
+          className="rounded-md bg-brand-500 px-3 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+        >
+          Apply to all
+        </button>
+      </div>
+      {error && <p className="mt-2 text-xs text-brand-600">{error}</p>}
+    </div>
+  );
+}
+
+function ItemScheduleEditor({
+  itemId,
+  locked,
+  deliveryDate,
+  deliverySlotKey,
+  deliverySlotLabel,
+  pending,
+  onSave,
+}: {
+  itemId: string;
+  orderId: string;
+  locked: boolean;
+  deliveryDate: string | null;
+  deliverySlotKey: string | null;
+  deliverySlotLabel: string | null;
+  pending: boolean;
+  onSave: (payload: {
+    id: string;
+    deliveryDate: string | null;
+    deliverySlotKey: string | null;
+    deliverySlotLabel: string | null;
+  }) => Promise<unknown>;
+}) {
+  const [date, setDate] = useState(toYmd(deliveryDate));
+  const [slotKey, setSlotKey] = useState(
+    deliverySlotKey || TIME_SLOTS[0].key,
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDate(toYmd(deliveryDate));
+    setSlotKey(deliverySlotKey || TIME_SLOTS[0].key);
+    setError(null);
+  }, [deliveryDate, deliverySlotKey]);
+
+  const originalDate = toYmd(deliveryDate);
+  const originalSlot = deliverySlotKey || "";
+  const dirty =
+    date !== originalDate || (date ? slotKey !== originalSlot : false);
+
+  if (locked) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap items-end gap-2">
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        className={cn(inputClass, "w-auto py-1.5 text-xs")}
+      />
+      <div className="min-w-40 flex-1">
+        <SlotSelect
+          value={slotKey}
+          onChange={setSlotKey}
+          extraKey={deliverySlotKey}
+          extraLabel={deliverySlotLabel}
+          disabled={pending}
+        />
+      </div>
+      <button
+        type="button"
+        disabled={pending || !dirty || (!!date && !slotKey)}
+        onClick={async () => {
+          setError(null);
+          try {
+            await onSave({
+              id: itemId,
+              deliveryDate: date || null,
+              deliverySlotKey: date ? slotKey : null,
+              deliverySlotLabel: date ? slotLabelFor(slotKey) : null,
+            });
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Could not update");
+          }
+        }}
+        className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+      >
+        Save date
+      </button>
+      {error && <p className="w-full text-xs text-brand-600">{error}</p>}
     </div>
   );
 }

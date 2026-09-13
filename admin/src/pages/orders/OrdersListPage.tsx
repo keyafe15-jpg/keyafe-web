@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { OrdersBoardView } from "@/pages/orders/OrdersBoardView";
 import { OrdersAllView } from "@/pages/orders/OrdersAllView";
+import { OrdersPanIndiaView } from "@/pages/orders/OrdersPanIndiaView";
 import { cn } from "@/lib/cn";
 
-type PageTab = "board" | "all";
+type PageTab = "kitchen" | "pan-india" | "all";
 
 const PAGE_TABS: { key: PageTab; label: string }[] = [
-  { key: "board", label: "Board" },
+  { key: "kitchen", label: "Kitchen" },
+  { key: "pan-india", label: "Pan-India" },
   { key: "all", label: "All orders" },
 ];
 
 export function OrdersListPage() {
-  const [pageTab, setPageTab] = useState<PageTab>("board");
+  const [pageTab, setPageTab] = useState<PageTab>("kitchen");
 
   return (
     <div>
@@ -19,9 +21,11 @@ export function OrdersListPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Orders</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {pageTab === "board"
-              ? "Kitchen board — today & tomorrow at a glance."
-              : "Full order history with search and filters."}
+            {pageTab === "kitchen"
+              ? "Today & tomorrow — local cakes to make and deliver."
+              : pageTab === "pan-india"
+                ? "Courier orders — pack and dispatch nationwide."
+                : "Full order history with search and filters."}
           </p>
         </div>
 
@@ -44,7 +48,13 @@ export function OrdersListPage() {
         </div>
       </div>
 
-      {pageTab === "board" ? <OrdersBoardView /> : <OrdersAllView />}
+      {pageTab === "kitchen" ? (
+        <OrdersBoardView />
+      ) : pageTab === "pan-india" ? (
+        <OrdersPanIndiaView />
+      ) : (
+        <OrdersAllView />
+      )}
     </div>
   );
 }

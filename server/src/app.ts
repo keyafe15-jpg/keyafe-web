@@ -37,6 +37,10 @@ import {
   adminToppingRouter,
   toppingRouter,
 } from "./modules/toppings/topping.routes.js";
+import {
+  addonRouter,
+  adminAddonRouter,
+} from "./modules/addons/addon.routes.js";
 import { orderRouter } from "./modules/orders/order.routes.js";
 import { adminOrderRouter } from "./modules/orders/order.admin.routes.js";
 import {
@@ -109,6 +113,7 @@ export function createApp() {
   app.use("/api/tags", tagRouter);
   app.use("/api/cake-sizes", cakeSizeRouter);
   app.use("/api/toppings", toppingRouter);
+  app.use("/api/addons", addonRouter);
   app.use("/api/orders", orderRouter);
   app.use("/api/order-links", publicOrderLinkRouter);
   app.use("/api/quotes", publicQuoteRouter);
@@ -142,6 +147,12 @@ export function createApp() {
     requireStaff,
     requirePermission("toppings.write"),
     adminToppingRouter,
+  );
+  app.use(
+    "/api/admin/addons",
+    requireStaff,
+    requirePermission("addons.write"),
+    adminAddonRouter,
   );
   app.use(
     "/api/admin/tags",

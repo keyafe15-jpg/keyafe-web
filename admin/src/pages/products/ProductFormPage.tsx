@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +16,7 @@ import { useFlatCategories } from "@/hooks/useCategories";
 import { useFlavours } from "@/hooks/useFlavours";
 import { useTags } from "@/hooks/useTags";
 import { useAdminToppings } from "@/hooks/useToppings";
+import { useAdminAddons } from "@/hooks/useAddons";
 import {
   useAdminProduct,
   useCreateProduct,
@@ -33,7 +34,7 @@ const formSchema = z.object({
     .regex(/^[a-z0-9-]+$/, "Lowercase letters, digits and hyphens only"),
   shortDescription: z.string().trim().max(300).optional(),
   description: z.string().trim().optional(),
-  categoryId: z.string().min(1, "Pick a category"),
+  categoryIds: z.array(z.string()).min(1, "Pick at least one category"),
   basePrice: z.coerce.number().nonnegative("Enter a valid price"),
   productType: z.enum(["FIXED_VARIANTS", "CONFIGURABLE"]),
   template: z.enum(["CAKE", "PIZZA", "OTHER"]),
@@ -85,6 +86,7 @@ export function ProductFormPage() {
   const { data: flavours = [] } = useFlavours();
   const { data: tags = [] } = useTags();
   const { data: toppingsAll = [] } = useAdminToppings();
+  const { data: addonsAll = [] } = useAdminAddons();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const { data: existing, isLoading: loadingExisting } = useAdminProduct(id);
@@ -94,6 +96,7 @@ export function ProductFormPage() {
   const [flavorIds, setFlavorIds] = useState<Set<string>>(new Set());
   const [tagIds, setTagIds] = useState<Set<string>>(new Set());
   const [toppingIds, setToppingIds] = useState<Set<string>>(new Set());
+  const [addonIds, setAddonIds] = useState<Set<string>>(new Set());
   const [sizeOptions, setSizeOptions] = useState<ProductOptionInput[]>([]);
   const [crustOptions, setCrustOptions] = useState<ProductOptionInput[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -113,7 +116,7 @@ export function ProductFormPage() {
       slug: "",
       shortDescription: "",
       description: "",
-      categoryId: "",
+      categoryIds: [],
       basePrice: 0,
       productType: "CONFIGURABLE",
       template: "CAKE",
@@ -162,7 +165,7 @@ export function ProductFormPage() {
       slug: existing.slug,
       shortDescription: existing.shortDescription ?? "",
       description: existing.description ?? "",
-      categoryId: existing.categoryId,
+      categoryIds: existing.categoryIds ?? [],
       basePrice: Number(existing.basePrice),
       productType: existing.productType,
       template: existing.template ?? "CAKE",
@@ -195,9 +198,51 @@ export function ProductFormPage() {
     setFlavorIds(new Set(existing.flavorIds ?? []));
     setTagIds(new Set(existing.tagIds ?? []));
     setToppingIds(new Set(existing.toppingIds ?? []));
+    setAddonIds(new Set(existing.addonIds ?? []));
     setSizeOptions((existing.sizeOptions ?? []).map(normalizeOption));
     setCrustOptions((existing.crustOptions ?? []).map(normalizeOption));
   }, [existing, reset]);
+
+  const selectedCategoryIds = watch("categoryIds") ?? [];
+  const categoryKey = [...selectedCategoryIds].sort().join(",");
+  const editDefaultsArmed = useRef(false);
+
+  useEffect(() => {
+    if (isEdit) {
+      if (!existing) return;
+      if (!editDefaultsArmed.current) {
+        editDefaultsArmed.current = true;
+        return;
+      }
+    }
+    const selected = new Set(selectedCategoryIds);
+    const scope = new Set(selectedCategoryIds);
+    for (const category of categories) {
+      if (selected.has(category.id) && category.parentId) {
+        scope.add(category.parentId);
+      }
+    }
+    setAddonIds((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const addon of addonsAll) {
+        if (!addon.isActive) continue;
+        if (!(addon.categoryIds ?? []).some((id) => scope.has(id))) continue;
+        if (!next.has(addon.id)) {
+          next.add(addon.id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [
+    addonsAll,
+    categories,
+    categoryKey,
+    existing,
+    isEdit,
+    selectedCategoryIds,
+  ]);
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -213,7 +258,7 @@ export function ProductFormPage() {
         slug: values.slug,
         shortDescription: values.shortDescription || null,
         description: values.description || null,
-        categoryId: values.categoryId,
+        categoryIds: values.categoryIds,
         images: [...keptImages, ...uploaded.map((u) => u.publicUrl)],
         basePrice: values.basePrice,
         productType: values.productType,
@@ -248,6 +293,7 @@ export function ProductFormPage() {
         flavorIds: [...flavorIds],
         tagIds: [...tagIds],
         toppingIds: [...toppingIds],
+        addonIds: [...addonIds],
         sizeOptions: values.template !== "CAKE" ? sizeOptions : undefined,
         crustOptions: values.template === "PIZZA" ? crustOptions : undefined,
       };
@@ -320,11 +366,16 @@ export function ProductFormPage() {
         <div className="space-y-6 lg:col-span-2">
           <Section
             title="Template"
-            description="Drives which extra sections show up below. Pick the closest match."
+            description={
+              isEdit
+                ? "Set when the product was created and cannot be changed."
+                : "Drives which extra sections show up below. Pick the closest match."
+            }
           >
             <div className="grid grid-cols-3 gap-3">
               <TemplateChip
                 active={template === "CAKE"}
+                disabled={isEdit}
                 onClick={() => setValue("template", "CAKE")}
                 icon={<Cake className="h-5 w-5" />}
                 title="Cake"
@@ -332,6 +383,7 @@ export function ProductFormPage() {
               />
               <TemplateChip
                 active={template === "PIZZA"}
+                disabled={isEdit}
                 onClick={() => setValue("template", "PIZZA")}
                 icon={<Pizza className="h-5 w-5" />}
                 title="Pizza"
@@ -339,6 +391,7 @@ export function ProductFormPage() {
               />
               <TemplateChip
                 active={template === "OTHER"}
+                disabled={isEdit}
                 onClick={() => setValue("template", "OTHER")}
                 icon={<Sparkles className="h-5 w-5" />}
                 title="Other"
@@ -646,6 +699,56 @@ export function ProductFormPage() {
           )}
 
           <Section
+            title="Add-ons"
+            description="Optional extras. Add-ons assigned to the selected categories are pre-checked — you can still turn them off."
+          >
+            {addonsAll.filter((a) => a.isActive).length === 0 ? (
+              <p className="text-xs text-slate-500">
+                No add-ons yet —{" "}
+                <Link to="/addons" className="text-brand-600 hover:underline">
+                  create add-ons
+                </Link>{" "}
+                first, then attach them here.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {[
+                  ...new Set(
+                    addonsAll
+                      .filter((a) => a.isActive)
+                      .map((a) => a.group || "Other"),
+                  ),
+                ]
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((group) => (
+                    <div key={group}>
+                      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                        {group}
+                      </p>
+                      <ChipPicker
+                        items={addonsAll
+                          .filter(
+                            (a) => a.isActive && (a.group || "Other") === group,
+                          )
+                          .map((a) => ({
+                            id: a.id,
+                            label: `${a.name} · +₹${Number(a.priceDelta).toFixed(0)}`,
+                            imageUrl: a.imageUrl,
+                          }))}
+                        selected={addonIds}
+                        onToggle={(id) => {
+                          const next = new Set(addonIds);
+                          next.has(id) ? next.delete(id) : next.add(id);
+                          setAddonIds(next);
+                        }}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </Section>
+
+          <Section
             title="Tags"
             description="Cross-cutting labels used in filters and badges."
           >
@@ -777,15 +880,41 @@ export function ProductFormPage() {
           </Section>
 
           <Section title="Category & type">
-            <Field label="Category" required error={errors.categoryId?.message}>
-              <select {...register("categoryId")} className={selectClass}>
-                <option value="">— Choose —</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+            <Field
+              label="Categories"
+              required
+              error={errors.categoryIds?.message}
+              hint="A product can appear in more than one category or subcategory."
+            >
+              <div className="max-h-56 space-y-1.5 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3">
+                {categories.map((c) => {
+                  const selected = watch("categoryIds") ?? [];
+                  const checked = selected.includes(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex items-start gap-2 text-sm text-slate-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const current = watch("categoryIds") ?? [];
+                          setValue(
+                            "categoryIds",
+                            e.target.checked
+                              ? [...current, c.id]
+                              : current.filter((id) => id !== c.id),
+                            { shouldValidate: true },
+                          );
+                        }}
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500"
+                      />
+                      <span>{c.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </Field>
             <Field
               label="Product type"
@@ -885,7 +1014,7 @@ function ChipPicker({
   selected,
   onToggle,
 }: {
-  items: { id: string; label: string }[];
+  items: { id: string; label: string; imageUrl?: string | null }[];
   selected: Set<string>;
   onToggle: (id: string) => void;
 }) {
@@ -899,12 +1028,20 @@ function ChipPicker({
             type="button"
             onClick={() => onToggle(item.id)}
             className={cn(
-              "rounded-full border px-2.5 py-1 text-xs font-medium transition",
+              "inline-flex items-center gap-1.5 rounded-full border py-1 text-xs font-medium transition",
+              item.imageUrl ? "pl-1 pr-2.5" : "px-2.5",
               on
                 ? "border-brand-500 bg-brand-100 text-brand-700"
                 : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
             )}
           >
+            {item.imageUrl && (
+              <img
+                src={item.imageUrl}
+                alt=""
+                className="h-5 w-5 rounded-full object-cover"
+              />
+            )}
             {item.label}
           </button>
         );
@@ -915,12 +1052,14 @@ function ChipPicker({
 
 function TemplateChip({
   active,
+  disabled,
   onClick,
   icon,
   title,
   subtitle,
 }: {
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   title: string;
@@ -929,12 +1068,17 @@ function TemplateChip({
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
       className={cn(
         "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition",
         active
           ? "border-brand-500 bg-brand-50/50 ring-1 ring-brand-500/30"
-          : "border-slate-200 bg-white hover:border-brand-300",
+          : "border-slate-200 bg-white",
+        disabled
+          ? "cursor-not-allowed"
+          : !active && "hover:border-brand-300",
+        disabled && !active && "opacity-50",
       )}
     >
       <span

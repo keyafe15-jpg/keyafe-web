@@ -13,7 +13,8 @@ model Category {
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryHierarchy")
 
-  products  Product[]
+  productLinks ProductCategory[]
+  defaultAddons Addon[] @relation("CategoryDefaultAddons")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -81,4 +82,19 @@ model Topping {
   isActive   Boolean     @default(true)
   products   Product[]   @relation("ProductToppings")
   createdAt  DateTime    @default(now())
+}
+
+// Shared extras (candles, toppers, pizza extras). Group is a free-text label for admin/PDP.
+model Addon {
+  id         String    @id @default(cuid())
+  slug       String    @unique
+  name       String
+  group      String
+  priceDelta Decimal   @default(0) @db.Decimal(10, 2)
+  imageUrl   String?
+  sortOrder  Int       @default(0)
+  isActive   Boolean   @default(true)
+  products   Product[] @relation("ProductAddons")
+  defaultCategories Category[] @relation("CategoryDefaultAddons")
+  createdAt  DateTime  @default(now())
 }

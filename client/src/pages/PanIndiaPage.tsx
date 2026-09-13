@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { usePanIndiaProducts, type ProductCard } from "@/hooks/useProducts";
+import { usePanIndiaProducts, type ProductCard, categoryNames, productInCategoryIds } from "@/hooks/useProducts";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { PANINDIA_COPY } from "@/content/panindia";
@@ -19,15 +19,19 @@ export function PanIndiaPage() {
   const categories = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>();
     for (const p of products) {
-      if (!map.has(p.category.id)) {
-        map.set(p.category.id, { id: p.category.id, name: p.category.name });
+      for (const c of p.categories) {
+        if (!map.has(c.id)) {
+          map.set(c.id, { id: c.id, name: c.name });
+        }
       }
     }
     return [...map.values()];
   }, [products]);
 
   const visibleProducts = activeCategoryId
-    ? products.filter((p) => p.category.id === activeCategoryId)
+    ? products.filter((p) =>
+        productInCategoryIds(p, new Set([activeCategoryId])),
+      )
     : products;
 
   const selectCategory = (id: string | null) => {
@@ -158,7 +162,7 @@ function PanIndiaProductCard({ product }: { product: ProductCard }) {
       </div>
       <div className="p-2.5 sm:p-4">
         <p className="text-[10px] uppercase tracking-wide text-ink-400 sm:text-xs">
-          {product.category.name}
+          {categoryNames(product)}
         </p>
         <h3 className="mt-1 line-clamp-1 text-sm text-ink-900 group-hover:text-brand-500 sm:text-lg">
           {product.name}

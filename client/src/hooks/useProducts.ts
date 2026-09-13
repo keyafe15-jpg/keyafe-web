@@ -18,7 +18,7 @@ export interface ProductCard {
   supportsSameDayDelivery: boolean;
   canBeDeliveredPanIndia: boolean;
   isHealthyTreat: boolean;
-  category: { id: string; slug: string; name: string };
+  categories: { id: string; slug: string; name: string }[];
   tags: ProductTag[];
 }
 
@@ -27,6 +27,21 @@ export interface ProductTag {
   slug: string;
   name: string;
   colorHex: string | null;
+}
+
+export function productInCategoryIds(
+  product: { categories: { id: string }[] },
+  ids: Set<string>,
+) {
+  return product.categories.some((c) => ids.has(c.id));
+}
+
+export function categoryNames(
+  product: { categories: { name: string }[] },
+  fallback = "",
+) {
+  if (product.categories.length === 0) return fallback;
+  return product.categories.map((c) => c.name).join(" · ");
 }
 
 export interface PaginatedProductsResponse {
@@ -125,6 +140,15 @@ export interface ProductTopping {
   imageUrl: string | null;
 }
 
+export interface ProductAddon {
+  id: string;
+  slug: string;
+  name: string;
+  group: string;
+  priceDelta: string;
+  imageUrl: string | null;
+}
+
 export interface ProductDetail {
   id: string;
   slug: string;
@@ -152,14 +176,15 @@ export interface ProductDetail {
   allergens: string[];
   isActive: boolean;
   isAvailable: boolean;
-  category: {
+  categories: {
     id: string;
     slug: string;
     name: string;
     parent: { id: string; slug: string; name: string } | null;
-  };
+  }[];
   flavors: ProductFlavour[];
   toppings: ProductTopping[];
+  addons: ProductAddon[];
   optionGroups: ProductOptionGroup[];
   tags: { id: string; slug: string; name: string; colorHex: string | null }[];
   sizes: ProductSize[];

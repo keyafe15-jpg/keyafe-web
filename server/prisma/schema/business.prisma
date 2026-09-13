@@ -38,6 +38,12 @@ model BusinessSettings {
   isSameDayStoreClosed Boolean @default(false) // admin kill-switch; overrides any schedule
   sameDayClosedMessage String  @default("Sorry — we're closed right now. Please check back later.")
 
+  // Slim storefront ticker. Hidden when announcementEnabled is false or text is empty.
+  announcementEnabled   Boolean @default(false)
+  announcementText      String  @default("")
+  announcementLinkUrl   String?
+  announcementLinkLabel String?
+
   // Storefront-only free local delivery window. Null until = off.
   freeDeliveryFrom    DateTime?
   freeDeliveryUntil   DateTime?

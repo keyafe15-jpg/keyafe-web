@@ -119,8 +119,8 @@ export async function createOrder(input: CreateOrderInput) {
       isAvailable: true,
       gstRate: true,
       priceIsGstInclusive: true,
-      categoryId: true,
       canBeDeliveredPanIndia: true,
+      categoryLinks: { select: { categoryId: true } },
     },
   });
   const productMap = new Map(products.map((p) => [p.id, p]));
@@ -172,7 +172,14 @@ export async function createOrder(input: CreateOrderInput) {
   }
 
   const catMap = new Map(
-    products.map((p) => [p.id, { id: p.id, categoryId: p.categoryId, name: p.name }]),
+    products.map((p) => [
+      p.id,
+      {
+        id: p.id,
+        name: p.name,
+        categoryIds: p.categoryLinks.map((l) => l.categoryId),
+      },
+    ]),
   );
   const couponRow = couponQuote
     ? await prisma.coupon.findUnique({ where: { code: couponQuote.code } })

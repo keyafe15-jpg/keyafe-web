@@ -53,7 +53,7 @@ export interface AdminProduct {
   isFeatured: boolean;
   images: string[];
   createdAt: string;
-  category: { id: string; name: string; slug: string };
+  categories: { id: string; name: string; slug: string }[];
 }
 
 export interface AdminProductsPage {
@@ -85,7 +85,7 @@ export interface CreateProductPayload {
   slug: string;
   shortDescription?: string | null;
   description?: string | null;
-  categoryId: string;
+  categoryIds: string[];
   images: string[];
   basePrice: number;
   productType: "FIXED_VARIANTS" | "CONFIGURABLE";
@@ -117,6 +117,7 @@ export interface CreateProductPayload {
   flavorIds: string[];
   tagIds: string[];
   toppingIds?: string[];
+  addonIds?: string[];
   sizeOptions?: ProductOptionInput[];
   crustOptions?: ProductOptionInput[];
 }
@@ -137,7 +138,7 @@ export function useCreateProduct() {
 export interface AdminProductDetail extends CreateProductPayload {
   id: string;
   updatedAt: string;
-  category: { id: string; name: string; slug: string };
+  categories: { id: string; name: string; slug: string }[];
   /** From OptionGroup rows (size, crust, tier, …). */
   optionGroups: AdminOptionGroup[];
   /** From ProductVariant table — only for FIXED_VARIANTS SKUs. */

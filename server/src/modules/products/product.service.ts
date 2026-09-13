@@ -22,7 +22,7 @@ export const createProductSchema = z.object({
   shortDescription: z.string().trim().max(300).optional().nullable(),
   description: z.string().trim().optional().nullable(),
 
-  categoryId: z.string().min(1, "Pick a category"),
+  categoryIds: z.array(z.string().min(1)).min(1, "Pick at least one category"),
 
   images: z.array(z.string().url()).max(10),
 
@@ -67,6 +67,7 @@ export const createProductSchema = z.object({
   sizeOptions: z.array(optionSchema).optional(),
   crustOptions: z.array(optionSchema).optional(),
   toppingIds: z.array(z.string()).optional(),
+  addonIds: z.array(z.string()).optional(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
@@ -89,7 +90,9 @@ const ADMIN_LIST_SELECT = {
   isFeatured: true,
   images: true,
   createdAt: true,
-  category: { select: { id: true, name: true, slug: true } },
+  categoryLinks: {
+    select: { category: { select: { id: true, name: true, slug: true } } },
+  },
   // Size group drives variant pricing (e.g. pizzas priced per-size with
   // basePrice = 0). Admin list needs the resulting price range, not the
   // raw basePrice, which can be misleadingly 0.
@@ -108,24 +111,26 @@ const ADMIN_LIST_SELECT = {
 function decorateAdminListRow<
   T extends {
     basePrice: unknown;
+    categoryLinks: { category: { id: string; name: string; slug: string } }[];
     optionGroups: {
       priceMode: "ABSOLUTE" | "DELTA";
       options: { price: unknown }[];
     }[];
   },
 >(row: T) {
-  const { optionGroups, ...rest } = row;
+  const { optionGroups, categoryLinks, ...rest } = row;
   const base = Number(rest.basePrice);
   const sizeGroup = optionGroups[0];
+  const categories = categoryLinks.map((l) => l.category);
   if (!sizeGroup || sizeGroup.options.length === 0) {
-    return { ...rest, priceMin: base, priceMax: base };
+    return { ...rest, categories, priceMin: base, priceMax: base };
   }
   const prices = sizeGroup.options.map((o) => Number(o.price));
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   const priceMin = sizeGroup.priceMode === "ABSOLUTE" ? min : base + min;
   const priceMax = sizeGroup.priceMode === "ABSOLUTE" ? max : base + max;
-  return { ...rest, priceMin, priceMax };
+  return { ...rest, categories, priceMin, priceMax };
 }
 
 function buildAdminProductSearchWhere(search?: string) {
@@ -135,7 +140,13 @@ function buildAdminProductSearchWhere(search?: string) {
     OR: [
       { name: { contains: q, mode: "insensitive" as const } },
       { slug: { contains: q, mode: "insensitive" as const } },
-      { category: { name: { contains: q, mode: "insensitive" as const } } },
+      {
+        categoryLinks: {
+          some: {
+            category: { name: { contains: q, mode: "insensitive" as const } },
+          },
+        },
+      },
     ],
   };
 }
@@ -187,7 +198,9 @@ const PUBLIC_CARD_SELECT = {
   supportsSameDayDelivery: true,
   canBeDeliveredPanIndia: true,
   isHealthyTreat: true,
-  category: { select: { id: true, slug: true, name: true } },
+  categoryLinks: {
+    select: { category: { select: { id: true, slug: true, name: true } } },
+  },
   tags: {
     select: { id: true, slug: true, name: true, colorHex: true },
     orderBy: { name: "asc" as const },
@@ -220,7 +233,9 @@ type PublicCardRow = {
   supportsSameDayDelivery: boolean;
   canBeDeliveredPanIndia: boolean;
   isHealthyTreat: boolean;
-  category: { id: string; slug: string; name: string };
+  categoryLinks: {
+    category: { id: string; slug: string; name: string };
+  }[];
   tags: {
     id: string;
     slug: string;
@@ -244,8 +259,12 @@ function decorateCard(row: PublicCardRow) {
     const min = Math.min(...prices);
     startingPrice = sizeGroup.priceMode === "ABSOLUTE" ? min : base + min;
   }
-  const { optionGroups: _drop, ...rest } = row;
-  return { ...rest, startingPrice: startingPrice.toFixed(2) };
+  const { optionGroups: _drop, categoryLinks, ...rest } = row;
+  return {
+    ...rest,
+    categories: categoryLinks.map((l) => l.category),
+    startingPrice: startingPrice.toFixed(2),
+  };
 }
 
 // Returns products for a category slug. If the slug is a top-level
@@ -276,18 +295,21 @@ export async function listPublicProductsByCategorySlug(
   const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
   const skip = (safePage - 1) * safePageSize;
   const categoryIds = [category.id, ...category.children.map((c) => c.id)];
+  const inCategories = {
+    categoryLinks: { some: { categoryId: { in: categoryIds } } },
+  };
 
   const [total, products] = await Promise.all([
     prisma.product.count({
       where: {
         ...PUBLIC_LIST_WHERE,
-        categoryId: { in: categoryIds },
+        ...inCategories,
       },
     }),
     prisma.product.findMany({
       where: {
         ...PUBLIC_LIST_WHERE,
-        categoryId: { in: categoryIds },
+        ...inCategories,
       },
       orderBy: [
         { isFeatured: "desc" },
@@ -401,12 +423,16 @@ export async function getPublicProductBySlug(slug: string) {
       allergens: true,
       isActive: true,
       isAvailable: true,
-      category: {
+      categoryLinks: {
         select: {
-          id: true,
-          slug: true,
-          name: true,
-          parent: { select: { id: true, slug: true, name: true } },
+          category: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              parent: { select: { id: true, slug: true, name: true } },
+            },
+          },
         },
       },
       flavors: {
@@ -432,6 +458,18 @@ export async function getPublicProductBySlug(slug: string) {
           kind: true,
           priceDelta: true,
           isVeg: true,
+          imageUrl: true,
+        },
+      },
+      addons: {
+        where: { isActive: true },
+        orderBy: [{ group: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          group: true,
+          priceDelta: true,
           imageUrl: true,
         },
       },
@@ -488,7 +526,12 @@ export async function getPublicProductBySlug(slug: string) {
       })
     : [];
 
-  return { ...product, sizes };
+  const { categoryLinks, ...rest } = product;
+  return {
+    ...rest,
+    categories: categoryLinks.map((l) => l.category),
+    sizes,
+  };
 }
 
 export async function createProduct(input: CreateProductInput) {
@@ -498,6 +541,8 @@ export async function createProduct(input: CreateProductInput) {
     sizeOptions,
     crustOptions,
     toppingIds,
+    addonIds,
+    categoryIds,
     ...productData
   } = input;
 
@@ -507,15 +552,14 @@ export async function createProduct(input: CreateProductInput) {
   });
   if (existingSlug) throw HttpError.conflict("Slug already exists");
 
-  const category = await prisma.category.findUnique({
-    where: { id: input.categoryId },
-    select: { id: true },
-  });
-  if (!category) throw HttpError.badRequest("Category not found");
+  const uniqueCategoryIds = await assertCategoryIds(categoryIds);
 
   const product = await prisma.product.create({
     data: {
       ...productData,
+      categoryLinks: {
+        create: uniqueCategoryIds.map((categoryId) => ({ categoryId })),
+      },
       flavors: flavorIds.length
         ? { connect: flavorIds.map((id) => ({ id })) }
         : undefined,
@@ -524,6 +568,9 @@ export async function createProduct(input: CreateProductInput) {
         : undefined,
       toppings: toppingIds?.length
         ? { connect: toppingIds.map((id) => ({ id })) }
+        : undefined,
+      addons: addonIds?.length
+        ? { connect: addonIds.map((id) => ({ id })) }
         : undefined,
     },
     select: {
@@ -583,14 +630,32 @@ async function syncOptionGroup(
 export const updateProductSchema = createProductSchema.partial();
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 
+async function assertCategoryIds(ids: string[]) {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) {
+    throw HttpError.badRequest("Pick at least one category");
+  }
+  const found = await prisma.category.findMany({
+    where: { id: { in: unique } },
+    select: { id: true },
+  });
+  if (found.length !== unique.length) {
+    throw HttpError.badRequest("Category not found");
+  }
+  return unique;
+}
+
 export async function getAdminProductById(id: string) {
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
-      category: { select: { id: true, name: true, slug: true } },
+      categoryLinks: {
+        select: { category: { select: { id: true, name: true, slug: true } } },
+      },
       flavors: { select: { id: true } },
       tags: { select: { id: true } },
       toppings: { select: { id: true } },
+      addons: { select: { id: true } },
       optionGroups: {
         orderBy: { sortOrder: "asc" },
         include: {
@@ -635,16 +700,21 @@ export async function getAdminProductById(id: string) {
     flavors,
     tags,
     toppings,
+    addons,
     optionGroups: _optionGroups,
     variants,
+    categoryLinks,
     ...rest
   } = product;
 
   return {
     ...rest,
+    categoryIds: categoryLinks.map((l) => l.category.id),
+    categories: categoryLinks.map((l) => l.category),
     flavorIds: flavors.map((f) => f.id),
     tagIds: tags.map((t) => t.id),
     toppingIds: toppings.map((t) => t.id),
+    addonIds: addons.map((a) => a.id),
     optionGroups,
     sizeOptions: sizeGroup?.options ?? [],
     crustOptions: crustGroup?.options ?? [],
@@ -666,9 +736,10 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
     flavorIds,
     tagIds,
     toppingIds,
+    addonIds,
     sizeOptions,
     crustOptions,
-    categoryId,
+    categoryIds,
     slug,
     ...rest
   } = input;
@@ -687,12 +758,9 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
     if (dup) throw HttpError.conflict("Slug already exists");
   }
 
-  if (categoryId) {
-    const cat = await prisma.category.findUnique({
-      where: { id: categoryId },
-      select: { id: true },
-    });
-    if (!cat) throw HttpError.badRequest("Category not found");
+  let uniqueCategoryIds: string[] | undefined;
+  if (categoryIds !== undefined) {
+    uniqueCategoryIds = await assertCategoryIds(categoryIds);
   }
 
   const updated = await prisma.product.update({
@@ -700,7 +768,16 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
     data: {
       ...rest,
       ...(slug ? { slug } : {}),
-      ...(categoryId ? { categoryId } : {}),
+      ...(uniqueCategoryIds
+        ? {
+            categoryLinks: {
+              deleteMany: {},
+              create: uniqueCategoryIds.map((categoryId) => ({
+                categoryId,
+              })),
+            },
+          }
+        : {}),
       ...(flavorIds !== undefined
         ? { flavors: { set: flavorIds.map((fid) => ({ id: fid })) } }
         : {}),
@@ -709,6 +786,9 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
         : {}),
       ...(toppingIds !== undefined
         ? { toppings: { set: toppingIds.map((tid) => ({ id: tid })) } }
+        : {}),
+      ...(addonIds !== undefined
+        ? { addons: { set: addonIds.map((aid) => ({ id: aid })) } }
         : {}),
     },
     select: {

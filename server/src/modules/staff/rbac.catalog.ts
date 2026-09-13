@@ -14,7 +14,8 @@ export const PERMISSION_CATALOG = [
   { key: "flavours.write", label: "Edit flavours", category: "catalog", sortOrder: 3 },
   { key: "cake-sizes.write", label: "Edit cake sizes", category: "catalog", sortOrder: 4 },
   { key: "toppings.write", label: "Edit toppings", category: "catalog", sortOrder: 5 },
-  { key: "tags.write", label: "Edit tags", category: "catalog", sortOrder: 6 },
+  { key: "addons.write", label: "Edit add-ons", category: "catalog", sortOrder: 6 },
+  { key: "tags.write", label: "Edit tags", category: "catalog", sortOrder: 7 },
 
   { key: "quotes.read", label: "View quote requests", category: "quotes", sortOrder: 0 },
   { key: "quotes.update", label: "Update quote requests", category: "quotes", sortOrder: 1 },

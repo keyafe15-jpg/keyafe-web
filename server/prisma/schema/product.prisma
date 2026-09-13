@@ -26,9 +26,6 @@ model Product {
   shortDescription String?
   description      String? // markdown
 
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
-
   // Drives which sections the admin form shows and how storefront renders variants.
   template ProductTemplate @default(CAKE)
 
@@ -84,8 +81,10 @@ model Product {
   // Relations
   optionGroups OptionGroup[]
   variants     ProductVariant[]
+  categoryLinks ProductCategory[]
   flavors      Flavor[]         @relation("ProductFlavors")
   toppings     Topping[]        @relation("ProductToppings")
+  addons       Addon[]          @relation("ProductAddons")
   tags         Tag[]            @relation("ProductTags")
   festivals    Festival[]       @relation("FestivalProducts")
   orderLinkItems OrderLinkItem[]
@@ -93,8 +92,17 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([categoryId, isActive, sortOrder])
   @@index([isFeatured, isActive])
+}
+
+model ProductCategory {
+  productId  String
+  categoryId String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
 }
 
 // For CONFIGURABLE products — customer picks options. Examples:

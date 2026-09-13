@@ -151,7 +151,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
       slug: product.slug,
       name: product.name,
       image: product.images[0],
-      categorySlug: product.category.slug,
+      categorySlug: product.categories[0]?.slug ?? "",
       sizeGrams: effectiveSizeGrams,
       sizeLabel: effectiveSizeLabel,
       flavourId: chosenFlavour?.id,
@@ -189,24 +189,21 @@ function PdpContent({ product }: { product: ProductDetail }) {
         <Link to="/" className="hover:text-brand-500">
           Home
         </Link>
-        {product.category.parent && (
-          <>
-            <span className="mx-2">›</span>
+        {product.categories.map((c, i) => (
+          <span key={c.id}>
+            {i === 0 ? (
+              <span className="mx-2">›</span>
+            ) : (
+              <span className="mx-1">·</span>
+            )}
             <Link
-              to={`/category/${product.category.parent.slug}`}
+              to={`/category/${c.slug}`}
               className="hover:text-brand-500"
             >
-              {product.category.parent.name}
+              {c.name}
             </Link>
-          </>
-        )}
-        <span className="mx-2">›</span>
-        <Link
-          to={`/category/${product.category.slug}`}
-          className="hover:text-brand-500"
-        >
-          {product.category.name}
-        </Link>
+          </span>
+        ))}
         <span className="mx-2">›</span>
         <span className="text-ink-700">{product.name}</span>
       </nav>
@@ -880,7 +877,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
       slug: product.slug,
       name: product.name,
       image: product.images[0],
-      categorySlug: product.category.slug,
+      categorySlug: product.categories[0]?.slug ?? "",
       sizeGrams: pickedSize?.weightGrams ?? undefined,
       sizeLabel: pickedSize?.label,
       instructions: composedInstructions() ?? undefined,
@@ -901,24 +898,21 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
         <Link to="/" className="hover:text-brand-500">
           Home
         </Link>
-        {product.category.parent && (
-          <>
-            <span className="mx-2">›</span>
+        {product.categories.map((c, i) => (
+          <span key={c.id}>
+            {i === 0 ? (
+              <span className="mx-2">›</span>
+            ) : (
+              <span className="mx-1">·</span>
+            )}
             <Link
-              to={`/category/${product.category.parent.slug}`}
+              to={`/category/${c.slug}`}
               className="hover:text-brand-500"
             >
-              {product.category.parent.name}
+              {c.name}
             </Link>
-          </>
-        )}
-        <span className="mx-2">›</span>
-        <Link
-          to={`/category/${product.category.slug}`}
-          className="hover:text-brand-500"
-        >
-          {product.category.name}
-        </Link>
+          </span>
+        ))}
         <span className="mx-2">›</span>
         <span className="text-ink-700">{product.name}</span>
       </nav>

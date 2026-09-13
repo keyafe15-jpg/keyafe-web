@@ -143,7 +143,7 @@ export function ProductsListPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-700">
-                    {p.category.name}
+                    {p.categories.map((c) => c.name).join(" · ") || "—"}
                   </td>
                   <td className="px-4 py-3 text-right font-medium tabular-nums">
                     <PriceCell priceMin={p.priceMin} priceMax={p.priceMax} />

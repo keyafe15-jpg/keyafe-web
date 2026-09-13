@@ -41,6 +41,9 @@ export interface AdminOrderListItem {
   itemCount: number;
   earliestDelivery: string | null;
   earliestSlotLabel: string | null;
+  isPanIndia?: boolean;
+  pincode?: string | null;
+  city?: string | null;
   items: {
     id: string;
     productName: string;
@@ -107,6 +110,7 @@ export interface AdminOrdersFilter {
   deliveryTo?: string | null; // YYYY-MM-DD (inclusive)
   search?: string | null;
   excludeStatuses?: OrderStatus[];
+  panIndia?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -125,6 +129,7 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
   const deliveryTo = filter?.deliveryTo ?? null;
   const search = filter?.search?.trim() ?? "";
   const excludeStatuses = filter?.excludeStatuses ?? [];
+  const panIndia = Boolean(filter?.panIndia);
   const page = filter?.page ?? 1;
   const pageSize = filter?.pageSize ?? 20;
   const params = new URLSearchParams();
@@ -135,6 +140,7 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
   if (excludeStatuses.length > 0) {
     params.set("excludeStatus", excludeStatuses.join(","));
   }
+  if (panIndia) params.set("panIndia", "1");
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
   const qs = params.toString();
@@ -147,6 +153,7 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
       deliveryTo ?? "*",
       search || "*",
       excludeStatuses.join(",") || "*",
+      panIndia ? "pan" : "any",
       page,
       pageSize,
     ],
@@ -180,6 +187,12 @@ export interface UpdateOrderPayload {
   advanceAmount?: number;
   paymentScreenshotUrl?: string | null;
   adminNotes?: string | null;
+  items?: {
+    id: string;
+    deliveryDate: string | null;
+    deliverySlotKey: string | null;
+    deliverySlotLabel: string | null;
+  }[];
 }
 
 export function useUpdateOrder() {

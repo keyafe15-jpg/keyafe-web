@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, NavLink, useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useSameDayStatus } from "@/hooks/useSameDayStatus";
-import { useSameDayProducts, type ProductCard } from "@/hooks/useProducts";
+import { useSameDayProducts, type ProductCard, productInCategoryIds } from "@/hooks/useProducts";
 import { useCategories, type CategoryNode } from "@/hooks/useCategories";
 import { LeadTimeChip } from "@/components/product/LeadTimeChip";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
@@ -26,7 +26,7 @@ export function SameDayPage() {
 
   // Set of category IDs any same-day product belongs to.
   const eligibleIds = useMemo(
-    () => new Set(products.map((p) => p.category.id)),
+    () => new Set(products.flatMap((p) => p.categories.map((c) => c.id))),
     [products],
   );
 
@@ -82,7 +82,7 @@ export function SameDayPage() {
   );
 
   const visibleProducts = useMemo(
-    () => products.filter((p) => activeIds.has(p.category.id)),
+    () => products.filter((p) => productInCategoryIds(p, activeIds)),
     [products, activeIds],
   );
 
@@ -289,7 +289,9 @@ function SidebarBranch({
   onToggle: (slug: string) => void;
 }) {
   const branchIds = collectIds(node);
-  const count = products.filter((p) => branchIds.has(p.category.id)).length;
+  const count = products.filter((p) =>
+    productInCategoryIds(p, branchIds),
+  ).length;
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.slug);
   return (
@@ -307,7 +309,7 @@ function SidebarBranch({
           {node.children.map((child) => {
             const childIds = collectIds(child);
             const childCount = products.filter((p) =>
-              childIds.has(p.category.id),
+              productInCategoryIds(p, childIds),
             ).length;
             return (
               <SidebarLink
@@ -415,7 +417,9 @@ function MobileNavItem({
   onToggle: (slug: string) => void;
 }) {
   const branchIds = collectIds(node);
-  const count = products.filter((p) => branchIds.has(p.category.id)).length;
+  const count = products.filter((p) =>
+    productInCategoryIds(p, branchIds),
+  ).length;
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.slug);
   const isActive = node.slug === activeSlug;
@@ -476,7 +480,7 @@ function MobileNavItem({
           {node.children.map((child) => {
             const childIds = collectIds(child);
             const childCount = products.filter((p) =>
-              childIds.has(p.category.id),
+              productInCategoryIds(p, childIds),
             ).length;
             const childActive = child.slug === activeSlug;
             return (

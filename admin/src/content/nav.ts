@@ -6,6 +6,7 @@ import {
   Palette,
   Cake,
   Pizza,
+  Sparkles,
   Link2,
   Zap,
   Truck,
@@ -15,6 +16,7 @@ import {
   UserCircle,
   Settings,
   FileText,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -89,6 +91,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         requiresPermission: "toppings.write",
       },
       {
+        to: "/addons",
+        label: "Add-ons",
+        icon: Sparkles,
+        requiresPermission: "addons.write",
+      },
+      {
         to: "/tags",
         label: "Tags",
         icon: Tag,
@@ -110,6 +118,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Marketing",
     items: [
+      {
+        to: "/announcement",
+        label: "Announcement",
+        icon: Megaphone,
+        requiresPermission: "settings.update",
+      },
       {
         to: "/coupons",
         label: "Coupons",

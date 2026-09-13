@@ -14,9 +14,13 @@ import { cn } from "@/lib/cn";
 
 interface OrderBoardCardProps {
   order: AdminOrderListItem;
+  flow?: "kitchen" | "courier";
 }
 
-export function OrderBoardCard({ order }: OrderBoardCardProps) {
+export function OrderBoardCard({
+  order,
+  flow = "kitchen",
+}: OrderBoardCardProps) {
   const update = useUpdateOrder();
   const advance = nextStatus(order.status);
   const canAdvance =
@@ -30,6 +34,9 @@ export function OrderBoardCard({ order }: OrderBoardCardProps) {
     if (!advance || update.isPending) return;
     update.mutate({ id: order.id, status: advance });
   };
+
+  const destination = [order.city, order.pincode].filter(Boolean).join(" · ");
+  const isCourier = flow === "courier" || order.isPanIndia;
 
   return (
     <article className="flex flex-col rounded-card border border-slate-200 bg-white shadow-sm transition hover:border-brand-200 hover:shadow-md">
@@ -50,7 +57,7 @@ export function OrderBoardCard({ order }: OrderBoardCardProps) {
               </span>
               <StatusPill status={order.status} />
             </div>
-            {order.earliestDelivery && (
+            {order.earliestDelivery ? (
               <p className="mt-1 text-sm font-semibold text-slate-900">
                 {order.earliestSlotLabel && (
                   <span>{order.earliestSlotLabel} · </span>
@@ -61,7 +68,12 @@ export function OrderBoardCard({ order }: OrderBoardCardProps) {
                   month: "short",
                 })}
               </p>
-            )}
+            ) : isCourier ? (
+              <p className="mt-1 text-sm font-semibold text-slate-900">
+                Ships pan-India
+                {destination ? ` · ${destination}` : ""}
+              </p>
+            ) : null}
           </div>
           <SourceBadge source={order.source} />
         </header>
@@ -147,7 +159,7 @@ export function OrderBoardCard({ order }: OrderBoardCardProps) {
               update.isPending && "opacity-50",
             )}
           >
-            {update.isPending ? "Updating…" : nextStatusLabel(advance)}
+            {update.isPending ? "Updating…" : nextStatusLabel(advance, flow)}
           </button>
           <Link
             to={`/orders/${order.orderNumber}`}

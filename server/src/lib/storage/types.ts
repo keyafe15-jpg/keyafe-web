@@ -7,6 +7,7 @@ export type UploadPurpose =
   | "payment-screenshot"
   | "product"
   | "category"
+  | "addon"
   | "festival"
   | "admin";
 

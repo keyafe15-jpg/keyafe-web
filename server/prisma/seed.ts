@@ -1141,7 +1141,7 @@ async function seedProducts() {
         slug: product.slug,
         name: product.name,
         shortDescription: product.shortDescription,
-        categoryId: category.id,
+        categoryLinks: { create: { categoryId: category.id } },
         template: product.template,
         productType: product.productType,
         images: product.images,
@@ -1156,7 +1156,10 @@ async function seedProducts() {
       update: {
         name: product.name,
         shortDescription: product.shortDescription,
-        categoryId: category.id,
+        categoryLinks: {
+          deleteMany: {},
+          create: { categoryId: category.id },
+        },
         template: product.template,
         productType: product.productType,
         images: product.images,

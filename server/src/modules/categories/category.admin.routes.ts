@@ -21,7 +21,7 @@ adminCategoryRouter.get("/", async (_req, res) => {
       isActive: true,
       parentId: true,
       parent: { select: { id: true, name: true, slug: true } },
-      _count: { select: { products: true, children: true } },
+      _count: { select: { productLinks: true, children: true } },
     },
   });
   res.json(
@@ -36,7 +36,7 @@ adminCategoryRouter.get("/", async (_req, res) => {
       parentId: r.parentId,
       parentName: r.parent?.name ?? null,
       parentSlug: r.parent?.slug ?? null,
-      productCount: r._count.products,
+      productCount: r._count.productLinks,
       childCount: r._count.children,
     })),
   );
@@ -141,7 +141,7 @@ adminCategoryRouter.patch("/:id", async (req, res) => {
 
 adminCategoryRouter.delete("/:id", async (req, res) => {
   const [productCount, childCount] = await Promise.all([
-    prisma.product.count({ where: { categoryId: req.params.id } }),
+    prisma.productCategory.count({ where: { categoryId: req.params.id } }),
     prisma.category.count({ where: { parentId: req.params.id } }),
   ]);
   if (productCount > 0) {

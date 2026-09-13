@@ -17,7 +17,20 @@ export function nextStatus(current: OrderStatus): OrderStatus | null {
   return STATUS_FLOW[idx + 1] ?? null;
 }
 
-export function nextStatusLabel(next: OrderStatus): string {
+export function nextStatusLabel(
+  next: OrderStatus,
+  flow: "kitchen" | "courier" = "kitchen",
+): string {
+  if (flow === "courier") {
+    const labels: Partial<Record<OrderStatus, string>> = {
+      CONFIRMED: "Confirm",
+      IN_KITCHEN: "Start packing",
+      READY: "Mark packed",
+      OUT_FOR_DELIVERY: "Dispatch to courier",
+      DELIVERED: "Mark delivered",
+    };
+    return labels[next] ?? next.toLowerCase().replace(/_/g, " ");
+  }
   const labels: Partial<Record<OrderStatus, string>> = {
     CONFIRMED: "Confirm",
     IN_KITCHEN: "Start kitchen",

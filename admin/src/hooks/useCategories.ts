@@ -25,6 +25,7 @@ export interface FlatCategory {
   id: string;
   slug: string;
   label: string;
+  parentId: string | null;
   parentSlug: string | null;
 }
 
@@ -36,6 +37,7 @@ export function useFlatCategories() {
       id: parent.id,
       slug: parent.slug,
       label: parent.name,
+      parentId: null,
       parentSlug: null,
     });
     for (const child of parent.children) {
@@ -43,6 +45,7 @@ export function useFlatCategories() {
         id: child.id,
         slug: child.slug,
         label: `${parent.name} → ${child.name}`,
+        parentId: parent.id,
         parentSlug: parent.slug,
       });
     }

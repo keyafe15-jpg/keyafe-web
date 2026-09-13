@@ -37,6 +37,28 @@ storeRouter.get("/same-day-categories", async (_req, res) => {
   res.json(categories);
 });
 
+storeRouter.get("/announcement", async (_req, res) => {
+  const settings = await prisma.businessSettings.findFirst({
+    select: {
+      announcementEnabled: true,
+      announcementText: true,
+      announcementLinkUrl: true,
+      announcementLinkLabel: true,
+    },
+  });
+  const text = settings?.announcementText.trim() ?? "";
+  res.setHeader("Cache-Control", "public, max-age=15");
+  if (!settings?.announcementEnabled || !text) {
+    res.json(null);
+    return;
+  }
+  res.json({
+    text,
+    linkUrl: settings.announcementLinkUrl,
+    linkLabel: settings.announcementLinkLabel,
+  });
+});
+
 // Safe-to-expose UPI collection details for manual-payment flows (order
 // links, offline orders). Null upiId means UPI collection isn't set up yet.
 storeRouter.get("/payment-info", async (_req, res) => {
@@ -79,6 +101,73 @@ adminBusinessRouter.patch("/upi", async (req, res) => {
     where: { id: existing.id },
     data: parsed.data,
     select: { upiId: true, upiPayeeName: true },
+  });
+  res.json(updated);
+});
+
+const announcementSelect = {
+  announcementEnabled: true,
+  announcementText: true,
+  announcementLinkUrl: true,
+  announcementLinkLabel: true,
+} as const;
+
+function sanitizeAnnouncementLink(raw: string | null | undefined): string | null {
+  const value = raw?.trim() || null;
+  if (!value) return null;
+  if (value.startsWith("/") && !value.startsWith("//")) return value;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return url.toString();
+    }
+  } catch {
+    // fall through
+  }
+  throw HttpError.badRequest(
+    "Link must be a site path like /pan-india or a https URL.",
+  );
+}
+
+const announcementSchema = z.object({
+  announcementEnabled: z.boolean(),
+  announcementText: z.string().trim().max(160),
+  announcementLinkUrl: z.string().trim().max(300).nullable().optional(),
+  announcementLinkLabel: z.string().trim().max(40).nullable().optional(),
+});
+
+adminBusinessRouter.get("/announcement", async (_req, res) => {
+  const settings = await prisma.businessSettings.findFirst({
+    select: announcementSelect,
+  });
+  res.json({
+    announcementEnabled: settings?.announcementEnabled ?? false,
+    announcementText: settings?.announcementText ?? "",
+    announcementLinkUrl: settings?.announcementLinkUrl ?? null,
+    announcementLinkLabel: settings?.announcementLinkLabel ?? null,
+  });
+});
+
+adminBusinessRouter.patch("/announcement", async (req, res) => {
+  const parsed = announcementSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid announcement", parsed.error.flatten());
+  }
+  const existing = await prisma.businessSettings.findFirst({
+    select: { id: true },
+  });
+  if (!existing) throw HttpError.notFound("Business settings not found");
+  const linkUrl = sanitizeAnnouncementLink(parsed.data.announcementLinkUrl);
+  const label = parsed.data.announcementLinkLabel?.trim() || null;
+  const updated = await prisma.businessSettings.update({
+    where: { id: existing.id },
+    data: {
+      announcementEnabled: parsed.data.announcementEnabled,
+      announcementText: parsed.data.announcementText,
+      announcementLinkUrl: linkUrl,
+      announcementLinkLabel: linkUrl ? label : null,
+    },
+    select: announcementSelect,
   });
   res.json(updated);
 });

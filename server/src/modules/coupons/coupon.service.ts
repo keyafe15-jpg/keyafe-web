@@ -90,7 +90,7 @@ export interface FreeDeliveryState {
   label: string | null;
 }
 
-type ProductCat = { id: string; categoryId: string; name: string };
+type ProductCat = { id: string; categoryIds: string[]; name: string };
 
 export function freeDeliveryFromSettings(
   settings: {
@@ -167,7 +167,8 @@ function eligibleAmount(
   for (const item of items) {
     const p = products.get(item.productId);
     if (!p) continue;
-    if (restrict && !categoryIds.includes(p.categoryId)) continue;
+    if (restrict && !p.categoryIds.some((id) => categoryIds.includes(id)))
+      continue;
     sum += item.unitPrice * item.qty;
   }
   return roundMoney(sum);
@@ -187,9 +188,22 @@ async function loadProducts(items: CartLine[]): Promise<Map<string, ProductCat>>
   const ids = [...new Set(items.map((i) => i.productId))];
   const rows = await prisma.product.findMany({
     where: { id: { in: ids } },
-    select: { id: true, categoryId: true, name: true },
+    select: {
+      id: true,
+      name: true,
+      categoryLinks: { select: { categoryId: true } },
+    },
   });
-  return new Map(rows.map((r) => [r.id, r]));
+  return new Map(
+    rows.map((r) => [
+      r.id,
+      {
+        id: r.id,
+        name: r.name,
+        categoryIds: r.categoryLinks.map((l) => l.categoryId),
+      },
+    ]),
+  );
 }
 
 export async function quoteCoupon(
@@ -273,7 +287,10 @@ export function discountedLineInclusives(
   const flags = items.map((i) => {
     const p = products.get(i.productId);
     if (!p) return false;
-    return !restrict || categoryIds.includes(p.categoryId);
+    return (
+      !restrict ||
+      p.categoryIds.some((id) => categoryIds.includes(id))
+    );
   });
   const eligibleSum = roundMoney(
     orig.reduce((s, v, idx) => s + (flags[idx] ? v : 0), 0),

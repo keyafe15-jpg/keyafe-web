@@ -5,6 +5,7 @@ import { HttpError } from "../../utils/httpError.js";
 import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
+import { assertKitchenOpenOn } from "../store/store.service.js";
 import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
 import {
   requirePermission,
@@ -24,12 +25,27 @@ const ORDER_STATUSES = [
   "CANCELLED",
 ] as const satisfies readonly OrderStatus[];
 
+function addressField(addr: unknown, key: "pincode" | "city"): string | null {
+  if (!addr || typeof addr !== "object") return null;
+  const value = (addr as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function addressPincode(addr: unknown) {
+  return addressField(addr, "pincode");
+}
+
+function addressCity(addr: unknown) {
+  return addressField(addr, "city");
+}
+
 function buildAdminOrderListWhere(opts: {
   status?: string | null;
   deliveryFrom?: string | null;
   deliveryTo?: string | null;
   search?: string | null;
   excludeStatuses?: string[];
+  panIndia?: boolean;
 }): Record<string, unknown> | undefined {
   const and: Record<string, unknown>[] = [];
 
@@ -60,6 +76,15 @@ function buildAdminOrderListWhere(opts: {
   }
   if (dateFilter.gte || dateFilter.lt) {
     and.push({ items: { some: { deliveryDate: dateFilter } } });
+  }
+
+  if (opts.panIndia) {
+    and.push({
+      items: {
+        some: {},
+        every: { deliveryDate: null },
+      },
+    });
   }
 
   const q = opts.search?.trim();
@@ -99,6 +124,8 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
           .map((s) => s.trim())
           .filter(Boolean)
       : [];
+  const panIndia =
+    req.query.panIndia === "1" || req.query.panIndia === "true";
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
 
@@ -108,6 +135,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
     deliveryTo,
     search,
     excludeStatuses: excludeStatus,
+    panIndia,
   });
 
   const [total, rows] = await Promise.all([
@@ -135,6 +163,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
         paymentScreenshotUrl: true,
         source: true,
         createdAt: true,
+        deliveryAddress: true,
         _count: { select: { items: true } },
         items: {
           select: {
@@ -179,6 +208,9 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
       itemCount: r._count.items,
       earliestDelivery: r.items[0]?.deliveryDate ?? null,
       earliestSlotLabel: r.items[0]?.deliverySlotLabel ?? null,
+      isPanIndia: r.items.length > 0 && r.items.every((i) => !i.deliveryDate),
+      pincode: addressPincode(r.deliveryAddress),
+      city: addressCity(r.deliveryAddress),
       items: r.items,
     })),
     page,
@@ -424,6 +456,20 @@ const updateSchema = z.object({
   advanceAmount: z.coerce.number().nonnegative().optional(),
   paymentScreenshotUrl: z.string().url().nullable().optional(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
+  items: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        deliveryDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable(),
+        deliverySlotKey: z.string().trim().min(1).nullable(),
+        deliverySlotLabel: z.string().trim().min(1).nullable(),
+      }),
+    )
+    .min(1)
+    .optional(),
 });
 
 adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, res) => {
@@ -433,8 +479,9 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid update", parsed.error.flatten());
   }
-  const { advanceAmount, paymentStatus, status, ...rest } = parsed.data;
-  const data: typeof parsed.data = { ...rest };
+  const { advanceAmount, paymentStatus, status, items, ...rest } =
+    parsed.data;
+  const data: Omit<typeof parsed.data, "items"> = { ...rest };
 
   if (status === "CANCELLED") {
     const staff = (req as AuthenticatedRequest).staff;
@@ -463,10 +510,62 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     data.paymentStatus = paymentStatus;
   }
 
-  const updated = await prisma.order.update({
-    where: { id },
-    data,
-    include: { items: true },
-  });
+  if (items) {
+    const existing = await prisma.order.findUnique({
+      where: { id },
+      select: {
+        status: true,
+        items: { select: { id: true } },
+      },
+    });
+    if (!existing) throw HttpError.notFound("Order not found");
+    if (existing.status === "CANCELLED" || existing.status === "DELIVERED") {
+      throw HttpError.badRequest(
+        "Can't change delivery date on a delivered or cancelled order.",
+      );
+    }
+    const knownIds = new Set(existing.items.map((i) => i.id));
+    for (const item of items) {
+      if (!knownIds.has(item.id)) {
+        throw HttpError.badRequest("Item does not belong to this order");
+      }
+      if (item.deliveryDate) {
+        if (!item.deliverySlotKey || !item.deliverySlotLabel) {
+          throw HttpError.badRequest(
+            "Pick a time slot when setting a delivery date.",
+          );
+        }
+        await assertKitchenOpenOn(item.deliveryDate);
+      }
+    }
+    await prisma.$transaction(
+      items.map((item) =>
+        prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            deliveryDate: item.deliveryDate
+              ? new Date(`${item.deliveryDate}T00:00:00.000Z`)
+              : null,
+            deliverySlotKey: item.deliveryDate ? item.deliverySlotKey : null,
+            deliverySlotLabel: item.deliveryDate
+              ? item.deliverySlotLabel
+              : null,
+          },
+        }),
+      ),
+    );
+  }
+
+  const orderFields = Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined),
+  );
+  const updated =
+    Object.keys(orderFields).length > 0
+      ? await prisma.order.update({
+          where: { id },
+          data: orderFields,
+          include: { items: true },
+        })
+      : await getOrderById(id);
   res.json(updated);
 });

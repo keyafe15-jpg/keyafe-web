@@ -10,6 +10,7 @@ import { FlavoursPage } from "@/pages/flavours/FlavoursPage";
 import { CakeSizesPage } from "@/pages/cake-sizes/CakeSizesPage";
 import { CategoriesPage } from "@/pages/categories/CategoriesPage";
 import { ToppingsPage } from "@/pages/toppings/ToppingsPage";
+import { AddonsPage } from "@/pages/addons/AddonsPage";
 import { TagsPage } from "@/pages/tags/TagsPage";
 import { OrdersListPage } from "@/pages/orders/OrdersListPage";
 import { OrderDetailPage } from "@/pages/orders/OrderDetailPage";
@@ -18,6 +19,7 @@ import { OrderLinkFormPage } from "@/pages/order-links/OrderLinkFormPage";
 import { OfflineOrderDirectFormPage } from "@/pages/order-links/OfflineOrderDirectFormPage";
 import { DeliveryPincodesPage } from "@/pages/delivery/DeliveryPincodesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { AnnouncementPage } from "@/pages/AnnouncementPage";
 import { StoreHoursPage } from "@/pages/store/StoreHoursPage";
 import { CouponsPage } from "@/pages/coupons/CouponsPage";
 import { CustomersListPage } from "@/pages/customers/CustomersListPage";
@@ -91,6 +93,10 @@ export const router = createBrowserRouter([
         element: <ToppingsPage />,
       },
       {
+        path: "addons",
+        element: <AddonsPage />,
+      },
+      {
         path: "tags",
         element: <TagsPage />,
       },
@@ -106,6 +112,10 @@ export const router = createBrowserRouter([
             subtitle="Ready-to-grab menu structure."
           />
         ),
+      },
+      {
+        path: "announcement",
+        element: <AnnouncementPage />,
       },
       {
         path: "coupons",

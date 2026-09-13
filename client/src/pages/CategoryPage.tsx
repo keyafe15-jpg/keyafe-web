@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useCategories, type CategoryNode } from "@/hooks/useCategories";
-import { useProductsByCategory } from "@/hooks/useProducts";
+import { useProductsByCategory, categoryNames } from "@/hooks/useProducts";
 import { CATEGORY_PLACEHOLDER_COPY } from "@/content/misc";
 import { Reveal } from "@/components/motion/Reveal";
 import { cn } from "@/lib/cn";
@@ -257,7 +257,7 @@ function ProductCard({
       </div>
       <div className="p-2.5 sm:p-4">
         <p className="text-[10px] uppercase tracking-wide text-ink-400 sm:text-xs">
-          {product.category.name}
+          {categoryNames(product)}
         </p>
         <h3 className="mt-1 line-clamp-1 text-sm text-ink-900 group-hover:text-brand-500 sm:text-lg">
           {product.name}
