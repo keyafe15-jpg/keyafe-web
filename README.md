@@ -132,6 +132,17 @@ pnpm --filter admin  exec tsc -b
 pnpm build          # builds every package
 ```
 
+### Google Places (address search)
+
+Checkout, saved addresses, and order-link delivery forms use Google Places Autocomplete. Without a key, the field falls back to free-text “Uber / Rapido search”.
+
+```bash
+cp client/.env.example client/.env
+# set VITE_GOOGLE_MAPS_API_KEY=… then restart the client Vite process
+```
+
+Enable **Maps JavaScript API** + **Places API (New)** on the key. Use **HTTP referrer** application restrictions (`http://localhost:5173/*` plus production) — not IP address restrictions. IP locks are for server keys; browser Places calls will return 403 if the key is IP-restricted.
+
 ### SMTP (order emails)
 
 Add these to `server/.env` to actually send emails. Without them, `sendEmail()` logs the message instead of dispatching.

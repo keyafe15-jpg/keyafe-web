@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
 import { useAuth } from "@/store/auth";
 import { useSavedAddresses, type SavedAddress } from "@/store/addresses";
 
@@ -241,16 +242,33 @@ export function SavedAddressesPage() {
 
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
-                Rapido / Uber search text
+                Find your address
               </label>
-              <input
+              <AddressPlacesSearch
                 value={form.mapSearchQuery}
-                onChange={(e) => {
-                  setForm({ ...form, mapSearchQuery: e.target.value });
+                onChange={(mapSearchQuery) => {
+                  setForm((prev) => ({ ...prev, mapSearchQuery }));
                   setErrors((prev) => ({ ...prev, mapSearchQuery: "" }));
                 }}
-                className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none"
-                placeholder="e.g. Metro station, apartment name, nearby landmark"
+                onPlaceSelect={(place) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    mapSearchQuery: place.mapSearchQuery,
+                    line1: place.line1 || prev.line1,
+                    city: place.city || prev.city,
+                    state: place.state || prev.state,
+                    stateCode: place.stateCode || prev.stateCode,
+                    pincode: place.pincode || prev.pincode,
+                  }));
+                  setErrors((prev) => ({
+                    ...prev,
+                    mapSearchQuery: "",
+                    line1: "",
+                    city: "",
+                    state: "",
+                    pincode: "",
+                  }));
+                }}
               />
               {errors.mapSearchQuery && (
                 <p className="mt-1 text-xs text-red-600">

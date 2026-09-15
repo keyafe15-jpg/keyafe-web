@@ -10,6 +10,7 @@ import {
   usePincodeCheck,
   type PincodeCheckResult,
 } from "@/hooks/usePincodeCheck";
+import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
 import { PRODUCT_COPY } from "@/content/product";
 import { cn } from "@/lib/cn";
 
@@ -61,6 +62,7 @@ export function CheckoutPage() {
     label: string;
   } | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponOpen, setCouponOpen] = useState(false);
   const previewCoupon = usePreviewCoupon();
   const freeDelivery = useFreeDelivery(subtotal);
 
@@ -460,6 +462,22 @@ export function CheckoutPage() {
                     </div>
                   </Field>
                   <Field
+                    label="Find your address"
+                    required
+                    error={errors.mapSearchQuery}
+                    hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Your flat needn’t be on Google — type it in the lines below."
+                    className="sm:col-span-2"
+                  >
+                    <AddressPlacesSearch
+                      value={mapSearchQuery}
+                      onChange={setMapSearchQuery}
+                      onPlaceSelect={(place) => {
+                        if (place.line1) setLine1(place.line1);
+                        if (place.pincode) setPincode(place.pincode);
+                      }}
+                    />
+                  </Field>
+                  <Field
                     label="Address line 1"
                     required
                     error={errors.line1}
@@ -488,38 +506,7 @@ export function CheckoutPage() {
                       placeholder="Near the metro station"
                     />
                   </Field>
-                  <Field
-                    label="Uber / Rapido search"
-                    required
-                    error={errors.mapSearchQuery}
-                    hint="What we'd type in Uber or Rapido to find your location — an apartment name, shop, or well-known place nearby."
-                    className="sm:col-span-2"
-                  >
-                    <div className="relative">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">
-                        <svg
-                          width={16}
-                          height={16}
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                        >
-                          <circle cx="11" cy="11" r="7" />
-                          <path d="M20 20l-3-3" />
-                        </svg>
-                      </span>
-                      <Input
-                        value={mapSearchQuery}
-                        onChange={setMapSearchQuery}
-                        placeholder='e.g. "Ganguly Bagan Metro Station" or "Aditya Apartments, Salkia"'
-                        className="pl-9"
-                      />
-                    </div>
-                  </Field>
+                  
 
                   {user && (
                     <div className="sm:col-span-2 flex justify-end">
@@ -632,36 +619,20 @@ export function CheckoutPage() {
                       </Field>
 
                       <Field
-                        label="Uber / Rapido search"
+                        label="Find your address"
                         required
                         error={errors.mapSearchQuery}
-                        hint="What we'd type in Uber or Rapido to find your location — an apartment name, shop, or well-known place nearby."
+                        hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Your flat needn’t be on Google — type it in the lines below."
                         className="sm:col-span-2"
                       >
-                        <div className="relative">
-                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">
-                            <svg
-                              width={16}
-                              height={16}
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
-                            >
-                              <circle cx="11" cy="11" r="7" />
-                              <path d="M20 20l-3-3" />
-                            </svg>
-                          </span>
-                          <Input
-                            value={mapSearchQuery}
-                            onChange={setMapSearchQuery}
-                            placeholder='e.g. "Ganguly Bagan Metro Station" or "Aditya Apartments, Salkia"'
-                            className="pl-9"
-                          />
-                        </div>
+                        <AddressPlacesSearch
+                          value={mapSearchQuery}
+                          onChange={setMapSearchQuery}
+                          onPlaceSelect={(place) => {
+                            if (place.line1) setLine1(place.line1);
+                            if (place.pincode) setPincode(place.pincode);
+                          }}
+                        />
                       </Field>
                     </div>
 
@@ -846,76 +817,103 @@ export function CheckoutPage() {
                 }
               />
             )}
-            <div className="mt-3 space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
-                Coupon
-              </p>
+            <div className="mt-3">
               {appliedCoupon ? (
                 <div className="flex items-center justify-between gap-2 text-sm">
-                  <span className="font-mono text-brand-700">
-                    {appliedCoupon.code}
+                  <span className="text-ink-700">
+                    Promo{" "}
+                    <span className="font-mono text-brand-700">
+                      {appliedCoupon.code}
+                    </span>
                   </span>
                   <button
                     type="button"
-                    className="text-xs text-ink-500 underline"
+                    className="text-xs text-ink-500 underline-offset-2 hover:underline"
                     onClick={() => {
                       setAppliedCoupon(null);
                       setCouponInput("");
                       setCouponError(null);
+                      setCouponOpen(false);
                     }}
                   >
                     Remove
                   </button>
                 </div>
+              ) : !couponOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setCouponOpen(true)}
+                  className="text-left text-xs text-ink-500 underline-offset-2 hover:text-ink-700 hover:underline"
+                >
+                  Have a promo code?
+                </button>
               ) : (
-                <div className="flex gap-2">
-                  <input
-                    className="min-w-0 flex-1 rounded-lg border border-cream-200 px-3 py-2 text-sm uppercase"
-                    placeholder="LAUNCH50"
-                    value={couponInput}
-                    onChange={(e) => {
-                      setCouponInput(e.target.value);
-                      setCouponError(null);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="rounded-lg bg-ink-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
-                    disabled={!couponInput.trim() || previewCoupon.isPending}
-                    onClick={async () => {
-                      setCouponError(null);
-                      try {
-                        const q = await previewCoupon.mutateAsync({
-                          code: couponInput,
-                          customerPhone: phone,
-                          subtotal,
-                          items: lines.map((l) => ({
-                            productId: l.productId,
-                            unitPrice: l.unitPrice,
-                            qty: l.qty,
-                          })),
-                        });
-                        setAppliedCoupon({
-                          code: q.code,
-                          discount: q.discount,
-                          waivesDelivery: q.waivesDelivery,
-                          label: q.label,
-                        });
-                      } catch (err) {
-                        setCouponError(
-                          err instanceof Error
-                            ? err.message
-                            : "Couldn’t apply coupon",
-                        );
-                      }
-                    }}
-                  >
-                    Apply
-                  </button>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-ink-500">Promo code</p>
+                    <button
+                      type="button"
+                      className="text-[11px] text-ink-400 hover:text-ink-600"
+                      onClick={() => {
+                        setCouponOpen(false);
+                        setCouponInput("");
+                        setCouponError(null);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      className="min-w-0 flex-1 rounded-lg border border-cream-200 px-3 py-2 text-sm uppercase tracking-wide"
+                      placeholder="Enter code"
+                      autoFocus
+                      value={couponInput}
+                      onChange={(e) => {
+                        setCouponInput(e.target.value);
+                        setCouponError(null);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="rounded-lg border border-cream-200 bg-cream-50 px-3 py-2 text-xs font-medium text-ink-700 hover:bg-cream-100 disabled:opacity-50"
+                      disabled={!couponInput.trim() || previewCoupon.isPending}
+                      onClick={async () => {
+                        setCouponError(null);
+                        try {
+                          const q = await previewCoupon.mutateAsync({
+                            code: couponInput,
+                            customerPhone: phone,
+                            subtotal,
+                            items: lines.map((l) => ({
+                              productId: l.productId,
+                              unitPrice: l.unitPrice,
+                              qty: l.qty,
+                            })),
+                          });
+                          setAppliedCoupon({
+                            code: q.code,
+                            discount: q.discount,
+                            waivesDelivery: q.waivesDelivery,
+                            label: q.label,
+                          });
+                          setCouponOpen(false);
+                        } catch (err) {
+                          setCouponError(
+                            err instanceof Error
+                              ? err.message
+                              : "Couldn’t apply coupon",
+                          );
+                        }
+                      }}
+                    >
+                      {previewCoupon.isPending ? "…" : "Apply"}
+                    </button>
+                  </div>
+                  {couponError && (
+                    <p className="text-xs text-red-700">{couponError}</p>
+                  )}
                 </div>
-              )}
-              {couponError && (
-                <p className="text-xs text-red-700">{couponError}</p>
               )}
             </div>
             <hr className="my-3 border-cream-200" />

@@ -558,7 +558,8 @@ export function PageMotifs() {
           const delay = (i * 0.31) % 3.5;
           // Boost visibility across the board; only suppress the very largest
           // shapes on mobile so small screens don't feel cluttered.
-          const boostedOpacity = Math.min(opacity * 1.7, 0.85);
+          // Keep motifs soft so section text stays readable over them.
+          const boostedOpacity = Math.min(opacity * 1.15, 0.45);
           const suppressOnMobile = hideOnMobile && size >= 60;
           return (
             <Motif

@@ -59,6 +59,17 @@ export const HOME_COPY = {
   collections: {
     badge: "Shop this",
   },
+  film: {
+    src: "/hero/keyafeoverall.mp4",
+    eyebrow: "Six years with you",
+    title: "15000+ orders delivered",
+    body: "15000+ bakes from our Belur kitchen — for 2,000+ customers, most of whom come back and send the kindest words.",
+    points: [
+      "2,000+ customers since we started",
+      "Most of you return — that’s the bit we’re proudest of",
+      "Baked fresh for Kolkata, one order at a time",
+    ],
+  },
   storeDoors: {
     eyebrow: "Browse",
     heading: "Two stores, one kitchen",

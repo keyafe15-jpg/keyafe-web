@@ -14,6 +14,85 @@ export type CollectionSlide = {
 const slideFrame =
   "relative aspect-[16/9] min-h-[280px] w-full sm:aspect-auto sm:min-h-0 sm:h-[400px] md:h-[440px] lg:h-[480px]";
 
+function ChevronMark({ direction }: { direction: "prev" | "next" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={cn(
+        "h-[1.15rem] w-[1.15rem] transition-transform duration-300 ease-out",
+        direction === "prev"
+          ? "group-hover/nav:-translate-x-0.5 group-active/nav:-translate-x-1"
+          : "group-hover/nav:translate-x-0.5 group-active/nav:translate-x-1",
+      )}
+    >
+      {direction === "prev" ? (
+        <path
+          d="M14.5 5.5 8 12l6.5 6.5"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+        />
+      ) : (
+        <path
+          d="M9.5 5.5 16 12l-6.5 6.5"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+        />
+      )}
+    </svg>
+  );
+}
+
+function CollectionNavButton({
+  direction,
+  label,
+  onClick,
+  variant,
+}: {
+  direction: "prev" | "next";
+  label: string;
+  onClick: () => void;
+  variant: "overlay" | "compact";
+}) {
+  const caption = direction === "prev" ? "Prev" : "Next";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={cn(
+        "group/nav relative overflow-hidden text-ink-800 transition",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500",
+        variant === "overlay" &&
+          "pointer-events-auto flex h-[4.25rem] w-12 flex-col items-center justify-center gap-1 border border-white/50 bg-white/55 shadow-[0_10px_30px_rgba(26,33,42,0.18)] backdrop-blur-md hover:border-brand-300/70 hover:bg-white/85 hover:text-brand-700",
+        variant === "compact" &&
+          "flex h-11 w-11 shrink-0 flex-col items-center justify-center border border-cream-200 bg-white/90 text-ink-800 shadow-sm backdrop-blur-sm hover:border-brand-300 hover:text-brand-700",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute inset-y-0 w-[3px] bg-brand-500 transition-transform duration-300 ease-out",
+          direction === "prev" ? "left-0 origin-left" : "right-0 origin-right",
+          "scale-y-0 group-hover/nav:scale-y-100 group-focus-visible/nav:scale-y-100",
+        )}
+        aria-hidden="true"
+      />
+      <ChevronMark direction={direction} />
+      {variant === "overlay" && (
+        <span className="font-mono text-[8px] uppercase tracking-[0.28em] text-ink-500 transition-colors group-hover/nav:text-brand-600">
+          {caption}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -68,8 +147,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
 
   const prevTitle = slides[(selectedIndex - 1 + count) % count]?.title;
   const nextTitle = slides[(selectedIndex + 1) % count]?.title;
-  const indexLabel = String(selectedIndex + 1).padStart(2, "0");
-  const totalLabel = String(count).padStart(2, "0");
+ 
 
   if (count === 0) {
     return <div className={cn(slideFrame, "animate-pulse bg-[#f7f2eb]")} />;
@@ -133,18 +211,18 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                       )}
 
                       {active && (
-                        <div className="absolute inset-0 z-[1] flex items-center justify-center p-4">
-                          <div className="max-w-[20rem] text-center sm:max-w-md">
-                            <div className="rounded-lg border border-white/25 bg-black/20 px-5 py-4 shadow-[0_12px_40px_rgba(26,33,42,0.2)] backdrop-blur-md sm:px-7 sm:py-5">
-                              <div className="mb-2 flex items-center justify-center gap-3">
-                                <span className="inline-flex rounded-md bg-brand-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                        <div className="absolute inset-0 z-[1] flex items-end justify-center p-3 sm:items-center sm:p-4">
+                          <div className="w-full max-w-[16rem] text-center sm:max-w-md">
+                            <div className="border border-white/25 bg-black/25 px-3.5 py-2.5 shadow-[0_10px_28px_rgba(26,33,42,0.22)] backdrop-blur-md sm:rounded-lg sm:px-7 sm:py-5">
+                              <div className="mb-1 flex items-center justify-center sm:mb-2">
+                                <span className="inline-flex bg-brand-500/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white sm:rounded-md sm:px-2 sm:text-[10px] sm:tracking-[0.18em]">
                                   {HOME_COPY.collections.badge}
                                 </span>
                               </div>
-                              <p className="font-display text-2xl leading-tight text-white drop-shadow-sm sm:text-3xl">
+                              <p className="font-display text-lg leading-snug text-white drop-shadow-sm sm:text-3xl sm:leading-tight">
                                 {slide.title}
                               </p>
-                              <p className="mt-1 text-sm leading-5 text-white/90 drop-shadow-sm">
+                              <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-white/90 drop-shadow-sm sm:mt-1 sm:line-clamp-none sm:text-sm sm:leading-5">
                                 {slide.line}
                               </p>
                             </div>
@@ -159,37 +237,95 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
           </div>
         </div>
 
-        <div className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden items-center justify-between px-3 sm:flex">
-          <button
-            type="button"
+        <div className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden items-center justify-between px-3 sm:flex md:px-4">
+          <CollectionNavButton
+            direction="prev"
+            variant="overlay"
             onClick={goToPrevious}
-            aria-label={
+            label={
               prevTitle
                 ? `Previous collection, ${prevTitle}`
                 : "Previous collection"
             }
-            className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-md border border-white/70 bg-white/80 text-xl text-ink-800 shadow-md backdrop-blur transition hover:bg-white hover:text-brand-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
+          />
+          <CollectionNavButton
+            direction="next"
+            variant="overlay"
             onClick={goToNext}
-            aria-label={
+            label={
               nextTitle ? `Next collection, ${nextTitle}` : "Next collection"
             }
-            className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-md border border-white/70 bg-white/80 text-xl text-ink-800 shadow-md backdrop-blur transition hover:bg-white hover:text-brand-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-          >
-            ›
-          </button>
+          />
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col items-center gap-3 px-4 sm:mt-5">
+      <div className="mt-4 px-4 sm:mt-5">
+        {/* Mobile: current title + prev/next + dots — no horizontal scroll */}
+        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-3 sm:hidden">
+          <div className="flex w-full items-center gap-2">
+            <CollectionNavButton
+              direction="prev"
+              variant="compact"
+              onClick={goToPrevious}
+              label={
+                prevTitle
+                  ? `Previous collection, ${prevTitle}`
+                  : "Previous collection"
+              }
+            />
+            <div className="min-w-0 flex-1 text-center">
+              <span className="block font-mono text-[10px] tracking-[0.22em] text-brand-500">
+                {String(selectedIndex + 1).padStart(2, "0")}
+                <span className="text-ink-300"> / {String(count).padStart(2, "0")}</span>
+              </span>
+              <p className="mt-0.5 truncate text-sm font-medium tracking-wide text-ink-900">
+                {slides[selectedIndex]?.title}
+              </p>
+            </div>
+            <CollectionNavButton
+              direction="next"
+              variant="compact"
+              onClick={goToNext}
+              label={
+                nextTitle ? `Next collection, ${nextTitle}` : "Next collection"
+              }
+            />
+          </div>
+          <div
+            role="tablist"
+            aria-label="Collections"
+            className="flex flex-wrap items-center justify-center gap-2"
+          >
+            {slides.map((slide, index) => {
+              const active = index === selectedIndex;
+              return (
+                <button
+                  type="button"
+                  key={slide.to}
+                  role="tab"
+                  aria-selected={active}
+                  aria-label={slide.title}
+                  onClick={() => setSelectedIndex(index)}
+                  className={cn(
+                    "h-2.5 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500",
+                    active
+                      ? "w-6 bg-brand-500"
+                      : "w-2.5 bg-cream-300 hover:bg-brand-300",
+                  )}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Desktop / tablet: lookbook tabs that wrap instead of scrolling */}
         <div
           role="tablist"
           aria-label="Collections"
-          className="flex w-full max-w-4xl justify-start gap-0 overflow-x-auto border-b border-cream-200 sm:justify-center"
+          className="mx-auto hidden w-full max-w-4xl border-b border-cream-200 sm:grid"
+          style={{
+            gridTemplateColumns: `repeat(${Math.max(count, 1)}, minmax(0, 1fr))`,
+          }}
         >
           {slides.map((slide, index) => {
             const active = index === selectedIndex;
@@ -202,19 +338,19 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                 aria-current={active ? "true" : undefined}
                 onClick={() => setSelectedIndex(index)}
                 className={cn(
-                  "relative shrink-0 px-4 pb-3 pt-1 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:text-center",
+                  "relative min-w-0 px-2 pb-3 pt-1 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 md:px-3",
                   active ? "text-ink-900" : "text-ink-400 hover:text-ink-700",
                 )}
               >
                 <span className="block font-mono text-[10px] tracking-[0.22em] text-brand-500">
                   {String(index + 1).padStart(2, "0")}
                 </span>
-                <span className="mt-0.5 block whitespace-nowrap text-sm font-medium tracking-wide">
+                <span className="mt-0.5 block text-balance text-sm font-medium leading-snug tracking-wide">
                   {slide.title}
                 </span>
                 <span
                   className={cn(
-                    "absolute inset-x-4 -bottom-px h-[2px] origin-center bg-brand-500 transition-transform duration-300",
+                    "absolute inset-x-2 -bottom-px h-[2px] origin-center bg-brand-500 transition-transform duration-300 md:inset-x-3",
                     active ? "scale-x-100" : "scale-x-0",
                   )}
                   aria-hidden="true"
@@ -222,30 +358,6 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
               </button>
             );
           })}
-        </div>
-        <div className="flex items-center gap-2 sm:hidden">
-          <button
-            type="button"
-            onClick={goToPrevious}
-            aria-label={
-              prevTitle
-                ? `Previous collection, ${prevTitle}`
-                : "Previous collection"
-            }
-            className="flex h-9 w-9 items-center justify-center rounded-md bg-white text-lg text-ink-800 ring-1 ring-cream-200"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={goToNext}
-            aria-label={
-              nextTitle ? `Next collection, ${nextTitle}` : "Next collection"
-            }
-            className="flex h-9 w-9 items-center justify-center rounded-md bg-white text-lg text-ink-800 ring-1 ring-cream-200"
-          >
-            ›
-          </button>
         </div>
       </div>
     </div>

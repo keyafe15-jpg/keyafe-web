@@ -9,6 +9,7 @@ import { PRODUCT_COPY } from "@/content/product";
 import { uploadImage } from "@/lib/uploads";
 import { usePaymentInfo } from "@/hooks/usePaymentInfo";
 import { buildUpiUri } from "@/lib/upi";
+import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
 import { UpiQrCode } from "@/components/UpiQrCode";
 import { cn } from "@/lib/cn";
 import { manualDiscountRupees } from "@/lib/manualDiscount";
@@ -477,16 +478,19 @@ function LinkForm({
                 />
               </Field>
               <Field
-                label="Uber / Rapido search"
+                label="Find your address"
                 required
                 error={errors.mapSearchQuery}
-                hint="What we'd type in Uber or Rapido to find you."
+                hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Your flat needn’t be on Google — type it in the lines below."
                 className="sm:col-span-2"
               >
-                <Input
+                <AddressPlacesSearch
                   value={mapSearchQuery}
                   onChange={setMapSearchQuery}
-                  placeholder='e.g. "Ganguly Bagan Metro Station"'
+                  onPlaceSelect={(place) => {
+                    if (place.line1) setLine1(place.line1);
+                    if (place.pincode) setPincode(place.pincode);
+                  }}
                 />
               </Field>
             </div>

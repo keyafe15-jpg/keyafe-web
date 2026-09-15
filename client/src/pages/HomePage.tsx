@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { HeroSlider, type CollectionSlide } from "@/components/hero/HeroSlider";
 import { HomePromoBanner } from "@/components/home/HomePromoBanner";
+import { HomeFilm } from "@/components/home/HomeFilm";
 import { StoreDoor } from "@/components/home/StoreDoor";
 import { PageMotifs } from "@/components/decor/PageMotifs";
 import { Reveal } from "@/components/motion/Reveal";
@@ -90,8 +91,8 @@ export function HomePage() {
           <HeroSlider slides={slides} />
         </div>
 
-        <div className="mx-auto mt-5 max-w-3xl px-4 text-center md:mt-7">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-brand-200 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700">
+        <div className="relative z-10 mx-auto mt-5 max-w-3xl rounded-2xl border border-white/50 bg-white/40 px-5 py-6 text-center shadow-sm backdrop-blur-md md:mt-7 md:px-8 md:py-8">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-brand-200/80 bg-white/50 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700 backdrop-blur-sm">
             <span className="inline-block h-2 w-2 rounded-sm bg-brand-500" />
             <span>{HOME_COPY.hero.eyebrow}</span>
           </div>
@@ -126,7 +127,7 @@ export function HomePage() {
             </Link>
             <Link
               to={HOME_COPY.hero.secondaryCta.to}
-              className="rounded-md border border-ink-700 bg-transparent px-6 py-3 text-sm font-medium text-ink-700 transition hover:bg-cream-100"
+              className="rounded-md border border-ink-700 bg-white/50 px-6 py-3 text-sm font-medium text-ink-700 backdrop-blur-sm transition hover:bg-white/70"
             >
               {HOME_COPY.hero.secondaryCta.label}
             </Link>
@@ -136,7 +137,7 @@ export function HomePage() {
             {valuePills.map((item) => (
               <span
                 key={item}
-                className="rounded-md border border-cream-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-ink-700 shadow-sm"
+                className="rounded-md border border-white/60 bg-white/45 px-3 py-1.5 text-xs font-medium text-ink-700 shadow-sm backdrop-blur-sm"
               >
                 {item}
               </span>
@@ -147,13 +148,17 @@ export function HomePage() {
 
       <HomePromoBanner />
 
-      <section className="relative mx-auto max-w-6xl px-4 pb-4 pt-2 md:pt-4">
-        <p className="mb-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
-          {HOME_COPY.storeDoors.eyebrow}
-        </p>
-        <h2 className="mb-6 text-center font-display text-2xl text-ink-900 sm:mb-8 sm:text-3xl">
-          {HOME_COPY.storeDoors.heading}
-        </h2>
+      <HomeFilm />
+
+      <section className="relative z-10 mx-auto max-w-6xl px-4 pb-4 pt-2 md:pt-4">
+        <div className="mx-auto mb-6 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-4 text-center shadow-sm backdrop-blur-md sm:mb-8">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
+            {HOME_COPY.storeDoors.eyebrow}
+          </p>
+          <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">
+            {HOME_COPY.storeDoors.heading}
+          </h2>
+        </div>
         <div className="flex flex-wrap justify-center gap-8 sm:gap-12">
           {storeGroups.map((group, index) => (
             <Reveal key={group.department!.id} delay={index * 80}>
@@ -168,13 +173,15 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="relative mx-auto max-w-6xl px-4 py-12">
-        <p className="mb-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-brand-500 sm:mb-3">
-          Why Keyafe
-        </p>
-        <h2 className="mb-8 text-center font-display text-2xl text-ink-900 sm:mb-10 sm:text-3xl">
-          Crafted with care, every single time
-        </h2>
+      <section className="relative z-10 mx-auto max-w-6xl px-4 py-12">
+        <div className="mx-auto mb-8 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-4 text-center shadow-sm backdrop-blur-md sm:mb-10">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
+            Why Keyafe
+          </p>
+          <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">
+            Crafted with care, every single time
+          </h2>
+        </div>
 
         <div className="relative mb-2 grid gap-3 sm:grid-cols-3 sm:gap-6">
           <div
