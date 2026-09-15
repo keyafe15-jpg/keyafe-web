@@ -16,11 +16,14 @@ import {
 } from "@/hooks/useProducts";
 import { useMasterFlavours } from "@/hooks/useFlavours";
 import { useCart } from "@/store/cart";
+import {
+  CAKE_BASE_GRAMS,
+  cakeVolumeDiscount,
+  computeCakeUnitPrice,
+  gramsToPounds,
+} from "@/lib/cakePrice";
 
 type Fulfillment = "delivery" | "pickup";
-
-// 500g = "1 pound" = 1x basePrice; this is our pricing reference unit.
-const BASE_PRICE_GRAMS = 500;
 
 export function ProductPage() {
   const { slug = "" } = useParams<{ slug: string }>();
@@ -46,7 +49,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
   const basePrice = Number(product.basePrice);
   const defaultSize: ProductSize | null =
     product.sellByPound && product.sizes.length > 0
-      ? (product.sizes.find((s) => s.grams === BASE_PRICE_GRAMS) ??
+      ? (product.sizes.find((s) => s.grams === CAKE_BASE_GRAMS) ??
         product.sizes[0])
       : null;
 
@@ -109,7 +112,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
     customPounds.trim() !== "" &&
     Number.isFinite(parsedCustomPounds) &&
     parsedCustomPounds > 0
-      ? Math.round(parsedCustomPounds * BASE_PRICE_GRAMS)
+      ? Math.round(parsedCustomPounds * CAKE_BASE_GRAMS)
       : null;
   const customOutOfRange =
     customGrams != null &&
@@ -128,9 +131,11 @@ function PdpContent({ product }: { product: ProductDetail }) {
   const flavourDelta = pickedFlavour
     ? Number(pickedFlavour.additionalAmount)
     : 0;
-  const multiplier = effectiveGrams ? effectiveGrams / BASE_PRICE_GRAMS : 1;
-  const unitPrice =
-    (basePrice + flavourDelta) * multiplier + addonsDelta + slotSurcharge;
+  const cakePrice = effectiveGrams
+    ? computeCakeUnitPrice(basePrice, effectiveGrams, flavourDelta)
+    : basePrice + flavourDelta;
+  const volumeOff = effectiveGrams ? cakeVolumeDiscount(effectiveGrams) : 0;
+  const unitPrice = cakePrice + addonsDelta + slotSurcharge;
 
   const deliveryFee =
     fulfillment === "delivery" && pincodeResult?.serviceable
@@ -150,7 +155,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
     const chosenFlavour = pickedFlavour ?? product.flavors[0] ?? null;
     const effectiveSizeLabel =
       customGrams && !customOutOfRange
-        ? `${(customGrams / BASE_PRICE_GRAMS).toFixed(2)} lb (custom)`
+        ? `${(customGrams / CAKE_BASE_GRAMS).toFixed(2)} lb (custom)`
         : size?.label;
     const effectiveSizeGrams =
       customGrams && !customOutOfRange ? customGrams : size?.grams;
@@ -223,8 +228,10 @@ function PdpContent({ product }: { product: ProductDetail }) {
         <span className="text-ink-700">{product.name}</span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <ProductGallery images={galleryImages} alt={product.name} />
+      <div className="grid items-start gap-8 lg:grid-cols-2">
+        <div className="lg:sticky lg:top-24">
+          <ProductGallery images={galleryImages} alt={product.name} />
+        </div>
 
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-2">
@@ -309,11 +316,12 @@ function PdpContent({ product }: { product: ProductDetail }) {
               <span className="text-3xl font-semibold text-ink-900">
                 ₹{unitPrice.toFixed(0)}
               </span>
-              {effectiveGrams && effectiveGrams !== BASE_PRICE_GRAMS && (
+              {effectiveGrams && effectiveGrams !== CAKE_BASE_GRAMS && (
                 <span className="text-xs text-ink-500">
                   base ₹{basePrice.toFixed(0)}
                   {flavourDelta > 0 && ` + ₹${flavourDelta.toFixed(0)}`} ×{" "}
-                  {multiplier.toFixed(2)}
+                  {gramsToPounds(effectiveGrams).toFixed(2)}
+                  {volumeOff > 0 && ` − ₹${volumeOff.toFixed(0)}`}
                 </span>
               )}
             </div>
@@ -331,8 +339,11 @@ function PdpContent({ product }: { product: ProductDetail }) {
               </p>
               <div className="flex flex-wrap gap-2">
                 {product.sizes.map((s) => {
-                  const mult = s.grams / BASE_PRICE_GRAMS;
-                  const price = (basePrice + flavourDelta) * mult;
+                  const price = computeCakeUnitPrice(
+                    basePrice,
+                    s.grams,
+                    flavourDelta,
+                  );
                   const active = s.id === sizeId && !customGrams;
                   return (
                     <button
@@ -373,12 +384,12 @@ function PdpContent({ product }: { product: ProductDetail }) {
                       type="number"
                       min={
                         product.minGrams
-                          ? product.minGrams / BASE_PRICE_GRAMS
+                          ? product.minGrams / CAKE_BASE_GRAMS
                           : 0.1
                       }
                       max={
                         product.maxGrams
-                          ? product.maxGrams / BASE_PRICE_GRAMS
+                          ? product.maxGrams / CAKE_BASE_GRAMS
                           : undefined
                       }
                       step={0.1}
@@ -396,7 +407,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
                         · {customGrams} g · ₹
                         {(
                           (basePrice + flavourDelta) *
-                          (customGrams / BASE_PRICE_GRAMS)
+                          (customGrams / CAKE_BASE_GRAMS)
                         ).toFixed(0)}
                       </span>
                     )}
@@ -405,11 +416,11 @@ function PdpContent({ product }: { product: ProductDetail }) {
                     <p className="mt-1 text-xs text-brand-700">
                       Please pick between{" "}
                       {product.minGrams
-                        ? (product.minGrams / BASE_PRICE_GRAMS).toFixed(1)
+                        ? (product.minGrams / CAKE_BASE_GRAMS).toFixed(1)
                         : "0.1"}{" "}
                       and{" "}
                       {product.maxGrams
-                        ? (product.maxGrams / BASE_PRICE_GRAMS).toFixed(1)
+                        ? (product.maxGrams / CAKE_BASE_GRAMS).toFixed(1)
                         : "any"}{" "}
                       pounds.
                     </p>
@@ -752,7 +763,7 @@ function PdpSkeleton() {
   return (
     <section className="mx-auto max-w-6xl px-4 pt-6 pb-16">
       <div className="mb-4 h-3 w-40 animate-pulse rounded bg-cream-100" />
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid items-start gap-8 lg:grid-cols-2">
         <div className="aspect-square animate-pulse rounded-card bg-cream-100" />
         <div className="space-y-4">
           <div className="h-8 w-2/3 animate-pulse rounded bg-cream-100" />
@@ -954,8 +965,10 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
         <span className="text-ink-700">{product.name}</span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <ProductGallery images={galleryImages} alt={product.name} />
+      <div className="grid items-start gap-8 lg:grid-cols-2">
+        <div className="lg:sticky lg:top-24">
+          <ProductGallery images={galleryImages} alt={product.name} />
+        </div>
 
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-2">

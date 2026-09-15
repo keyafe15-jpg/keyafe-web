@@ -56,6 +56,9 @@ export function availableFixedSkus(
 /** 500g = 1 pound = 1× basePrice on the storefront. */
 export const CAKE_BASE_GRAMS = 500;
 
+/** ₹30 off per half-pound above 1 lb (1.5 → −50, 2 → −100). */
+export const CAKE_VOLUME_DISCOUNT_PER_HALF_LB = 30;
+
 export function parseCustomPounds(raw: string): number | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -86,15 +89,23 @@ export function formatCustomPoundLabel(pounds: number): string {
   return `${text} lb (custom)`;
 }
 
+export function cakeVolumeDiscount(grams: number): number {
+  const pounds = grams / CAKE_BASE_GRAMS;
+  if (!(pounds > 1)) return 0;
+  const halfPoundsAboveOne = (pounds - 1) / 0.5;
+  return CAKE_VOLUME_DISCOUNT_PER_HALF_LB * halfPoundsAboveOne;
+}
+
 export function computeCakeUnitPrice(
   basePrice: number,
   grams: number,
   flavourAdditional = 0,
   flavourPricedIn = false,
 ): number {
-  const multiplier = grams / CAKE_BASE_GRAMS;
+  const pounds = grams / CAKE_BASE_GRAMS;
   const delta = flavourPricedIn ? 0 : flavourAdditional;
-  return Math.round((basePrice + delta) * multiplier);
+  const linear = (basePrice + delta) * pounds;
+  return Math.max(0, Math.round(linear - cakeVolumeDiscount(grams)));
 }
 
 export function cakeSizeSelectLabel(

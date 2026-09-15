@@ -48,9 +48,9 @@ export function CakeSizesPage() {
           <p className="mt-1 text-sm text-slate-500">
             Size options shown to customers on cake products. Final price ={" "}
             <span className="font-medium">
-              (base + flavour extra) × grams / 500
+              (base + flavour) × pounds − ₹50 per half-lb above 1 lb
             </span>
-            . 500g = 1 pound = 1× base price.
+            . 500g = 1 pound. Example: 1.5 lb = 1.5× base − ₹50.
           </p>
         </div>
         {!adding && (

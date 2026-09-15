@@ -494,7 +494,7 @@ export function ProductFormPage() {
                   <Checkbox
                     {...register("sellByPound")}
                     label="Sell by pound"
-                    hint="Show size picker on PDP. Price = (base + flavour extra) × grams / 500."
+                    hint="Show size picker on PDP. Price = (base + flavour) × pounds, minus ₹50 per half-lb above 1 lb."
                   />
                   <Checkbox
                     {...register("allowCustomSize")}

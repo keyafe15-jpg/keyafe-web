@@ -72,7 +72,8 @@ model Flavor {
 }
 
 // Sizes offered on any product with `sellByPound = true`. Stored in grams.
-// Pricing convention: 500g = "1 pound" = 1x basePrice. Multiplier = grams / 500.
+// Pricing: 500g = 1 pound. Price = (base + flavour) × (grams/500)
+// minus ₹50 per half-pound above 1 lb (e.g. 1.5 lb → ×1.5 − ₹50).
 model CakeSize {
   id         String   @id @default(cuid())
   grams      Int      @unique

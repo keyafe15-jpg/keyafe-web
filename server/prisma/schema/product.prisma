@@ -38,7 +38,7 @@ model Product {
   isEggless      Boolean     @default(true)
 
   // If true, the PDP shows a pound selector (from CakeSize master list) and
-  // charges (basePrice + flavourAdditional) * pounds.
+  // charges (basePrice + flavourAdditional) × pounds − ₹50 per half-lb above 1 lb.
   sellByPound      Boolean @default(false)
   // Optional per-product size bounds (in grams). Null = no bound. Applied to
   // the CakeSize master list to filter the picker.

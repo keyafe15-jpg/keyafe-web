@@ -78,11 +78,11 @@ export function HomePage() {
       <PageMotifs />
 
       <div
-        className="pointer-events-none absolute -left-32 top-[420px] -z-10 h-[420px] w-[420px] rounded-full bg-brand-300/25 blur-[110px]"
+        className="home-blob pointer-events-none absolute -left-32 top-[420px] -z-10 h-[420px] w-[420px] rounded-full bg-brand-300/25 blur-[110px]"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute -right-40 top-[1100px] -z-10 h-[460px] w-[460px] rounded-full bg-emerald-200/30 blur-[120px]"
+        className="home-blob-alt pointer-events-none absolute -right-40 top-[1100px] -z-10 h-[460px] w-[460px] rounded-full bg-emerald-200/30 blur-[120px]"
         aria-hidden="true"
       />
 
@@ -91,8 +91,11 @@ export function HomePage() {
           <HeroSlider slides={slides} />
         </div>
 
-        <div className="relative z-10 mx-auto mt-5 max-w-3xl rounded-2xl border border-white/50 bg-white/40 px-5 py-6 text-center shadow-sm backdrop-blur-md md:mt-7 md:px-8 md:py-8">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-brand-200/80 bg-white/50 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700 backdrop-blur-sm">
+        <div className="home-rise relative z-10 mx-auto mt-5 max-w-3xl rounded-2xl border border-white/50 bg-white/40 px-5 py-6 text-center shadow-sm backdrop-blur-md md:mt-7 md:px-8 md:py-8">
+          <div
+            className="home-rise mb-3 inline-flex items-center gap-2 rounded-md border border-brand-200/80 bg-white/50 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700 backdrop-blur-sm"
+            style={{ animationDelay: "0.05s" }}
+          >
             <span className="inline-block h-2 w-2 rounded-sm bg-brand-500" />
             <span>{HOME_COPY.hero.eyebrow}</span>
           </div>
@@ -104,10 +107,16 @@ export function HomePage() {
             </span>
           </h1>
 
-          <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-ink-700 md:mt-4 md:text-[1.05rem] md:leading-8">
+          <p
+            className="home-rise mx-auto mt-3 max-w-xl text-base leading-7 text-ink-700 md:mt-4 md:text-[1.05rem] md:leading-8"
+            style={{ animationDelay: "0.55s" }}
+          >
             {HOME_COPY.hero.sub}
           </p>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-ink-500 md:text-base">
+          <p
+            className="home-rise mx-auto mt-2 max-w-xl text-sm leading-6 text-ink-500 md:text-base"
+            style={{ animationDelay: "0.68s" }}
+          >
             {HOME_COPY.hero.coverage.beforeLink}
             <Link
               to={HOME_COPY.hero.coverage.to}
@@ -118,10 +127,13 @@ export function HomePage() {
             {HOME_COPY.hero.coverage.afterLink}
           </p>
 
-          <div className="mt-4 flex flex-wrap justify-center gap-3 md:mt-6">
+          <div
+            className="home-rise mt-4 flex flex-wrap justify-center gap-3 md:mt-6"
+            style={{ animationDelay: "0.82s" }}
+          >
             <Link
               to={HOME_COPY.hero.primaryCta.to}
-              className="rounded-md bg-brand-500 px-6 py-3 text-sm font-medium text-white shadow-[0_12px_24px_rgba(227,28,121,0.25)] transition hover:-translate-y-0.5 hover:bg-brand-700"
+              className="home-cta-glow rounded-md bg-brand-500 px-6 py-3 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-brand-700"
             >
               {HOME_COPY.hero.primaryCta.label}
             </Link>
@@ -134,10 +146,11 @@ export function HomePage() {
           </div>
 
           <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {valuePills.map((item) => (
+            {valuePills.map((item, index) => (
               <span
                 key={item}
-                className="rounded-md border border-white/60 bg-white/45 px-3 py-1.5 text-xs font-medium text-ink-700 shadow-sm backdrop-blur-sm"
+                className="home-pill rounded-md border border-white/60 bg-white/45 px-3 py-1.5 text-xs font-medium text-ink-700 shadow-sm backdrop-blur-sm"
+                style={{ animationDelay: `${0.95 + index * 0.08}s` }}
               >
                 {item}
               </span>
@@ -146,22 +159,26 @@ export function HomePage() {
         </div>
       </section>
 
-      <HomePromoBanner />
+      <Reveal>
+        <HomePromoBanner />
+      </Reveal>
 
       <HomeFilm />
 
       <section className="relative z-10 mx-auto max-w-6xl px-4 pb-4 pt-2 md:pt-4">
-        <div className="mx-auto mb-6 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-4 text-center shadow-sm backdrop-blur-md sm:mb-8">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
-            {HOME_COPY.storeDoors.eyebrow}
-          </p>
-          <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">
-            {HOME_COPY.storeDoors.heading}
-          </h2>
-        </div>
+        <Reveal>
+          <div className="mx-auto mb-6 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-4 text-center shadow-sm backdrop-blur-md sm:mb-8">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
+              {HOME_COPY.storeDoors.eyebrow}
+            </p>
+            <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">
+              {HOME_COPY.storeDoors.heading}
+            </h2>
+          </div>
+        </Reveal>
         <div className="flex flex-wrap justify-center gap-8 sm:gap-12">
           {storeGroups.map((group, index) => (
-            <Reveal key={group.department!.id} delay={index * 80}>
+            <Reveal key={group.department!.id} delay={index * 100} from="scale">
               <StoreDoor
                 name={group.department!.name}
                 slug={group.department!.slug}
@@ -174,14 +191,16 @@ export function HomePage() {
       </section>
 
       <section className="relative z-10 mx-auto max-w-6xl px-4 py-12">
-        <div className="mx-auto mb-8 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-4 text-center shadow-sm backdrop-blur-md sm:mb-10">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
-            Why Keyafe
-          </p>
-          <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">
-            Crafted with care, every single time
-          </h2>
-        </div>
+        <Reveal>
+          <div className="mx-auto mb-8 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-4 text-center shadow-sm backdrop-blur-md sm:mb-10">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
+              Why Keyafe
+            </p>
+            <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">
+              Crafted with care, every single time
+            </h2>
+          </div>
+        </Reveal>
 
         <div className="relative mb-2 grid gap-3 sm:grid-cols-3 sm:gap-6">
           <div
@@ -189,7 +208,7 @@ export function HomePage() {
             aria-hidden="true"
           />
           {promiseCards.map((card, index) => (
-            <Reveal key={card.title} delay={index * 100}>
+            <Reveal key={card.title} delay={index * 110}>
               <div className="group relative flex items-center gap-3 rounded-2xl border border-cream-200 bg-white/70 p-4 shadow-sm backdrop-blur-md transition hover:-translate-y-1 hover:border-brand-200 hover:shadow-lg sm:flex-col sm:items-start sm:gap-0 sm:p-5">
                 <span
                   className={`relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl ring-4 ring-white transition group-hover:scale-110 sm:mb-3 sm:h-12 sm:w-12 ${card.tint}`}
@@ -211,7 +230,7 @@ export function HomePage() {
       </section>
 
       <section className="relative mx-auto max-w-6xl px-4 py-12">
-        <Reveal>
+        <Reveal from="scale">
           <div className="relative overflow-hidden rounded-[2rem] border border-cream-200 bg-gradient-to-br from-white/70 to-cream-50/60 p-8 shadow-sm backdrop-blur-md md:p-12">
             <span
               aria-hidden="true"
