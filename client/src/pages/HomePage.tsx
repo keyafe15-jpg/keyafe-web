@@ -49,9 +49,7 @@ export function HomePage() {
   const slides = useMemo((): CollectionSlide[] => {
     const images = imagesBySlug(categories);
     return HOME_COLLECTIONS.map((item) => {
-      const imageUrl = item.categorySlug
-        ? (images.get(item.categorySlug) ?? null)
-        : null;
+      const imageUrl = item.categorySlug ? (images.get(item.categorySlug) ?? null) : null;
       const imageUrlMobile = item.mobileCategorySlug
         ? (images.get(item.mobileCategorySlug) ?? imageUrl)
         : imageUrl;
@@ -66,10 +64,7 @@ export function HomePage() {
   }, [categories]);
 
   const storeGroups = useMemo(
-    () =>
-      groupCategoriesByDepartment(categories, departments).filter(
-        (g) => g.department,
-      ),
+    () => groupCategoriesByDepartment(categories, departments).filter((g) => g.department),
     [categories, departments],
   );
 
@@ -78,11 +73,11 @@ export function HomePage() {
       <PageMotifs />
 
       <div
-        className="home-blob pointer-events-none absolute -left-32 top-[420px] -z-10 h-[420px] w-[420px] rounded-full bg-brand-300/25 blur-[110px]"
+        className="home-blob pointer-events-none absolute top-[420px] -left-32 -z-10 h-[420px] w-[420px] rounded-full bg-brand-300/25 blur-[110px]"
         aria-hidden="true"
       />
       <div
-        className="home-blob-alt pointer-events-none absolute -right-40 top-[1100px] -z-10 h-[460px] w-[460px] rounded-full bg-emerald-200/30 blur-[120px]"
+        className="home-blob-alt pointer-events-none absolute top-[1100px] -right-40 -z-10 h-[460px] w-[460px] rounded-full bg-emerald-200/30 blur-[120px]"
         aria-hidden="true"
       />
 
@@ -93,7 +88,7 @@ export function HomePage() {
 
         <div className="home-rise relative z-10 mx-auto mt-5 max-w-3xl rounded-2xl border border-white/50 bg-white/40 px-5 py-6 text-center shadow-sm backdrop-blur-md md:mt-7 md:px-8 md:py-8">
           <div
-            className="home-rise mb-3 inline-flex items-center gap-2 rounded-md border border-brand-200/80 bg-white/50 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.22em] text-brand-700 backdrop-blur-sm"
+            className="home-rise border-brand-200/80 mb-3 inline-flex items-center gap-2 rounded-md border bg-white/50 px-3 py-1.5 text-[11px] font-medium tracking-[0.22em] text-brand-700 uppercase backdrop-blur-sm"
             style={{ animationDelay: "0.05s" }}
           >
             <span className="inline-block h-2 w-2 rounded-sm bg-brand-500" />
@@ -102,9 +97,7 @@ export function HomePage() {
 
           <h1 className="hero-headline mx-auto font-bold text-ink-900">
             <span className="hero-word hero-word-1 block">Baked fresh,</span>
-            <span className="hero-word hero-word-4 block text-brand-500">
-              Made just for you!
-            </span>
+            <span className="hero-word hero-word-4 block text-brand-500">Made just for you!</span>
           </h1>
 
           <p
@@ -120,7 +113,7 @@ export function HomePage() {
             {HOME_COPY.hero.coverage.beforeLink}
             <Link
               to={HOME_COPY.hero.coverage.to}
-              className="font-medium text-brand-600 underline decoration-brand-200 underline-offset-2 hover:text-brand-700"
+              className="text-brand-600 decoration-brand-200 font-medium underline underline-offset-2 hover:text-brand-700"
             >
               {HOME_COPY.hero.coverage.linkLabel}
             </Link>
@@ -165,10 +158,10 @@ export function HomePage() {
 
       <HomeFilm />
 
-      <section className="relative z-10 mx-auto max-w-6xl px-4 pb-4 pt-2 md:pt-4">
+      <section className="relative z-10 mx-auto max-w-6xl px-4 pt-2 pb-4 md:pt-4">
         <Reveal>
           <div className="mx-auto mb-6 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-4 text-center shadow-sm backdrop-blur-md sm:mb-8">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
+            <p className="mb-2 text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
               {HOME_COPY.storeDoors.eyebrow}
             </p>
             <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">
@@ -193,7 +186,7 @@ export function HomePage() {
       <section className="relative z-10 mx-auto max-w-6xl px-4 py-12">
         <Reveal>
           <div className="mx-auto mb-8 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-4 text-center shadow-sm backdrop-blur-md sm:mb-10">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
+            <p className="mb-2 text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
               Why Keyafe
             </p>
             <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">
@@ -204,21 +197,19 @@ export function HomePage() {
 
         <div className="relative mb-2 grid gap-3 sm:grid-cols-3 sm:gap-6">
           <div
-            className="pointer-events-none absolute left-[16.6%] right-[16.6%] top-6 hidden border-t border-dashed border-brand-200 sm:block"
+            className="border-brand-200 pointer-events-none absolute top-6 right-[16.6%] left-[16.6%] hidden border-t border-dashed sm:block"
             aria-hidden="true"
           />
           {promiseCards.map((card, index) => (
             <Reveal key={card.title} delay={index * 110}>
-              <div className="group relative flex items-center gap-3 rounded-2xl border border-cream-200 bg-white/70 p-4 shadow-sm backdrop-blur-md transition hover:-translate-y-1 hover:border-brand-200 hover:shadow-lg sm:flex-col sm:items-start sm:gap-0 sm:p-5">
+              <div className="group hover:border-brand-200 relative flex items-center gap-3 rounded-2xl border border-cream-200 bg-white/70 p-4 shadow-sm backdrop-blur-md transition hover:-translate-y-1 hover:shadow-lg sm:flex-col sm:items-start sm:gap-0 sm:p-5">
                 <span
                   className={`relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl ring-4 ring-white transition group-hover:scale-110 sm:mb-3 sm:h-12 sm:w-12 ${card.tint}`}
                 >
                   {card.icon}
                 </span>
                 <div className="min-w-0">
-                  <h3 className="text-base font-semibold text-ink-900 sm:text-xl">
-                    {card.title}
-                  </h3>
+                  <h3 className="text-base font-semibold text-ink-900 sm:text-xl">{card.title}</h3>
                   <p className="mt-0.5 text-xs leading-5 text-ink-700 sm:mt-3 sm:text-sm sm:leading-7">
                     {card.body}
                   </p>
@@ -234,13 +225,13 @@ export function HomePage() {
           <div className="relative overflow-hidden rounded-[2rem] border border-cream-200 bg-gradient-to-br from-white/70 to-cream-50/60 p-8 shadow-sm backdrop-blur-md md:p-12">
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -left-2 -top-6 font-display text-[7rem] leading-none text-brand-100 md:text-[9rem]"
+              className="pointer-events-none absolute -top-6 -left-2 font-display text-[7rem] leading-none text-brand-100 md:text-[9rem]"
             >
               &ldquo;
             </span>
             <div className="relative flex flex-col items-center gap-6 text-center md:flex-row md:justify-between md:text-left">
               <div className="max-w-xl md:pr-6">
-                <p className="mb-2 text-sm uppercase tracking-widest text-brand-500">
+                <p className="mb-2 text-sm tracking-widest text-brand-500 uppercase">
                   {HOME_COPY.quoteBanner.eyebrow}
                 </p>
                 <h2 className="mb-2 font-display text-2xl text-ink-900 md:text-3xl">

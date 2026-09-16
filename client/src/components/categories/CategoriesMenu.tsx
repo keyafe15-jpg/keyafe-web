@@ -54,10 +54,8 @@ export function CategoriesMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(
-          "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition",
-          open
-            ? "bg-cream-100 text-ink-900"
-            : "text-ink-700 hover:bg-cream-100",
+          "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition",
+          open ? "bg-cream-100 text-ink-900" : "text-ink-700 hover:bg-cream-100",
         )}
       >
         Categories
@@ -80,7 +78,7 @@ export function CategoriesMenu() {
       <div
         role="menu"
         className={cn(
-          "absolute left-0 top-full z-40 mt-2 origin-top-left rounded-xl border border-cream-200 bg-white p-2 shadow-lg transition",
+          "absolute top-full left-0 z-40 mt-2 origin-top-left rounded-xl border border-cream-200 bg-white p-2 shadow-lg transition",
           twoCols ? "flex min-w-[460px] gap-1" : "min-w-[240px]",
           open
             ? "pointer-events-auto scale-100 opacity-100"
@@ -88,9 +86,7 @@ export function CategoriesMenu() {
         )}
         onMouseLeave={() => setHoveredParent(null)}
       >
-        {isLoading && (
-          <p className="px-3 py-2 text-xs text-ink-500">Loading…</p>
-        )}
+        {isLoading && <p className="px-3 py-2 text-xs text-ink-500">Loading…</p>}
         {!isLoading && groups.length === 0 && (
           <p className="px-3 py-2 text-xs text-ink-500">No categories yet.</p>
         )}
@@ -100,22 +96,20 @@ export function CategoriesMenu() {
             className={cn(
               "min-w-[220px] flex-1",
               !twoCols && index > 0 && "mt-2 border-t border-cream-100 pt-2",
-              twoCols &&
-                index > 0 &&
-                "border-l border-cream-100 pl-1",
+              twoCols && index > 0 && "border-l border-cream-100 pl-1",
             )}
           >
             {group.department ? (
               <Link
                 to={storePath(group.department.slug)}
                 onClick={closeAll}
-                className="mb-1 block rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600 transition hover:bg-cream-50"
+                className="text-brand-600 mb-1 block rounded-lg px-3 py-2 text-[11px] font-semibold tracking-[0.16em] uppercase transition hover:bg-cream-50"
                 role="menuitem"
               >
                 {group.department.name} store
               </Link>
             ) : (
-              <p className="mb-1 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+              <p className="text-ink-400 mb-1 px-3 py-2 text-[11px] font-semibold tracking-[0.16em] uppercase">
                 More
               </p>
             )}

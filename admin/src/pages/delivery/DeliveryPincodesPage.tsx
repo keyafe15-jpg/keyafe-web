@@ -1,14 +1,5 @@
 import { useState } from "react";
-import {
-  FileSpreadsheet,
-  Pencil,
-  Plus,
-  Save,
-  Search,
-  Trash2,
-  Upload,
-  X,
-} from "lucide-react";
+import { FileSpreadsheet, Pencil, Plus, Save, Search, Trash2, Upload, X } from "lucide-react";
 import {
   useAdminDeliveryPincodes,
   useBulkImportDeliveryPincodes,
@@ -20,16 +11,8 @@ import {
   type DeliveryPincodePayload,
 } from "@/hooks/useAdminDeliveryPincodes";
 import { cn } from "@/lib/cn";
-import {
-  Field,
-  inputClass,
-  selectClass,
-  submitClass,
-} from "@/components/form/Field";
-import {
-  ClientPagination,
-  PaginationControls,
-} from "@/components/ClientPagination";
+import { Field, inputClass, selectClass, submitClass } from "@/components/form/Field";
+import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 
 const DISTRICTS: DeliveryDistrict[] = ["HOWRAH", "KOLKATA", "HOOGHLY"];
 const PAGE_SIZE = 10;
@@ -81,20 +64,17 @@ export function DeliveryPincodesPage() {
     pincodes.length === 0
       ? 0
       : Math.round(
-          pincodes.reduce((sum, row) => sum + Number(row.deliveryFee), 0) /
-            pincodes.length,
+          pincodes.reduce((sum, row) => sum + Number(row.deliveryFee), 0) / pincodes.length,
         );
 
   return (
     <div>
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Delivery zones
-          </h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Delivery zones</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Configure local delivery pincodes, customer-facing fees, minimum
-            order values, and same-day or express eligibility.
+            Configure local delivery pincodes, customer-facing fees, minimum order values, and
+            same-day or express eligibility.
           </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
@@ -111,7 +91,7 @@ export function DeliveryPincodesPage() {
       <div className="mt-5 rounded-card border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="relative md:w-80">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -120,18 +100,11 @@ export function DeliveryPincodesPage() {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <FilterButton
-              active={district === "ALL"}
-              onClick={() => setDistrict("ALL")}
-            >
+            <FilterButton active={district === "ALL"} onClick={() => setDistrict("ALL")}>
               All
             </FilterButton>
             {DISTRICTS.map((item) => (
-              <FilterButton
-                key={item}
-                active={district === item}
-                onClick={() => setDistrict(item)}
-              >
+              <FilterButton key={item} active={district === item} onClick={() => setDistrict(item)}>
                 {item}
               </FilterButton>
             ))}
@@ -139,19 +112,11 @@ export function DeliveryPincodesPage() {
         </div>
       </div>
 
-      <ClientPagination
-        items={filtered}
-        pageSize={PAGE_SIZE}
-        resetKey={`${district}:${query}`}
-      >
+      <ClientPagination items={filtered} pageSize={PAGE_SIZE} resetKey={`${district}:${query}`}>
         {({ items, page, pageCount, total, firstItem, lastItem, setPage }) => (
           <>
             <div className="mt-4 overflow-hidden rounded-card border border-slate-200 bg-white">
-              {isLoading && (
-                <div className="p-8 text-center text-sm text-slate-500">
-                  Loading…
-                </div>
-              )}
+              {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
               {!isLoading && filtered.length === 0 && (
                 <div className="p-8 text-center text-sm text-slate-500">
                   No delivery pincodes found.
@@ -160,30 +125,16 @@ export function DeliveryPincodesPage() {
               {!isLoading && filtered.length > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[980px] text-left text-sm">
-                    <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                       <tr>
                         <th className="px-4 py-2 font-medium">Area</th>
-                        <th className="w-28 px-4 py-2 text-right font-medium">
-                          Fee
-                        </th>
-                        <th className="w-32 px-4 py-2 text-right font-medium">
-                          Min order
-                        </th>
-                        <th className="w-32 px-4 py-2 text-center font-medium">
-                          Same day
-                        </th>
-                        <th className="w-28 px-4 py-2 text-center font-medium">
-                          Express
-                        </th>
-                        <th className="w-32 px-4 py-2 text-center font-medium">
-                          Lead
-                        </th>
-                        <th className="w-28 px-4 py-2 text-center font-medium">
-                          Active
-                        </th>
-                        <th className="w-24 px-4 py-2 text-right font-medium">
-                          Actions
-                        </th>
+                        <th className="w-28 px-4 py-2 text-right font-medium">Fee</th>
+                        <th className="w-32 px-4 py-2 text-right font-medium">Min order</th>
+                        <th className="w-32 px-4 py-2 text-center font-medium">Same day</th>
+                        <th className="w-28 px-4 py-2 text-center font-medium">Express</th>
+                        <th className="w-32 px-4 py-2 text-center font-medium">Lead</th>
+                        <th className="w-28 px-4 py-2 text-center font-medium">Active</th>
+                        <th className="w-24 px-4 py-2 text-right font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -244,9 +195,7 @@ function BulkImportPanel() {
     setResult(null);
     try {
       const response = await bulkImport.mutateAsync(rows);
-      setResult(
-        `Imported ${response.imported} pincode${response.imported === 1 ? "" : "s"}.`,
-      );
+      setResult(`Imported ${response.imported} pincode${response.imported === 1 ? "" : "s"}.`);
       setRows([]);
       setFileName("");
     } catch (err) {
@@ -255,7 +204,7 @@ function BulkImportPanel() {
   };
 
   return (
-    <div className="mb-5 rounded-card border border-dashed border-brand-300 bg-brand-50/40 p-4">
+    <div className="border-brand-300 bg-brand-50/40 mb-5 rounded-card border border-dashed p-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
@@ -263,12 +212,12 @@ function BulkImportPanel() {
             Bulk import delivery pincodes
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Upload CSV, XLS, or XLSX. Expected columns: {IMPORT_COLUMNS}.
-            Duplicate pincodes in the file are de-duplicated by the backend.
+            Upload CSV, XLS, or XLSX. Expected columns: {IMPORT_COLUMNS}. Duplicate pincodes in the
+            file are de-duplicated by the backend.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:text-brand-500">
+          <label className="hover:border-brand-300 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:text-brand-500">
             <Upload className="h-4 w-4" /> Choose file
             <input
               type="file"
@@ -290,15 +239,13 @@ function BulkImportPanel() {
 
       {fileName && (
         <p className="mt-3 text-xs text-slate-600">
-          Selected:{" "}
-          <span className="font-medium text-slate-900">{fileName}</span>
+          Selected: <span className="font-medium text-slate-900">{fileName}</span>
         </p>
       )}
       {rows.length > 0 && (
         <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
           <div className="border-b border-slate-100 px-3 py-2 text-xs font-medium text-slate-500">
-            Previewing first {Math.min(rows.length, 5)} of {rows.length} valid
-            rows
+            Previewing first {Math.min(rows.length, 5)} of {rows.length} valid rows
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-xs">
@@ -308,23 +255,19 @@ function BulkImportPanel() {
                   <th className="px-3 py-2 font-medium">Area</th>
                   <th className="px-3 py-2 font-medium">District</th>
                   <th className="px-3 py-2 text-right font-medium">Fee</th>
-                  <th className="px-3 py-2 text-right font-medium">
-                    Min order
-                  </th>
+                  <th className="px-3 py-2 text-right font-medium">Min order</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.slice(0, 5).map((row) => (
                   <tr key={row.pincode}>
-                    <td className="px-3 py-2 font-medium text-slate-900">
-                      {row.pincode}
-                    </td>
+                    <td className="px-3 py-2 font-medium text-slate-900">{row.pincode}</td>
                     <td className="px-3 py-2 text-slate-600">{row.area}</td>
                     <td className="px-3 py-2 text-slate-600">{row.district}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                    <td className="px-3 py-2 text-right text-slate-700 tabular-nums">
                       ₹{row.deliveryFee}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                    <td className="px-3 py-2 text-right text-slate-700 tabular-nums">
                       {row.minOrderAmount ? `₹${row.minOrderAmount}` : "-"}
                     </td>
                   </tr>
@@ -335,15 +278,9 @@ function BulkImportPanel() {
         </div>
       )}
       {result && (
-        <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-          {result}
-        </p>
+        <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{result}</p>
       )}
-      {error && (
-        <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
     </div>
   );
 }
@@ -362,9 +299,7 @@ async function parseImportFile(file: File): Promise<DeliveryPincodePayload[]> {
     .filter((row): row is DeliveryPincodePayload => row !== null);
 }
 
-function normalizeImportRow(
-  rawRow: Record<string, unknown>,
-): DeliveryPincodePayload | null {
+function normalizeImportRow(rawRow: Record<string, unknown>): DeliveryPincodePayload | null {
   const row = normalizedObject(rawRow);
   const pincode = String(row.pincode ?? "").trim();
   if (!pincodeIsValid(pincode)) return null;
@@ -372,9 +307,7 @@ function normalizeImportRow(
   const district = parseDistrict(row.district);
   if (!district) return null;
 
-  const deliveryFee = toNumberOrNull(
-    row.deliveryfee ?? row.customerdeliveryfee,
-  );
+  const deliveryFee = toNumberOrNull(row.deliveryfee ?? row.customerdeliveryfee);
   if (deliveryFee === null) return null;
 
   const city = String(row.city || titleCase(district)).trim();
@@ -431,9 +364,7 @@ function titleCase(value: string) {
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-card border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
+      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">{label}</p>
       <p className="mt-1 text-xl font-semibold text-slate-900">{value}</p>
     </div>
   );
@@ -498,9 +429,7 @@ function NewPincodeForm() {
         <Field label="District">
           <select
             value={form.district}
-            onChange={(event) =>
-              update("district", event.target.value as DeliveryDistrict)
-            }
+            onChange={(event) => update("district", event.target.value as DeliveryDistrict)}
             className={selectClass}
           >
             {DISTRICTS.map((item) => (
@@ -515,9 +444,7 @@ function NewPincodeForm() {
             type="number"
             min={0}
             value={form.deliveryFee}
-            onChange={(event) =>
-              update("deliveryFee", Number(event.target.value))
-            }
+            onChange={(event) => update("deliveryFee", Number(event.target.value))}
             className={inputClass}
           />
         </Field>
@@ -526,9 +453,7 @@ function NewPincodeForm() {
             type="number"
             min={0}
             value={form.minOrderAmount ?? ""}
-            onChange={(event) =>
-              update("minOrderAmount", toNumberOrNull(event.target.value))
-            }
+            onChange={(event) => update("minOrderAmount", toNumberOrNull(event.target.value))}
             className={inputClass}
           />
         </Field>
@@ -547,10 +472,7 @@ function NewPincodeForm() {
           type="button"
           disabled={create.isPending}
           onClick={submit}
-          className={cn(
-            submitClass,
-            "inline-flex items-center justify-center gap-1.5",
-          )}
+          className={cn(submitClass, "inline-flex items-center justify-center gap-1.5")}
         >
           <Plus className="h-4 w-4" /> Add pincode
         </button>
@@ -578,9 +500,7 @@ function NewPincodeForm() {
             type="number"
             min={0}
             value={form.extraLeadHours}
-            onChange={(event) =>
-              update("extraLeadHours", Number(event.target.value) || 0)
-            }
+            onChange={(event) => update("extraLeadHours", Number(event.target.value) || 0)}
             className="w-16 rounded-md border border-slate-200 px-2 py-1 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
           />
         </label>
@@ -590,19 +510,13 @@ function NewPincodeForm() {
             type="number"
             min={0}
             value={form.expressDeliveryFee ?? ""}
-            onChange={(event) =>
-              update("expressDeliveryFee", toNumberOrNull(event.target.value))
-            }
+            onChange={(event) => update("expressDeliveryFee", toNumberOrNull(event.target.value))}
             className="w-20 rounded-md border border-slate-200 px-2 py-1 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
           />
         </label>
       </div>
 
-      {error && (
-        <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
     </div>
   );
 }
@@ -678,10 +592,7 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
               <select
                 value={draft.district}
                 onChange={(event) =>
-                  updateDraft(
-                    "district",
-                    event.target.value as DeliveryDistrict,
-                  )
+                  updateDraft("district", event.target.value as DeliveryDistrict)
                 }
                 className={selectClass}
               >
@@ -697,9 +608,7 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
                 type="number"
                 min={0}
                 value={draft.deliveryFee}
-                onChange={(event) =>
-                  updateDraft("deliveryFee", Number(event.target.value))
-                }
+                onChange={(event) => updateDraft("deliveryFee", Number(event.target.value))}
                 className={inputClass}
               />
             </Field>
@@ -709,10 +618,7 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
                 min={0}
                 value={draft.minOrderAmount ?? ""}
                 onChange={(event) =>
-                  updateDraft(
-                    "minOrderAmount",
-                    toNumberOrNull(event.target.value),
-                  )
+                  updateDraft("minOrderAmount", toNumberOrNull(event.target.value))
                 }
                 className={inputClass}
               />
@@ -722,9 +628,7 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
                 type="number"
                 min={0}
                 value={draft.extraLeadHours}
-                onChange={(event) =>
-                  updateDraft("extraLeadHours", Number(event.target.value) || 0)
-                }
+                onChange={(event) => updateDraft("extraLeadHours", Number(event.target.value) || 0)}
                 className={inputClass}
               />
             </Field>
@@ -778,19 +682,14 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
                 min={0}
                 value={draft.expressDeliveryFee ?? ""}
                 onChange={(event) =>
-                  updateDraft(
-                    "expressDeliveryFee",
-                    toNumberOrNull(event.target.value),
-                  )
+                  updateDraft("expressDeliveryFee", toNumberOrNull(event.target.value))
                 }
                 className="w-20 rounded-md border border-slate-200 px-2 py-1 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               />
             </label>
           </div>
           {error && (
-            <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-              {error}
-            </p>
+            <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
           )}
         </td>
       </tr>
@@ -800,42 +699,27 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
   return (
     <tr className="hover:bg-slate-50">
       <td className="px-4 py-3">
-        <p className="font-medium text-slate-900">
-          {row.area || "Unnamed area"}
-        </p>
+        <p className="font-medium text-slate-900">{row.area || "Unnamed area"}</p>
         <p className="text-xs text-slate-500">
           {row.pincode} · {row.city} · {row.district}
         </p>
-        {row.notes && (
-          <p className="mt-1 text-xs text-slate-400">{row.notes}</p>
-        )}
+        {row.notes && <p className="mt-1 text-xs text-slate-400">{row.notes}</p>}
       </td>
-      <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-900">
+      <td className="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">
         ₹{Number(row.deliveryFee)}
       </td>
-      <td className="px-4 py-3 text-right tabular-nums text-slate-700">
+      <td className="px-4 py-3 text-right text-slate-700 tabular-nums">
         {row.minOrderAmount ? `₹${Number(row.minOrderAmount)}` : "—"}
       </td>
       <td className="px-4 py-3 text-center">
-        <StatusPill
-          active={row.sameDayEligible}
-          label={row.sameDayEligible ? "Yes" : "No"}
-        />
+        <StatusPill active={row.sameDayEligible} label={row.sameDayEligible ? "Yes" : "No"} />
       </td>
       <td className="px-4 py-3 text-center">
-        <StatusPill
-          active={row.expressEligible}
-          label={row.expressEligible ? "Yes" : "No"}
-        />
+        <StatusPill active={row.expressEligible} label={row.expressEligible ? "Yes" : "No"} />
       </td>
-      <td className="px-4 py-3 text-center tabular-nums text-slate-700">
-        +{row.extraLeadHours}h
-      </td>
+      <td className="px-4 py-3 text-center text-slate-700 tabular-nums">+{row.extraLeadHours}h</td>
       <td className="px-4 py-3 text-center">
-        <StatusPill
-          active={row.isActive}
-          label={row.isActive ? "Active" : "Off"}
-        />
+        <StatusPill active={row.isActive} label={row.isActive ? "Active" : "Off"} />
       </td>
       <td className="px-4 py-3 text-right">
         <div className="inline-flex gap-1">
@@ -852,8 +736,7 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
             onClick={() => {
               if (confirm(`Delete delivery pincode ${row.pincode}?`)) {
                 del.mutate(row.pincode, {
-                  onError: (err) =>
-                    alert(err instanceof Error ? err.message : "Delete failed"),
+                  onError: (err) => alert(err instanceof Error ? err.message : "Delete failed"),
                 });
               }
             }}
@@ -920,9 +803,7 @@ function StatusPill({ active, label }: { active: boolean; label: string }) {
     <span
       className={cn(
         "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
-        active
-          ? "bg-emerald-50 text-emerald-700"
-          : "bg-slate-100 text-slate-500",
+        active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500",
       )}
     >
       {label}

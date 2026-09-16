@@ -6,13 +6,7 @@ export function manualDiscountRupees(
   value: number | string | null | undefined,
 ): number {
   const n = typeof value === "string" ? Number(value) : value;
-  if (
-    !type ||
-    n == null ||
-    !Number.isFinite(n) ||
-    n <= 0 ||
-    subtotal <= 0
-  ) {
+  if (!type || n == null || !Number.isFinite(n) || n <= 0 || subtotal <= 0) {
     return 0;
   }
   if (type === "PERCENT") {

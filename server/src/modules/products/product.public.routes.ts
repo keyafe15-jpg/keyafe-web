@@ -37,30 +37,20 @@ publicProductRouter.get("/", async (req, res) => {
   const sizeNum = Number(pageSize ?? 12);
 
   if (typeof category === "string" && category) {
-    const products = await listPublicProductsByCategorySlug(
-      category,
-      pageNum,
-      sizeNum,
-    );
+    const products = await listPublicProductsByCategorySlug(category, pageNum, sizeNum);
     res.setHeader("Cache-Control", "public, max-age=30");
     res.json(products);
     return;
   }
 
   if (typeof department === "string" && department) {
-    const products = await listPublicProductsByDepartmentSlug(
-      department,
-      pageNum,
-      sizeNum,
-    );
+    const products = await listPublicProductsByDepartmentSlug(department, pageNum, sizeNum);
     res.setHeader("Cache-Control", "public, max-age=30");
     res.json(products);
     return;
   }
 
-  throw HttpError.badRequest(
-    "Query param 'category' or 'department' is required",
-  );
+  throw HttpError.badRequest("Query param 'category' or 'department' is required");
 });
 
 publicProductRouter.get("/:slug", async (req, res) => {

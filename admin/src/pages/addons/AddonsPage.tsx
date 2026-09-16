@@ -1,11 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { ImagePlus, Plus, X } from "lucide-react";
-import {
-  useAdminAddons,
-  useCreateAddon,
-  useUpdateAddon,
-  type AdminAddon,
-} from "@/hooks/useAddons";
+import { useAdminAddons, useCreateAddon, useUpdateAddon, type AdminAddon } from "@/hooks/useAddons";
 import { useAdminCategories, type AdminCategory } from "@/hooks/useAdminCategories";
 import { NestedCategoryMultiSelect } from "@/components/form/NestedCategoryMultiSelect";
 import { uploadImage } from "@/lib/uploads";
@@ -38,9 +33,8 @@ export function AddonsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">Add-ons</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Shared extras (candles, toppers, pizza extras). Assign default
-          categories so new products in those categories get the add-on
-          pre-selected.
+          Shared extras (candles, toppers, pizza extras). Assign default categories so new products
+          in those categories get the add-on pre-selected.
         </p>
       </div>
 
@@ -62,30 +56,22 @@ export function AddonsPage() {
             key={group}
             className="overflow-hidden rounded-card border border-slate-200 bg-white"
           >
-            <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium tracking-wide text-slate-500 uppercase">
               {group}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px] text-left text-sm">
-                <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-200 text-xs tracking-wide text-slate-500 uppercase">
                   <tr>
                     <th className="w-16 px-4 py-2 font-medium">Photo</th>
                     <th className="px-4 py-2 font-medium">Name</th>
-                    <th className="w-32 px-4 py-2 text-right font-medium">
-                      Price (₹)
-                    </th>
-                    <th className="w-24 px-4 py-2 text-center font-medium">
-                      Active
-                    </th>
+                    <th className="w-32 px-4 py-2 text-right font-medium">Price (₹)</th>
+                    <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {rows.map((addon) => (
-                    <AddonRow
-                      key={addon.id}
-                      addon={addon}
-                      categories={categories}
-                    />
+                    <AddonRow key={addon.id} addon={addon} categories={categories} />
                   ))}
                 </tbody>
               </table>
@@ -97,11 +83,7 @@ export function AddonsPage() {
   );
 }
 
-function NewAddonRow({
-  categories,
-}: {
-  categories: AdminCategory[];
-}) {
+function NewAddonRow({ categories }: { categories: AdminCategory[] }) {
   const create = useCreateAddon();
   const [name, setName] = useState("");
   const [group, setGroup] = useState("Candles");
@@ -137,7 +119,7 @@ function NewAddonRow({
     <div className="rounded-card border border-slate-200 bg-white p-4">
       <div className="grid gap-3 sm:grid-cols-[auto_1.2fr_2fr_1fr_auto]">
         <div>
-          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+          <span className="mb-1 block text-xs font-medium tracking-wide text-slate-500 uppercase">
             Photo
           </span>
           <AddonPhotoPicker
@@ -186,7 +168,7 @@ function NewAddonRow({
         </div>
       </div>
       <div className="mt-3">
-        <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500">
+        <span className="mb-1.5 block text-xs font-medium tracking-wide text-slate-500 uppercase">
           Default for categories
         </span>
         <NestedCategoryMultiSelect
@@ -195,26 +177,14 @@ function NewAddonRow({
           onChange={setCategoryIds}
         />
       </div>
-      {error && (
-        <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
     </div>
   );
 }
 
-function AddonRow({
-  addon,
-  categories,
-}: {
-  addon: AdminAddon;
-  categories: AdminCategory[];
-}) {
+function AddonRow({ addon, categories }: { addon: AdminAddon; categories: AdminCategory[] }) {
   const update = useUpdateAddon();
-  const [amount, setAmount] = useState<string>(
-    Number(addon.priceDelta).toString(),
-  );
+  const [amount, setAmount] = useState<string>(Number(addon.priceDelta).toString());
   const [dirty, setDirty] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -243,9 +213,7 @@ function AddonRow({
           <NestedCategoryMultiSelect
             categories={categories}
             selected={addon.categoryIds ?? []}
-            onChange={(categoryIds) =>
-              update.mutate({ id: addon.id, categoryIds })
-            }
+            onChange={(categoryIds) => update.mutate({ id: addon.id, categoryIds })}
           />
         </div>
       </td>
@@ -266,7 +234,7 @@ function AddonRow({
               (e.target as HTMLInputElement).blur();
             }
           }}
-          className="w-24 rounded-md border border-slate-200 bg-white py-1.5 px-2 text-right text-sm tabular-nums text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+          className="w-24 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-right text-sm text-slate-900 tabular-nums outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
         />
       </td>
       <td className="px-4 py-3 text-center">
@@ -274,9 +242,7 @@ function AddonRow({
           <input
             type="checkbox"
             checked={addon.isActive}
-            onChange={(e) =>
-              update.mutate({ id: addon.id, isActive: e.target.checked })
-            }
+            onChange={(e) => update.mutate({ id: addon.id, isActive: e.target.checked })}
             className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
           />
         </label>
@@ -321,7 +287,7 @@ function AddonPhotoPicker({
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
         title={url ? "Replace photo" : "Upload photo"}
-        className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-brand-300 hover:text-brand-500 disabled:opacity-60"
+        className="hover:border-brand-300 relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50 text-slate-400 transition hover:text-brand-500 disabled:opacity-60"
       >
         {url ? (
           <img src={url} alt="" className="h-full w-full object-cover" />

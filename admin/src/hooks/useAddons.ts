@@ -45,8 +45,7 @@ export interface CreateAddonPayload {
 export function useCreateAddon() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateAddonPayload) =>
-      api.post<AdminAddon>("/admin/addons", input),
+    mutationFn: (input: CreateAddonPayload) => api.post<AdminAddon>("/admin/addons", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "addons"] });
       void qc.invalidateQueries({ queryKey: ["addons"] });

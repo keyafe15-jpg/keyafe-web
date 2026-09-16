@@ -1,9 +1,6 @@
 import { prisma } from "../../config/db.js";
 import { logger } from "../../utils/logger.js";
-import {
-  normalizeCustomerPhone,
-  phoneLookupVariants,
-} from "../../lib/phone.js";
+import { normalizeCustomerPhone, phoneLookupVariants } from "../../lib/phone.js";
 import {
   ADMIN_ROLE_SLUG,
   CHEF_PERMISSION_KEYS,
@@ -102,8 +99,7 @@ export async function seedRbac() {
 
   logger.info(`Seeded ${PERMISSION_CATALOG.length} permissions and system roles`);
 
-  const bootstrapPhoneRaw =
-    process.env.ADMIN_BOOTSTRAP_PHONE?.trim() || "9883186892";
+  const bootstrapPhoneRaw = process.env.ADMIN_BOOTSTRAP_PHONE?.trim() || "9883186892";
   const phone = normalizeCustomerPhone(bootstrapPhoneRaw);
   const name = process.env.ADMIN_BOOTSTRAP_NAME?.trim() || "Owner";
 

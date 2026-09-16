@@ -62,10 +62,7 @@ const hexColor = z
 
 const createSchema = z.object({
   name: z.string().trim().min(2),
-  slug: z
-    .string()
-    .trim()
-    .regex(slugRegex, "Lowercase letters, digits, hyphens"),
+  slug: z.string().trim().regex(slugRegex, "Lowercase letters, digits, hyphens"),
   sortOrder: z.coerce.number().int().default(0),
   isActive: z.boolean().default(true),
   accentHex: hexColor.default("#E31C79"),

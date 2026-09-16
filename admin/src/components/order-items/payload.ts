@@ -19,9 +19,7 @@ export function composePizzaNotes(
   item: OrderItemDraft,
   allToppings: AdminTopping[],
 ): string | null {
-  const picked = allToppings.filter((t) =>
-    item.toppingSelections.includes(t.id),
-  );
+  const picked = allToppings.filter((t) => item.toppingSelections.includes(t.id));
   const parts: string[] = [];
   if (item.crustLabel) parts.push(`Crust: ${item.crustLabel}`);
   const toppingsPart = picked
@@ -37,13 +35,8 @@ export function composePizzaNotes(
   return parts.length ? parts.join(" · ") : null;
 }
 
-export function composeAddonNotes(
-  item: OrderItemDraft,
-  allAddons: AdminAddon[],
-): string | null {
-  const picked = allAddons.filter((a) =>
-    (item.addonSelections ?? []).includes(a.id),
-  );
+export function composeAddonNotes(item: OrderItemDraft, allAddons: AdminAddon[]): string | null {
+  const picked = allAddons.filter((a) => (item.addonSelections ?? []).includes(a.id));
   if (picked.length === 0) return null;
   const groups = new Map<string, string[]>();
   for (const addon of picked) {
@@ -52,9 +45,7 @@ export function composeAddonNotes(
     names.push(addon.name);
     groups.set(group, names);
   }
-  return [...groups.entries()]
-    .map(([group, names]) => `${group}: ${names.join(", ")}`)
-    .join(" · ");
+  return [...groups.entries()].map(([group, names]) => `${group}: ${names.join(", ")}`).join(" · ");
 }
 
 export function composeLineNotes(
@@ -62,10 +53,9 @@ export function composeLineNotes(
   allToppings: AdminTopping[],
   allAddons: AdminAddon[],
 ): string | null {
-  const parts = [
-    composePizzaNotes(item, allToppings),
-    composeAddonNotes(item, allAddons),
-  ].filter((p): p is string => Boolean(p));
+  const parts = [composePizzaNotes(item, allToppings), composeAddonNotes(item, allAddons)].filter(
+    (p): p is string => Boolean(p),
+  );
   return parts.length ? parts.join(" · ") : null;
 }
 
@@ -88,9 +78,7 @@ export function validateOrderItems(items: OrderItemDraft[]): boolean {
   );
 }
 
-export async function resolveReferenceImageUrl(
-  item: OrderItemDraft,
-): Promise<string | null> {
+export async function resolveReferenceImageUrl(item: OrderItemDraft): Promise<string | null> {
   if (item.kind === "CATALOG") return null;
   if (item.refFile) {
     const res = await uploadImage(item.refFile, "quote-reference");
@@ -107,10 +95,7 @@ export function toOrderLinkItemPayload(
   allAddons: AdminAddon[] = [],
 ): OrderLinkItemPayload {
   const lineNotes = composeLineNotes(item, allToppings, allAddons);
-  const messageHint = mergeInstructions(
-    lineNotes,
-    item.messageOnCake.trim() || "",
-  );
+  const messageHint = mergeInstructions(lineNotes, item.messageOnCake.trim() || "");
 
   return {
     kind: item.kind,

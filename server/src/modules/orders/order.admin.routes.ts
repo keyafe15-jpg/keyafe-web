@@ -39,11 +39,7 @@ const isoDay = z
   .superRefine((value, ctx) => {
     const [y, m, d] = value.split("-").map(Number);
     const parsed = new Date(y!, m! - 1, d!);
-    if (
-      parsed.getFullYear() !== y ||
-      parsed.getMonth() !== m! - 1 ||
-      parsed.getDate() !== d
-    ) {
+    if (parsed.getFullYear() !== y || parsed.getMonth() !== m! - 1 || parsed.getDate() !== d) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Not a real date" });
     }
   })
@@ -161,9 +157,7 @@ function orderSearchOr(q: string): Prisma.OrderWhereInput[] {
 
 // Takes the parsed query, so statuses are known-valid enum members and the
 // dates are already real Dates; no re-validation needed here.
-function buildAdminOrderListWhere(
-  opts: OrderListQuery,
-): Record<string, unknown> | undefined {
+function buildAdminOrderListWhere(opts: OrderListQuery): Record<string, unknown> | undefined {
   const and: Record<string, unknown>[] = [];
 
   if (opts.status) {
@@ -341,11 +335,7 @@ adminOrderRouter.get("/schedule", requirePermission("orders.read"), async (req, 
     prisma.orderItem.groupBy({
       by: ["orderId", "deliveryDate", "deliverySlotKey"],
       where,
-      orderBy: [
-        { deliveryDate: dir },
-        { deliverySlotKey: "asc" },
-        { orderId: "asc" },
-      ],
+      orderBy: [{ deliveryDate: dir }, { deliverySlotKey: "asc" }, { orderId: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
       _count: { _all: true },
@@ -398,11 +388,8 @@ adminOrderRouter.get("/schedule", requirePermission("orders.read"), async (req, 
           },
         });
 
-  const groupKey = (
-    orderId: string,
-    date: Date | null,
-    slotKey: string | null,
-  ) => `${orderId}|${date ? date.toISOString() : ""}|${slotKey ?? ""}`;
+  const groupKey = (orderId: string, date: Date | null, slotKey: string | null) =>
+    `${orderId}|${date ? date.toISOString() : ""}|${slotKey ?? ""}`;
 
   const byGroup = new Map<string, typeof rows>();
   for (const row of rows) {
@@ -676,33 +663,24 @@ adminOrderRouter.get("/stream", requirePermission("orders.read"), (req, res) => 
 adminOrderRouter.get("/:idOrNumber", requirePermission("orders.read"), async (req, res) => {
   const key = req.params.idOrNumber ?? "";
   if (!key) throw HttpError.badRequest("Missing order id");
-  const order = key.startsWith("KEY-")
-    ? await getOrderByNumber(key)
-    : await getOrderById(key);
+  const order = key.startsWith("KEY-") ? await getOrderByNumber(key) : await getOrderById(key);
   res.json(order);
 });
 
 // Both invoice routes assign a permanent number on first use, which is why
 // they sit behind invoices.read rather than orders.read.
-adminOrderRouter.get(
-  "/:id/invoice",
-  requirePermission("invoices.read"),
-  async (req, res) => {
-    const id = req.params.id ?? "";
-    if (!id) throw HttpError.badRequest("Missing order id");
-    const { data, pdf, filename } = await buildInvoicePdf(id);
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Length", pdf.length);
-    res.setHeader("Cache-Control", "no-store");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${filename}"`,
-    );
-    // Lets the admin UI show the issued number without parsing the PDF.
-    res.setHeader("X-Invoice-Number", data.invoiceNumber);
-    res.end(pdf);
-  },
-);
+adminOrderRouter.get("/:id/invoice", requirePermission("invoices.read"), async (req, res) => {
+  const id = req.params.id ?? "";
+  if (!id) throw HttpError.badRequest("Missing order id");
+  const { data, pdf, filename } = await buildInvoicePdf(id);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Length", pdf.length);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  // Lets the admin UI show the issued number without parsing the PDF.
+  res.setHeader("X-Invoice-Number", data.invoiceNumber);
+  res.end(pdf);
+});
 
 adminOrderRouter.post(
   "/:id/invoice/email",
@@ -719,31 +697,25 @@ adminOrderRouter.post(
 // handover note, not a tax document, and it draws from its own number series.
 // Deliberately not gated on payment — the challan travels with the goods
 // whether or not the money has arrived.
-adminOrderRouter.get(
-  "/:id/challan",
-  requirePermission("challans.read"),
-  async (req, res) => {
-    const id = req.params.id ?? "";
-    if (!id) throw HttpError.badRequest("Missing order id");
-    const { data, pdf, filename } = await buildChallanPdf(id);
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Length", pdf.length);
-    res.setHeader("Cache-Control", "no-store");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    // Lets the admin UI show the issued number without parsing the PDF.
-    res.setHeader("X-Challan-Number", data.challanNumber);
-    res.end(pdf);
-  },
-);
+adminOrderRouter.get("/:id/challan", requirePermission("challans.read"), async (req, res) => {
+  const id = req.params.id ?? "";
+  if (!id) throw HttpError.badRequest("Missing order id");
+  const { data, pdf, filename } = await buildChallanPdf(id);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Length", pdf.length);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  // Lets the admin UI show the issued number without parsing the PDF.
+  res.setHeader("X-Challan-Number", data.challanNumber);
+  res.end(pdf);
+});
 
 const updateSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional(),
   paymentStatus: z
     .enum(["PENDING", "PARTIAL", "PAID", "FAILED", "REFUNDED"])
     .optional() satisfies z.ZodType<PaymentStatus | undefined>,
-  paymentMode: z.enum(["FULL", "ADVANCE"]).optional() satisfies z.ZodType<
-    PaymentMode | undefined
-  >,
+  paymentMode: z.enum(["FULL", "ADVANCE"]).optional() satisfies z.ZodType<PaymentMode | undefined>,
   advanceAmount: z.coerce.number().nonnegative().optional(),
   paymentScreenshotUrl: z.string().url().nullable().optional(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
@@ -770,8 +742,7 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid update", parsed.error.flatten());
   }
-  const { advanceAmount, paymentStatus, status, items, ...rest } =
-    parsed.data;
+  const { advanceAmount, paymentStatus, status, items, ...rest } = parsed.data;
   const data: Omit<typeof parsed.data, "items"> = { ...rest };
 
   if (status === "CANCELLED") {
@@ -795,8 +766,7 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     data.advanceAmount = clamped;
     // Only auto-derive the status when the caller didn't explicitly set one.
     data.paymentStatus =
-      paymentStatus ??
-      (clamped <= 0 ? "PENDING" : clamped >= total ? "PAID" : "PARTIAL");
+      paymentStatus ?? (clamped <= 0 ? "PENDING" : clamped >= total ? "PAID" : "PARTIAL");
   } else if (paymentStatus !== undefined) {
     data.paymentStatus = paymentStatus;
   }
@@ -811,9 +781,7 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     });
     if (!existing) throw HttpError.notFound("Order not found");
     if (existing.status === "CANCELLED" || existing.status === "DELIVERED") {
-      throw HttpError.badRequest(
-        "Can't change delivery date on a delivered or cancelled order.",
-      );
+      throw HttpError.badRequest("Can't change delivery date on a delivered or cancelled order.");
     }
     const knownIds = new Set(existing.items.map((i) => i.id));
     for (const item of items) {
@@ -822,9 +790,7 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
       }
       if (item.deliveryDate) {
         if (!item.deliverySlotKey || !item.deliverySlotLabel) {
-          throw HttpError.badRequest(
-            "Pick a time slot when setting a delivery date.",
-          );
+          throw HttpError.badRequest("Pick a time slot when setting a delivery date.");
         }
         await assertKitchenOpenOn(item.deliveryDate);
       }
@@ -834,13 +800,9 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
         prisma.orderItem.update({
           where: { id: item.id },
           data: {
-            deliveryDate: item.deliveryDate
-              ? new Date(`${item.deliveryDate}T00:00:00.000Z`)
-              : null,
+            deliveryDate: item.deliveryDate ? new Date(`${item.deliveryDate}T00:00:00.000Z`) : null,
             deliverySlotKey: item.deliveryDate ? item.deliverySlotKey : null,
-            deliverySlotLabel: item.deliveryDate
-              ? item.deliverySlotLabel
-              : null,
+            deliverySlotLabel: item.deliveryDate ? item.deliverySlotLabel : null,
           },
         }),
       ),

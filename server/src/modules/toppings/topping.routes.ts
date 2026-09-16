@@ -84,10 +84,7 @@ const updateToppingSchema = createToppingSchema.partial().extend({
 adminToppingRouter.patch("/:id", async (req, res) => {
   const parsed = updateToppingSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw HttpError.badRequest(
-      "Invalid topping update",
-      parsed.error.flatten(),
-    );
+    throw HttpError.badRequest("Invalid topping update", parsed.error.flatten());
   }
   if (parsed.data.slug) {
     const dup = await prisma.topping.findFirst({

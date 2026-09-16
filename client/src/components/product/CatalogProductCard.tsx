@@ -14,7 +14,7 @@ export function CatalogProductCard({ product }: { product: ProductCard }) {
         {product.tags.length > 0 && (
           <ProductCardTags
             tags={product.tags}
-            className="absolute left-2 top-2 z-10 flex flex-wrap gap-1"
+            className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
           />
         )}
         {product.images[0] ? (
@@ -25,20 +25,20 @@ export function CatalogProductCard({ product }: { product: ProductCard }) {
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-ink-400">
+          <div className="text-ink-400 flex h-full w-full items-center justify-center text-xs">
             No image
           </div>
         )}
       </div>
       <div className="p-2.5 sm:p-4">
-        <p className="text-[10px] uppercase tracking-wide text-ink-400 sm:text-xs">
+        <p className="text-ink-400 text-[10px] tracking-wide uppercase sm:text-xs">
           {categoryNames(product)}
         </p>
         <h3 className="mt-1 line-clamp-1 text-sm text-ink-900 group-hover:text-brand-500 sm:text-lg">
           {product.name}
         </h3>
         {product.shortDescription && (
-          <p className="mt-1 hidden line-clamp-2 text-sm text-ink-500 sm:block">
+          <p className="mt-1 line-clamp-2 hidden text-sm text-ink-500 sm:block">
             {product.shortDescription}
           </p>
         )}
@@ -70,10 +70,7 @@ export function ProductGridSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="overflow-hidden rounded-card border border-cream-200 bg-white"
-        >
+        <div key={i} className="overflow-hidden rounded-card border border-cream-200 bg-white">
           <div className="aspect-square animate-pulse bg-cream-100" />
           <div className="space-y-2 p-4">
             <div className="h-3 w-1/3 animate-pulse rounded bg-cream-100" />

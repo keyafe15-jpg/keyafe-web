@@ -47,9 +47,7 @@ export function getSizeOptionGroup(
   };
 }
 
-export function availableFixedSkus(
-  detail: AdminProductDetail | undefined,
-): AdminProductVariant[] {
+export function availableFixedSkus(detail: AdminProductDetail | undefined): AdminProductVariant[] {
   return (detail?.fixedVariants ?? []).filter((v) => v.isAvailable);
 }
 
@@ -83,9 +81,7 @@ export function isGramsWithinBounds(
 
 export function formatCustomPoundLabel(pounds: number): string {
   const rounded = Math.round(pounds * 10) / 10;
-  const text = Number.isInteger(rounded)
-    ? String(rounded)
-    : rounded.toFixed(1);
+  const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
   return `${text} lb (custom)`;
 }
 
@@ -115,11 +111,6 @@ export function cakeSizeSelectLabel(
   flavourAdditional = 0,
   flavourPricedIn = false,
 ): string {
-  const price = computeCakeUnitPrice(
-    basePrice,
-    grams,
-    flavourAdditional,
-    flavourPricedIn,
-  );
+  const price = computeCakeUnitPrice(basePrice, grams, flavourAdditional, flavourPricedIn);
   return `${sizeLabel} · ₹${price.toFixed(0)}`;
 }

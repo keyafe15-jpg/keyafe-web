@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
-import {
-  usePincodeCheck,
-  type PincodeCheckResult,
-} from "@/hooks/usePincodeCheck";
+import { usePincodeCheck, type PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import { inputClass } from "@/components/form/Field";
 import { PRODUCT_COPY } from "@/content/product";
 
@@ -35,7 +32,7 @@ export function PincodeChecker({
 
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+      <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
         {PRODUCT_COPY.labels.pincodeLabel}
       </label>
       <div className="flex gap-2">
@@ -66,21 +63,16 @@ export function PincodeChecker({
 
       {/* Status line */}
       <p className="mt-1 text-xs">
-        {mutation.isError && (
-          <span className="text-brand-500">{PRODUCT_COPY.pincode.invalid}</span>
-        )}
+        {mutation.isError && <span className="text-brand-500">{PRODUCT_COPY.pincode.invalid}</span>}
         {!mutation.isError && !result && (
           <span className="text-ink-500">{PRODUCT_COPY.pincode.idle}</span>
         )}
         {result?.serviceable === false && (
-          <span className="text-brand-500">
-            {PRODUCT_COPY.pincode.unserviceable}
-          </span>
+          <span className="text-brand-500">{PRODUCT_COPY.pincode.unserviceable}</span>
         )}
         {result?.serviceable === true && (
           <span className="text-ink-700">
-            ✓{" "}
-            {PRODUCT_COPY.pincode.serviceable(result.city, result.deliveryFee)}
+            ✓ {PRODUCT_COPY.pincode.serviceable(result.city, result.deliveryFee)}
           </span>
         )}
       </p>

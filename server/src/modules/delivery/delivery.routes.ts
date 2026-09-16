@@ -45,10 +45,7 @@ adminDeliveryRouter.get("/pincodes", async (_req, res) => {
 adminDeliveryRouter.post("/pincodes", async (req, res) => {
   const parsed = deliveryPincodeSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw HttpError.badRequest(
-      "Invalid delivery pincode",
-      parsed.error.flatten(),
-    );
+    throw HttpError.badRequest("Invalid delivery pincode", parsed.error.flatten());
   }
 
   const created = await prisma.deliveryPincode.create({
@@ -68,10 +65,7 @@ adminDeliveryRouter.post("/pincodes/bulk", async (req, res) => {
     .object({ rows: z.array(deliveryPincodeSchema).min(1).max(1000) })
     .safeParse(req.body);
   if (!parsed.success) {
-    throw HttpError.badRequest(
-      "Invalid delivery pincode import",
-      parsed.error.flatten(),
-    );
+    throw HttpError.badRequest("Invalid delivery pincode import", parsed.error.flatten());
   }
 
   const byPincode = new Map(
@@ -110,9 +104,7 @@ adminDeliveryRouter.post("/pincodes/bulk", async (req, res) => {
   });
 });
 
-const updateDeliveryPincodeSchema = deliveryPincodeSchema
-  .omit({ pincode: true })
-  .partial();
+const updateDeliveryPincodeSchema = deliveryPincodeSchema.omit({ pincode: true }).partial();
 
 adminDeliveryRouter.patch("/pincodes/:pincode", async (req, res) => {
   if (!PINCODE_RE.test(req.params.pincode)) {
@@ -121,10 +113,7 @@ adminDeliveryRouter.patch("/pincodes/:pincode", async (req, res) => {
 
   const parsed = updateDeliveryPincodeSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw HttpError.badRequest(
-      "Invalid delivery pincode update",
-      parsed.error.flatten(),
-    );
+    throw HttpError.badRequest("Invalid delivery pincode update", parsed.error.flatten());
   }
 
   const updated = await prisma.deliveryPincode.update({

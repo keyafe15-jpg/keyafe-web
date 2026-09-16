@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import { PRODUCT_COPY } from "@/content/product";
 import { DateSlotPicker, todayIso } from "./DateSlotPicker";
 import { useSameDayStatus } from "@/hooks/useSameDayStatus";
-import {
-  computeSameDayEstimate,
-  sameDaySlotLabel,
-} from "@/lib/deliveryEstimate";
+import { computeSameDayEstimate, sameDaySlotLabel } from "@/lib/deliveryEstimate";
 import type { PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import { cn } from "@/lib/cn";
 
@@ -40,13 +37,9 @@ export function SameDayDeliveryPicker({
   const { data: sameDayStatus, isLoading: statusLoading } = useSameDayStatus();
 
   const extraLeadHours =
-    fulfillment === "delivery" && pincodeResult?.serviceable
-      ? pincodeResult.extraLeadHours
-      : 0;
+    fulfillment === "delivery" && pincodeResult?.serviceable ? pincodeResult.extraLeadHours : 0;
   const zoneAllowsSameDay =
-    fulfillment === "pickup" ||
-    !pincodeResult?.serviceable ||
-    pincodeResult.sameDayEligible;
+    fulfillment === "pickup" || !pincodeResult?.serviceable || pincodeResult.sameDayEligible;
   // Assume available while the store-hours check is still loading, to avoid
   // a same-day -> scheduled flicker on first paint.
   const sameDayAvailable =
@@ -113,15 +106,13 @@ export function SameDayDeliveryPicker({
       {mode === "SAME_DAY" ? (
         !sameDayAvailable ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            {sameDayStatus?.message ??
-              "Same-day ordering isn't available right now."}
+            {sameDayStatus?.message ?? "Same-day ordering isn't available right now."}
           </p>
         ) : (
-          <div className="rounded-lg border border-brand-200 bg-brand-100/40 px-3 py-2.5 text-sm">
+          <div className="border-brand-200 rounded-lg border bg-brand-100/40 px-3 py-2.5 text-sm">
             <p className="font-medium text-ink-900">Delivering today</p>
-            <p className="mt-0.5 text-ink-600">
-              Ready in ~{estimate.durationLabel} · you may receive it around{" "}
-              {estimate.timeLabel}
+            <p className="text-ink-600 mt-0.5">
+              Ready in ~{estimate.durationLabel} · you may receive it around {estimate.timeLabel}
             </p>
           </div>
         )

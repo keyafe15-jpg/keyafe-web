@@ -37,9 +37,7 @@ adminCategoryRouter.get("/", async (_req, res) => {
   });
   res.json(
     rows.map((r) => {
-      const department = r.parentId
-        ? (r.parent?.department ?? null)
-        : r.department;
+      const department = r.parentId ? (r.parent?.department ?? null) : r.department;
       return {
         id: r.id,
         slug: r.slug,
@@ -64,10 +62,7 @@ const slugRegex = /^[a-z0-9-]+$/;
 
 const createSchema = z.object({
   name: z.string().trim().min(2),
-  slug: z
-    .string()
-    .trim()
-    .regex(slugRegex, "Lowercase letters, digits, hyphens"),
+  slug: z.string().trim().regex(slugRegex, "Lowercase letters, digits, hyphens"),
   description: z.string().trim().nullable().optional(),
   imageUrl: z.string().url().nullable().optional(),
   parentId: z.string().nullable().optional(),
@@ -106,9 +101,7 @@ adminCategoryRouter.post("/", async (req, res) => {
     if (!parent) throw HttpError.badRequest("Parent category not found");
     // Enforce our 2-level hierarchy so we don't accidentally build a jungle.
     if (parent.parentId)
-      throw HttpError.badRequest(
-        "Only 2 levels supported — pick a top-level parent",
-      );
+      throw HttpError.badRequest("Only 2 levels supported — pick a top-level parent");
   } else if (!departmentId) {
     throw HttpError.badRequest("Pick a store for a top-level category");
   } else {
@@ -157,21 +150,17 @@ adminCategoryRouter.patch("/:id", async (req, res) => {
         select: { id: true, parentId: true },
       });
       if (!parent) throw HttpError.badRequest("Parent category not found");
-      if (parent.parentId)
-        throw HttpError.badRequest("Only 2 levels supported");
+      if (parent.parentId) throw HttpError.badRequest("Only 2 levels supported");
       // If this row currently has children, it can't become a sub itself.
       const childCount = await prisma.category.count({
         where: { parentId: existing.id },
       });
-      if (childCount > 0)
-        throw HttpError.badRequest("Move sub-categories away first");
+      if (childCount > 0) throw HttpError.badRequest("Move sub-categories away first");
     }
   }
 
   const nextParentId =
-    parsed.data.parentId !== undefined
-      ? parsed.data.parentId
-      : existing.parentId;
+    parsed.data.parentId !== undefined ? parsed.data.parentId : existing.parentId;
 
   if (!nextParentId && parsed.data.departmentId === null) {
     throw HttpError.badRequest("Pick a store for a top-level category");
@@ -202,9 +191,7 @@ adminCategoryRouter.delete("/:id", async (req, res) => {
     prisma.category.count({ where: { parentId: req.params.id } }),
   ]);
   if (productCount > 0) {
-    throw HttpError.conflict(
-      `Cannot delete — ${productCount} product(s) still use this category`,
-    );
+    throw HttpError.conflict(`Cannot delete — ${productCount} product(s) still use this category`);
   }
   if (childCount > 0) {
     throw HttpError.conflict(

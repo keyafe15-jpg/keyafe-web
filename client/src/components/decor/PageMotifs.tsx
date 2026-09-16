@@ -547,46 +547,41 @@ const placements: Placement[] = [
 
 export function PageMotifs() {
   return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
-    >
-      {placements.map(
-        ({ Motif, x, y, size, rotate, color, opacity, hideOnMobile }, i) => {
-          // Stagger duration (5.5–8s) and delay (0–3.5s) so bobs are out of sync.
-          const duration = 5.5 + ((i * 0.37) % 2.5);
-          const delay = (i * 0.31) % 3.5;
-          // Boost visibility across the board; only suppress the very largest
-          // shapes on mobile so small screens don't feel cluttered.
-          // Keep motifs soft so section text stays readable over them.
-          const boostedOpacity = Math.min(opacity * 1.15, 0.45);
-          const suppressOnMobile = hideOnMobile && size >= 60;
-          return (
-            <Motif
-              key={i}
-              data-motif=""
-              {...(size >= 50 ? { "data-lg": "" } : {})}
-              className={[
-                "absolute",
-                color === "brand" ? "text-brand-500" : "text-ink-500",
-                suppressOnMobile ? "hidden sm:block" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              style={{
-                left: x,
-                top: y,
-                width: size,
-                height: size,
-                opacity: boostedOpacity,
-                transform: `rotate(${rotate}deg)`,
-                animation: `motif-float ${duration.toFixed(2)}s ease-in-out ${delay.toFixed(2)}s infinite`,
-                willChange: "translate",
-              }}
-            />
-          );
-        },
-      )}
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      {placements.map(({ Motif, x, y, size, rotate, color, opacity, hideOnMobile }, i) => {
+        // Stagger duration (5.5–8s) and delay (0–3.5s) so bobs are out of sync.
+        const duration = 5.5 + ((i * 0.37) % 2.5);
+        const delay = (i * 0.31) % 3.5;
+        // Boost visibility across the board; only suppress the very largest
+        // shapes on mobile so small screens don't feel cluttered.
+        // Keep motifs soft so section text stays readable over them.
+        const boostedOpacity = Math.min(opacity * 1.15, 0.45);
+        const suppressOnMobile = hideOnMobile && size >= 60;
+        return (
+          <Motif
+            key={i}
+            data-motif=""
+            {...(size >= 50 ? { "data-lg": "" } : {})}
+            className={[
+              "absolute",
+              color === "brand" ? "text-brand-500" : "text-ink-500",
+              suppressOnMobile ? "hidden sm:block" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            style={{
+              left: x,
+              top: y,
+              width: size,
+              height: size,
+              opacity: boostedOpacity,
+              transform: `rotate(${rotate}deg)`,
+              animation: `motif-float ${duration.toFixed(2)}s ease-in-out ${delay.toFixed(2)}s infinite`,
+              willChange: "translate",
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

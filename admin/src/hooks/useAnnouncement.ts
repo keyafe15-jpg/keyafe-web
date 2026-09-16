@@ -11,8 +11,7 @@ export interface StorefrontAnnouncement {
 export function useAdminAnnouncement() {
   return useQuery<StorefrontAnnouncement>({
     queryKey: ["admin", "business", "announcement"],
-    queryFn: () =>
-      api.get<StorefrontAnnouncement>("/admin/business/announcement"),
+    queryFn: () => api.get<StorefrontAnnouncement>("/admin/business/announcement"),
     staleTime: 30_000,
   });
 }

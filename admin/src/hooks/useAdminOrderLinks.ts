@@ -85,8 +85,7 @@ export function useAdminOrderLinks(status?: OrderLinkStatus | "ALL") {
 export function useCreateOrderLink() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateOrderLinkPayload) =>
-      api.post<OrderLink>("/admin/order-links", input),
+    mutationFn: (input: CreateOrderLinkPayload) => api.post<OrderLink>("/admin/order-links", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "order-links"] });
     },

@@ -16,14 +16,7 @@ export interface PizzaCrustPreset {
   price: number;
 }
 
-const FALLBACK_PIZZA_SIZES = [
-  "4 inch",
-  "6 inch",
-  "8 inch",
-  "10 inch",
-  "12 inch",
-  "14 inch",
-];
+const FALLBACK_PIZZA_SIZES = ["4 inch", "6 inch", "8 inch", "10 inch", "12 inch", "14 inch"];
 
 function inchSortKey(label: string): number {
   const match = label.match(/(\d+(?:\.\d+)?)/);
@@ -33,9 +26,7 @@ function inchSortKey(label: string): number {
 /** Collapse "4", "4 inch", `4"` etc. into one canonical entry. */
 function normalizePizzaSize(rawLabel: string): { key: string; label: string } {
   const trimmed = rawLabel.trim();
-  const inchMatch = trimmed.match(
-    /^(\d+(?:\.\d+)?)\s*(?:inch|inches|in|"|''|″)?$/i,
-  );
+  const inchMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:inch|inches|in|"|''|″)?$/i);
   if (inchMatch) {
     const inches = Number(inchMatch[1]);
     const rounded =
@@ -48,10 +39,7 @@ function normalizePizzaSize(rawLabel: string): { key: string; label: string } {
   return { key: `label:${slug}`, label: trimmed };
 }
 
-function addPizzaSize(
-  sizeMap: Map<string, PizzaSizePreset>,
-  rawLabel: string,
-) {
+function addPizzaSize(sizeMap: Map<string, PizzaSizePreset>, rawLabel: string) {
   const { key, label } = normalizePizzaSize(rawLabel);
   if (!sizeMap.has(key)) {
     sizeMap.set(key, { key, label });
@@ -100,12 +88,8 @@ export function usePizzaCatalogOptions(pizzaProducts: AdminProduct[]) {
       }
     }
 
-    const sizes = [...sizeMap.values()].sort(
-      (a, b) => inchSortKey(a.label) - inchSortKey(b.label),
-    );
-    const crusts = [...crustMap.values()].sort((a, b) =>
-      a.label.localeCompare(b.label),
-    );
+    const sizes = [...sizeMap.values()].sort((a, b) => inchSortKey(a.label) - inchSortKey(b.label));
+    const crusts = [...crustMap.values()].sort((a, b) => a.label.localeCompare(b.label));
 
     return {
       sizes,
@@ -115,9 +99,6 @@ export function usePizzaCatalogOptions(pizzaProducts: AdminProduct[]) {
   }, [queries]);
 }
 
-export function pizzaSizeLabelForKey(
-  presets: PizzaSizePreset[],
-  key: string,
-): string {
+export function pizzaSizeLabelForKey(presets: PizzaSizePreset[], key: string): string {
   return presets.find((s) => s.key === key)?.label ?? key;
 }

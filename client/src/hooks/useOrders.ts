@@ -152,9 +152,7 @@ export function useUserOrders() {
 export function useDownloadMyInvoice() {
   return useMutation({
     mutationFn: async (order: { idOrNumber: string }) => {
-      const { blob, filename } = await api.getBlob(
-        `/orders/${order.idOrNumber}/invoice`,
-      );
+      const { blob, filename } = await api.getBlob(`/orders/${order.idOrNumber}/invoice`);
       const name = filename ?? `invoice-${order.idOrNumber}.pdf`;
 
       const url = URL.createObjectURL(blob);
@@ -175,8 +173,7 @@ export function useDownloadMyInvoice() {
 export function useCancelOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (idOrNumber: string) =>
-      api.post<Order>(`/orders/${idOrNumber}/cancel`),
+    mutationFn: (idOrNumber: string) => api.post<Order>(`/orders/${idOrNumber}/cancel`),
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: ["user-orders"] });
       void qc.invalidateQueries({ queryKey: ["order", data.id] });

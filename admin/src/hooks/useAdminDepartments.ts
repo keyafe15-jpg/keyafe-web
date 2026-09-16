@@ -50,10 +50,7 @@ export function useCreateDepartment() {
 export function useUpdateDepartment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      ...body
-    }: { id: string } & Partial<DepartmentPayload>) =>
+    mutationFn: ({ id, ...body }: { id: string } & Partial<DepartmentPayload>) =>
       api.patch<AdminDepartment>(`/admin/departments/${id}`, body),
     onSuccess: () => invalidate(qc),
   });

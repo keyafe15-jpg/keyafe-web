@@ -10,9 +10,7 @@ function createStorage(): StorageProvider {
     case "r2":
     case "s3":
     case "cloudinary":
-      throw new Error(
-        `Storage provider "${env.STORAGE_PROVIDER}" not implemented yet`,
-      );
+      throw new Error(`Storage provider "${env.STORAGE_PROVIDER}" not implemented yet`);
   }
 }
 
@@ -22,9 +20,7 @@ export const storage = createStorage();
 // can narrow the type. Others should use the StorageProvider interface only.
 export function getLocalStorage(): LocalDiskStorage {
   if (!(storage instanceof LocalDiskStorage)) {
-    throw new Error(
-      "Local-only feature invoked but STORAGE_PROVIDER is not 'local'",
-    );
+    throw new Error("Local-only feature invoked but STORAGE_PROVIDER is not 'local'");
   }
   return storage;
 }

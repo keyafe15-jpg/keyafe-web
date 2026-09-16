@@ -44,22 +44,16 @@ export function LoginPage() {
         className="w-full max-w-sm rounded-card border border-slate-200 bg-white p-6 shadow-sm"
       >
         <div className="mb-6 flex items-center gap-3">
-          <img
-            src="/logo.png"
-            alt="Keyafe"
-            className="h-10 w-10 rounded-full"
-          />
+          <img src="/logo.png" alt="Keyafe" className="h-10 w-10 rounded-full" />
           <div>
             <p className="text-sm font-semibold text-slate-900">Keyafe Admin</p>
-            <p className="text-xs text-slate-500">
-              Sign in with your staff phone number.
-            </p>
+            <p className="text-xs text-slate-500">Sign in with your staff phone number.</p>
           </div>
         </div>
 
         {step === "phone" ? (
           <label className="mb-4 block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+            <span className="mb-1 block text-xs font-medium tracking-wide text-slate-500 uppercase">
               Phone
             </span>
             <input
@@ -69,12 +63,12 @@ export function LoginPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="9876543210"
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
             />
           </label>
         ) : (
           <label className="mb-4 block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+            <span className="mb-1 block text-xs font-medium tracking-wide text-slate-500 uppercase">
               OTP sent to {phone}
             </span>
             <input
@@ -84,7 +78,7 @@ export function LoginPage() {
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               placeholder="6-digit code"
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
             />
             <button
               type="button"
@@ -107,9 +101,7 @@ export function LoginPage() {
         )}
 
         {error && (
-          <p className="mb-3 rounded-md bg-brand-100 px-3 py-2 text-xs text-brand-700">
-            {error}
-          </p>
+          <p className="mb-3 rounded-md bg-brand-100 px-3 py-2 text-xs text-brand-700">{error}</p>
         )}
 
         <button

@@ -102,17 +102,10 @@ export function SavedAddressesPage() {
     <section className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-8 flex items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-500">
-            Profile
-          </p>
-          <h1 className="mt-2 font-display text-3xl text-ink-900">
-            Saved addresses
-          </h1>
+          <p className="text-xs font-medium tracking-[0.2em] text-brand-500 uppercase">Profile</p>
+          <h1 className="mt-2 font-display text-3xl text-ink-900">Saved addresses</h1>
         </div>
-        <Link
-          to="/"
-          className="text-sm text-ink-500 transition hover:text-brand-500"
-        >
+        <Link to="/" className="text-sm text-ink-500 transition hover:text-brand-500">
           Back to home
         </Link>
       </div>
@@ -149,13 +142,11 @@ export function SavedAddressesPage() {
           onSubmit={handleSubmit}
           className="rounded-card border border-cream-200 bg-white p-5 shadow-sm"
         >
-          <h2 className="mb-4 font-display text-xl text-ink-900">
-            Add address
-          </h2>
+          <h2 className="mb-4 font-display text-xl text-ink-900">Add address</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 Label
               </label>
               <input
@@ -166,7 +157,7 @@ export function SavedAddressesPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 Recipient name
               </label>
               <input
@@ -178,14 +169,12 @@ export function SavedAddressesPage() {
                 className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none"
               />
               {errors.recipientName && (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.recipientName}
-                </p>
+                <p className="mt-1 text-xs text-red-600">{errors.recipientName}</p>
               )}
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 Phone
               </label>
               <input
@@ -196,13 +185,11 @@ export function SavedAddressesPage() {
                 }}
                 className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none"
               />
-              {errors.phone && (
-                <p className="mt-1 text-xs text-red-600">{errors.phone}</p>
-              )}
+              {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone}</p>}
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 Address line 1
               </label>
               <input
@@ -213,13 +200,11 @@ export function SavedAddressesPage() {
                 }}
                 className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none"
               />
-              {errors.line1 && (
-                <p className="mt-1 text-xs text-red-600">{errors.line1}</p>
-              )}
+              {errors.line1 && <p className="mt-1 text-xs text-red-600">{errors.line1}</p>}
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 Address line 2
               </label>
               <input
@@ -230,7 +215,7 @@ export function SavedAddressesPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 Landmark
               </label>
               <input
@@ -241,7 +226,7 @@ export function SavedAddressesPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 Find your address
               </label>
               <AddressPlacesSearch
@@ -273,15 +258,13 @@ export function SavedAddressesPage() {
                 }}
               />
               {errors.mapSearchQuery && (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.mapSearchQuery}
-                </p>
+                <p className="mt-1 text-xs text-red-600">{errors.mapSearchQuery}</p>
               )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+                <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                   City
                 </label>
                 <input
@@ -292,13 +275,11 @@ export function SavedAddressesPage() {
                   }}
                   className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none"
                 />
-                {errors.city && (
-                  <p className="mt-1 text-xs text-red-600">{errors.city}</p>
-                )}
+                {errors.city && <p className="mt-1 text-xs text-red-600">{errors.city}</p>}
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+                <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                   Pincode
                 </label>
                 <input
@@ -309,9 +290,7 @@ export function SavedAddressesPage() {
                   }}
                   className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none"
                 />
-                {errors.pincode && (
-                  <p className="mt-1 text-xs text-red-600">{errors.pincode}</p>
-                )}
+                {errors.pincode && <p className="mt-1 text-xs text-red-600">{errors.pincode}</p>}
               </div>
             </div>
 
@@ -344,7 +323,7 @@ function AddressCard({
           <div className="flex items-center gap-2">
             <p className="font-medium text-ink-900">{address.label}</p>
             {address.isDefault && (
-              <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-600">
+              <span className="bg-brand-50 text-brand-600 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
                 Default
               </span>
             )}
@@ -358,7 +337,7 @@ function AddressCard({
             <button
               type="button"
               onClick={onSetDefault}
-              className="text-xs text-brand-500 transition hover:text-brand-600"
+              className="hover:text-brand-600 text-xs text-brand-500 transition"
             >
               Set default
             </button>
@@ -373,14 +352,12 @@ function AddressCard({
         </div>
       </div>
 
-      <p className="mt-3 text-sm text-ink-600">
+      <p className="text-ink-600 mt-3 text-sm">
         {address.line1}
         {address.line2 ? `, ${address.line2}` : ""}
       </p>
-      {address.landmark && (
-        <p className="text-sm text-ink-600">Near {address.landmark}</p>
-      )}
-      <p className="text-sm text-ink-600">
+      {address.landmark && <p className="text-ink-600 text-sm">Near {address.landmark}</p>}
+      <p className="text-ink-600 text-sm">
         {address.city}, {address.state} - {address.pincode}
       </p>
     </li>

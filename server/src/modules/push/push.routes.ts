@@ -67,10 +67,8 @@ adminPushRouter.post("/unsubscribe", async (req, res) => {
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid unsubscribe", parsed.error.flatten());
   }
-  await prisma.pushSubscription
-    .delete({ where: { endpoint: parsed.data.endpoint } })
-    .catch(() => {
-      // Already gone — treat as success.
-    });
+  await prisma.pushSubscription.delete({ where: { endpoint: parsed.data.endpoint } }).catch(() => {
+    // Already gone — treat as success.
+  });
   res.status(204).end();
 });

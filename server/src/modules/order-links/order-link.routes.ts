@@ -75,10 +75,11 @@ adminOfflineOrderRouter.post(
   "/place",
   requirePermission("offline-orders.write"),
   async (req, res) => {
-  const parsed = placeOfflineOrderSchema.safeParse(req.body);
-  if (!parsed.success) {
-    throw HttpError.badRequest("Invalid order", parsed.error.flatten());
-  }
-  const order = await placeOfflineOrder(parsed.data);
-  res.status(StatusCodes.CREATED).json(order);
-});
+    const parsed = placeOfflineOrderSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw HttpError.badRequest("Invalid order", parsed.error.flatten());
+    }
+    const order = await placeOfflineOrder(parsed.data);
+    res.status(StatusCodes.CREATED).json(order);
+  },
+);

@@ -98,12 +98,8 @@ export function NewOrderAlertModal() {
         <div className="flex items-center gap-3 rounded-t-card bg-brand-500 px-5 py-3 text-white">
           <Bell className="h-5 w-5 animate-pulse" />
           <div className="flex-1">
-            <p className="text-xs uppercase tracking-wide opacity-80">
-              New order
-            </p>
-            <p className="font-mono text-sm font-semibold">
-              {head.orderNumber}
-            </p>
+            <p className="text-xs tracking-wide uppercase opacity-80">New order</p>
+            <p className="font-mono text-sm font-semibold">{head.orderNumber}</p>
           </div>
           {pending.length > 1 && (
             <span className="rounded-full bg-white/25 px-2 py-0.5 text-xs font-semibold">
@@ -114,37 +110,23 @@ export function NewOrderAlertModal() {
 
         <div className="space-y-3 p-5">
           <div>
-            <p className="text-xs uppercase tracking-wide text-slate-500">
-              Customer
-            </p>
-            <p className="text-lg font-medium text-slate-900">
-              {head.customerName}
-            </p>
+            <p className="text-xs tracking-wide text-slate-500 uppercase">Customer</p>
+            <p className="text-lg font-medium text-slate-900">{head.customerName}</p>
           </div>
           <div className="grid grid-cols-3 gap-3 text-sm">
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">
-                Items
-              </p>
+              <p className="text-[10px] tracking-wide text-slate-500 uppercase">Items</p>
               <p className="font-medium text-slate-900">
                 {head.itemCount} item{head.itemCount === 1 ? "" : "s"}
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">
-                Total
-              </p>
-              <p className="font-medium text-slate-900">
-                ₹{Number(head.total).toFixed(0)}
-              </p>
+              <p className="text-[10px] tracking-wide text-slate-500 uppercase">Total</p>
+              <p className="font-medium text-slate-900">₹{Number(head.total).toFixed(0)}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">
-                Source
-              </p>
-              <p className="font-medium text-slate-900">
-                {sourceLabels[head.source]}
-              </p>
+              <p className="text-[10px] tracking-wide text-slate-500 uppercase">Source</p>
+              <p className="font-medium text-slate-900">{sourceLabels[head.source]}</p>
             </div>
           </div>
 

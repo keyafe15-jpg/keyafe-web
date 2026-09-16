@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useOrderLink, usePlaceOrderLink } from "@/hooks/useOrderLink";
-import {
-  usePincodeCheck,
-  type PincodeCheckResult,
-} from "@/hooks/usePincodeCheck";
+import { usePincodeCheck, type PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import { PRODUCT_COPY } from "@/content/product";
 import { uploadImage } from "@/lib/uploads";
 import { usePaymentInfo } from "@/hooks/usePaymentInfo";
@@ -39,9 +36,7 @@ export function OrderLinkPage() {
     return (
       <PageError
         title="Order link not found"
-        message={
-          error instanceof Error ? error.message : "This link isn't valid."
-        }
+        message={error instanceof Error ? error.message : "This link isn't valid."}
       />
     );
 
@@ -81,11 +76,7 @@ export function OrderLinkPage() {
   return <LinkForm link={link} />;
 }
 
-function LinkForm({
-  link,
-}: {
-  link: NonNullable<ReturnType<typeof useOrderLink>["data"]>;
-}) {
+function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>["data"]> }) {
   const navigate = useNavigate();
   const place = usePlaceOrderLink({ token: link.token });
   const pincodeCheck = usePincodeCheck();
@@ -103,9 +94,7 @@ function LinkForm({
   const [landmark, setLandmark] = useState("");
   const [mapSearchQuery, setMapSearchQuery] = useState("");
   const [pincode, setPincode] = useState("");
-  const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(
-    null,
-  );
+  const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(null);
   const [date, setDate] = useState<string>(
     link.suggestedDate ? link.suggestedDate.slice(0, 10) : "",
   );
@@ -116,47 +105,27 @@ function LinkForm({
   const [payChoice, setPayChoice] = useState<PayChoice>("FULL");
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(
-    null,
-  );
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [screenshotUploading, setScreenshotUploading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const slot =
-    PRODUCT_COPY.timeSlots.find((s) => s.key === slotKey) ??
-    PRODUCT_COPY.timeSlots[0];
+  const slot = PRODUCT_COPY.timeSlots.find((s) => s.key === slotKey) ?? PRODUCT_COPY.timeSlots[0];
 
-  const subtotal = link.items.reduce(
-    (sum, it) => sum + Number(it.unitPrice) * it.qty,
-    0,
-  );
-  const discount = manualDiscountRupees(
-    subtotal,
-    link.discountType,
-    link.discountValue,
-  );
+  const subtotal = link.items.reduce((sum, it) => sum + Number(it.unitPrice) * it.qty, 0);
+  const discount = manualDiscountRupees(subtotal, link.discountType, link.discountValue);
   const deliveryFee =
-    fulfillment === "DELIVERY" && pincodeResult?.serviceable
-      ? pincodeResult.deliveryFee
-      : 0;
+    fulfillment === "DELIVERY" && pincodeResult?.serviceable ? pincodeResult.deliveryFee : 0;
   const total = subtotal - discount + deliveryFee;
 
   const payNowAmount =
-    payChoice === "FULL"
-      ? total
-      : payChoice === "ADVANCE"
-        ? Number(advanceAmount) || 0
-        : 0;
+    payChoice === "FULL" ? total : payChoice === "ADVANCE" ? Number(advanceAmount) || 0 : 0;
   const upiUri =
     paymentInfo?.upiId && payNowAmount > 0
       ? buildUpiUri({
           payeeVpa: paymentInfo.upiId,
           payeeName: paymentInfo.payeeName,
           amount: payNowAmount,
-          note: `Order ${link.items.map((i) => i.productName).join(", ")}`.slice(
-            0,
-            50,
-          ),
+          note: `Order ${link.items.map((i) => i.productName).join(", ")}`.slice(0, 50),
           refId: link.token,
         })
       : null;
@@ -190,11 +159,9 @@ function LinkForm({
     const e: Record<string, string> = {};
     if (name.trim().length < 2) e.name = "Enter your name";
     if (!PHONE_RE.test(phone.trim())) e.phone = "Enter a valid phone";
-    if (email.trim() && !EMAIL_RE.test(email.trim()))
-      e.email = "Enter a valid email";
+    if (email.trim() && !EMAIL_RE.test(email.trim())) e.email = "Enter a valid email";
     if (isBusinessOrder) {
-      if (companyName.trim().length < 2)
-        e.companyName = "Enter the registered business name";
+      if (companyName.trim().length < 2) e.companyName = "Enter the registered business name";
       const issue = gstinIssue(gstin);
       if (issue) e.gstin = issue;
     }
@@ -203,8 +170,7 @@ function LinkForm({
       if (line1.trim().length < 3) e.line1 = "Street address is required";
       if (!PINCODE_RE.test(pincode)) e.pincode = "6-digit pincode";
       else if (pincodeResult && !pincodeResult.serviceable)
-        e.pincode =
-          "We may still deliver here, please call or WhatsApp us to confirm";
+        e.pincode = "We may still deliver here, please call or WhatsApp us to confirm";
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
     }
@@ -212,9 +178,7 @@ function LinkForm({
       e.screenshot = "Upload a screenshot of your payment";
     if (
       payChoice === "ADVANCE" &&
-      (!advanceAmount.trim() ||
-        Number(advanceAmount) <= 0 ||
-        Number(advanceAmount) > total)
+      (!advanceAmount.trim() || Number(advanceAmount) <= 0 || Number(advanceAmount) > total)
     )
       e.advanceAmount = `Enter an advance between ₹1 and ₹${total.toFixed(0)}`;
     return e;
@@ -290,24 +254,19 @@ function LinkForm({
       navigate(`/order/${order.orderNumber}/success`, { replace: true });
     } catch (err) {
       setScreenshotUploading(false);
-      setSubmitError(
-        err instanceof Error ? err.message : "Something went wrong",
-      );
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong");
     }
   };
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6 text-center">
-        <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">
+        <p className="text-xs font-semibold tracking-wider text-brand-700 uppercase">
           Keyafe Bakery
         </p>
-        <h1 className="mt-1 font-display text-2xl text-ink-900 md:text-3xl">
-          Confirm your order
-        </h1>
+        <h1 className="mt-1 font-display text-2xl text-ink-900 md:text-3xl">Confirm your order</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Your baker has locked in the design & price. Just fill in your details
-          to confirm.
+          Your baker has locked in the design & price. Just fill in your details to confirm.
         </p>
       </div>
 
@@ -329,18 +288,16 @@ function LinkForm({
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full min-h-32 w-full items-center justify-center text-xs text-ink-400">
+                    <div className="text-ink-400 flex h-full min-h-32 w-full items-center justify-center text-xs">
                       No image
                     </div>
                   )}
                 </div>
                 <div className="p-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-700">
+                  <p className="text-[10px] font-semibold tracking-wider text-brand-700 uppercase">
                     Your order
                   </p>
-                  <h2 className="mt-1 font-display text-xl text-ink-900">
-                    {item.productName}
-                  </h2>
+                  <h2 className="mt-1 font-display text-xl text-ink-900">{item.productName}</h2>
                   <dl className="mt-2 space-y-0.5 text-sm text-ink-700">
                     {item.sizeLabel && (
                       <div className="flex gap-1.5">
@@ -376,27 +333,17 @@ function LinkForm({
             </div>
           );
         })}
-        <p className="text-[11px] text-ink-500">
-          Includes GST. Delivery fee added below.
-        </p>
+        <p className="text-[11px] text-ink-500">Includes GST. Delivery fee added below.</p>
       </div>
 
       <div className="space-y-5">
         <Section title="Contact">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Full name" required error={errors.name}>
-              <Input
-                value={name}
-                onChange={setName}
-                placeholder="Aarav Sharma"
-              />
+              <Input value={name} onChange={setName} placeholder="Aarav Sharma" />
             </Field>
             <Field label="Phone" required error={errors.phone}>
-              <Input
-                value={phone}
-                onChange={setPhone}
-                placeholder="9876543210"
-              />
+              <Input value={phone} onChange={setPhone} placeholder="9876543210" />
             </Field>
             <Field
               label="Email"
@@ -404,11 +351,7 @@ function LinkForm({
               error={errors.email}
               className="sm:col-span-2"
             >
-              <Input
-                value={email}
-                onChange={setEmail}
-                placeholder="you@example.com"
-              />
+              <Input value={email} onChange={setEmail} placeholder="you@example.com" />
             </Field>
             <BusinessGstFields
               enabled={isBusinessOrder}
@@ -441,18 +384,11 @@ function LinkForm({
         {fulfillment === "DELIVERY" && (
           <Section title="Delivery address">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label="Pincode"
-                required
-                error={errors.pincode}
-                className="sm:col-span-2"
-              >
+              <Field label="Pincode" required error={errors.pincode} className="sm:col-span-2">
                 <div className="flex items-center gap-3">
                   <Input
                     value={pincode}
-                    onChange={(v) =>
-                      setPincode(v.replace(/\D/g, "").slice(0, 6))
-                    }
+                    onChange={(v) => setPincode(v.replace(/\D/g, "").slice(0, 6))}
                     placeholder="711202"
                     className="w-32"
                     inputMode="numeric"
@@ -463,43 +399,24 @@ function LinkForm({
                     ) : pincodeResult ? (
                       pincodeResult.serviceable ? (
                         <span className="text-xs text-emerald-700">
-                          {[pincodeResult.city, pincodeResult.area]
-                            .filter(Boolean)
-                            .join(" · ")}{" "}
-                          · ₹{pincodeResult.deliveryFee} delivery
+                          {[pincodeResult.city, pincodeResult.area].filter(Boolean).join(" · ")} · ₹
+                          {pincodeResult.deliveryFee} delivery
                         </span>
                       ) : (
                         <span className="text-xs text-brand-700">
-                          We may deliver here. Please call or whatsapp us to
-                          confirm
+                          We may deliver here. Please call or whatsapp us to confirm
                         </span>
                       )
                     ) : null)}
                 </div>
               </Field>
-              <Field
-                label="Address line 1"
-                required
-                error={errors.line1}
-                className="sm:col-span-2"
-              >
-                <Input
-                  value={line1}
-                  onChange={setLine1}
-                  placeholder="Flat / building / street"
-                />
+              <Field label="Address line 1" required error={errors.line1} className="sm:col-span-2">
+                <Input value={line1} onChange={setLine1} placeholder="Flat / building / street" />
               </Field>
               <Field label="Address line 2" className="sm:col-span-2">
-                <Input
-                  value={line2}
-                  onChange={setLine2}
-                  placeholder="Area / locality (optional)"
-                />
+                <Input value={line2} onChange={setLine2} placeholder="Area / locality (optional)" />
               </Field>
-              <Field
-                label="Landmark"
-                hint="Helps our delivery partner find you"
-              >
+              <Field label="Landmark" hint="Helps our delivery partner find you">
                 <Input
                   value={landmark}
                   onChange={setLandmark}
@@ -534,14 +451,14 @@ function LinkForm({
                 value={date}
                 min={todayIso()}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
               />
             </Field>
             <Field label="Time slot" required>
               <select
                 value={slotKey}
                 onChange={(e) => setSlotKey(e.target.value)}
-                className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
               >
                 {PRODUCT_COPY.timeSlots.map((s) => (
                   <option key={s.key} value={s.key}>
@@ -554,23 +471,17 @@ function LinkForm({
           </div>
         </Section>
 
-        <Section
-          title="Anything else?"
-          subtitle="Optional notes for the kitchen or delivery team"
-        >
+        <Section title="Anything else?" subtitle="Optional notes for the kitchen or delivery team">
           <textarea
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Please call before arriving…"
-            className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
           />
         </Section>
 
-        <Section
-          title="Payment"
-          subtitle="Pay now via UPI, or pay when your order arrives."
-        >
+        <Section title="Payment" subtitle="Pay now via UPI, or pay when your order arrives.">
           <div className="grid grid-cols-3 gap-2">
             <FulfillmentButton
               active={payChoice === "FULL"}
@@ -608,8 +519,7 @@ function LinkForm({
 
           {payChoice === "COD" ? (
             <p className="mt-4 rounded-md bg-cream-50 px-3 py-2 text-xs text-ink-500">
-              Pay the full amount in cash or UPI when your order is delivered or
-              picked up.
+              Pay the full amount in cash or UPI when your order is delivered or picked up.
             </p>
           ) : (
             <>
@@ -629,8 +539,7 @@ function LinkForm({
                   <button
                     type="button"
                     onClick={() =>
-                      paymentInfo?.upiId &&
-                      navigator.clipboard.writeText(paymentInfo.upiId)
+                      paymentInfo?.upiId && navigator.clipboard.writeText(paymentInfo.upiId)
                     }
                     className="text-xs text-ink-500 hover:text-brand-700 hover:underline"
                   >
@@ -639,23 +548,16 @@ function LinkForm({
                 </div>
               ) : (
                 <p className="mt-4 rounded-md bg-cream-50 px-3 py-2 text-xs text-ink-500">
-                  Please transfer ₹{payNowAmount.toFixed(2)} via UPI/bank
-                  transfer as instructed, then upload the screenshot below.
+                  Please transfer ₹{payNowAmount.toFixed(2)} via UPI/bank transfer as instructed,
+                  then upload the screenshot below.
                 </p>
               )}
 
-              <Field
-                label="Payment screenshot"
-                required
-                error={errors.screenshot}
-                className="mt-3"
-              >
+              <Field label="Payment screenshot" required error={errors.screenshot} className="mt-3">
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) =>
-                    setScreenshotFile(e.target.files?.[0] ?? null)
-                  }
+                  onChange={(e) => setScreenshotFile(e.target.files?.[0] ?? null)}
                   className="block w-full text-xs text-ink-700 file:mr-3 file:rounded-md file:border-0 file:bg-cream-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink-700"
                 />
                 {screenshotPreview && (
@@ -692,7 +594,7 @@ function LinkForm({
           <hr className="my-3 border-cream-200" />
           <div className="flex items-baseline justify-between">
             <span className="text-sm text-ink-700">Total</span>
-            <span className="text-2xl font-semibold tabular-nums text-ink-900">
+            <span className="text-2xl font-semibold text-ink-900 tabular-nums">
               ₹{total.toFixed(2)}
             </span>
           </div>
@@ -705,9 +607,7 @@ function LinkForm({
               />
             </>
           )}
-          {payChoice === "COD" && (
-            <SummaryRow label="Due on delivery" value={total} />
-          )}
+          {payChoice === "COD" && <SummaryRow label="Due on delivery" value={total} />}
 
           {submitError && (
             <p className="mt-3 rounded-md bg-brand-100/60 px-3 py-2 text-xs text-brand-700">
@@ -777,12 +677,7 @@ function Field({
       </span>
       {children}
       {(hint || error) && (
-        <span
-          className={cn(
-            "mt-1 block text-[11px]",
-            error ? "text-brand-700" : "text-ink-500",
-          )}
-        >
+        <span className={cn("mt-1 block text-[11px]", error ? "text-brand-700" : "text-ink-500")}>
           {error ?? hint}
         </span>
       )}
@@ -811,7 +706,7 @@ function Input({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={cn(
-        "w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20",
+        "w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none",
         className,
       )}
     />
@@ -855,9 +750,7 @@ function SummaryRow({
   return (
     <div className="flex items-baseline justify-between py-0.5 text-sm">
       <span className="text-ink-700">{label}</span>
-      <span
-        className={cn("tabular-nums", value == null && "text-xs text-ink-500")}
-      >
+      <span className={cn("tabular-nums", value == null && "text-xs text-ink-500")}>
         {value == null
           ? hint
           : value < 0

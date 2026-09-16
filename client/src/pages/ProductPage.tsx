@@ -31,11 +31,7 @@ export function ProductPage() {
 
   if (isLoading) return <PdpSkeleton />;
   if (isError || !product)
-    return (
-      <PdpError
-        message={error instanceof Error ? error.message : "Product not found"}
-      />
-    );
+    return <PdpError message={error instanceof Error ? error.message : "Product not found"} />;
 
   if (product.template === "PIZZA" || product.template === "OTHER") {
     return <ConfiguredPdp product={product} />;
@@ -49,8 +45,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
   const basePrice = Number(product.basePrice);
   const defaultSize: ProductSize | null =
     product.sellByPound && product.sizes.length > 0
-      ? (product.sizes.find((s) => s.grams === CAKE_BASE_GRAMS) ??
-        product.sizes[0])
+      ? (product.sizes.find((s) => s.grams === CAKE_BASE_GRAMS) ?? product.sizes[0])
       : null;
 
   // Attached flavours = fixed recipe (read-only). None attached = customer
@@ -81,27 +76,18 @@ function PdpContent({ product }: { product: ProductDetail }) {
   }, [hasSpecificFlavours, flavourId, pickerFlavours]);
 
   const [fulfillment, setFulfillment] = useState<Fulfillment>("delivery");
-  const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(
-    null,
-  );
+  const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(null);
   const [date, setDate] = useState("");
   const [slotKey, setSlotKey] = useState<string>(PRODUCT_COPY.timeSlots[0].key);
-  const [slotLabel, setSlotLabel] = useState<string>(
-    PRODUCT_COPY.timeSlots[0].label,
-  );
-  const [slotSurcharge, setSlotSurcharge] = useState<number>(
-    PRODUCT_COPY.timeSlots[0].surcharge,
-  );
+  const [slotLabel, setSlotLabel] = useState<string>(PRODUCT_COPY.timeSlots[0].label);
+  const [slotSurcharge, setSlotSurcharge] = useState<number>(PRODUCT_COPY.timeSlots[0].surcharge);
   const [message, setMessage] = useState("");
   const [instructions, setInstructions] = useState("");
   const [qty, setQty] = useState(1);
   const [addonIds, setAddonIds] = useState<Set<string>>(new Set());
   const addons = product.addons ?? [];
   const pickedAddons = addons.filter((a) => addonIds.has(a.id));
-  const addonsDelta = pickedAddons.reduce(
-    (s, a) => s + Number(a.priceDelta),
-    0,
-  );
+  const addonsDelta = pickedAddons.reduce((s, a) => s + Number(a.priceDelta), 0);
 
   const size = useMemo(
     () => product.sizes.find((s) => s.id === sizeId) ?? null,
@@ -109,9 +95,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
   );
   const parsedCustomPounds = Number(customPounds);
   const customGrams =
-    customPounds.trim() !== "" &&
-    Number.isFinite(parsedCustomPounds) &&
-    parsedCustomPounds > 0
+    customPounds.trim() !== "" && Number.isFinite(parsedCustomPounds) && parsedCustomPounds > 0
       ? Math.round(parsedCustomPounds * CAKE_BASE_GRAMS)
       : null;
   const customOutOfRange =
@@ -119,8 +103,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
     ((product.minGrams != null && customGrams < product.minGrams) ||
       (product.maxGrams != null && customGrams > product.maxGrams));
 
-  const effectiveGrams =
-    customGrams && !customOutOfRange ? customGrams : size ? size.grams : null;
+  const effectiveGrams = customGrams && !customOutOfRange ? customGrams : size ? size.grams : null;
   // Only picker selections drive the price delta — attached "fixed recipe"
   // flavours are considered priced-in.
   const pickedFlavour = useMemo(
@@ -128,9 +111,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
     [pickerFlavours, flavourId],
   );
 
-  const flavourDelta = pickedFlavour
-    ? Number(pickedFlavour.additionalAmount)
-    : 0;
+  const flavourDelta = pickedFlavour ? Number(pickedFlavour.additionalAmount) : 0;
   const cakePrice = effectiveGrams
     ? computeCakeUnitPrice(basePrice, effectiveGrams, flavourDelta)
     : basePrice + flavourDelta;
@@ -138,17 +119,13 @@ function PdpContent({ product }: { product: ProductDetail }) {
   const unitPrice = cakePrice + addonsDelta + slotSurcharge;
 
   const deliveryFee =
-    fulfillment === "delivery" && pincodeResult?.serviceable
-      ? pincodeResult.deliveryFee
-      : 0;
+    fulfillment === "delivery" && pincodeResult?.serviceable ? pincodeResult.deliveryFee : 0;
   const total = unitPrice * qty + deliveryFee;
 
   const canOrder =
     product.isAvailable &&
     !customOutOfRange &&
-    (product.canBeDeliveredPanIndia ||
-      fulfillment === "pickup" ||
-      fulfillment === "delivery") &&
+    (product.canBeDeliveredPanIndia || fulfillment === "pickup" || fulfillment === "delivery") &&
     (product.canBeDeliveredPanIndia || (date !== "" && slotKey !== ""));
 
   const handleAddToCart = () => {
@@ -157,8 +134,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
       customGrams && !customOutOfRange
         ? `${(customGrams / CAKE_BASE_GRAMS).toFixed(2)} lb (custom)`
         : size?.label;
-    const effectiveSizeGrams =
-      customGrams && !customOutOfRange ? customGrams : size?.grams;
+    const effectiveSizeGrams = customGrams && !customOutOfRange ? customGrams : size?.grams;
     const addonNotes = composeAddonNotes(pickedAddons);
     const extraNotes = instructions.trim();
     const composed =
@@ -189,9 +165,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
     navigate("/cart");
   };
 
-  const anyPickerHasDelta = pickerFlavours.some(
-    (f) => Number(f.additionalAmount) > 0,
-  );
+  const anyPickerHasDelta = pickerFlavours.some((f) => Number(f.additionalAmount) > 0);
   const productIsEggless = product.isEggless;
   const galleryImages =
     product.images.length > 0
@@ -211,15 +185,8 @@ function PdpContent({ product }: { product: ProductDetail }) {
         </Link>
         {product.categories.map((c, i) => (
           <span key={c.id}>
-            {i === 0 ? (
-              <span className="mx-2">›</span>
-            ) : (
-              <span className="mx-1">·</span>
-            )}
-            <Link
-              to={`/category/${c.slug}`}
-              className="hover:text-brand-500"
-            >
+            {i === 0 ? <span className="mx-2">›</span> : <span className="mx-1">·</span>}
+            <Link to={`/category/${c.slug}`} className="hover:text-brand-500">
               {c.name}
             </Link>
           </span>
@@ -302,9 +269,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
           <div>
             <div className="mb-2 flex items-center gap-2">
               <VegBadge isVeg={productIsEggless} />
-              <h1 className="font-display text-3xl text-ink-900 md:text-4xl">
-                {product.name}
-              </h1>
+              <h1 className="font-display text-3xl text-ink-900 md:text-4xl">{product.name}</h1>
             </div>
             {product.shortDescription && (
               <p className="text-sm text-ink-500">{product.shortDescription}</p>
@@ -313,9 +278,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
 
           <div>
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-semibold text-ink-900">
-                ₹{unitPrice.toFixed(0)}
-              </span>
+              <span className="text-3xl font-semibold text-ink-900">₹{unitPrice.toFixed(0)}</span>
               {effectiveGrams && effectiveGrams !== CAKE_BASE_GRAMS && (
                 <span className="text-xs text-ink-500">
                   base ₹{basePrice.toFixed(0)}
@@ -334,16 +297,12 @@ function PdpContent({ product }: { product: ProductDetail }) {
 
           {product.sellByPound && product.sizes.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
+              <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {PRODUCT_COPY.labels.size}
               </p>
               <div className="flex flex-wrap gap-2">
                 {product.sizes.map((s) => {
-                  const price = computeCakeUnitPrice(
-                    basePrice,
-                    s.grams,
-                    flavourDelta,
-                  );
+                  const price = computeCakeUnitPrice(basePrice, s.grams, flavourDelta);
                   const active = s.id === sizeId && !customGrams;
                   return (
                     <button
@@ -362,13 +321,9 @@ function PdpContent({ product }: { product: ProductDetail }) {
                     >
                       <span className="block font-medium">{s.label}</span>
                       {s.servesText && (
-                        <span className="block text-xs text-ink-500">
-                          {s.servesText}
-                        </span>
+                        <span className="block text-xs text-ink-500">{s.servesText}</span>
                       )}
-                      <span className="mt-1 block text-xs text-ink-700">
-                        ₹{price.toFixed(0)}
-                      </span>
+                      <span className="mt-1 block text-xs text-ink-700">₹{price.toFixed(0)}</span>
                     </button>
                   );
                 })}
@@ -382,16 +337,8 @@ function PdpContent({ product }: { product: ProductDetail }) {
                   <div className="mt-1.5 flex items-center gap-2">
                     <input
                       type="number"
-                      min={
-                        product.minGrams
-                          ? product.minGrams / CAKE_BASE_GRAMS
-                          : 0.1
-                      }
-                      max={
-                        product.maxGrams
-                          ? product.maxGrams / CAKE_BASE_GRAMS
-                          : undefined
-                      }
+                      min={product.minGrams ? product.minGrams / CAKE_BASE_GRAMS : 0.1}
+                      max={product.maxGrams ? product.maxGrams / CAKE_BASE_GRAMS : undefined}
                       step={0.1}
                       value={customPounds}
                       onChange={(e) => {
@@ -399,29 +346,22 @@ function PdpContent({ product }: { product: ProductDetail }) {
                         if (e.target.value.trim() !== "") setSizeId(null);
                       }}
                       placeholder="e.g. 4"
-                      className="w-24 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      className="w-24 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
                     />
                     <span className="text-sm text-ink-700">pounds</span>
                     {customGrams && !customOutOfRange && (
                       <span className="text-xs text-ink-500">
                         · {customGrams} g · ₹
-                        {(
-                          (basePrice + flavourDelta) *
-                          (customGrams / CAKE_BASE_GRAMS)
-                        ).toFixed(0)}
+                        {((basePrice + flavourDelta) * (customGrams / CAKE_BASE_GRAMS)).toFixed(0)}
                       </span>
                     )}
                   </div>
                   {customOutOfRange && (
                     <p className="mt-1 text-xs text-brand-700">
                       Please pick between{" "}
-                      {product.minGrams
-                        ? (product.minGrams / CAKE_BASE_GRAMS).toFixed(1)
-                        : "0.1"}{" "}
+                      {product.minGrams ? (product.minGrams / CAKE_BASE_GRAMS).toFixed(1) : "0.1"}{" "}
                       and{" "}
-                      {product.maxGrams
-                        ? (product.maxGrams / CAKE_BASE_GRAMS).toFixed(1)
-                        : "any"}{" "}
+                      {product.maxGrams ? (product.maxGrams / CAKE_BASE_GRAMS).toFixed(1) : "any"}{" "}
                       pounds.
                     </p>
                   )}
@@ -432,14 +372,14 @@ function PdpContent({ product }: { product: ProductDetail }) {
 
           {hasSpecificFlavours ? (
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {PRODUCT_COPY.labels.flavour}
               </label>
               <FlavourReadonlyList flavours={product.flavors} />
             </div>
           ) : pickerFlavours.length > 0 ? (
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {PRODUCT_COPY.labels.flavour}
               </label>
               {pickerFlavours.length <= 8 && !anyPickerHasDelta ? (
@@ -457,7 +397,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
                 <select
                   value={flavourId ?? ""}
                   onChange={(e) => setFlavourId(e.target.value)}
-                  className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
                 >
                   {pickerFlavours.map((f) => {
                     const delta = Number(f.additionalAmount);
@@ -477,18 +417,16 @@ function PdpContent({ product }: { product: ProductDetail }) {
 
           {product.supportsMessageOnCake && (
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {PRODUCT_COPY.labels.messageOnCake}
               </label>
               <input
                 type="text"
                 value={message}
-                onChange={(e) =>
-                  setMessage(e.target.value.slice(0, product.messageMaxLength))
-                }
+                onChange={(e) => setMessage(e.target.value.slice(0, product.messageMaxLength))}
                 maxLength={product.messageMaxLength}
                 placeholder="e.g., Happy Birthday Aarav!"
-                className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
               />
               <p className="mt-1 text-xs text-ink-500">
                 {PRODUCT_COPY.labels.messageHint(product.messageMaxLength)}
@@ -514,7 +452,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
           {!product.canBeDeliveredPanIndia && (
             <>
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
+                <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
                   {PRODUCT_COPY.labels.deliveryOrPickup}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -531,9 +469,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
                 </div>
               </div>
 
-              {fulfillment === "delivery" && (
-                <PincodeChecker onResult={setPincodeResult} />
-              )}
+              {fulfillment === "delivery" && <PincodeChecker onResult={setPincodeResult} />}
 
               <SameDayDeliveryPicker
                 supportsSameDayDelivery={product.supportsSameDayDelivery}
@@ -553,13 +489,13 @@ function PdpContent({ product }: { product: ProductDetail }) {
 
           {product.canBeDeliveredPanIndia && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              Ships nationwide via courier. No delivery slot needed — just add
-              to cart and check out.
+              Ships nationwide via courier. No delivery slot needed — just add to cart and check
+              out.
             </p>
           )}
 
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+            <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
               {PRODUCT_COPY.labels.specialInstructions}
             </label>
             <textarea
@@ -567,24 +503,20 @@ function PdpContent({ product }: { product: ProductDetail }) {
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               placeholder={PRODUCT_COPY.labels.specialInstructionsHint}
-              className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
             />
           </div>
 
           <div className="rounded-card border border-cream-200 bg-cream-50 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wide text-ink-500">
+              <span className="text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {PRODUCT_COPY.labels.quantity}
               </span>
               <QtyControl value={qty} onChange={setQty} />
             </div>
             <div className="mb-3 flex items-center justify-between border-t border-cream-200 pt-3">
-              <span className="text-sm text-ink-700">
-                {PRODUCT_COPY.labels.total}
-              </span>
-              <span className="text-xl font-semibold text-ink-900">
-                ₹{total.toFixed(2)}
-              </span>
+              <span className="text-sm text-ink-700">{PRODUCT_COPY.labels.total}</span>
+              <span className="text-xl font-semibold text-ink-900">₹{total.toFixed(2)}</span>
             </div>
             <button
               type="button"
@@ -596,9 +528,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
             </button>
             {product.isAvailable && !canOrder && (
               <p className="mt-2 text-center text-xs text-ink-500">
-                {product.canBeDeliveredPanIndia
-                  ? ""
-                  : "Pick a delivery date and slot to continue."}
+                {product.canBeDeliveredPanIndia ? "" : "Pick a delivery date and slot to continue."}
               </p>
             )}
           </div>
@@ -607,15 +537,13 @@ function PdpContent({ product }: { product: ProductDetail }) {
 
       {product.description && (
         <section className="mt-14">
-          <h2 className="mb-3 font-display text-2xl text-ink-900">
-            About this bake
-          </h2>
-          <p className="max-w-3xl whitespace-pre-line leading-relaxed text-ink-700">
+          <h2 className="mb-3 font-display text-2xl text-ink-900">About this bake</h2>
+          <p className="max-w-3xl leading-relaxed whitespace-pre-line text-ink-700">
             {product.description}
           </p>
           {product.allergens.length > 0 && (
             <p className="mt-4 text-xs text-ink-500">
-              <strong className="uppercase tracking-wide">Contains:</strong>{" "}
+              <strong className="tracking-wide uppercase">Contains:</strong>{" "}
               {product.allergens.join(", ")}
             </p>
           )}
@@ -652,16 +580,13 @@ function FlavourChip({
       )}
     >
       {flavour.name}
-      {flavour.isEggless && (
-        <span className="ml-1 text-xs text-green-700">· Eggless</span>
-      )}
+      {flavour.isEggless && <span className="ml-1 text-xs text-green-700">· Eggless</span>}
     </button>
   );
 }
 
 function FlavourReadonlyList({ flavours }: { flavours: ProductFlavour[] }) {
-  const label =
-    flavours.length === 1 ? "This cake is baked in" : "This cake features";
+  const label = flavours.length === 1 ? "This cake is baked in" : "This cake features";
   return (
     <div className="rounded-lg border border-cream-200 bg-cream-50/50 px-3 py-2">
       <p className="mb-1 text-xs text-ink-500">{label}</p>
@@ -672,12 +597,8 @@ function FlavourReadonlyList({ flavours }: { flavours: ProductFlavour[] }) {
             className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-sm font-medium text-ink-700 ring-1 ring-cream-200"
           >
             {f.name}
-            {f.isEggless && (
-              <span className="text-[10px] text-green-700">Eggless</span>
-            )}
-            {f.isSugarFree && (
-              <span className="text-[10px] text-brand-700">Sugar-free</span>
-            )}
+            {f.isEggless && <span className="text-[10px] text-green-700">Eggless</span>}
+            {f.isSugarFree && <span className="text-[10px] text-brand-700">Sugar-free</span>}
           </span>
         ))}
       </div>
@@ -694,12 +615,7 @@ function VegBadge({ isVeg }: { isVeg: boolean }) {
       )}
       title={isVeg ? "Vegetarian" : "Contains egg"}
     >
-      <span
-        className={cn(
-          "h-2 w-2 rounded-full",
-          isVeg ? "bg-green-600" : "bg-red-600",
-        )}
-      />
+      <span className={cn("h-2 w-2 rounded-full", isVeg ? "bg-green-600" : "bg-red-600")} />
     </span>
   );
 }
@@ -729,13 +645,7 @@ function FulfillmentButton({
   );
 }
 
-function QtyControl({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-}) {
+function QtyControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="inline-flex items-center rounded-lg border border-cream-200 bg-white">
       <button
@@ -779,9 +689,7 @@ function PdpSkeleton() {
 function PdpError({ message }: { message: string }) {
   return (
     <section className="mx-auto max-w-3xl px-4 py-16 text-center">
-      <h1 className="mb-3 font-display text-3xl text-ink-900">
-        Product not found
-      </h1>
+      <h1 className="mb-3 font-display text-3xl text-ink-900">Product not found</h1>
       <p className="mb-6 text-ink-500">{message}</p>
       <Link
         to="/"
@@ -804,33 +712,20 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
   const toppings = product.toppings.filter((t) => t.kind === "TOPPING");
   const condiments = product.toppings.filter((t) => t.kind === "CONDIMENT");
 
-  const defaultSize =
-    sizeGroup?.options.find((o) => o.isDefault) ??
-    sizeGroup?.options[0] ??
-    null;
+  const defaultSize = sizeGroup?.options.find((o) => o.isDefault) ?? sizeGroup?.options[0] ?? null;
   const defaultCrust =
-    crustGroup?.options.find((o) => o.isDefault) ??
-    crustGroup?.options[0] ??
-    null;
+    crustGroup?.options.find((o) => o.isDefault) ?? crustGroup?.options[0] ?? null;
 
   const [sizeId, setSizeId] = useState<string | null>(defaultSize?.id ?? null);
-  const [crustId, setCrustId] = useState<string | null>(
-    defaultCrust?.id ?? null,
-  );
+  const [crustId, setCrustId] = useState<string | null>(defaultCrust?.id ?? null);
   const [toppingIds, setToppingIds] = useState<Set<string>>(new Set());
   const [addonIds, setAddonIds] = useState<Set<string>>(new Set());
   const [fulfillment, setFulfillment] = useState<Fulfillment>("delivery");
-  const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(
-    null,
-  );
+  const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(null);
   const [date, setDate] = useState("");
   const [slotKey, setSlotKey] = useState<string>(PRODUCT_COPY.timeSlots[0].key);
-  const [slotLabel, setSlotLabel] = useState<string>(
-    PRODUCT_COPY.timeSlots[0].label,
-  );
-  const [slotSurcharge, setSlotSurcharge] = useState<number>(
-    PRODUCT_COPY.timeSlots[0].surcharge,
-  );
+  const [slotLabel, setSlotLabel] = useState<string>(PRODUCT_COPY.timeSlots[0].label);
+  const [slotSurcharge, setSlotSurcharge] = useState<number>(PRODUCT_COPY.timeSlots[0].surcharge);
   const [instructions, setInstructions] = useState("");
   const [qty, setQty] = useState(1);
 
@@ -849,29 +744,18 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
   const basePrice = Number(product.basePrice);
   const sizePrice = pickedSize ? Number(pickedSize.price) : basePrice;
   const crustDelta = pickedCrust ? Number(pickedCrust.price) : 0;
-  const toppingsDelta = pickedToppings.reduce(
-    (s, t) => s + Number(t.priceDelta),
-    0,
-  );
-  const addonsDelta = pickedAddons.reduce(
-    (s, a) => s + Number(a.priceDelta),
-    0,
-  );
-  const unitPrice =
-    sizePrice + crustDelta + toppingsDelta + addonsDelta + slotSurcharge;
+  const toppingsDelta = pickedToppings.reduce((s, t) => s + Number(t.priceDelta), 0);
+  const addonsDelta = pickedAddons.reduce((s, a) => s + Number(a.priceDelta), 0);
+  const unitPrice = sizePrice + crustDelta + toppingsDelta + addonsDelta + slotSurcharge;
 
   const deliveryFee =
-    fulfillment === "delivery" && pincodeResult?.serviceable
-      ? pincodeResult.deliveryFee
-      : 0;
+    fulfillment === "delivery" && pincodeResult?.serviceable ? pincodeResult.deliveryFee : 0;
   const total = unitPrice * qty + deliveryFee;
 
   const canOrder =
     product.isAvailable &&
     (!sizeGroup || pickedSize != null) &&
-    (product.canBeDeliveredPanIndia ||
-      fulfillment === "pickup" ||
-      fulfillment === "delivery") &&
+    (product.canBeDeliveredPanIndia || fulfillment === "pickup" || fulfillment === "delivery") &&
     (product.canBeDeliveredPanIndia || (date !== "" && slotKey !== ""));
 
   const galleryImages =
@@ -913,8 +797,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
     const addonNotes = composeAddonNotes(pickedAddons);
     if (addonNotes) parts.push(addonNotes);
     const composed = parts.join(" · ");
-    if (instructions.trim() && composed)
-      return `${composed}\n${instructions.trim()}`;
+    if (instructions.trim() && composed) return `${composed}\n${instructions.trim()}`;
     if (instructions.trim()) return instructions.trim();
     return composed || null;
   };
@@ -948,15 +831,8 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
         </Link>
         {product.categories.map((c, i) => (
           <span key={c.id}>
-            {i === 0 ? (
-              <span className="mx-2">›</span>
-            ) : (
-              <span className="mx-1">·</span>
-            )}
-            <Link
-              to={`/category/${c.slug}`}
-              className="hover:text-brand-500"
-            >
+            {i === 0 ? <span className="mx-2">›</span> : <span className="mx-1">·</span>}
+            <Link to={`/category/${c.slug}`} className="hover:text-brand-500">
               {c.name}
             </Link>
           </span>
@@ -1000,9 +876,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
           <div>
             <div className="mb-2 flex items-center gap-2">
               <VegBadge isVeg={product.isEggless} />
-              <h1 className="font-display text-3xl text-ink-900 md:text-4xl">
-                {product.name}
-              </h1>
+              <h1 className="font-display text-3xl text-ink-900 md:text-4xl">{product.name}</h1>
             </div>
             {product.shortDescription && (
               <p className="text-sm text-ink-500">{product.shortDescription}</p>
@@ -1010,9 +884,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
           </div>
 
           <div>
-            <span className="text-3xl font-semibold text-ink-900">
-              ₹{unitPrice.toFixed(0)}
-            </span>
+            <span className="text-3xl font-semibold text-ink-900">₹{unitPrice.toFixed(0)}</span>
             <p className="mt-1 text-xs text-ink-500">
               {product.priceIsGstInclusive
                 ? PRODUCT_COPY.labels.priceIncludesGst
@@ -1022,7 +894,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
 
           {sizeGroup && sizeGroup.options.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
+              <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {sizeGroup.label}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1053,7 +925,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
 
           {crustGroup && crustGroup.options.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
+              <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {crustGroup.label}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1118,7 +990,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
           {!product.canBeDeliveredPanIndia && (
             <>
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
+                <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
                   {PRODUCT_COPY.labels.deliveryOrPickup}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -1135,9 +1007,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
                 </div>
               </div>
 
-              {fulfillment === "delivery" && (
-                <PincodeChecker onResult={setPincodeResult} />
-              )}
+              {fulfillment === "delivery" && <PincodeChecker onResult={setPincodeResult} />}
 
               <SameDayDeliveryPicker
                 supportsSameDayDelivery={product.supportsSameDayDelivery}
@@ -1157,13 +1027,13 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
 
           {product.canBeDeliveredPanIndia && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              Ships nationwide via courier. No delivery slot needed — just add
-              to cart and check out.
+              Ships nationwide via courier. No delivery slot needed — just add to cart and check
+              out.
             </p>
           )}
 
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+            <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
               {PRODUCT_COPY.labels.specialInstructions}
             </label>
             <textarea
@@ -1171,24 +1041,20 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               placeholder={PRODUCT_COPY.labels.specialInstructionsHint}
-              className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
             />
           </div>
 
           <div className="rounded-card border border-cream-200 bg-cream-50 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wide text-ink-500">
+              <span className="text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {PRODUCT_COPY.labels.quantity}
               </span>
               <QtyControl value={qty} onChange={setQty} />
             </div>
             <div className="mb-3 flex items-center justify-between border-t border-cream-200 pt-3">
-              <span className="text-sm text-ink-700">
-                {PRODUCT_COPY.labels.total}
-              </span>
-              <span className="text-xl font-semibold text-ink-900">
-                ₹{total.toFixed(2)}
-              </span>
+              <span className="text-sm text-ink-700">{PRODUCT_COPY.labels.total}</span>
+              <span className="text-xl font-semibold text-ink-900">₹{total.toFixed(2)}</span>
             </div>
             <button
               type="button"
@@ -1213,15 +1079,13 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
 
       {product.description && (
         <section className="mt-14">
-          <h2 className="mb-3 font-display text-2xl text-ink-900">
-            About this dish
-          </h2>
-          <p className="max-w-3xl whitespace-pre-line leading-relaxed text-ink-700">
+          <h2 className="mb-3 font-display text-2xl text-ink-900">About this dish</h2>
+          <p className="max-w-3xl leading-relaxed whitespace-pre-line text-ink-700">
             {product.description}
           </p>
           {product.allergens.length > 0 && (
             <p className="mt-4 text-xs text-ink-500">
-              <strong className="uppercase tracking-wide">Contains:</strong>{" "}
+              <strong className="tracking-wide uppercase">Contains:</strong>{" "}
               {product.allergens.join(", ")}
             </p>
           )}
@@ -1250,9 +1114,7 @@ function ToppingsPicker({
 }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
-        {label}
-      </p>
+      <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">{label}</p>
       <div className="flex flex-wrap gap-2">
         {items.map((t) => {
           const on = selected.has(t.id);
@@ -1277,9 +1139,7 @@ function ToppingsPicker({
                 )}
               />
               {t.name}
-              {delta > 0 && (
-                <span className="text-ink-500">+₹{delta.toFixed(0)}</span>
-              )}
+              {delta > 0 && <span className="text-ink-500">+₹{delta.toFixed(0)}</span>}
             </button>
           );
         })}
@@ -1297,9 +1157,7 @@ function composeAddonNotes(addons: ProductAddon[]): string | null {
     names.push(addon.name);
     groups.set(group, names);
   }
-  return [...groups.entries()]
-    .map(([group, names]) => `${group}: ${names.join(", ")}`)
-    .join(" · ");
+  return [...groups.entries()].map(([group, names]) => `${group}: ${names.join(", ")}`).join(" · ");
 }
 
 function AddonsPicker({
@@ -1326,11 +1184,9 @@ function AddonsPicker({
     <div className="space-y-4">
       {groups.map(([group, items]) => (
         <div key={group}>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">
+          <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
             {group}{" "}
-            <span className="font-normal normal-case tracking-normal text-ink-400">
-              (optional)
-            </span>
+            <span className="text-ink-400 font-normal tracking-normal normal-case">(optional)</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {items.map((addon) => {
@@ -1350,11 +1206,7 @@ function AddonsPicker({
                   )}
                 >
                   {addon.imageUrl && (
-                    <img
-                      src={addon.imageUrl}
-                      alt=""
-                      className="h-8 w-8 rounded-md object-cover"
-                    />
+                    <img src={addon.imageUrl} alt="" className="h-8 w-8 rounded-md object-cover" />
                   )}
                   <span>
                     <span className="block">{addon.name}</span>

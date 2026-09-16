@@ -22,14 +22,12 @@ export function UserMenu() {
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white">
           {user.name.charAt(0).toUpperCase()}
         </span>
-        <span className="hidden max-w-[8rem] truncate sm:inline">
-          {user.name.split(" ")[0]}
-        </span>
+        <span className="hidden max-w-[8rem] truncate sm:inline">{user.name.split(" ")[0]}</span>
       </button>
 
       <div
         className={cn(
-          "absolute right-0 top-full z-30 mt-2 w-56 origin-top-right rounded-xl border border-cream-200 bg-white p-2 shadow-lg transition",
+          "absolute top-full right-0 z-30 mt-2 w-56 origin-top-right rounded-xl border border-cream-200 bg-white p-2 shadow-lg transition",
           open
             ? "pointer-events-auto scale-100 opacity-100"
             : "pointer-events-none scale-95 opacity-0",

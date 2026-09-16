@@ -229,8 +229,7 @@ export async function updateStaffUser(
       ? await prisma.role.findUnique({ where: { id: input.roleId } })
       : existing.role;
 
-  const demotingSuperuser =
-    existing.role.isSuperuser && nextRole && !nextRole.isSuperuser;
+  const demotingSuperuser = existing.role.isSuperuser && nextRole && !nextRole.isSuperuser;
   const disablingSuperuser =
     existing.role.isSuperuser && input.isActive === false && existing.isActive;
 
@@ -396,9 +395,7 @@ export async function updateRole(
     where: { id },
     data: {
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-      ...(input.description !== undefined
-        ? { description: input.description }
-        : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
     },
     include: {
       permissions: { select: { permissionId: true } },

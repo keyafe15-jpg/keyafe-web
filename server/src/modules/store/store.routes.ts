@@ -4,7 +4,16 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { gstinIssue, gstinStateCode, normalizeGstin } from "../../lib/gstin.js";
 import { FALLBACK_SELLER_STATE_CODE } from "../orders/order.tax.js";
-import { computeSameDayStatus, getStoreHours, updateStoreHours, updateStoreHoursSchema, listUpcomingClosures, createShopClosure, createClosureSchema, deleteShopClosure } from "./store.service.js";
+import {
+  computeSameDayStatus,
+  getStoreHours,
+  updateStoreHours,
+  updateStoreHoursSchema,
+  listUpcomingClosures,
+  createShopClosure,
+  createClosureSchema,
+  deleteShopClosure,
+} from "./store.service.js";
 
 export const storeRouter = Router();
 export const adminBusinessRouter = Router();
@@ -129,8 +138,14 @@ const registeredAddressSchema = z.object({
   line2: z.string().trim().max(200).optional().default(""),
   city: z.string().trim().min(1, "Required").max(100),
   state: z.string().trim().min(1, "Required").max(100),
-  stateCode: z.string().trim().regex(/^\d{2}$/, "Two-digit GST state code"),
-  pincode: z.string().trim().regex(/^\d{6}$/, "Six-digit pincode"),
+  stateCode: z
+    .string()
+    .trim()
+    .regex(/^\d{2}$/, "Two-digit GST state code"),
+  pincode: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Six-digit pincode"),
 });
 
 const businessGstSchema = z.object({
@@ -244,9 +259,7 @@ function sanitizeAnnouncementLink(raw: string | null | undefined): string | null
   } catch {
     // fall through
   }
-  throw HttpError.badRequest(
-    "Link must be a site path like /pan-india or a https URL.",
-  );
+  throw HttpError.badRequest("Link must be a site path like /pan-india or a https URL.");
 }
 
 const announcementSchema = z.object({

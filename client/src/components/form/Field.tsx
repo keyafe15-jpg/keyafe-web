@@ -15,7 +15,7 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-500">
+      <span className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
         {label}
         {required && (
           <span aria-hidden="true" className="ml-1 text-brand-500">

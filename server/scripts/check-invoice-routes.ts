@@ -115,11 +115,7 @@ async function main() {
       const res = await fetch(`${base}/invoice`, {
         headers: { Authorization: `Bearer ${mint(limited)}` },
       });
-      check(
-        `download as "${limited.role?.slug}" (no invoices.read) is refused`,
-        res.status,
-        403,
-      );
+      check(`download as "${limited.role?.slug}" (no invoices.read) is refused`, res.status, 403);
     } else {
       console.log("        (no limited-permission staff account to test with)");
     }
@@ -135,11 +131,7 @@ async function main() {
     check("invoice number header is set", Boolean(invoiceNumber), true);
     const disposition = dl.headers.get("content-disposition") ?? "";
     check("is sent as an attachment", disposition.startsWith("attachment;"), true);
-    check(
-      "filename has no slashes",
-      /filename="[A-Za-z0-9.\-]+"/.test(disposition),
-      true,
-    );
+    check("filename has no slashes", /filename="[A-Za-z0-9.\-]+"/.test(disposition), true);
     check(
       "both headers are exposed to the browser",
       (dl.headers.get("access-control-expose-headers") ?? "").toLowerCase(),
@@ -148,22 +140,14 @@ async function main() {
 
     const body = Buffer.from(await dl.arrayBuffer());
     check("body is a PDF", body.subarray(0, 5).toString(), "%PDF-");
-    check(
-      "content-length matches the body",
-      Number(dl.headers.get("content-length")),
-      body.length,
-    );
+    check("content-length matches the body", Number(dl.headers.get("content-length")), body.length);
     console.log(`        ${invoiceNumber} · ${body.length} bytes`);
 
     // Downloading again must not mint a second number.
     const dl2 = await fetch(`${base}/invoice`, {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
-    check(
-      "second download reuses the number",
-      dl2.headers.get("x-invoice-number"),
-      invoiceNumber,
-    );
+    check("second download reuses the number", dl2.headers.get("x-invoice-number"), invoiceNumber);
 
     console.log("\n-- email endpoint");
     const noEmail = await fetch(`${base}/invoice/email`, {
@@ -216,18 +200,12 @@ async function main() {
     const paid = await fetch(`${shopBase}/invoice`);
     check("paid order is served", paid.status, 200);
     check("served as pdf", paid.headers.get("content-type"), "application/pdf");
-    check(
-      "same number as the admin download",
-      paid.headers.get("x-invoice-number"),
-      invoiceNumber,
-    );
+    check("same number as the admin download", paid.headers.get("x-invoice-number"), invoiceNumber);
     const paidBody = Buffer.from(await paid.arrayBuffer());
     check("storefront body is a PDF", paidBody.subarray(0, 5).toString(), "%PDF-");
 
     // Also reachable by order id, which is what the confirmation link uses.
-    const byId = await fetch(
-      `http://127.0.0.1:${port}/api/orders/${order.id}/invoice`,
-    );
+    const byId = await fetch(`http://127.0.0.1:${port}/api/orders/${order.id}/invoice`);
     check("reachable by order id too", byId.status, 200);
 
     console.log("\n-- cancelled orders");

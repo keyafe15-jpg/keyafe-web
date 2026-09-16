@@ -39,17 +39,10 @@ export const createQuoteSchema = z.object({
     .optional()
     .nullable()
     .transform((v) => (v ? v : null))
-    .refine(
-      (v) => v == null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
-      "Enter a valid email",
-    ),
+    .refine((v) => v == null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Enter a valid email"),
   address: z.string().trim().min(10, "Please share a full delivery address"),
   deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a delivery date"),
-  description: z
-    .string()
-    .trim()
-    .min(20, "Please describe what you're looking for")
-    .max(1000),
+  description: z.string().trim().min(20, "Please describe what you're looking for").max(1000),
   notes: z
     .string()
     .trim()
@@ -81,10 +74,7 @@ export const updateQuoteSchema = z.object({
       const n = typeof v === "number" ? v : Number(v);
       return n;
     })
-    .refine(
-      (v) => v == null || (Number.isFinite(v) && v >= 0),
-      "Enter a valid quote amount",
-    ),
+    .refine((v) => v == null || (Number.isFinite(v) && v >= 0), "Enter a valid quote amount"),
 });
 
 export type UpdateQuoteInput = z.infer<typeof updateQuoteSchema>;
@@ -120,8 +110,7 @@ function serializeQuote<
 >(row: T) {
   return {
     ...row,
-    quotedAmount:
-      row.quotedAmount == null ? null : Number(row.quotedAmount).toFixed(2),
+    quotedAmount: row.quotedAmount == null ? null : Number(row.quotedAmount).toFixed(2),
   };
 }
 

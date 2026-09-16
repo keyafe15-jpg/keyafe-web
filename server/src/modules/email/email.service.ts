@@ -84,10 +84,7 @@ export async function sendEmail(input: SendEmailInput): Promise<boolean> {
     );
     return true;
   } catch (err) {
-    logger.error(
-      { err, to: recipients, subject: input.subject },
-      "SMTP send failed",
-    );
+    logger.error({ err, to: recipients, subject: input.subject }, "SMTP send failed");
     return false;
   }
 }

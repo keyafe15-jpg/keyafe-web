@@ -1,13 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 const MAX_BYTES = 12 * 1024 * 1024; // 12 MB per image
-const ACCEPTED = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-];
+const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -91,9 +85,7 @@ export function MultiImageUpload({
           className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-cream-200 bg-cream-50/60 px-4 py-6 text-center transition hover:border-brand-300 hover:bg-cream-50"
         >
           <UploadIcon />
-          <span className="text-sm font-medium text-ink-700">
-            Add reference images
-          </span>
+          <span className="text-sm font-medium text-ink-700">Add reference images</span>
           <span className="text-xs text-ink-500">
             Up to {max} · JPG, PNG, WEBP or HEIC · 12 MB each
           </span>
@@ -113,7 +105,7 @@ export function MultiImageUpload({
               <button
                 type="button"
                 onClick={() => removeAt(idx)}
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-ink-900/70 text-white opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+                className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-ink-900/70 text-white opacity-0 transition group-hover:opacity-100 focus:opacity-100"
                 aria-label={`Remove ${file.name}`}
               >
                 <svg
@@ -131,9 +123,7 @@ export function MultiImageUpload({
               </button>
               <div className="border-t border-cream-100 px-2 py-1">
                 <p className="truncate text-[11px] text-ink-700">{file.name}</p>
-                <p className="text-[10px] text-ink-500">
-                  {formatSize(file.size)}
-                </p>
+                <p className="text-[10px] text-ink-500">{formatSize(file.size)}</p>
               </div>
             </div>
           ))}

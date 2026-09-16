@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  useAdminAnnouncement,
-  useUpdateAnnouncement,
-} from "@/hooks/useAnnouncement";
+import { useAdminAnnouncement, useUpdateAnnouncement } from "@/hooks/useAnnouncement";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
 
 export function AnnouncementPage() {
@@ -37,8 +34,7 @@ export function AnnouncementPage() {
     <div className="max-w-xl">
       <h1 className="text-2xl font-semibold text-slate-900">Announcement</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Slim pink bar at the top of the website. Turn it off when the message
-        is done.
+        Slim pink bar at the top of the website. Turn it off when the message is done.
       </p>
 
       <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
@@ -55,10 +51,7 @@ export function AnnouncementPage() {
               />
               Show announcement bar
             </label>
-            <Field
-              label="Message"
-              hint={`${text.length}/160 · Keep it to one line.`}
-            >
+            <Field label="Message" hint={`${text.length}/160 · Keep it to one line.`}>
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value.slice(0, 160))}
@@ -66,10 +59,7 @@ export function AnnouncementPage() {
                 className={inputClass}
               />
             </Field>
-            <Field
-              label="Link (optional)"
-              hint="Site path like /pan-india, or a https URL."
-            >
+            <Field label="Link (optional)" hint="Site path like /pan-india, or a https URL.">
               <input
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
@@ -99,9 +89,7 @@ export function AnnouncementPage() {
               )}
               {update.isError && (
                 <span className="text-xs text-brand-600">
-                  {update.error instanceof Error
-                    ? update.error.message
-                    : "Could not save"}
+                  {update.error instanceof Error ? update.error.message : "Could not save"}
                 </span>
               )}
             </div>

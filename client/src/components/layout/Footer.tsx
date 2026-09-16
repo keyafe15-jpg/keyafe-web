@@ -2,11 +2,7 @@ import { Link } from "react-router-dom";
 import { BRAND } from "@/content/brand";
 import { FOOTER_COPY } from "@/content/footer";
 import { HEALTHY_NAV, PANINDIA_NAV, SAMEDAY_NAV, storeNavItem } from "@/content/nav";
-import {
-  groupCategoriesByDepartment,
-  useCategories,
-  useDepartments,
-} from "@/hooks/useCategories";
+import { groupCategoriesByDepartment, useCategories, useDepartments } from "@/hooks/useCategories";
 import { cn } from "@/lib/cn";
 import {
   ArrowUp,
@@ -44,7 +40,7 @@ export function Footer() {
   return (
     <footer className="relative mt-16 overflow-hidden bg-ink-900 text-cream-50">
       <div
-        className="pointer-events-none absolute -left-20 top-0 h-40 w-40 rounded-full bg-brand-500/25 blur-[70px]"
+        className="pointer-events-none absolute top-0 -left-20 h-40 w-40 rounded-full bg-brand-500/25 blur-[70px]"
         aria-hidden="true"
       />
       <div
@@ -130,9 +126,7 @@ export function Footer() {
               className="inline-flex items-center gap-1.5 text-[13px] text-cream-100/80 transition hover:text-white"
             >
               <Mail className="h-3.5 w-3.5 text-brand-300" />
-              <span className="hidden sm:inline">
-                {FOOTER_COPY.sections.studio.email}
-              </span>
+              <span className="hidden sm:inline">{FOOTER_COPY.sections.studio.email}</span>
             </a>
             <a
               href={`tel:${BRAND.supportPhone.replace(/\s/g, "")}`}
@@ -157,9 +151,7 @@ export function Footer() {
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-[11px] text-cream-100/45">
-            {FOOTER_COPY.copyright(year)}
-          </p>
+          <p className="text-[11px] text-cream-100/45">{FOOTER_COPY.copyright(year)}</p>
           <button
             type="button"
             onClick={scrollToTop}

@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ChevronDown,
-  ExternalLink,
-  MessageCircle,
-  Phone,
-} from "lucide-react";
+import { ChevronDown, ExternalLink, MessageCircle, Phone } from "lucide-react";
 import {
   useAdminQuotes,
   useUpdateQuote,
@@ -58,9 +53,7 @@ export function QuotesListPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">
-          Quote Requests
-        </h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Quote Requests</h1>
         <p className="mt-1 text-sm text-slate-500">
           Custom-design requests from the storefront Get a Quote form.
         </p>
@@ -85,9 +78,7 @@ export function QuotesListPage() {
                 <span
                   className={cn(
                     "ml-1.5 rounded-full px-1.5 text-[10px] font-bold",
-                    tab === t.key
-                      ? "bg-white/20 text-white"
-                      : "bg-slate-200 text-slate-700",
+                    tab === t.key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700",
                   )}
                 >
                   {counts[t.key]}
@@ -99,13 +90,9 @@ export function QuotesListPage() {
       </div>
 
       <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-        )}
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && quotes.length === 0 && (
-          <div className="p-12 text-center text-sm text-slate-500">
-            No quote requests yet.
-          </div>
+          <div className="p-12 text-center text-sm text-slate-500">No quote requests yet.</div>
         )}
         {!isLoading && quotes.length > 0 && (
           <ul className="divide-y divide-slate-100">
@@ -131,17 +118,14 @@ function QuoteRow({ quote }: { quote: QuoteRequest }) {
 
   useEffect(() => {
     setAdminNotes(quote.adminNotes ?? "");
-    setQuotedAmount(
-      quote.quotedAmount ? String(Number(quote.quotedAmount)) : "",
-    );
+    setQuotedAmount(quote.quotedAmount ? String(Number(quote.quotedAmount)) : "");
     setStatus(quote.status);
   }, [quote]);
 
   const save = async () => {
     setError(null);
     const amountRaw = quotedAmount.trim();
-    const amount =
-      amountRaw === "" ? null : Number(amountRaw.replace(/[^\d.]/g, ""));
+    const amount = amountRaw === "" ? null : Number(amountRaw.replace(/[^\d.]/g, ""));
     if (amountRaw !== "" && (!Number.isFinite(amount) || (amount ?? 0) < 0)) {
       setError("Enter a valid quote amount");
       return;
@@ -166,10 +150,7 @@ function QuoteRow({ quote }: { quote: QuoteRequest }) {
         className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-slate-50"
       >
         <ChevronDown
-          className={cn(
-            "mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition",
-            open && "rotate-180",
-          )}
+          className={cn("mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition", open && "rotate-180")}
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -192,9 +173,7 @@ function QuoteRow({ quote }: { quote: QuoteRequest }) {
             {quote.phone} · wants {formatDate(quote.deliveryDate)} · received{" "}
             {formatDate(quote.createdAt)}
           </p>
-          <p className="mt-1 line-clamp-1 text-sm text-slate-600">
-            {quote.description}
-          </p>
+          <p className="mt-1 line-clamp-1 text-sm text-slate-600">{quote.description}</p>
         </div>
       </button>
 
@@ -202,7 +181,7 @@ function QuoteRow({ quote }: { quote: QuoteRequest }) {
         <div className="space-y-4 border-t border-slate-100 bg-slate-50/60 px-4 py-4 sm:px-12">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
                 Customer
               </p>
               <p className="mt-1 text-sm text-slate-900">{quote.name}</p>
@@ -234,25 +213,19 @@ function QuoteRow({ quote }: { quote: QuoteRequest }) {
               )}
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
                 Delivery
               </p>
-              <p className="mt-1 text-sm text-slate-900">
-                {formatDate(quote.deliveryDate)}
-              </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
-                {quote.address}
-              </p>
+              <p className="mt-1 text-sm text-slate-900">{formatDate(quote.deliveryDate)}</p>
+              <p className="mt-1 text-sm whitespace-pre-wrap text-slate-600">{quote.address}</p>
             </div>
           </div>
 
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
               Request
             </p>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">
-              {quote.description}
-            </p>
+            <p className="mt-1 text-sm whitespace-pre-wrap text-slate-800">{quote.description}</p>
             {quote.notes && (
               <p className="mt-2 text-sm text-slate-600">
                 <span className="font-medium text-slate-700">Notes: </span>
@@ -263,7 +236,7 @@ function QuoteRow({ quote }: { quote: QuoteRequest }) {
 
           {quote.referenceImages.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
                 References
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -275,12 +248,8 @@ function QuoteRow({ quote }: { quote: QuoteRequest }) {
                     rel="noreferrer"
                     className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white"
                   >
-                    <img
-                      src={src}
-                      alt="Reference"
-                      className="h-20 w-20 object-cover"
-                    />
-                    <span className="absolute right-1 top-1 rounded bg-black/50 p-0.5 text-white opacity-0 group-hover:opacity-100">
+                    <img src={src} alt="Reference" className="h-20 w-20 object-cover" />
+                    <span className="absolute top-1 right-1 rounded bg-black/50 p-0.5 text-white opacity-0 group-hover:opacity-100">
                       <ExternalLink className="h-3 w-3" />
                     </span>
                   </a>

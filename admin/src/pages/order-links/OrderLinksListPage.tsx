@@ -1,15 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import {
-  Plus,
-  Copy,
-  Ban,
-  Package,
-  Sparkles,
-  ExternalLink,
-  Check,
-  Pencil,
-} from "lucide-react";
+import { Plus, Copy, Ban, Package, Sparkles, ExternalLink, Check, Pencil } from "lucide-react";
 import {
   useAdminOrderLinks,
   useUpdateOrderLink,
@@ -47,19 +38,16 @@ export function OrderLinksListPage() {
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Offline orders
-          </h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Offline orders</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Two ways to place an order without the storefront checkout — send a
-            pre-filled link on WhatsApp, or enter the whole thing yourself for a
-            phone customer.
+            Two ways to place an order without the storefront checkout — send a pre-filled link on
+            WhatsApp, or enter the whole thing yourself for a phone customer.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link
             to="/offline-orders/place"
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-500 bg-white px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-50"
+            className="hover:bg-brand-50 inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-500 bg-white px-3 py-2 text-sm font-medium text-brand-700 transition"
           >
             <Plus className="h-4 w-4" /> Enter full details
           </Link>
@@ -90,9 +78,7 @@ export function OrderLinksListPage() {
                 <span
                   className={cn(
                     "ml-1.5 rounded-full px-1.5 text-[10px] font-bold",
-                    tab === t.key
-                      ? "bg-white/20 text-white"
-                      : "bg-slate-200 text-slate-700",
+                    tab === t.key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700",
                   )}
                 >
                   {counts[t.key]}
@@ -104,23 +90,15 @@ export function OrderLinksListPage() {
       </div>
 
       <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-        )}
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && links.length === 0 && (
           <div className="p-12 text-center text-sm text-slate-500">
             No offline orders yet.{" "}
-            <Link
-              to="/offline-orders/new"
-              className="text-brand-500 hover:underline"
-            >
+            <Link to="/offline-orders/new" className="text-brand-500 hover:underline">
               Send a link
             </Link>
             {" or "}
-            <Link
-              to="/offline-orders/place"
-              className="text-brand-500 hover:underline"
-            >
+            <Link to="/offline-orders/place" className="text-brand-500 hover:underline">
               enter full details
             </Link>
             .
@@ -151,10 +129,7 @@ function LinkRow({ link }: { link: OrderLink }) {
 
   const firstItem = link.items[0];
   const extraItemCount = link.items.length - 1;
-  const totalPrice = link.items.reduce(
-    (sum, it) => sum + Number(it.unitPrice) * it.qty,
-    0,
-  );
+  const totalPrice = link.items.reduce((sum, it) => sum + Number(it.unitPrice) * it.qty, 0);
 
   const itemLines = link.items
     .map((it) => {
@@ -172,11 +147,7 @@ function LinkRow({ link }: { link: OrderLink }) {
     <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start">
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-20 sm:w-20">
         {firstItem?.referenceImageUrl ? (
-          <img
-            src={firstItem.referenceImageUrl}
-            alt=""
-            className="h-full w-full object-cover"
-          />
+          <img src={firstItem.referenceImageUrl} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-slate-400">
             {firstItem?.kind === "CATALOG" ? (
@@ -195,7 +166,7 @@ function LinkRow({ link }: { link: OrderLink }) {
               {firstItem && (
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
                     firstItem.kind === "CATALOG"
                       ? "bg-blue-50 text-blue-700"
                       : "bg-brand-100 text-brand-700",
@@ -221,13 +192,11 @@ function LinkRow({ link }: { link: OrderLink }) {
             </p>
             <p className="truncate text-xs text-slate-500">
               {firstItem &&
-                [firstItem.sizeLabel, firstItem.flavourName]
-                  .filter(Boolean)
-                  .join(" · ")}
+                [firstItem.sizeLabel, firstItem.flavourName].filter(Boolean).join(" · ")}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-semibold tabular-nums text-slate-900">
+            <p className="text-sm font-semibold text-slate-900 tabular-nums">
               ₹{totalPrice.toFixed(0)}
             </p>
             <p className="text-[11px] text-slate-500">
@@ -300,11 +269,7 @@ function LinkRow({ link }: { link: OrderLink }) {
               </Link>
               <button
                 onClick={() => {
-                  if (
-                    confirm(
-                      "Cancel this link? Customer will see it as cancelled.",
-                    )
-                  ) {
+                  if (confirm("Cancel this link? Customer will see it as cancelled.")) {
                     update.mutate({ id: link.id, status: "CANCELLED" });
                   }
                 }}
@@ -326,9 +291,7 @@ function LinkRow({ link }: { link: OrderLink }) {
         </div>
 
         {link.adminNotes && (
-          <p className="mt-2 text-xs italic text-slate-500">
-            📝 {link.adminNotes}
-          </p>
+          <p className="mt-2 text-xs text-slate-500 italic">📝 {link.adminNotes}</p>
         )}
       </div>
     </li>
@@ -345,7 +308,7 @@ function StatusPill({ status }: { status: OrderLinkStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        "inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
         map[status],
       )}
     >

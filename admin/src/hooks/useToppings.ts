@@ -47,8 +47,7 @@ export interface CreateToppingPayload {
 export function useCreateTopping() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateToppingPayload) =>
-      api.post<AdminTopping>("/admin/toppings", input),
+    mutationFn: (input: CreateToppingPayload) => api.post<AdminTopping>("/admin/toppings", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "toppings"] });
       void qc.invalidateQueries({ queryKey: ["toppings"] });

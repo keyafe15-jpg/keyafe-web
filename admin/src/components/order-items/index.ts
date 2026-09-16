@@ -12,10 +12,6 @@ export {
   toOrderLinkItemPayload,
   validateOrderItems,
 } from "./payload";
-export {
-  newOrderItem,
-  orderLinkItemToDraft,
-  type OrderItemDraft,
-} from "./types";
+export { newOrderItem, orderLinkItemToDraft, type OrderItemDraft } from "./types";
 export { useOrderItemRefPreviews } from "./useOrderItemRefPreviews";
 export { useOrderItemsState } from "./useOrderItemsState";

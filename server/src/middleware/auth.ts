@@ -50,11 +50,7 @@ function verifyAccessToken(token: string): { id: string; phone: string } {
   return { id: payload.sub, phone: payload.phone ?? "" };
 }
 
-export function requireAuth(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): void {
+export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   const token = readAccessToken(req);
   if (!token) {
     throw HttpError.unauthorized("Authentication required");
@@ -69,11 +65,7 @@ export function requireAuth(
   }
 }
 
-export function optionalAuth(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): void {
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
   const token = readAccessToken(req);
   if (!token) {
     next();

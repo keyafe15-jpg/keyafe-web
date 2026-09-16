@@ -57,12 +57,10 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
       width: fullWidth,
       align: "right",
     });
-    doc.text(
-      `Order  ${data.orderNumber} · ${formatDate(data.orderDate)}`,
-      left,
-      doc.y,
-      { width: fullWidth, align: "right" },
-    );
+    doc.text(`Order  ${data.orderNumber} · ${formatDate(data.orderDate)}`, left, doc.y, {
+      width: fullWidth,
+      align: "right",
+    });
 
     // Clear whichever masthead is taller — the logo box or the invoice meta.
     doc.y = Math.max(doc.y, PAGE.margin + (logo ? LOGO_BOX : 62));
@@ -103,12 +101,9 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
         doc.text(line, buyerX, doc.y, { width: colWidth });
       }
       if (data.shipTo.stateName) {
-        doc.text(
-          `${data.shipTo.stateName} (${data.shipTo.stateCode})`,
-          buyerX,
-          doc.y,
-          { width: colWidth },
-        );
+        doc.text(`${data.shipTo.stateName} (${data.shipTo.stateCode})`, buyerX, doc.y, {
+          width: colWidth,
+        });
       }
     }
 
@@ -187,15 +182,11 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
           width: cols.taxable.w - 4,
           align: "right",
         });
-        const gstAmount = data.isIntraState
-          ? line.cgstAmount + line.sgstAmount
-          : line.igstAmount;
-        doc.text(
-          `${money(gstAmount)} @${line.gstRate}%`,
-          cols.gst.x + 2,
-          rowY,
-          { width: cols.gst.w - 4, align: "right" },
-        );
+        const gstAmount = data.isIntraState ? line.cgstAmount + line.sgstAmount : line.igstAmount;
+        doc.text(`${money(gstAmount)} @${line.gstRate}%`, cols.gst.x + 2, rowY, {
+          width: cols.gst.w - 4,
+          align: "right",
+        });
       }
       doc.fillColor(INK).font("Helvetica-Bold").fontSize(8.5);
       doc.text(money(line.lineTotal), cols.amount.x + 2, rowY, {
@@ -230,8 +221,7 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
     // Gated on whether GST was charged, not on whether a per-line split
     // exists: legacy orders have no line detail but still carry real tax.
-    const hasTax =
-      data.cgstTotal > 0 || data.sgstTotal > 0 || data.igstTotal > 0;
+    const hasTax = data.cgstTotal > 0 || data.sgstTotal > 0 || data.igstTotal > 0;
     if (hasTax) totalRow("Taxable value", money(data.taxableTotal));
     if (data.discount > 0) {
       totalRow(
@@ -287,7 +277,12 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
       const sHeaderY = doc.y;
       doc
-        .rect(left, sHeaderY, sw.reduce((a, b) => a + b, 0), 14)
+        .rect(
+          left,
+          sHeaderY,
+          sw.reduce((a, b) => a + b, 0),
+          14,
+        )
         .fill("#faf6ec");
       doc.fillColor(MUTED).font("Helvetica-Bold").fontSize(7);
       labels.forEach((label, i) => {
@@ -309,12 +304,7 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
               money(row.cgstAmount),
               money(row.sgstAmount),
             ]
-          : [
-              row.hsnCode,
-              `${row.gstRate}%`,
-              money(row.taxableValue),
-              money(row.igstAmount),
-            ];
+          : [row.hsnCode, `${row.gstRate}%`, money(row.taxableValue), money(row.igstAmount)];
         cells.forEach((cell, i) => {
           doc.text(cell, sx[i]! + 2, y, {
             width: sw[i]! - 4,
@@ -330,12 +320,9 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
     hr(doc.y);
     doc.y += 6;
     doc.font("Helvetica").fontSize(7.5).fillColor(MUTED);
-    doc.text(
-      `Payment: ${data.paymentMethod.toUpperCase()} · ${data.paymentStatus}`,
-      left,
-      doc.y,
-      { width: fullWidth },
-    );
+    doc.text(`Payment: ${data.paymentMethod.toUpperCase()} · ${data.paymentStatus}`, left, doc.y, {
+      width: fullWidth,
+    });
     if (data.compositionNote) {
       doc.font("Helvetica-Bold").fillColor(INK);
       doc.text(data.compositionNote, left, doc.y + 3, { width: fullWidth });

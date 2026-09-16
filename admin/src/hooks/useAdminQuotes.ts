@@ -1,12 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
-export type QuoteStatus =
-  | "NEW"
-  | "CONTACTED"
-  | "QUOTED"
-  | "CONVERTED"
-  | "CLOSED";
+export type QuoteStatus = "NEW" | "CONTACTED" | "QUOTED" | "CONVERTED" | "CLOSED";
 
 export interface QuoteRequest {
   id: string;

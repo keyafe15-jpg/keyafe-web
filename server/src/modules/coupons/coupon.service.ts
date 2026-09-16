@@ -22,13 +22,7 @@ export function manualDiscountRupees(
   type: ManualDiscountType | null | undefined,
   value: number | null | undefined,
 ): number {
-  if (
-    !type ||
-    value == null ||
-    !Number.isFinite(value) ||
-    value <= 0 ||
-    subtotal <= 0
-  ) {
+  if (!type || value == null || !Number.isFinite(value) || value <= 0 || subtotal <= 0) {
     return 0;
   }
   if (type === "PERCENT") {
@@ -73,9 +67,7 @@ export function freeDeliveryFromSettings(
   const from = settings?.freeDeliveryFrom ?? null;
   const until = settings?.freeDeliveryUntil ?? null;
   const minCart =
-    settings?.freeDeliveryMinCart != null
-      ? Number(settings.freeDeliveryMinCart)
-      : null;
+    settings?.freeDeliveryMinCart != null ? Number(settings.freeDeliveryMinCart) : null;
 
   const base: FreeDeliveryState = {
     active: false,
@@ -136,8 +128,7 @@ function eligibleAmount(
   for (const item of items) {
     const p = products.get(item.productId);
     if (!p) continue;
-    if (restrict && !p.categoryIds.some((id) => categoryIds.includes(id)))
-      continue;
+    if (restrict && !p.categoryIds.some((id) => categoryIds.includes(id))) continue;
     sum += item.unitPrice * item.qty;
   }
   return roundMoney(sum);
@@ -146,8 +137,7 @@ function eligibleAmount(
 function computeDiscount(coupon: Coupon, eligible: number): number {
   if (eligible <= 0) return 0;
   const value = Number(coupon.value);
-  let discount =
-    coupon.type === "PERCENT" ? (eligible * value) / 100 : Math.min(value, eligible);
+  let discount = coupon.type === "PERCENT" ? (eligible * value) / 100 : Math.min(value, eligible);
   const cap = coupon.maxDiscount != null ? Number(coupon.maxDiscount) : null;
   if (cap != null) discount = Math.min(discount, cap);
   return roundMoney(Math.max(0, Math.min(discount, eligible)));
@@ -199,15 +189,10 @@ export async function quoteCoupon(
     }
   }
 
-  const subtotal = roundMoney(
-    items.reduce((s, i) => s + i.unitPrice * i.qty, 0),
-  );
-  const minCart =
-    coupon.minCartAmount != null ? Number(coupon.minCartAmount) : null;
+  const subtotal = roundMoney(items.reduce((s, i) => s + i.unitPrice * i.qty, 0));
+  const minCart = coupon.minCartAmount != null ? Number(coupon.minCartAmount) : null;
   if (minCart != null && subtotal < minCart) {
-    throw HttpError.badRequest(
-      `Add ₹${(minCart - subtotal).toFixed(0)} more to use this coupon`,
-    );
+    throw HttpError.badRequest(`Add ₹${(minCart - subtotal).toFixed(0)} more to use this coupon`);
   }
 
   if (coupon.totalUsageLimit != null && coupon.usageCount >= coupon.totalUsageLimit) {
@@ -256,23 +241,14 @@ export function discountedLineInclusives(
   const flags = items.map((i) => {
     const p = products.get(i.productId);
     if (!p) return false;
-    return (
-      !restrict ||
-      p.categoryIds.some((id) => categoryIds.includes(id))
-    );
+    return !restrict || p.categoryIds.some((id) => categoryIds.includes(id));
   });
-  const eligibleSum = roundMoney(
-    orig.reduce((s, v, idx) => s + (flags[idx] ? v : 0), 0),
-  );
+  const eligibleSum = roundMoney(orig.reduce((s, v, idx) => s + (flags[idx] ? v : 0), 0));
   if (eligibleSum <= 0) return orig;
 
   const scale = (eligibleSum - discount) / eligibleSum;
-  const out = orig.map((v, idx) =>
-    flags[idx] ? roundMoney(v * scale) : v,
-  );
-  const got = roundMoney(
-    orig.reduce((s, v, idx) => s + (flags[idx] ? v - (out[idx] ?? 0) : 0), 0),
-  );
+  const out = orig.map((v, idx) => (flags[idx] ? roundMoney(v * scale) : v));
+  const got = roundMoney(orig.reduce((s, v, idx) => s + (flags[idx] ? v - (out[idx] ?? 0) : 0), 0));
   const drift = roundMoney(discount - got);
   if (drift !== 0) {
     const idx = flags.lastIndexOf(true);
@@ -389,18 +365,14 @@ export async function listPublicCoupons(now = new Date()) {
   return rows
     .map((c) => {
       const remaining =
-        c.totalUsageLimit != null
-          ? Math.max(0, c.totalUsageLimit - c.usageCount)
-          : null;
+        c.totalUsageLimit != null ? Math.max(0, c.totalUsageLimit - c.usageCount) : null;
       return {
         code: c.code,
         type: c.type,
         value: Number(c.value),
         headline:
           c.headline?.trim() ||
-          (c.type === "PERCENT"
-            ? `${Number(c.value)}% off`
-            : `₹${Number(c.value)} off`),
+          (c.type === "PERCENT" ? `${Number(c.value)}% off` : `₹${Number(c.value)} off`),
         copy: c.storefrontCopy?.trim() || null,
         waivesDelivery: c.waivesDelivery,
         remaining,
@@ -422,18 +394,10 @@ export async function upsertCoupon(input: UpsertCouponInput) {
     throw HttpError.badRequest("End date must be after start date");
   }
   if (input.showOnStorefront && input.restrictedToPhone) {
-    throw HttpError.badRequest(
-      "A phone-locked coupon can’t be shown on the homepage",
-    );
+    throw HttpError.badRequest("A phone-locked coupon can’t be shown on the homepage");
   }
-  if (
-    input.showOnStorefront &&
-    !input.headline?.trim() &&
-    !input.storefrontCopy?.trim()
-  ) {
-    throw HttpError.badRequest(
-      "Add a headline or writeup for the homepage banner",
-    );
+  if (input.showOnStorefront && !input.headline?.trim() && !input.storefrontCopy?.trim()) {
+    throw HttpError.badRequest("Add a headline or writeup for the homepage banner");
   }
   const data = {
     type: input.type,
@@ -446,9 +410,7 @@ export async function upsertCoupon(input: UpsertCouponInput) {
     validFrom: input.validFrom,
     validUntil: input.validUntil,
     waivesDelivery: input.waivesDelivery,
-    restrictedToPhone: input.restrictedToPhone
-      ? digitsPhone(input.restrictedToPhone)
-      : null,
+    restrictedToPhone: input.restrictedToPhone ? digitsPhone(input.restrictedToPhone) : null,
     note: input.note || null,
     showOnStorefront: input.showOnStorefront,
     headline: input.headline?.trim() || null,
@@ -499,9 +461,7 @@ export const updateFreeDeliverySchema = z.object({
   freeDeliveryMinCart: z.union([z.coerce.number().nonnegative(), z.null()]),
 });
 
-export async function updateFreeDelivery(
-  input: z.infer<typeof updateFreeDeliverySchema>,
-) {
+export async function updateFreeDelivery(input: z.infer<typeof updateFreeDeliverySchema>) {
   const existing = await prisma.businessSettings.findFirst({
     select: { id: true },
   });
@@ -533,8 +493,6 @@ export async function getAdminFreeDelivery() {
     freeDeliveryFrom: settings?.freeDeliveryFrom ?? null,
     freeDeliveryUntil: settings?.freeDeliveryUntil ?? null,
     freeDeliveryMinCart:
-      settings?.freeDeliveryMinCart != null
-        ? Number(settings.freeDeliveryMinCart)
-        : null,
+      settings?.freeDeliveryMinCart != null ? Number(settings.freeDeliveryMinCart) : null,
   };
 }

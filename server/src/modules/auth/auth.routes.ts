@@ -6,11 +6,7 @@ import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { env } from "../../config/env.js";
 import { HttpError } from "../../utils/httpError.js";
-import {
-  normalizeCustomerPhone,
-  phoneLookupVariants,
-  phonesMatch,
-} from "../../lib/phone.js";
+import { normalizeCustomerPhone, phoneLookupVariants, phonesMatch } from "../../lib/phone.js";
 import { ensureCustomerRole } from "../customers/customer.service.js";
 import { isStaffRole } from "../../middleware/auth.js";
 import { CUSTOMER_ROLE_SLUG } from "../staff/rbac.catalog.js";
@@ -23,10 +19,7 @@ const phoneSchema = z
   .string()
   .trim()
   .transform((value) => normalizePhone(value))
-  .refine(
-    (value) => /^(?:\+?[1-9]\d{7,14}|[6-9]\d{9})$/.test(value),
-    "Enter a valid phone number",
-  );
+  .refine((value) => /^(?:\+?[1-9]\d{7,14}|[6-9]\d{9})$/.test(value), "Enter a valid phone number");
 const otpSchema = z
   .string()
   .trim()
@@ -187,17 +180,13 @@ authRouter.post("/verify-otp", async (req, res) => {
 
   if (isAdminAudience) {
     if (!user) {
-      throw HttpError.forbidden(
-        "No staff account for this phone. Ask an admin to add you.",
-      );
+      throw HttpError.forbidden("No staff account for this phone. Ask an admin to add you.");
     }
     if (!user.isActive) {
       throw HttpError.forbidden("This staff account is disabled");
     }
     if (!isStaffRole(user.role) || user.role.slug === CUSTOMER_ROLE_SLUG) {
-      throw HttpError.forbidden(
-        "This phone is a customer account, not staff",
-      );
+      throw HttpError.forbidden("This phone is a customer account, not staff");
     }
   }
 
@@ -239,10 +228,7 @@ authRouter.post("/verify-otp", async (req, res) => {
           include: userInclude,
         });
       } catch (err) {
-        if (
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === "P2002"
-        ) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
           const retry = await findUserByPhone(normalizedPhone);
           if (!retry) throw err;
           user = await completeRegistration(retry, {
@@ -260,9 +246,7 @@ authRouter.post("/verify-otp", async (req, res) => {
       throw HttpError.unauthorized("Invalid or expired OTP");
     }
     const emailConflict =
-      email && !user.email
-        ? await prisma.user.findUnique({ where: { email } })
-        : null;
+      email && !user.email ? await prisma.user.findUnique({ where: { email } }) : null;
     if (emailConflict && emailConflict.id !== user.id) {
       throw HttpError.conflict("An account with this email already exists");
     }

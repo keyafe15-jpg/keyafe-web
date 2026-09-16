@@ -61,8 +61,7 @@ export function useAdminCoupons() {
 export function useUpsertCoupon() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: CouponPayload) =>
-      api.post<AdminCoupon>("/admin/coupons", body),
+    mutationFn: (body: CouponPayload) => api.post<AdminCoupon>("/admin/coupons", body),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["admin", "coupons"] }),
   });
 }
@@ -95,7 +94,6 @@ export function useUpdateFreeDelivery() {
   return useMutation({
     mutationFn: (body: FreeDeliverySettings) =>
       api.patch<FreeDeliverySettings>("/admin/coupons/free-delivery", body),
-    onSuccess: () =>
-      void qc.invalidateQueries({ queryKey: ["admin", "free-delivery"] }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["admin", "free-delivery"] }),
   });
 }

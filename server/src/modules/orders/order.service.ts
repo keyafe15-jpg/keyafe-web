@@ -4,10 +4,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { checkPincode } from "../delivery/delivery.service.js";
 import { sendEmail } from "../email/email.service.js";
-import {
-  renderAdminNotification,
-  renderCustomerConfirmation,
-} from "../email/templates.js";
+import { renderAdminNotification, renderCustomerConfirmation } from "../email/templates.js";
 import { logger } from "../../utils/logger.js";
 import { emitNewOrder } from "../../lib/events.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
@@ -33,11 +30,7 @@ const addressSchema = z.object({
   line1: z.string().trim().min(3),
   line2: z.string().trim().optional().nullable(),
   landmark: z.string().trim().optional().nullable(),
-  mapSearchQuery: z
-    .string()
-    .trim()
-    .min(3, "Tell us what to search on Uber / Rapido")
-    .max(200),
+  mapSearchQuery: z.string().trim().min(3, "Tell us what to search on Uber / Rapido").max(200),
   pincode: z.string().regex(/^\d{6}$/),
   city: z.string().trim().optional().nullable(),
   area: z.string().trim().optional().nullable(),
@@ -92,9 +85,7 @@ export function buildOrderNumber(): string {
 
 export async function createOrder(input: CreateOrderInput) {
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
-    throw HttpError.badRequest(
-      "Delivery address is required for delivery orders",
-    );
+    throw HttpError.badRequest("Delivery address is required for delivery orders");
   }
   // Reject items whose delivery date is in the past. Compares against
   // midnight local (day-level check); slot-level expiry is enforced client-side.
@@ -178,10 +169,7 @@ export async function createOrder(input: CreateOrderInput) {
   const discount = couponQuote?.discount ?? 0;
 
   const windowFree = await getPublicFreeDelivery(subtotal);
-  if (
-    input.fulfillment === "DELIVERY" &&
-    (windowFree.active || couponQuote?.waivesDelivery)
-  ) {
+  if (input.fulfillment === "DELIVERY" && (windowFree.active || couponQuote?.waivesDelivery)) {
     deliveryFee = 0;
   }
 
@@ -229,8 +217,7 @@ export async function createOrder(input: CreateOrderInput) {
       isIntraState,
     });
   });
-  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } =
-    sumLineTax(lineTaxes);
+  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax(lineTaxes);
 
   const orderNumber = buildOrderNumber();
 
@@ -301,12 +288,7 @@ export async function createOrder(input: CreateOrderInput) {
     });
 
     if (couponQuote) {
-      await redeemCouponInTx(
-        tx,
-        couponQuote,
-        order.id,
-        input.customerPhone,
-      );
+      await redeemCouponInTx(tx, couponQuote, order.id, input.customerPhone);
     }
 
     return order;
@@ -337,8 +319,7 @@ async function sendOrderEmails(order: Awaited<ReturnType<typeof createOrder>>) {
       orderNotificationEmail: true,
     },
   });
-  const adminRecipient =
-    settings?.orderNotificationEmail || settings?.supportEmail;
+  const adminRecipient = settings?.orderNotificationEmail || settings?.supportEmail;
 
   if (order.customerEmail) {
     const { subject, html } = renderCustomerConfirmation(order);

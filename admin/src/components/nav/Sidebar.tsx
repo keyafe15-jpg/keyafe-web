@@ -10,9 +10,7 @@ export function Sidebar({ open }: { open: boolean }) {
   const groups = ADMIN_NAV.map((group) => ({
     ...group,
     items: group.items.filter(
-      (item) =>
-        !item.requiresPermission ||
-        staffHasPermission(user, item.requiresPermission),
+      (item) => !item.requiresPermission || staffHasPermission(user, item.requiresPermission),
     ),
   })).filter((group) => group.items.length > 0);
 
@@ -26,10 +24,8 @@ export function Sidebar({ open }: { open: boolean }) {
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 px-4">
         <img src="/logo.png" alt="Keyafe" className="h-8 w-8 rounded-full" />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-900">
-            Keyafe
-          </p>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500">
+          <p className="truncate text-sm font-semibold text-slate-900">Keyafe</p>
+          <p className="text-[10px] tracking-widest text-slate-500 uppercase">
             {user?.role.slug === "chef" ? "Kitchen" : "Admin"}
           </p>
         </div>
@@ -38,7 +34,7 @@ export function Sidebar({ open }: { open: boolean }) {
       <nav className="h-[calc(100vh-3.5rem)] overflow-y-auto py-4">
         {groups.map((group) => (
           <div key={group.label} className="mb-4 px-3">
-            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+            <p className="mb-1 px-2 text-[10px] font-semibold tracking-widest text-slate-400 uppercase">
               {group.label}
             </p>
             <ul className="space-y-0.5">
@@ -52,8 +48,7 @@ export function Sidebar({ open }: { open: boolean }) {
                       className={({ isActive }) =>
                         cn(
                           "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100",
-                          isActive &&
-                            "bg-brand-100 font-medium text-brand-700 hover:bg-brand-100",
+                          isActive && "bg-brand-100 font-medium text-brand-700 hover:bg-brand-100",
                         )
                       }
                     >

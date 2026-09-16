@@ -6,10 +6,7 @@ import { CATEGORY_PLACEHOLDER_COPY } from "@/content/misc";
 import { Reveal } from "@/components/motion/Reveal";
 import { cn } from "@/lib/cn";
 import { PaginationControls } from "@/components/ClientPagination";
-import {
-  CatalogProductCard,
-  ProductGridSkeleton,
-} from "@/components/product/CatalogProductCard";
+import { CatalogProductCard, ProductGridSkeleton } from "@/components/product/CatalogProductCard";
 
 const PAGE_SIZE = 12;
 
@@ -22,18 +19,11 @@ export function CategoryPage() {
   }, [slug]);
 
   const { data: tree = [], isLoading: catsLoading } = useCategories();
-  const { data: response, isLoading: prodsLoading } = useProductsByCategory(
-    slug,
-    page,
-    PAGE_SIZE,
-  );
+  const { data: response, isLoading: prodsLoading } = useProductsByCategory(slug, page, PAGE_SIZE);
   const products = response?.items ?? [];
   const totalPages = response?.totalPages ?? 1;
 
-  const { current, parent } = useMemo(
-    () => resolveCategory(tree, slug),
-    [tree, slug],
-  );
+  const { current, parent } = useMemo(() => resolveCategory(tree, slug), [tree, slug]);
 
   if (!catsLoading && !current) {
     return (
@@ -64,10 +54,7 @@ export function CategoryPage() {
         {parent && (
           <>
             <span className="mx-2">›</span>
-            <Link
-              to={`/category/${parent.slug}`}
-              className="hover:text-brand-500"
-            >
+            <Link to={`/category/${parent.slug}`} className="hover:text-brand-500">
               {parent.name}
             </Link>
           </>
@@ -92,7 +79,7 @@ export function CategoryPage() {
           <>
             {/* mobile/tablet: wrapped pill filter bar */}
             <div className="lg:hidden">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-ink-500">
+              <p className="mb-3 text-xs font-semibold tracking-[0.2em] text-ink-500 uppercase">
                 {container?.name}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -114,7 +101,7 @@ export function CategoryPage() {
 
             {/* desktop: sidebar with sliding active indicator */}
             <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+              <p className="mb-3 text-xs font-semibold tracking-wide text-ink-500 uppercase">
                 {container?.name}
               </p>
               <ul className="space-y-1">
@@ -140,11 +127,9 @@ export function CategoryPage() {
           {prodsLoading ? (
             <ProductGridSkeleton />
           ) : products.length === 0 ? (
-            <div className="rounded-card border border-dashed border-cream-300 bg-cream-50 p-10 text-center">
+            <div className="border-cream-300 rounded-card border border-dashed bg-cream-50 p-10 text-center">
               <p className="text-ink-700">No products in this category yet.</p>
-              <p className="mt-1 text-sm text-ink-500">
-                {CATEGORY_PLACEHOLDER_COPY.variantsSoon}
-              </p>
+              <p className="mt-1 text-sm text-ink-500">{CATEGORY_PLACEHOLDER_COPY.variantsSoon}</p>
             </div>
           ) : (
             <>
@@ -156,11 +141,7 @@ export function CategoryPage() {
                 ))}
               </div>
 
-              <PaginationControls
-                page={page}
-                pageCount={totalPages}
-                onPageChange={setPage}
-              />
+              <PaginationControls page={page} pageCount={totalPages} onPageChange={setPage} />
             </>
           )}
         </div>
@@ -169,29 +150,19 @@ export function CategoryPage() {
   );
 }
 
-function SidebarLink({
-  to,
-  active,
-  label,
-}: {
-  to: string;
-  active: boolean;
-  label: string;
-}) {
+function SidebarLink({ to, active, label }: { to: string; active: boolean; label: string }) {
   return (
     <li>
       <Link
         to={to}
         className={cn(
           "group relative block rounded-lg px-3 py-2 pl-4 text-sm transition",
-          active
-            ? "font-medium text-brand-700"
-            : "text-ink-700 hover:bg-cream-100",
+          active ? "font-medium text-brand-700" : "text-ink-700 hover:bg-cream-100",
         )}
       >
         <span
           className={cn(
-            "absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-brand-500 transition-all",
+            "absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2 rounded-full bg-brand-500 transition-all",
             active ? "opacity-100" : "opacity-0 group-hover:opacity-40",
           )}
           aria-hidden="true"
@@ -202,15 +173,7 @@ function SidebarLink({
   );
 }
 
-function PillLink({
-  to,
-  active,
-  label,
-}: {
-  to: string;
-  active: boolean;
-  label: string;
-}) {
+function PillLink({ to, active, label }: { to: string; active: boolean; label: string }) {
   return (
     <Link
       to={to}
@@ -218,7 +181,7 @@ function PillLink({
         "rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
         active
           ? "border-brand-500 bg-brand-500 text-white shadow-[0_8px_16px_rgba(227,28,121,0.2)]"
-          : "border-cream-200 bg-white text-ink-700 hover:border-brand-200 hover:text-brand-600",
+          : "hover:border-brand-200 hover:text-brand-600 border-cream-200 bg-white text-ink-700",
       )}
     >
       {label}

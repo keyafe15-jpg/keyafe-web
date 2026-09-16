@@ -1,21 +1,10 @@
 import PDFDocument from "pdfkit";
 import type { ChallanData, ChallanLine } from "./challan.service.js";
-import {
-  ACCENT,
-  brandLogo,
-  formatDate,
-  INK,
-  MUTED,
-  RULE,
-  type Doc,
-} from "./pdf.theme.js";
+import { ACCENT, brandLogo, formatDate, INK, MUTED, RULE, type Doc } from "./pdf.theme.js";
 
 // Two copies per A4 sheet, each filling an A5 half, so one print gives the
 // consignee their copy and us ours with a single cut across the middle.
-const COPY_LABELS = [
-  "ORIGINAL FOR CONSIGNEE",
-  "DUPLICATE FOR CONSIGNOR",
-] as const;
+const COPY_LABELS = ["ORIGINAL FOR CONSIGNEE", "DUPLICATE FOR CONSIGNOR"] as const;
 
 const SIDE_PAD = 22;
 const BAND_PAD_TOP = 16;
@@ -240,15 +229,10 @@ function drawCopy(
       ["Tax invoice", data.invoiceNumber ?? "Not issued"],
     ],
     [
-      [
-        "Place of supply",
-        `${data.placeOfSupply.name} (${data.placeOfSupply.code})`,
-      ],
+      ["Place of supply", `${data.placeOfSupply.name} (${data.placeOfSupply.code})`],
       [
         data.isPickup ? "Collection" : "Delivery",
-        data.isMixedSchedule
-          ? "See items"
-          : data.deliveryTime ?? "To be scheduled",
+        data.isMixedSchedule ? "See items" : (data.deliveryTime ?? "To be scheduled"),
       ],
     ],
     [["Reason", data.reasonForTransport]],
@@ -375,12 +359,11 @@ function drawCopy(
     });
   } else {
     doc.font("Helvetica-Bold").fontSize(7).fillColor(MUTED);
-    doc.text(
-      `Continued on sheet ${opts.sheet + 1} of ${opts.sheets}`,
-      left,
-      totalsY,
-      { width: contentW, align: "right", lineBreak: false },
-    );
+    doc.text(`Continued on sheet ${opts.sheet + 1} of ${opts.sheets}`, left, totalsY, {
+      width: contentW,
+      align: "right",
+      lineBreak: false,
+    });
   }
   hr(totalsY + 12);
 
@@ -416,12 +399,11 @@ function drawCopy(
     .lineWidth(0.4)
     .strokeColor(RULE)
     .stroke();
-  doc.text(
-    `For ${data.seller.name} — authorised signatory`,
-    shipXOf(left, halfW),
-    signTop + 14,
-    { width: halfW, align: "right", lineBreak: false },
-  );
+  doc.text(`For ${data.seller.name} — authorised signatory`, shipXOf(left, halfW), signTop + 14, {
+    width: halfW,
+    align: "right",
+    lineBreak: false,
+  });
 
   if (opts.sheets > 1) {
     doc.font("Helvetica").fontSize(5).fillColor(MUTED);

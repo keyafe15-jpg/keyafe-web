@@ -62,10 +62,7 @@ const updateFlavorSchema = z.object({
 adminFlavorRouter.patch("/:id", async (req, res) => {
   const parsed = updateFlavorSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw HttpError.badRequest(
-      "Invalid flavour update",
-      parsed.error.flatten(),
-    );
+    throw HttpError.badRequest("Invalid flavour update", parsed.error.flatten());
   }
   const updated = await prisma.flavor.update({
     where: { id: req.params.id },

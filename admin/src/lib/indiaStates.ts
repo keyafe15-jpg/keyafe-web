@@ -47,15 +47,12 @@ export const GST_STATE_NAMES: Record<string, string> = {
 // Retired by reorganisation — still parsed, never offered as a choice.
 const LEGACY_CODES = new Set(["25", "28", "97"]);
 
-export const SELECTABLE_STATES: { code: string; name: string }[] =
-  Object.entries(GST_STATE_NAMES)
-    .filter(([code]) => !LEGACY_CODES.has(code))
-    .map(([code, name]) => ({ code, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+export const SELECTABLE_STATES: { code: string; name: string }[] = Object.entries(GST_STATE_NAMES)
+  .filter(([code]) => !LEGACY_CODES.has(code))
+  .map(([code, name]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
-export function stateNameFromCode(
-  code: string | null | undefined,
-): string | null {
+export function stateNameFromCode(code: string | null | undefined): string | null {
   if (!code) return null;
   const padded = String(code).replace(/\D/g, "").padStart(2, "0");
   return GST_STATE_NAMES[padded] ?? null;

@@ -20,7 +20,7 @@ export function StateSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20",
+        "w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none",
         className,
       )}
     >

@@ -36,13 +36,10 @@ async function main() {
   console.log(`  with at least one line missing taxableValue: ${missingLineTax}`);
   console.log(`  with zero GST at the order level: ${zeroOrderGst}`);
   console.log("\nMost recent 15 orders:\n");
-  console.log(
-    "order            created     b2b  POS  orderGST   lineTax?  gstRate  hsn",
-  );
+  console.log("order            created     b2b  POS  orderGST   lineTax?  gstRate  hsn");
 
   for (const o of orders) {
-    const orderGst =
-      Number(o.cgstAmount) + Number(o.sgstAmount) + Number(o.igstAmount);
+    const orderGst = Number(o.cgstAmount) + Number(o.sgstAmount) + Number(o.igstAmount);
     const anyNull = o.items.some((i) => i.taxableValue === null);
     const rates = [...new Set(o.items.map((i) => String(i.gstRate)))].join(",");
     const hsns = [...new Set(o.items.map((i) => i.hsnCode ?? "null"))].join(",");
@@ -98,11 +95,7 @@ async function b2bReport() {
     } | null;
     const gstinState = o.customerGstin?.slice(0, 2);
     const tax =
-      Number(o.igstAmount) > 0
-        ? "IGST"
-        : Number(o.cgstAmount) > 0
-          ? "CGST+SGST"
-          : "no GST";
+      Number(o.igstAmount) > 0 ? "IGST" : Number(o.cgstAmount) > 0 ? "CGST+SGST" : "no GST";
 
     console.log(`\n${o.orderNumber}  ${o.createdAt.toISOString().slice(0, 16)}  (${o.source})`);
     console.log(`  buyer GSTIN state : ${gstinState}  [${o.customerGstin}]`);
@@ -147,11 +140,9 @@ async function detail(orderNumber: string) {
         igst: o.igstAmount,
         placeOfSupply: o.placeOfSupply,
         fulfillment: o.fulfillment,
-        addressState: (o.deliveryAddress as { state?: string; stateCode?: string } | null)
-          ?.state,
-        addressStateCode: (
-          o.deliveryAddress as { state?: string; stateCode?: string } | null
-        )?.stateCode,
+        addressState: (o.deliveryAddress as { state?: string; stateCode?: string } | null)?.state,
+        addressStateCode: (o.deliveryAddress as { state?: string; stateCode?: string } | null)
+          ?.stateCode,
         items: o.items.map((i) => ({
           name: i.productName,
           hasProductId: Boolean(i.productId),

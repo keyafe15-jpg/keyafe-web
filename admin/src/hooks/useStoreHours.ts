@@ -42,10 +42,7 @@ export function useUpdateStoreHours() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (
-      input: Pick<
-        StoreHours,
-        "isSameDayStoreClosed" | "sameDayClosedMessage" | "weekly"
-      >,
+      input: Pick<StoreHours, "isSameDayStoreClosed" | "sameDayClosedMessage" | "weekly">,
     ) => api.patch<StoreHours>("/admin/store/hours", input),
     onSuccess: (data) => {
       qc.setQueryData(["admin", "store", "hours"], data);
@@ -56,11 +53,8 @@ export function useUpdateStoreHours() {
 export function useCreateShopClosure() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: {
-      startsOn: string;
-      endsOn: string;
-      reason?: string | null;
-    }) => api.post<ShopClosure>("/admin/store/closures", input),
+    mutationFn: (input: { startsOn: string; endsOn: string; reason?: string | null }) =>
+      api.post<ShopClosure>("/admin/store/closures", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "store", "hours"] });
     },

@@ -37,8 +37,7 @@ export interface CreateTagPayload {
 export function useCreateTag() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateTagPayload) =>
-      api.post<AdminTag>("/admin/tags", input),
+    mutationFn: (input: CreateTagPayload) => api.post<AdminTag>("/admin/tags", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "tags"] });
       void qc.invalidateQueries({ queryKey: ["tags"] });

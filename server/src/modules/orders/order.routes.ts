@@ -3,16 +3,8 @@ import { StatusCodes } from "http-status-codes";
 import { optionalAuth, requireAuth, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
-import {
-  createOrder,
-  createOrderSchema,
-  getOrderById,
-  getOrderByNumber,
-} from "./order.service.js";
-import {
-  cancelOrderAsCustomer,
-  withCustomerCancel,
-} from "./order.cancel.js";
+import { createOrder, createOrderSchema, getOrderById, getOrderByNumber } from "./order.service.js";
+import { cancelOrderAsCustomer, withCustomerCancel } from "./order.cancel.js";
 import { buildInvoicePdf } from "./invoice.service.js";
 
 export const orderRouter = Router();
@@ -64,14 +56,10 @@ orderRouter.post("/:idOrNumber/cancel", async (req, res) => {
  */
 orderRouter.get("/:idOrNumber/invoice", async (req, res) => {
   const key = req.params.idOrNumber ?? "";
-  const order = key.startsWith("KEY-")
-    ? await getOrderByNumber(key)
-    : await getOrderById(key);
+  const order = key.startsWith("KEY-") ? await getOrderByNumber(key) : await getOrderById(key);
 
   if (order.status === "CANCELLED") {
-    throw HttpError.badRequest(
-      "This order was cancelled, so there's no invoice for it.",
-    );
+    throw HttpError.badRequest("This order was cancelled, so there's no invoice for it.");
   }
   if (order.paymentStatus !== "PAID") {
     throw HttpError.badRequest(
@@ -92,8 +80,6 @@ orderRouter.get("/:idOrNumber/invoice", async (req, res) => {
 // so the confirmation link can use either.
 orderRouter.get("/:idOrNumber", async (req, res) => {
   const key = req.params.idOrNumber;
-  const order = key.startsWith("KEY-")
-    ? await getOrderByNumber(key)
-    : await getOrderById(key);
+  const order = key.startsWith("KEY-") ? await getOrderByNumber(key) : await getOrderById(key);
   res.json(withCustomerCancel(order));
 });

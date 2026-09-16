@@ -6,13 +6,23 @@ export const PERMISSION_CATALOG = [
   { key: "orders.cancel", label: "Cancel orders", category: "orders", sortOrder: 2 },
   // Separate from orders.read: issuing an invoice assigns a permanent number
   // out of the GST series, so it isn't something every order viewer should do.
-  { key: "invoices.read", label: "Download & email tax invoices", category: "orders", sortOrder: 3 },
+  {
+    key: "invoices.read",
+    label: "Download & email tax invoices",
+    category: "orders",
+    sortOrder: 3,
+  },
   // Also assigns a permanent number, but from the challan series rather than
   // the GST invoice series, so it is granted independently.
   { key: "challans.read", label: "Download delivery challans", category: "orders", sortOrder: 4 },
 
   { key: "offline-orders.read", label: "View offline orders", category: "offline", sortOrder: 0 },
-  { key: "offline-orders.write", label: "Create & edit offline orders", category: "offline", sortOrder: 1 },
+  {
+    key: "offline-orders.write",
+    label: "Create & edit offline orders",
+    category: "offline",
+    sortOrder: 1,
+  },
 
   { key: "products.read", label: "View products", category: "catalog", sortOrder: 0 },
   { key: "products.write", label: "Edit products", category: "catalog", sortOrder: 1 },

@@ -56,9 +56,7 @@ export function BusinessGstFields({
               className={inputClass}
             />
             {companyError && (
-              <span className="mt-1 block text-[11px] text-brand-700">
-                {companyError}
-              </span>
+              <span className="mt-1 block text-[11px] text-brand-700">{companyError}</span>
             )}
           </label>
 
@@ -72,18 +70,14 @@ export function BusinessGstFields({
               value={gstin}
               // Normalise as they type so a pasted GSTIN with spaces or
               // lowercase still validates against the checksum.
-              onChange={(e) =>
-                onGstinChange(normalizeGstin(e.target.value).slice(0, 15))
-              }
+              onChange={(e) => onGstinChange(normalizeGstin(e.target.value).slice(0, 15))}
               placeholder="27AAACR5055K1Z7"
               autoCapitalize="characters"
               spellCheck={false}
               className={`${inputClass} font-mono tracking-wide`}
             />
             <span
-              className={`mt-1 block text-[11px] ${
-                gstinError ? "text-brand-700" : "text-ink-500"
-              }`}
+              className={`mt-1 block text-[11px] ${gstinError ? "text-brand-700" : "text-ink-500"}`}
             >
               {gstinError ?? "15 characters, as printed on your GST certificate"}
             </span>

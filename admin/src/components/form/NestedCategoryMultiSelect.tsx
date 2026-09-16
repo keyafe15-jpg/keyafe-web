@@ -43,11 +43,7 @@ export function NestedCategoryMultiSelect({
   }, [nameById, selected]);
 
   const toggle = (id: string) => {
-    onChange(
-      selectedSet.has(id)
-        ? selected.filter((x) => x !== id)
-        : [...selected, id],
-    );
+    onChange(selectedSet.has(id) ? selected.filter((x) => x !== id) : [...selected, id]);
   };
 
   const toggleExpanded = (id: string) => {
@@ -60,9 +56,7 @@ export function NestedCategoryMultiSelect({
 
   if (categories.length === 0) {
     return (
-      <p className="text-xs text-slate-500">
-        Create categories first, then assign defaults here.
-      </p>
+      <p className="text-xs text-slate-500">Create categories first, then assign defaults here.</p>
     );
   }
 
@@ -94,9 +88,7 @@ export function NestedCategoryMultiSelect({
             !summary && "text-slate-400",
           )}
         >
-          <span className="min-w-0 truncate">
-            {summary ?? placeholder}
-          </span>
+          <span className="min-w-0 truncate">{summary ?? placeholder}</span>
           <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
         </button>
       </Popover.Trigger>
@@ -121,9 +113,7 @@ export function NestedCategoryMultiSelect({
                         className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                         aria-expanded={isOpen}
                         aria-label={
-                          isOpen
-                            ? `Collapse ${parent.name}`
-                            : `Show ${parent.name} subcategories`
+                          isOpen ? `Collapse ${parent.name}` : `Show ${parent.name} subcategories`
                         }
                       >
                         {isOpen ? (
@@ -144,10 +134,7 @@ export function NestedCategoryMultiSelect({
                   {hasChildren && isOpen && (
                     <div className="pb-1">
                       {parent.children.map((child) => (
-                        <div
-                          key={child.id}
-                          className="flex items-center pl-8 pr-1"
-                        >
+                        <div key={child.id} className="flex items-center pr-1 pl-8">
                           <CategoryCheckRow
                             name={child.name}
                             checked={selectedSet.has(child.id)}
@@ -191,9 +178,7 @@ function CategoryCheckRow({
       <span
         className={cn(
           "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-          checked
-            ? "border-brand-500 bg-brand-500 text-white"
-            : "border-slate-300 bg-white",
+          checked ? "border-brand-500 bg-brand-500 text-white" : "border-slate-300 bg-white",
         )}
       >
         {checked && <Check className="h-3 w-3" strokeWidth={3} />}

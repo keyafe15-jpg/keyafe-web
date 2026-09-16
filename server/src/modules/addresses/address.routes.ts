@@ -46,10 +46,7 @@ addressRouter.post("/", async (req, res) => {
   const parsed = addressSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    throw HttpError.badRequest(
-      "Invalid address payload",
-      parsed.error.flatten(),
-    );
+    throw HttpError.badRequest("Invalid address payload", parsed.error.flatten());
   }
 
   const input = parsed.data;

@@ -49,11 +49,10 @@ export const GST_STATE_NAMES: Record<string, string> = {
 const LEGACY_CODES = new Set(["25", "28", "97"]);
 
 /** Codes offered in pickers, in the order they should be displayed. */
-export const SELECTABLE_STATES: { code: string; name: string }[] =
-  Object.entries(GST_STATE_NAMES)
-    .filter(([code]) => !LEGACY_CODES.has(code))
-    .map(([code, name]) => ({ code, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+export const SELECTABLE_STATES: { code: string; name: string }[] = Object.entries(GST_STATE_NAMES)
+  .filter(([code]) => !LEGACY_CODES.has(code))
+  .map(([code, name]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 // Spellings and abbreviations that show up in Google Places results, saved
 // addresses and hand-typed admin input.
@@ -72,22 +71,17 @@ const NAME_ALIASES: Record<string, string> = {
   "daman and diu": "26",
   "andaman & nicobar islands": "35",
   "andaman and nicobar": "35",
-  "tamilnadu": "33",
-  "telengana": "36",
-  "chattisgarh": "22",
-  "chhatisgarh": "22",
-  "ap": "37",
-  "wb": "19",
+  tamilnadu: "33",
+  telengana: "36",
+  chattisgarh: "22",
+  chhatisgarh: "22",
+  ap: "37",
+  wb: "19",
   "west bengal": "19",
 };
 
 function normalizeName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[.]/g, "")
-    .replace(/\s+/g, " ");
+  return name.trim().toLowerCase().replace(/&/g, "and").replace(/[.]/g, "").replace(/\s+/g, " ");
 }
 
 const NAME_TO_CODE = new Map<string, string>();
@@ -100,9 +94,7 @@ for (const [alias, code] of Object.entries(NAME_ALIASES)) {
 }
 
 /** Accepts "19", "9" or 19 and returns a canonical two-digit code. */
-export function normalizeStateCode(
-  input: string | number | null | undefined,
-): string | null {
+export function normalizeStateCode(input: string | number | null | undefined): string | null {
   if (input == null) return null;
   const digits = String(input).replace(/\D/g, "");
   if (!digits) return null;
@@ -110,16 +102,12 @@ export function normalizeStateCode(
   return GST_STATE_NAMES[padded] ? padded : null;
 }
 
-export function stateCodeFromName(
-  name: string | null | undefined,
-): string | null {
+export function stateCodeFromName(name: string | null | undefined): string | null {
   if (!name) return null;
   return NAME_TO_CODE.get(normalizeName(name)) ?? null;
 }
 
-export function stateNameFromCode(
-  code: string | null | undefined,
-): string | null {
+export function stateNameFromCode(code: string | null | undefined): string | null {
   const normalized = normalizeStateCode(code);
   return normalized ? (GST_STATE_NAMES[normalized] ?? null) : null;
 }

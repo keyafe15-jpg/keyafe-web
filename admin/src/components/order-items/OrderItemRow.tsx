@@ -1,26 +1,12 @@
 import { useEffect, useMemo } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  Package,
-  Sparkles,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Package, Sparkles, Trash2, X } from "lucide-react";
 import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
 import type { CakeSize } from "@/hooks/useCakeSizes";
-import {
-  Field,
-  inputClass,
-  selectClass,
-} from "@/components/form/Field";
+import { Field, inputClass, selectClass } from "@/components/form/Field";
 import { SearchableSelect } from "@/components/form/SearchableSelect";
-import {
-  formatCatalogProductLabel,
-  resetCatalogProductPick,
-} from "@/lib/catalogProductOptions";
+import { formatCatalogProductLabel, resetCatalogProductPick } from "@/lib/catalogProductOptions";
 import {
   availableFixedSkus,
   cakeSizeSelectLabel,
@@ -35,10 +21,7 @@ import {
 } from "@/lib/productConfiguration";
 import { cn } from "@/lib/cn";
 import type { OrderItemDraft } from "./types";
-import {
-  usePizzaCatalogOptions,
-  pizzaSizeLabelForKey,
-} from "./usePizzaCatalogOptions";
+import { usePizzaCatalogOptions, pizzaSizeLabelForKey } from "./usePizzaCatalogOptions";
 
 export function OrderItemRow({
   index,
@@ -75,8 +58,7 @@ export function OrderItemRow({
   const template = productDetail?.template ?? selectedProduct?.template;
 
   const isPizza = item.kind === "CATALOG" && template === "PIZZA";
-  const isCakeCatalog =
-    item.kind === "CATALOG" && (template ?? "CAKE") === "CAKE";
+  const isCakeCatalog = item.kind === "CATALOG" && (template ?? "CAKE") === "CAKE";
 
   const sizeGroup = getSizeOptionGroup(productDetail);
   const sizeOptions = sizeGroup?.options ?? [];
@@ -86,23 +68,17 @@ export function OrderItemRow({
   const hasFixedSkus = fixedSkus.length > 0;
   const productFlavourIds = new Set(productDetail?.flavorIds ?? []);
   // Size choices from OptionGroup (not ProductVariant table).
-  const hasOptionGroupSize =
-    sizeOptions.length > 0 && !isPizza && !hasFixedSkus;
+  const hasOptionGroupSize = sizeOptions.length > 0 && !isPizza && !hasFixedSkus;
   const linkedToppingIds = new Set(productDetail?.toppingIds ?? []);
   const linkedToppings = allToppings.filter((t) => linkedToppingIds.has(t.id));
   const availToppings = linkedToppings.filter((t) => t.kind === "TOPPING");
-  const linkedAddonIds = new Set(
-    productDetail?.offeredAddonIds ?? productDetail?.addonIds ?? [],
-  );
-  const catalogAddons = allAddons.filter(
-    (a) => a.isActive && linkedAddonIds.has(a.id),
-  );
+  const linkedAddonIds = new Set(productDetail?.offeredAddonIds ?? productDetail?.addonIds ?? []);
+  const catalogAddons = allAddons.filter((a) => a.isActive && linkedAddonIds.has(a.id));
   const customAddons = allAddons.filter((a) => a.isActive);
   const availCondiments = linkedToppings.filter((t) => t.kind === "CONDIMENT");
 
   // Cake configurator — flavour + pounds with auto price (all CAKE catalog items).
-  const isCakeConfigurator =
-    isCakeCatalog && !isPizza && !hasFixedSkus && !hasOptionGroupSize;
+  const isCakeConfigurator = isCakeCatalog && !isPizza && !hasFixedSkus && !hasOptionGroupSize;
   const hasAttachedFlavours = productFlavourIds.size > 0;
   const pickerFlavours = hasAttachedFlavours
     ? flavours.filter((f) => productFlavourIds.has(f.id))
@@ -112,25 +88,17 @@ export function OrderItemRow({
     return cakeSizes.filter((s) => {
       if (!s.isActive) return false;
       if (productDetail?.sellByPound) {
-        if (productDetail.minGrams != null && s.grams < productDetail.minGrams)
-          return false;
-        if (productDetail.maxGrams != null && s.grams > productDetail.maxGrams)
-          return false;
+        if (productDetail.minGrams != null && s.grams < productDetail.minGrams) return false;
+        if (productDetail.maxGrams != null && s.grams > productDetail.maxGrams) return false;
       }
       return true;
     });
   }, [isCakeConfigurator, cakeSizes, productDetail]);
 
-  const isCustomCake =
-    item.kind === "CUSTOM" && item.customTemplate === "CAKE";
-  const isCustomPizza =
-    item.kind === "CUSTOM" && item.customTemplate === "PIZZA";
+  const isCustomCake = item.kind === "CUSTOM" && item.customTemplate === "CAKE";
+  const isCustomPizza = item.kind === "CUSTOM" && item.customTemplate === "PIZZA";
 
-  const autoPriced =
-    isPizza ||
-    isCakeConfigurator ||
-    hasOptionGroupSize ||
-    hasFixedSkus;
+  const autoPriced = isPizza || isCakeConfigurator || hasOptionGroupSize || hasFixedSkus;
 
   const pizzaCatalogProducts = useMemo(
     () => products.filter((p) => p.template === "PIZZA"),
@@ -146,15 +114,10 @@ export function OrderItemRow({
     () => allToppings.filter((t) => t.isActive && t.kind === "CONDIMENT"),
     [allToppings],
   );
-  const activeCustomCakeSizes = useMemo(
-    () => cakeSizes.filter((s) => s.isActive),
-    [cakeSizes],
-  );
+  const activeCustomCakeSizes = useMemo(() => cakeSizes.filter((s) => s.isActive), [cakeSizes]);
   const customCakeParsedPounds = parseCustomPounds(item.customPounds);
   const customCakeGrams =
-    customCakeParsedPounds != null
-      ? customPoundsToGrams(customCakeParsedPounds)
-      : null;
+    customCakeParsedPounds != null ? customPoundsToGrams(customCakeParsedPounds) : null;
 
   useEffect(() => {
     if (item.kind !== "CATALOG" || !selectedProduct || !productDetail) return;
@@ -209,12 +172,10 @@ export function OrderItemRow({
     if (!isPizza || !productDetail) return;
     const patch: Partial<OrderItemDraft> = {};
     if (!item.sizeOptionId && sizeOptions.length > 0) {
-      patch.sizeOptionId =
-        sizeOptions.find((o) => o.isDefault)?.id ?? sizeOptions[0].id ?? "";
+      patch.sizeOptionId = sizeOptions.find((o) => o.isDefault)?.id ?? sizeOptions[0].id ?? "";
     }
     if (!item.crustOptionId && crustOptions.length > 0) {
-      patch.crustOptionId =
-        crustOptions.find((o) => o.isDefault)?.id ?? crustOptions[0].id ?? "";
+      patch.crustOptionId = crustOptions.find((o) => o.isDefault)?.id ?? crustOptions[0].id ?? "";
     }
     if (Object.keys(patch).length) onPatch(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -236,8 +197,7 @@ export function OrderItemRow({
 
   // Preselect flavour when there's an obvious default.
   useEffect(() => {
-    if (!isCakeConfigurator || item.flavourId || pickerFlavours.length === 0)
-      return;
+    if (!isCakeConfigurator || item.flavourId || pickerFlavours.length === 0) return;
     onPatch({ flavourId: pickerFlavours[0].id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCakeConfigurator, productDetail?.id, pickerFlavours.length]);
@@ -245,9 +205,7 @@ export function OrderItemRow({
   // Recompute unit price + size label when any pizza selection changes.
   const pickedSize = sizeOptions.find((o) => o.id === item.sizeOptionId);
   const pickedCrust = crustOptions.find((o) => o.id === item.crustOptionId);
-  const pickedToppingsFull = allToppings.filter((t) =>
-    item.toppingSelections.includes(t.id),
-  );
+  const pickedToppingsFull = allToppings.filter((t) => item.toppingSelections.includes(t.id));
 
   // Recompute cake price when size, custom pounds, or flavour changes.
   useEffect(() => {
@@ -258,15 +216,10 @@ export function OrderItemRow({
     const flavourAdditional = flavour ? Number(flavour.additionalAmount) : 0;
 
     const parsedPounds = parseCustomPounds(item.customPounds);
-    const customGrams =
-      parsedPounds != null ? customPoundsToGrams(parsedPounds) : null;
+    const customGrams = parsedPounds != null ? customPoundsToGrams(parsedPounds) : null;
     const customInRange =
       customGrams != null &&
-      isGramsWithinBounds(
-        customGrams,
-        productDetail.minGrams,
-        productDetail.maxGrams,
-      );
+      isGramsWithinBounds(customGrams, productDetail.minGrams, productDetail.maxGrams);
 
     let grams: number | null = null;
     let sizeLabel = "";
@@ -281,12 +234,7 @@ export function OrderItemRow({
       sizeLabel = size.label;
     }
 
-    const computed = computeCakeUnitPrice(
-      base,
-      grams,
-      flavourAdditional,
-      hasAttachedFlavours,
-    );
+    const computed = computeCakeUnitPrice(base, grams, flavourAdditional, hasAttachedFlavours);
     const addonsDelta = allAddons
       .filter((a) => item.addonSelections.includes(a.id))
       .reduce((s, a) => s + Number(a.priceDelta), 0);
@@ -310,10 +258,7 @@ export function OrderItemRow({
     if (!isPizza || !productDetail) return;
     const sizePrice = pickedSize ? Number(pickedSize.price) : 0;
     const crustDelta = pickedCrust ? Number(pickedCrust.price) : 0;
-    const toppingsDelta = pickedToppingsFull.reduce(
-      (s, t) => s + Number(t.priceDelta),
-      0,
-    );
+    const toppingsDelta = pickedToppingsFull.reduce((s, t) => s + Number(t.priceDelta), 0);
     const addonsDelta = allAddons
       .filter((a) => item.addonSelections.includes(a.id))
       .reduce((s, a) => s + Number(a.priceDelta), 0);
@@ -352,13 +297,7 @@ export function OrderItemRow({
       sizeGrams: String(size.grams),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isCustomCake,
-    item.expanded,
-    item.cakeSizeId,
-    item.customPounds,
-    activeCustomCakeSizes,
-  ]);
+  }, [isCustomCake, item.expanded, item.cakeSizeId, item.customPounds, activeCustomCakeSizes]);
 
   // Default pound size when custom cake details open.
   useEffect(() => {
@@ -391,12 +330,7 @@ export function OrderItemRow({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isCustomPizza,
-    item.expanded,
-    item.customPizzaSize,
-    item.sizeOptionId,
-  ]);
+  }, [isCustomPizza, item.expanded, item.customPizzaSize, item.sizeOptionId]);
 
   useEffect(() => {
     if (!isCustomPizza || !item.expanded) return;
@@ -428,9 +362,7 @@ export function OrderItemRow({
       const priceAdjust = isOn ? -delta : delta;
       onPatch({
         toppingSelections: next,
-        unitPrice: Math.max(0, Number(item.unitPrice || 0) + priceAdjust).toFixed(
-          0,
-        ),
+        unitPrice: Math.max(0, Number(item.unitPrice || 0) + priceAdjust).toFixed(0),
       });
       return;
     }
@@ -445,16 +377,12 @@ export function OrderItemRow({
     const next = isOn
       ? item.addonSelections.filter((x) => x !== id)
       : [...item.addonSelections, id];
-    const priceIsManual =
-      item.kind === "CUSTOM" || (!isPizza && !isCakeConfigurator);
+    const priceIsManual = item.kind === "CUSTOM" || (!isPizza && !isCakeConfigurator);
     if (priceIsManual) {
       const priceAdjust = isOn ? -delta : delta;
       onPatch({
         addonSelections: next,
-        unitPrice: Math.max(
-          0,
-          Number(item.unitPrice || 0) + priceAdjust,
-        ).toFixed(0),
+        unitPrice: Math.max(0, Number(item.unitPrice || 0) + priceAdjust).toFixed(0),
       });
       return;
     }
@@ -463,28 +391,16 @@ export function OrderItemRow({
 
   const cakeBasePrice = productDetail ? Number(productDetail.basePrice) : 0;
   const pickedCakeFlavour = pickerFlavours.find((f) => f.id === item.flavourId);
-  const cakeFlavourAdditional = pickedCakeFlavour
-    ? Number(pickedCakeFlavour.additionalAmount)
-    : 0;
+  const cakeFlavourAdditional = pickedCakeFlavour ? Number(pickedCakeFlavour.additionalAmount) : 0;
   const parsedCustomPounds = parseCustomPounds(item.customPounds);
-  const customGrams =
-    parsedCustomPounds != null ? customPoundsToGrams(parsedCustomPounds) : null;
+  const customGrams = parsedCustomPounds != null ? customPoundsToGrams(parsedCustomPounds) : null;
   const customOutOfRange =
     customGrams != null &&
     productDetail != null &&
-    !isGramsWithinBounds(
-      customGrams,
-      productDetail.minGrams,
-      productDetail.maxGrams,
-    );
+    !isGramsWithinBounds(customGrams, productDetail.minGrams, productDetail.maxGrams);
   const customPreviewPrice =
     customGrams != null && !customOutOfRange
-      ? computeCakeUnitPrice(
-          cakeBasePrice,
-          customGrams,
-          cakeFlavourAdditional,
-          hasAttachedFlavours,
-        )
+      ? computeCakeUnitPrice(cakeBasePrice, customGrams, cakeFlavourAdditional, hasAttachedFlavours)
       : null;
 
   const showCustomDetails = item.kind === "CUSTOM" && item.expanded;
@@ -496,10 +412,8 @@ export function OrderItemRow({
           <div className="flex items-center gap-2">
             <span
               className={cn(
-                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                item.kind === "CATALOG"
-                  ? "bg-sky-100 text-sky-700"
-                  : "bg-brand-100 text-brand-700",
+                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase",
+                item.kind === "CATALOG" ? "bg-sky-100 text-sky-700" : "bg-brand-100 text-brand-700",
               )}
             >
               {item.kind === "CATALOG" ? (
@@ -517,9 +431,7 @@ export function OrderItemRow({
               <Field label="Product" required>
                 <SearchableSelect
                   value={item.productId}
-                  onChange={(productId) =>
-                    onPatch({ productId, ...resetCatalogProductPick() })
-                  }
+                  onChange={(productId) => onPatch({ productId, ...resetCatalogProductPick() })}
                   searchPlaceholder="Search products…"
                   options={products.map((p) => ({
                     value: p.id,
@@ -574,38 +486,25 @@ export function OrderItemRow({
           )}
 
           <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
-            <Field
-              label={item.kind === "CATALOG" ? "Name (override)" : "Name"}
-              required
-            >
+            <Field label={item.kind === "CATALOG" ? "Name (override)" : "Name"} required>
               <input
                 value={item.productName}
                 onChange={(e) => onPatch({ productName: e.target.value })}
                 placeholder={
-                  item.kind === "CATALOG"
-                    ? "Uses product name if blank"
-                    : "1 pound chocolate cake"
+                  item.kind === "CATALOG" ? "Uses product name if blank" : "1 pound chocolate cake"
                 }
                 className={inputClass}
               />
             </Field>
-            <Field
-              label={autoPriced ? "Unit price (auto)" : "Unit price (₹)"}
-              required
-            >
+            <Field label={autoPriced ? "Unit price (auto)" : "Unit price (₹)"} required>
               <input
                 type="text"
                 inputMode="decimal"
                 value={item.unitPrice}
-                onChange={(e) =>
-                  onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })
-                }
+                onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
                 placeholder="500"
                 disabled={autoPriced}
-                className={cn(
-                  inputClass,
-                  autoPriced && "bg-slate-100 text-slate-600",
-                )}
+                className={cn(inputClass, autoPriced && "bg-slate-100 text-slate-600")}
               />
             </Field>
             <Field label="Qty" required>
@@ -613,9 +512,7 @@ export function OrderItemRow({
                 type="text"
                 inputMode="numeric"
                 value={item.qty}
-                onChange={(e) =>
-                  onPatch({ qty: e.target.value.replace(/\D/g, "") })
-                }
+                onChange={(e) => onPatch({ qty: e.target.value.replace(/\D/g, "") })}
                 placeholder="1"
                 className={inputClass}
               />
@@ -637,9 +534,7 @@ export function OrderItemRow({
                 >
                   <SearchableSelect
                     value={item.customPounds.trim() ? "" : item.cakeSizeId}
-                    onChange={(cakeSizeId) =>
-                      onPatch({ cakeSizeId, customPounds: "" })
-                    }
+                    onChange={(cakeSizeId) => onPatch({ cakeSizeId, customPounds: "" })}
                     searchPlaceholder="Search sizes…"
                     allowEmpty
                     placeholder={
@@ -673,16 +568,8 @@ export function OrderItemRow({
                 <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="number"
-                    min={
-                      productDetail.minGrams
-                        ? productDetail.minGrams / 500
-                        : 0.1
-                    }
-                    max={
-                      productDetail.maxGrams
-                        ? productDetail.maxGrams / 500
-                        : undefined
-                    }
+                    min={productDetail.minGrams ? productDetail.minGrams / 500 : 0.1}
+                    max={productDetail.maxGrams ? productDetail.maxGrams / 500 : undefined}
                     step={0.1}
                     value={item.customPounds}
                     onChange={(e) =>
@@ -787,7 +674,7 @@ export function OrderItemRow({
               )}
               {availToppings.length > 0 && (
                 <div>
-                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
                     Toppings
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -803,14 +690,12 @@ export function OrderItemRow({
                             "rounded-full border px-2.5 py-1 text-xs font-medium transition",
                             on
                               ? "border-brand-500 bg-brand-100 text-brand-700"
-                              : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
+                              : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
                           )}
                         >
                           {t.name}
                           {delta > 0 && (
-                            <span className="ml-1 text-slate-500">
-                              +₹{delta.toFixed(0)}
-                            </span>
+                            <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
                           )}
                         </button>
                       );
@@ -820,7 +705,7 @@ export function OrderItemRow({
               )}
               {availCondiments.length > 0 && (
                 <div>
-                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
                     Condiments / Extras
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -836,14 +721,12 @@ export function OrderItemRow({
                             "rounded-full border px-2.5 py-1 text-xs font-medium transition",
                             on
                               ? "border-brand-500 bg-brand-100 text-brand-700"
-                              : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
+                              : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
                           )}
                         >
                           {t.name}
                           {delta > 0 && (
-                            <span className="ml-1 text-slate-500">
-                              +₹{delta.toFixed(0)}
-                            </span>
+                            <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
                           )}
                         </button>
                       );
@@ -875,8 +758,8 @@ export function OrderItemRow({
               ) : (
                 <ChevronRight className="h-3 w-3" />
               )}
-              {item.expanded ? "Hide" : "Show"} details (category, size, flavour,
-              message, instructions)
+              {item.expanded ? "Hide" : "Show"} details (category, size, flavour, message,
+              instructions)
             </button>
           )}
 
@@ -920,14 +803,11 @@ export function OrderItemRow({
                     >
                       <SearchableSelect
                         value={item.customPounds.trim() ? "" : item.cakeSizeId}
-                        onChange={(cakeSizeId) =>
-                          onPatch({ cakeSizeId, customPounds: "" })
-                        }
+                        onChange={(cakeSizeId) => onPatch({ cakeSizeId, customPounds: "" })}
                         searchPlaceholder="Search sizes…"
                         allowEmpty
                         placeholder={
-                          item.customPounds.trim() &&
-                          customCakeParsedPounds != null
+                          item.customPounds.trim() && customCakeParsedPounds != null
                             ? formatCustomPoundLabel(customCakeParsedPounds)
                             : "— Pick size —"
                         }
@@ -954,9 +834,7 @@ export function OrderItemRow({
                         onChange={(e) =>
                           onPatch({
                             customPounds: e.target.value,
-                            cakeSizeId: e.target.value.trim()
-                              ? ""
-                              : item.cakeSizeId,
+                            cakeSizeId: e.target.value.trim() ? "" : item.cakeSizeId,
                           })
                         }
                         placeholder="e.g. 2.5"
@@ -964,9 +842,7 @@ export function OrderItemRow({
                       />
                       <span className="text-sm text-slate-600">lb</span>
                       {customCakeGrams != null && (
-                        <span className="text-xs text-slate-500">
-                          · {customCakeGrams} g
-                        </span>
+                        <span className="text-xs text-slate-500">· {customCakeGrams} g</span>
                       )}
                     </div>
                   </Field>
@@ -985,8 +861,7 @@ export function OrderItemRow({
                           const delta = Number(f.additionalAmount);
                           return {
                             value: f.id,
-                            label:
-                              delta > 0 ? `${f.name} (+₹${delta.toFixed(0)}/lb)` : f.name,
+                            label: delta > 0 ? `${f.name} (+₹${delta.toFixed(0)}/lb)` : f.name,
                             keywords: f.name,
                           };
                         })}
@@ -1007,9 +882,7 @@ export function OrderItemRow({
                   <Field label="Message on cake">
                     <input
                       value={item.messageOnCake}
-                      onChange={(e) =>
-                        onPatch({ messageOnCake: e.target.value })
-                      }
+                      onChange={(e) => onPatch({ messageOnCake: e.target.value })}
                       placeholder="Happy Birthday Aarav"
                       className={inputClass}
                     />
@@ -1024,17 +897,12 @@ export function OrderItemRow({
                       hint="Pick a standard size label, or enter a custom size below."
                     >
                       <SearchableSelect
-                        value={
-                          item.customPizzaSize.trim() ? "" : item.sizeOptionId
-                        }
+                        value={item.customPizzaSize.trim() ? "" : item.sizeOptionId}
                         onChange={(sizeKey) =>
                           onPatch({
                             sizeOptionId: sizeKey,
                             customPizzaSize: "",
-                            sizeLabel: pizzaSizeLabelForKey(
-                              pizzaSizePresets,
-                              sizeKey,
-                            ),
+                            sizeLabel: pizzaSizeLabelForKey(pizzaSizePresets, sizeKey),
                           })
                         }
                         searchPlaceholder="Search sizes…"
@@ -1061,9 +929,7 @@ export function OrderItemRow({
                       onChange={(e) =>
                         onPatch({
                           customPizzaSize: e.target.value,
-                          sizeOptionId: e.target.value.trim()
-                            ? ""
-                            : item.sizeOptionId,
+                          sizeOptionId: e.target.value.trim() ? "" : item.sizeOptionId,
                           sizeLabel: e.target.value.trim() || item.sizeLabel,
                         })
                       }
@@ -1076,9 +942,7 @@ export function OrderItemRow({
                       <select
                         value={item.crustOptionId}
                         onChange={(e) => {
-                          const crust = pizzaCrustPresets.find(
-                            (c) => c.id === e.target.value,
-                          );
+                          const crust = pizzaCrustPresets.find((c) => c.id === e.target.value);
                           const oldCrust = pizzaCrustPresets.find(
                             (c) => c.id === item.crustOptionId,
                           );
@@ -1107,7 +971,7 @@ export function OrderItemRow({
                   )}
                   {customPizzaToppings.length > 0 && (
                     <div>
-                      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
                         Toppings
                       </p>
                       <div className="flex flex-wrap gap-1.5">
@@ -1123,14 +987,12 @@ export function OrderItemRow({
                                 "rounded-full border px-2.5 py-1 text-xs font-medium transition",
                                 on
                                   ? "border-brand-500 bg-brand-100 text-brand-700"
-                                  : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
+                                  : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
                               )}
                             >
                               {t.name}
                               {delta > 0 && (
-                                <span className="ml-1 text-slate-500">
-                                  +₹{delta.toFixed(0)}
-                                </span>
+                                <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
                               )}
                             </button>
                           );
@@ -1140,7 +1002,7 @@ export function OrderItemRow({
                   )}
                   {customPizzaCondiments.length > 0 && (
                     <div>
-                      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
                         Condiments / Extras
                       </p>
                       <div className="flex flex-wrap gap-1.5">
@@ -1156,14 +1018,12 @@ export function OrderItemRow({
                                 "rounded-full border px-2.5 py-1 text-xs font-medium transition",
                                 on
                                   ? "border-brand-500 bg-brand-100 text-brand-700"
-                                  : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
+                                  : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
                               )}
                             >
                               {t.name}
                               {delta > 0 && (
-                                <span className="ml-1 text-slate-500">
-                                  +₹{delta.toFixed(0)}
-                                </span>
+                                <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
                               )}
                             </button>
                           );
@@ -1252,7 +1112,7 @@ export function OrderItemRow({
                     <button
                       type="button"
                       onClick={() => onPatch({ keptImageUrl: null })}
-                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-slate-900"
+                      className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-slate-900"
                       aria-label="Remove image"
                     >
                       <X className="h-3 w-3" />
@@ -1279,9 +1139,7 @@ export function OrderItemRow({
                   {(item.refFile || item.keptImageUrl) && (
                     <button
                       type="button"
-                      onClick={() =>
-                        onPatch({ refFile: null, keptImageUrl: null })
-                      }
+                      onClick={() => onPatch({ refFile: null, keptImageUrl: null })}
                       className="mt-2 text-xs text-slate-500 hover:text-brand-500"
                     >
                       Remove image
@@ -1328,9 +1186,9 @@ function AddonGroupPicker({
     <div className="space-y-3">
       {[...groups.entries()].map(([group, items]) => (
         <div key={group}>
-          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+          <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
             {group}{" "}
-            <span className="font-normal normal-case tracking-normal text-slate-400">
+            <span className="font-normal tracking-normal text-slate-400 normal-case">
               (optional)
             </span>
           </p>
@@ -1345,10 +1203,10 @@ function AddonGroupPicker({
                   onClick={() => onToggle(addon.id)}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border py-1 text-xs font-medium transition",
-                    addon.imageUrl ? "pl-1 pr-2.5" : "px-2.5",
+                    addon.imageUrl ? "pr-2.5 pl-1" : "px-2.5",
                     on
                       ? "border-brand-500 bg-brand-100 text-brand-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
+                      : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
                   )}
                 >
                   {addon.imageUrl && (
@@ -1359,9 +1217,7 @@ function AddonGroupPicker({
                     />
                   )}
                   {addon.name}
-                  {delta > 0 && (
-                    <span className="text-slate-500">+₹{delta.toFixed(0)}</span>
-                  )}
+                  {delta > 0 && <span className="text-slate-500">+₹{delta.toFixed(0)}</span>}
                 </button>
               );
             })}

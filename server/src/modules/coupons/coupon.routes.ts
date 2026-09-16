@@ -31,14 +31,9 @@ couponRouter.post("/preview", async (req, res) => {
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid coupon preview", parsed.error.flatten());
   }
-  const quote = await quoteCoupon(
-    parsed.data.code,
-    parsed.data.items,
-    parsed.data.customerPhone,
-  );
+  const quote = await quoteCoupon(parsed.data.code, parsed.data.items, parsed.data.customerPhone);
   const subtotal =
-    parsed.data.subtotal ??
-    parsed.data.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+    parsed.data.subtotal ?? parsed.data.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
   const delivery = await getPublicFreeDelivery(subtotal);
   res.json({
     ...quote,
@@ -46,9 +41,7 @@ couponRouter.post("/preview", async (req, res) => {
       quote.waivesDelivery || delivery.active
         ? {
             active: true,
-            label: quote.waivesDelivery
-              ? "Free delivery with this coupon"
-              : delivery.label,
+            label: quote.waivesDelivery ? "Free delivery with this coupon" : delivery.label,
           }
         : delivery,
   });

@@ -27,9 +27,7 @@ export const createProductSchema = z.object({
   images: z.array(z.string().url()).max(10),
 
   basePrice: z.coerce.number().nonnegative(),
-  productType: z
-    .enum(["FIXED_VARIANTS", "CONFIGURABLE"])
-    .default("CONFIGURABLE"),
+  productType: z.enum(["FIXED_VARIANTS", "CONFIGURABLE"]).default("CONFIGURABLE"),
   template: z.enum(["CAKE", "PIZZA", "OTHER"]).default("CAKE"),
   isCustomizable: z.boolean().default(false),
   isEggless: z.boolean().default(true),
@@ -151,11 +149,7 @@ function buildAdminProductSearchWhere(search?: string) {
   };
 }
 
-export async function listProducts(
-  page = 1,
-  pageSize = 20,
-  search?: string,
-) {
+export async function listProducts(page = 1, pageSize = 20, search?: string) {
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
   const skip = (safePage - 1) * safePageSize;
@@ -270,11 +264,7 @@ function decorateCard(row: PublicCardRow) {
 // Returns products for a category slug. If the slug is a top-level
 // category, includes products from all its children so shoppers see
 // everything under "Celebration Cakes" without picking a sub yet.
-export async function listPublicProductsByCategorySlug(
-  slug: string,
-  page = 1,
-  pageSize = 12,
-) {
+export async function listPublicProductsByCategorySlug(slug: string, page = 1, pageSize = 12) {
   const category = await prisma.category.findUnique({
     where: { slug },
     select: {
@@ -311,20 +301,14 @@ export async function listPublicProductsByCategorySlug(
         ...PUBLIC_LIST_WHERE,
         ...inCategories,
       },
-      orderBy: [
-        { isFeatured: "desc" },
-        { sortOrder: "asc" },
-        { createdAt: "desc" },
-      ],
+      orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
       skip,
       take: safePageSize,
       select: PUBLIC_CARD_SELECT,
     }),
   ]);
 
-  const items = products.map((p) =>
-    decorateCard(p as unknown as PublicCardRow),
-  );
+  const items = products.map((p) => decorateCard(p as unknown as PublicCardRow));
   const totalPages = Math.max(1, Math.ceil(total / safePageSize));
 
   return {
@@ -337,11 +321,7 @@ export async function listPublicProductsByCategorySlug(
 }
 
 // Products whose linked category (or its parent) belongs to this store slug.
-export async function listPublicProductsByDepartmentSlug(
-  slug: string,
-  page = 1,
-  pageSize = 12,
-) {
+export async function listPublicProductsByDepartmentSlug(slug: string, page = 1, pageSize = 12) {
   const department = await prisma.department.findFirst({
     where: { slug, isActive: true },
     select: { id: true, slug: true, name: true },
@@ -378,20 +358,14 @@ export async function listPublicProductsByDepartmentSlug(
         ...PUBLIC_LIST_WHERE,
         ...inDepartment,
       },
-      orderBy: [
-        { isFeatured: "desc" },
-        { sortOrder: "asc" },
-        { createdAt: "desc" },
-      ],
+      orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
       skip,
       take: safePageSize,
       select: PUBLIC_CARD_SELECT,
     }),
   ]);
 
-  const items = products.map((p) =>
-    decorateCard(p as unknown as PublicCardRow),
-  );
+  const items = products.map((p) => decorateCard(p as unknown as PublicCardRow));
   const totalPages = Math.max(1, Math.ceil(total / safePageSize));
 
   return {
@@ -412,11 +386,7 @@ export async function listSameDayProducts() {
       ...PUBLIC_LIST_WHERE,
       supportsSameDayDelivery: true,
     },
-    orderBy: [
-      { isFeatured: "desc" },
-      { sortOrder: "asc" },
-      { createdAt: "desc" },
-    ],
+    orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
     select: PUBLIC_CARD_SELECT,
   });
 
@@ -430,11 +400,7 @@ export async function listPanIndiaProducts() {
       ...PUBLIC_LIST_WHERE,
       canBeDeliveredPanIndia: true,
     },
-    orderBy: [
-      { isFeatured: "desc" },
-      { sortOrder: "asc" },
-      { createdAt: "desc" },
-    ],
+    orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
     select: PUBLIC_CARD_SELECT,
   });
 
@@ -449,11 +415,7 @@ export async function listHealthyTreatProducts() {
       ...PUBLIC_LIST_WHERE,
       isHealthyTreat: true,
     },
-    orderBy: [
-      { isFeatured: "desc" },
-      { sortOrder: "asc" },
-      { createdAt: "desc" },
-    ],
+    orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
     select: PUBLIC_CARD_SELECT,
   });
 
@@ -595,9 +557,7 @@ export async function getPublicProductBySlug(slug: string) {
     : [];
 
   const { categoryLinks, addons: attachedAddons, ...rest } = product;
-  const categoryAddons = await addonsDefaultedToCategories(
-    categoryLinks.map((l) => l.category.id),
-  );
+  const categoryAddons = await addonsDefaultedToCategories(categoryLinks.map((l) => l.category.id));
 
   return {
     ...rest,
@@ -626,9 +586,7 @@ async function addonsDefaultedToCategories(categoryIds: string[]) {
   const scope = [
     ...new Set([
       ...categoryIds,
-      ...rows
-        .map((r) => r.parentId)
-        .filter((id): id is string => Boolean(id)),
+      ...rows.map((r) => r.parentId).filter((id): id is string => Boolean(id)),
     ]),
   ];
   return prisma.addon.findMany({
@@ -641,10 +599,7 @@ async function addonsDefaultedToCategories(categoryIds: string[]) {
   });
 }
 
-function mergeAddonsById<T extends { id: string }>(
-  attached: T[],
-  fromCategories: T[],
-): T[] {
+function mergeAddonsById<T extends { id: string }>(attached: T[], fromCategories: T[]): T[] {
   const map = new Map<string, T>();
   for (const addon of fromCategories) map.set(addon.id, addon);
   for (const addon of attached) map.set(addon.id, addon);
@@ -677,18 +632,10 @@ export async function createProduct(input: CreateProductInput) {
       categoryLinks: {
         create: uniqueCategoryIds.map((categoryId) => ({ categoryId })),
       },
-      flavors: flavorIds.length
-        ? { connect: flavorIds.map((id) => ({ id })) }
-        : undefined,
-      tags: tagIds.length
-        ? { connect: tagIds.map((id) => ({ id })) }
-        : undefined,
-      toppings: toppingIds?.length
-        ? { connect: toppingIds.map((id) => ({ id })) }
-        : undefined,
-      addons: addonIds?.length
-        ? { connect: addonIds.map((id) => ({ id })) }
-        : undefined,
+      flavors: flavorIds.length ? { connect: flavorIds.map((id) => ({ id })) } : undefined,
+      tags: tagIds.length ? { connect: tagIds.map((id) => ({ id })) } : undefined,
+      toppings: toppingIds?.length ? { connect: toppingIds.map((id) => ({ id })) } : undefined,
+      addons: addonIds?.length ? { connect: addonIds.map((id) => ({ id })) } : undefined,
     },
     select: {
       id: true,
@@ -825,9 +772,7 @@ export async function getAdminProductById(id: string) {
   } = product;
 
   const categoryAddonIds = (
-    await addonsDefaultedToCategories(
-      categoryLinks.map((l) => l.category.id),
-    )
+    await addonsDefaultedToCategories(categoryLinks.map((l) => l.category.id))
   ).map((a) => a.id);
 
   return {
@@ -905,15 +850,11 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
       ...(flavorIds !== undefined
         ? { flavors: { set: flavorIds.map((fid) => ({ id: fid })) } }
         : {}),
-      ...(tagIds !== undefined
-        ? { tags: { set: tagIds.map((tid) => ({ id: tid })) } }
-        : {}),
+      ...(tagIds !== undefined ? { tags: { set: tagIds.map((tid) => ({ id: tid })) } } : {}),
       ...(toppingIds !== undefined
         ? { toppings: { set: toppingIds.map((tid) => ({ id: tid })) } }
         : {}),
-      ...(addonIds !== undefined
-        ? { addons: { set: addonIds.map((aid) => ({ id: aid })) } }
-        : {}),
+      ...(addonIds !== undefined ? { addons: { set: addonIds.map((aid) => ({ id: aid })) } } : {}),
     },
     select: {
       id: true,

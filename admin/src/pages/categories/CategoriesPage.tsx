@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  Plus,
-  Trash2,
-  Pencil,
-  X,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { Plus, Trash2, Pencil, X, ChevronDown, ChevronRight } from "lucide-react";
 import {
   useAdminCategories,
   useCreateCategory,
@@ -16,12 +9,7 @@ import {
 } from "@/hooks/useAdminCategories";
 import { useAdminDepartments } from "@/hooks/useAdminDepartments";
 import { uploadImage } from "@/lib/uploads";
-import {
-  inputClass,
-  textareaClass,
-  submitClass,
-  selectClass,
-} from "@/components/form/Field";
+import { inputClass, textareaClass, submitClass, selectClass } from "@/components/form/Field";
 import { cn } from "@/lib/cn";
 
 const slugify = (s: string) =>
@@ -33,9 +21,7 @@ const slugify = (s: string) =>
 
 export function CategoriesPage() {
   const { data: categories = [], isLoading } = useAdminCategories();
-  const [creating, setCreating] = useState<null | { parentId: string | null }>(
-    null,
-  );
+  const [creating, setCreating] = useState<null | { parentId: string | null }>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const topLevel = categories.filter((c) => !c.parentId);
@@ -46,8 +32,8 @@ export function CategoriesPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Categories</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Main catalogue taxonomy. Two levels supported — top-level and
-            sub-categories. Assign each top-level to a store.
+            Main catalogue taxonomy. Two levels supported — top-level and sub-categories. Assign
+            each top-level to a store.
           </p>
         </div>
         <button
@@ -66,9 +52,8 @@ export function CategoriesPage() {
 
       {!isLoading && topLevel.length === 0 && !creating && (
         <div className="rounded-card border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
-          No categories yet. Click{" "}
-          <span className="font-medium">New top-level</span> to create the first
-          one.
+          No categories yet. Click <span className="font-medium">New top-level</span> to create the
+          first one.
         </div>
       )}
 
@@ -141,11 +126,7 @@ function CategoryCard({
 
       {isEditing && (
         <div className="border-t border-slate-100 bg-slate-50/60 p-4">
-          <CategoryForm
-            existing={category}
-            allCategories={allCategories}
-            onClose={onCloseEdit}
-          />
+          <CategoryForm existing={category} allCategories={allCategories} onClose={onCloseEdit} />
         </div>
       )}
 
@@ -233,23 +214,14 @@ function CategoryRow({
             !showToggle && "invisible",
           )}
         >
-          {expanded ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
+          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
       )}
 
       <Thumbnail url={category.imageUrl} />
 
       <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            "truncate font-medium text-slate-900",
-            isTop ? "text-base" : "text-sm",
-          )}
-        >
+        <p className={cn("truncate font-medium text-slate-900", isTop ? "text-base" : "text-sm")}>
           {category.name}
         </p>
         <p className="truncate text-xs text-slate-500">
@@ -274,16 +246,11 @@ function CategoryRow({
         </p>
       </div>
 
-      <label
-        className="hidden items-center gap-1.5 text-xs text-slate-500 sm:flex"
-        title="Active"
-      >
+      <label className="hidden items-center gap-1.5 text-xs text-slate-500 sm:flex" title="Active">
         <input
           type="checkbox"
           checked={category.isActive}
-          onChange={(e) =>
-            update.mutate({ id: category.id, isActive: e.target.checked })
-          }
+          onChange={(e) => update.mutate({ id: category.id, isActive: e.target.checked })}
           className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
         />
         Active
@@ -323,8 +290,7 @@ function CategoryRow({
             )
           ) {
             del.mutate(category.id, {
-              onError: (err) =>
-                alert(err instanceof Error ? err.message : "Delete failed"),
+              onError: (err) => alert(err instanceof Error ? err.message : "Delete failed"),
             });
           }
         }}
@@ -345,7 +311,7 @@ function Thumbnail({ url }: { url: string | null }) {
       className="h-10 w-10 shrink-0 rounded-md object-cover ring-1 ring-slate-200"
     />
   ) : (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-[10px] font-medium uppercase text-slate-400">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-[10px] font-medium text-slate-400 uppercase">
       No img
     </span>
   );
@@ -371,17 +337,13 @@ function CategoryForm({
   const [slug, setSlug] = useState(existing?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(!!existing);
   const [description, setDescription] = useState(existing?.description ?? "");
-  const [imageUrl, setImageUrl] = useState<string | null>(
-    existing?.imageUrl ?? null,
-  );
+  const [imageUrl, setImageUrl] = useState<string | null>(existing?.imageUrl ?? null);
   const [selectedParent, setSelectedParent] = useState<string | null>(
     existing ? existing.parentId : (parentId ?? null),
   );
   const [sortOrder, setSortOrder] = useState(existing?.sortOrder ?? 0);
   const [isActive, setIsActive] = useState(existing?.isActive ?? true);
-  const [departmentId, setDepartmentId] = useState(
-    existing?.departmentId ?? "",
-  );
+  const [departmentId, setDepartmentId] = useState(existing?.departmentId ?? "");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -390,9 +352,7 @@ function CategoryForm({
     setTimeout(() => setSlug(autoSlug), 0);
   }
 
-  const topLevelOptions = allCategories.filter(
-    (c) => !c.parentId && c.id !== existing?.id,
-  );
+  const topLevelOptions = allCategories.filter((c) => !c.parentId && c.id !== existing?.id);
 
   const handleImage = async (file: File | null) => {
     if (!file) {
@@ -446,9 +406,7 @@ function CategoryForm({
   };
 
   const inheritedStore =
-    existing?.department ??
-    allCategories.find((c) => c.id === selectedParent)?.department ??
-    null;
+    existing?.department ?? allCategories.find((c) => c.id === selectedParent)?.department ?? null;
   const saving = create.isPending || update.isPending;
 
   return (
@@ -487,9 +445,7 @@ function CategoryForm({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-600">
-            Slug
-          </span>
+          <span className="mb-1 block text-xs font-medium text-slate-600">Slug</span>
           <input
             value={slug}
             onChange={(e) => {
@@ -503,9 +459,7 @@ function CategoryForm({
       </div>
 
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-slate-600">
-          Description
-        </span>
+        <span className="mb-1 block text-xs font-medium text-slate-600">Description</span>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -548,9 +502,7 @@ function CategoryForm({
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-600">
-            Parent
-          </span>
+          <span className="mb-1 block text-xs font-medium text-slate-600">Parent</span>
           <select
             value={selectedParent ?? ""}
             onChange={(e) => setSelectedParent(e.target.value || null)}
@@ -572,9 +524,7 @@ function CategoryForm({
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-600">
-            Sort
-          </span>
+          <span className="mb-1 block text-xs font-medium text-slate-600">Sort</span>
           <input
             type="number"
             value={sortOrder}
@@ -584,9 +534,7 @@ function CategoryForm({
         </label>
 
         <label className="flex flex-col items-start">
-          <span className="mb-1 block text-xs font-medium text-slate-600">
-            Active
-          </span>
+          <span className="mb-1 block text-xs font-medium text-slate-600">Active</span>
           <input
             type="checkbox"
             checked={isActive}
@@ -597,9 +545,7 @@ function CategoryForm({
       </div>
 
       <div>
-        <span className="mb-1 block text-xs font-medium text-slate-600">
-          Image
-        </span>
+        <span className="mb-1 block text-xs font-medium text-slate-600">Image</span>
         <div className="flex items-center gap-3">
           <Thumbnail url={imageUrl} />
           <input
@@ -617,9 +563,7 @@ function CategoryForm({
               Remove
             </button>
           )}
-          {uploading && (
-            <span className="text-xs text-slate-500">Uploading…</span>
-          )}
+          {uploading && <span className="text-xs text-slate-500">Uploading…</span>}
         </div>
       </div>
 

@@ -34,8 +34,7 @@ export function useBusinessGst() {
 export function useUpdateBusinessGst() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: BusinessGst) =>
-      api.patch<BusinessGst>("/admin/business/gst", input),
+    mutationFn: (input: BusinessGst) => api.patch<BusinessGst>("/admin/business/gst", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "business", "gst"] });
     },

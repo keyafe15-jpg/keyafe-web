@@ -46,10 +46,9 @@ export const GST_STATE_NAMES: Record<string, string> = {
 export const WEST_BENGAL_CODE = "19";
 
 /** Alphabetical, for the picker. */
-export const SELECTABLE_STATES: { code: string; name: string }[] =
-  Object.entries(GST_STATE_NAMES)
-    .map(([code, name]) => ({ code, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+export const SELECTABLE_STATES: { code: string; name: string }[] = Object.entries(GST_STATE_NAMES)
+  .map(([code, name]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 // Spellings Google Places and older saved addresses use.
 const NAME_ALIASES: Record<string, string> = {
@@ -68,12 +67,7 @@ const NAME_ALIASES: Record<string, string> = {
 };
 
 function normalizeName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[.]/g, "")
-    .replace(/\s+/g, " ");
+  return name.trim().toLowerCase().replace(/&/g, "and").replace(/[.]/g, "").replace(/\s+/g, " ");
 }
 
 const NAME_TO_CODE = new Map<string, string>();
@@ -84,16 +78,12 @@ for (const [alias, code] of Object.entries(NAME_ALIASES)) {
   NAME_TO_CODE.set(normalizeName(alias), code);
 }
 
-export function stateCodeFromName(
-  name: string | null | undefined,
-): string | null {
+export function stateCodeFromName(name: string | null | undefined): string | null {
   if (!name) return null;
   return NAME_TO_CODE.get(normalizeName(name)) ?? null;
 }
 
-export function stateNameFromCode(
-  code: string | null | undefined,
-): string | null {
+export function stateNameFromCode(code: string | null | undefined): string | null {
   if (!code) return null;
   const padded = String(code).replace(/\D/g, "").padStart(2, "0");
   return GST_STATE_NAMES[padded] ?? null;

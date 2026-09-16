@@ -14,12 +14,7 @@ type RevealProps = {
  * Fades content into place the first time it scrolls into view.
  * Respects prefers-reduced-motion by rendering content visible immediately.
  */
-export function Reveal({
-  children,
-  delay = 0,
-  className = "",
-  from = "up",
-}: RevealProps) {
+export function Reveal({ children, delay = 0, className = "", from = "up" }: RevealProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 

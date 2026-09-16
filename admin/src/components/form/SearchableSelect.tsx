@@ -93,9 +93,7 @@ export function SearchableSelect({
             disabled && "cursor-not-allowed bg-slate-100 text-slate-500",
           )}
         >
-          <span className="min-w-0 truncate">
-            {selected?.label ?? placeholder}
-          </span>
+          <span className="min-w-0 truncate">{selected?.label ?? placeholder}</span>
           <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-400" />
         </button>
       </Popover.Trigger>
@@ -111,7 +109,7 @@ export function SearchableSelect({
           className="z-50 w-[var(--radix-popover-trigger-width)] min-w-[16rem] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"
         >
           <div className="relative border-b border-slate-100">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
               ref={inputRef}
               value={query}
@@ -119,12 +117,8 @@ export function SearchableSelect({
               placeholder={searchPlaceholder}
               aria-autocomplete="list"
               aria-controls={listId}
-              aria-activedescendant={
-                rows[highlighted]
-                  ? `${listId}-opt-${highlighted}`
-                  : undefined
-              }
-              className="w-full border-0 bg-transparent py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+              aria-activedescendant={rows[highlighted] ? `${listId}-opt-${highlighted}` : undefined}
+              className="w-full border-0 bg-transparent py-2 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
               onKeyDown={(e) => {
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
@@ -146,15 +140,9 @@ export function SearchableSelect({
               }}
             />
           </div>
-          <div
-            id={listId}
-            role="listbox"
-            className="max-h-64 overflow-y-auto py-1"
-          >
+          <div id={listId} role="listbox" className="max-h-64 overflow-y-auto py-1">
             {rows.length === 0 ? (
-              <p className="px-3 py-6 text-center text-xs text-slate-500">
-                {emptyMessage}
-              </p>
+              <p className="px-3 py-6 text-center text-xs text-slate-500">{emptyMessage}</p>
             ) : (
               rows.map((row, idx) => {
                 const active = row.value === value && row.value !== "";
@@ -177,10 +165,7 @@ export function SearchableSelect({
                     )}
                   >
                     <Check
-                      className={cn(
-                        "h-3.5 w-3.5 shrink-0",
-                        active ? "opacity-100" : "opacity-0",
-                      )}
+                      className={cn("h-3.5 w-3.5 shrink-0", active ? "opacity-100" : "opacity-0")}
                     />
                     <span className="min-w-0 truncate">{row.label}</span>
                   </button>
@@ -195,11 +180,7 @@ export function SearchableSelect({
 }
 
 function normalize(s: string) {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .trim();
+  return s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").trim();
 }
 
 function matches(opt: SearchableSelectOption, q: string) {

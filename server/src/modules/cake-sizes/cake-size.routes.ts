@@ -49,8 +49,7 @@ adminCakeSizeRouter.post("/", async (req, res) => {
     where: { grams: parsed.data.grams },
     select: { id: true },
   });
-  if (existing)
-    throw HttpError.conflict("A cake size with that gram value already exists");
+  if (existing) throw HttpError.conflict("A cake size with that gram value already exists");
   const created = await prisma.cakeSize.create({ data: parsed.data });
   res.status(StatusCodes.CREATED).json(created);
 });
@@ -58,10 +57,7 @@ adminCakeSizeRouter.post("/", async (req, res) => {
 adminCakeSizeRouter.patch("/:id", async (req, res) => {
   const parsed = upsertSchema.partial().safeParse(req.body);
   if (!parsed.success) {
-    throw HttpError.badRequest(
-      "Invalid cake size update",
-      parsed.error.flatten(),
-    );
+    throw HttpError.badRequest("Invalid cake size update", parsed.error.flatten());
   }
   const updated = await prisma.cakeSize.update({
     where: { id: req.params.id },

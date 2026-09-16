@@ -34,10 +34,7 @@ export function LeadTimeChip({
   );
 }
 
-export function formatLeadTime(
-  leadTimeHours: number,
-  supportsSameDay?: boolean,
-): string {
+export function formatLeadTime(leadTimeHours: number, supportsSameDay?: boolean): string {
   if (leadTimeHours <= 0) {
     return supportsSameDay ? "Ready today" : "Ready now";
   }

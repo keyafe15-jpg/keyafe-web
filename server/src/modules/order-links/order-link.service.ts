@@ -4,10 +4,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { checkPincode } from "../delivery/delivery.service.js";
 import { sendEmail } from "../email/email.service.js";
-import {
-  renderAdminNotification,
-  renderCustomerConfirmation,
-} from "../email/templates.js";
+import { renderAdminNotification, renderCustomerConfirmation } from "../email/templates.js";
 import { logger } from "../../utils/logger.js";
 import { emitNewOrder } from "../../lib/events.js";
 import { buildOrderNumber } from "../orders/order.service.js";
@@ -48,15 +45,9 @@ function resolvePayment(
   paymentScreenshotUrl: string | null | undefined,
 ) {
   const advanceAmount =
-    paymentMode === "FULL"
-      ? total
-      : Math.min(Math.max(rawAdvanceAmount ?? 0, 0), total);
+    paymentMode === "FULL" ? total : Math.min(Math.max(rawAdvanceAmount ?? 0, 0), total);
   const paymentStatus =
-    advanceAmount <= 0
-      ? "PENDING"
-      : advanceAmount >= total
-        ? "PAID"
-        : "PARTIAL";
+    advanceAmount <= 0 ? "PENDING" : advanceAmount >= total ? "PAID" : "PARTIAL";
   const paymentMethod = paymentScreenshotUrl ? "upi" : "cod";
   return { advanceAmount, paymentStatus, paymentMethod } as const;
 }
@@ -121,13 +112,7 @@ export const createOrderLinkSchema = z.object({
 
   adminNotes: z.string().trim().max(2000).nullable().optional(),
 
-  expiresInDays: z.coerce
-    .number()
-    .int()
-    .positive()
-    .max(365)
-    .nullable()
-    .optional(),
+  expiresInDays: z.coerce.number().int().positive().max(365).nullable().optional(),
 
   ...manualDiscountFields,
 });
@@ -139,23 +124,17 @@ export type CreateOrderLinkInput = z.infer<typeof createOrderLinkSchema>;
 async function buildItemCreates(items: OrderLinkItemInput[]) {
   const catalogIds = [
     ...new Set(
-      items
-        .filter((i) => i.kind === "CATALOG" && i.productId)
-        .map((i) => i.productId as string),
+      items.filter((i) => i.kind === "CATALOG" && i.productId).map((i) => i.productId as string),
     ),
   ];
-  const catalogMap = new Map<
-    string,
-    { name: string; images: string[]; isActive: boolean }
-  >();
+  const catalogMap = new Map<string, { name: string; images: string[]; isActive: boolean }>();
   if (catalogIds.length) {
     const products = await prisma.product.findMany({
       where: { id: { in: catalogIds } },
       select: { id: true, name: true, images: true, isActive: true },
     });
     for (const p of products) {
-      if (!p.isActive)
-        throw HttpError.badRequest(`Product "${p.name}" is inactive`);
+      if (!p.isActive) throw HttpError.badRequest(`Product "${p.name}" is inactive`);
       catalogMap.set(p.id, p);
     }
     for (const id of catalogIds) {
@@ -165,15 +144,12 @@ async function buildItemCreates(items: OrderLinkItemInput[]) {
 
   return items.map((item, index) => {
     const catalog =
-      item.kind === "CATALOG" && item.productId
-        ? catalogMap.get(item.productId)
-        : undefined;
+      item.kind === "CATALOG" && item.productId ? catalogMap.get(item.productId) : undefined;
     const productName =
       catalog && (!item.productName || item.productName === catalog.name)
         ? catalog.name
         : item.productName;
-    const referenceImageUrl =
-      item.referenceImageUrl ?? catalog?.images[0] ?? null;
+    const referenceImageUrl = item.referenceImageUrl ?? catalog?.images[0] ?? null;
 
     return {
       kind: item.kind,
@@ -199,14 +175,9 @@ export async function createOrderLink(input: CreateOrderLinkInput) {
     ? new Date(Date.now() + input.expiresInDays * 24 * 3600 * 1000)
     : null;
 
-  const suggestedDate = input.suggested?.date
-    ? new Date(input.suggested.date)
-    : null;
+  const suggestedDate = input.suggested?.date ? new Date(input.suggested.date) : null;
 
-  const discount = parsedManualDiscount(
-    input.discountType,
-    input.discountValue,
-  );
+  const discount = parsedManualDiscount(input.discountType, input.discountValue);
 
   const created = await prisma.orderLink.create({
     data: {
@@ -310,11 +281,7 @@ export async function getOrderLinkByToken(token: string) {
   if (!link) throw HttpError.notFound("Order link not found");
 
   // Auto-mark expired links so the customer sees a clear message.
-  if (
-    link.status === "OPEN" &&
-    link.expiresAt &&
-    link.expiresAt.getTime() < Date.now()
-  ) {
+  if (link.status === "OPEN" && link.expiresAt && link.expiresAt.getTime() < Date.now()) {
     await prisma.orderLink.update({
       where: { id: link.id },
       data: { status: "EXPIRED" },
@@ -363,10 +330,7 @@ export const placeOrderLinkSchema = z.object({
 
 export type PlaceOrderLinkInput = z.infer<typeof placeOrderLinkSchema>;
 
-export async function placeOrderFromLink(
-  token: string,
-  input: PlaceOrderLinkInput,
-) {
+export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInput) {
   const link = await prisma.orderLink.findUnique({
     where: { token },
     include: {
@@ -410,16 +374,12 @@ export async function placeOrderFromLink(
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   if (Number.isNaN(dt.getTime()) || dt.getTime() < todayStart.getTime()) {
-    throw HttpError.badRequest(
-      "Delivery date is in the past. Please pick a fresh date.",
-    );
+    throw HttpError.badRequest("Delivery date is in the past. Please pick a fresh date.");
   }
   await assertKitchenOpenOn(input.deliveryDate);
 
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
-    throw HttpError.badRequest(
-      "Delivery address is required for delivery orders",
-    );
+    throw HttpError.badRequest("Delivery address is required for delivery orders");
   }
 
   // Delivery fee lookup
@@ -449,9 +409,7 @@ export async function placeOrderFromLink(
   // Tax per line (mirrors placeOfflineOrder) — each item may be its own
   // catalog product with its own GST rate. The manual discount is allocated
   // across lines first so every line is taxed on what was actually charged.
-  const lineTotals = link.items.map(
-    (item) => Number(item.unitPrice) * item.qty,
-  );
+  const lineTotals = link.items.map((item) => Number(item.unitPrice) * item.qty);
   const subtotal = roundMoney(lineTotals.reduce((s, v) => s + v, 0));
 
   const discount = manualDiscountRupees(
@@ -464,17 +422,12 @@ export async function placeOrderFromLink(
   const lineTaxes = link.items.map((item, idx) =>
     computeLineTax({
       lineInclusive: chargedLines[idx] ?? 0,
-      gstRate:
-        item.product?.gstRate != null
-          ? Number(item.product.gstRate)
-          : CUSTOM_GST_RATE,
-      priceIsGstInclusive:
-        item.product?.priceIsGstInclusive ?? CUSTOM_GST_INCLUSIVE,
+      gstRate: item.product?.gstRate != null ? Number(item.product.gstRate) : CUSTOM_GST_RATE,
+      priceIsGstInclusive: item.product?.priceIsGstInclusive ?? CUSTOM_GST_INCLUSIVE,
       isIntraState,
     }),
   );
-  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } =
-    sumLineTax(lineTaxes);
+  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax(lineTaxes);
 
   const itemCreates = link.items.map((item, idx) => {
     const tax = lineTaxes[idx]!;
@@ -497,10 +450,7 @@ export async function placeOrderFromLink(
       qty: item.qty,
       lineTotal: lineTotals[idx] ?? 0,
       hsnCode: item.product?.hsnCode ?? CUSTOM_HSN_CODE,
-      gstRate:
-        item.product?.gstRate != null
-          ? Number(item.product.gstRate)
-          : CUSTOM_GST_RATE,
+      gstRate: item.product?.gstRate != null ? Number(item.product.gstRate) : CUSTOM_GST_RATE,
       taxableValue: tax.taxableValue,
       cgstAmount: tax.cgstAmount,
       sgstAmount: tax.sgstAmount,
@@ -510,12 +460,9 @@ export async function placeOrderFromLink(
 
   const total = subtotal - discount + deliveryFee;
 
-  const payingNow =
-    input.paymentMode === "FULL" ? total : (input.advanceAmount ?? 0);
+  const payingNow = input.paymentMode === "FULL" ? total : (input.advanceAmount ?? 0);
   if (payingNow > 0 && !input.paymentScreenshotUrl) {
-    throw HttpError.badRequest(
-      "Please upload a screenshot of your payment to confirm the order",
-    );
+    throw HttpError.badRequest("Please upload a screenshot of your payment to confirm the order");
   }
   const { advanceAmount, paymentStatus, paymentMethod } = resolvePayment(
     input.paymentMode,
@@ -576,10 +523,7 @@ export async function placeOrderFromLink(
 
   // Fire-and-forget notifications (same as regular checkout).
   void sendOrderLinkEmails(order).catch((err) => {
-    logger.error(
-      { err, orderId: order.id },
-      "order-link email dispatch failed",
-    );
+    logger.error({ err, orderId: order.id }, "order-link email dispatch failed");
   });
 
   emitNewOrder({
@@ -595,14 +539,11 @@ export async function placeOrderFromLink(
   return order;
 }
 
-async function sendOrderLinkEmails(
-  order: Awaited<ReturnType<typeof placeOrderFromLink>>,
-) {
+async function sendOrderLinkEmails(order: Awaited<ReturnType<typeof placeOrderFromLink>>) {
   const settings = await prisma.businessSettings.findFirst({
     select: { supportEmail: true, orderNotificationEmail: true },
   });
-  const adminRecipient =
-    settings?.orderNotificationEmail || settings?.supportEmail;
+  const adminRecipient = settings?.orderNotificationEmail || settings?.supportEmail;
 
   if (order.customerEmail) {
     const { subject, html } = renderCustomerConfirmation(order);
@@ -631,13 +572,7 @@ async function sendOrderLinkEmails(
 
 export const updateOrderLinkSchema = z.object({
   status: z.enum(["CANCELLED"]).optional(),
-  expiresInDays: z.coerce
-    .number()
-    .int()
-    .positive()
-    .max(365)
-    .nullable()
-    .optional(),
+  expiresInDays: z.coerce.number().int().positive().max(365).nullable().optional(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
 
   // Spec edits — only honoured while status is OPEN.
@@ -665,27 +600,21 @@ export async function updateOrderLink(id: string, input: UpdateOrderLinkInput) {
 
   const editingSpec = input.items !== undefined;
   if (editingSpec && existing.status !== "OPEN") {
-    throw HttpError.badRequest(
-      "Cannot edit a link that has already been used or cancelled",
-    );
+    throw HttpError.badRequest("Cannot edit a link that has already been used or cancelled");
   }
 
   const data: Record<string, unknown> = {};
   if (input.status) data.status = input.status;
   if (input.adminNotes !== undefined) data.adminNotes = input.adminNotes;
   if (input.customerName !== undefined) data.customerName = input.customerName;
-  if (input.customerPhone !== undefined)
-    data.customerPhone = input.customerPhone;
+  if (input.customerPhone !== undefined) data.customerPhone = input.customerPhone;
   if (input.expiresInDays !== undefined) {
     data.expiresAt = input.expiresInDays
       ? new Date(Date.now() + input.expiresInDays * 24 * 3600 * 1000)
       : null;
   }
   if (input.discountType !== undefined || input.discountValue !== undefined) {
-    const discount = parsedManualDiscount(
-      input.discountType,
-      input.discountValue,
-    );
+    const discount = parsedManualDiscount(input.discountType, input.discountValue);
     data.discountType = discount.discountType;
     data.discountValue = discount.discountValue;
   }
@@ -737,11 +666,10 @@ export const placeOfflineOrderSchema = z.object({
   items: z
     .array(offlineItemSchema)
     .min(1, "Add at least one item")
-    .refine(
-      (items) =>
-        items.every((i) => (i.kind === "CATALOG" ? !!i.productId : true)),
-      { message: "productId required for CATALOG items", path: ["items"] },
-    ),
+    .refine((items) => items.every((i) => (i.kind === "CATALOG" ? !!i.productId : true)), {
+      message: "productId required for CATALOG items",
+      path: ["items"],
+    }),
 
   customerName: z.string().trim().min(2),
   customerPhone: z
@@ -775,16 +703,12 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   if (Number.isNaN(dt.getTime()) || dt.getTime() < todayStart.getTime()) {
-    throw HttpError.badRequest(
-      "Delivery date is in the past. Please pick a fresh date.",
-    );
+    throw HttpError.badRequest("Delivery date is in the past. Please pick a fresh date.");
   }
   await assertKitchenOpenOn(input.deliveryDate);
 
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
-    throw HttpError.badRequest(
-      "Delivery address is required for delivery orders",
-    );
+    throw HttpError.badRequest("Delivery address is required for delivery orders");
   }
 
   let deliveryFee = 0;
@@ -834,8 +758,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       },
     });
     for (const p of products) {
-      if (!p.isActive)
-        throw HttpError.badRequest(`Product "${p.name}" is inactive`);
+      if (!p.isActive) throw HttpError.badRequest(`Product "${p.name}" is inactive`);
       catalogMap.set(p.id, {
         name: p.name,
         slug: p.slug,
@@ -865,9 +788,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   // Per-item computation — GST rate depends on the item's own kind/product.
   const resolvedItems = input.items.map((item) => {
     const catalog =
-      item.kind === "CATALOG" && item.productId
-        ? catalogMap.get(item.productId)
-        : undefined;
+      item.kind === "CATALOG" && item.productId ? catalogMap.get(item.productId) : undefined;
     return {
       item,
       catalog,
@@ -878,16 +799,10 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     };
   });
 
-  const subtotal = roundMoney(
-    resolvedItems.reduce((s, r) => s + r.lineTotal, 0),
-  );
+  const subtotal = roundMoney(resolvedItems.reduce((s, r) => s + r.lineTotal, 0));
 
   const spec = parsedManualDiscount(input.discountType, input.discountValue);
-  const discount = manualDiscountRupees(
-    subtotal,
-    spec.discountType,
-    spec.discountValue,
-  );
+  const discount = manualDiscountRupees(subtotal, spec.discountType, spec.discountValue);
   const chargedLines = allocateCartDiscount(
     resolvedItems.map((r) => r.lineTotal),
     discount,
@@ -901,8 +816,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       isIntraState,
     }),
   );
-  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } =
-    sumLineTax(lineTaxes);
+  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax(lineTaxes);
 
   const itemCreates = resolvedItems.map((r, idx) => {
     const { item, catalog } = r;
@@ -924,8 +838,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       flavourName: item.flavourName ?? null,
       messageOnCake: item.messageOnCake ?? null,
       instructions: item.instructions ?? null,
-      referenceImageUrl:
-        item.kind === "CUSTOM" ? (item.referenceImageUrl ?? null) : null,
+      referenceImageUrl: item.kind === "CUSTOM" ? (item.referenceImageUrl ?? null) : null,
       deliveryDate: dt,
       deliverySlotKey: input.deliverySlotKey,
       deliverySlotLabel: input.deliverySlotLabel,
@@ -995,10 +908,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   });
 
   void sendOrderLinkEmails(order).catch((err) => {
-    logger.error(
-      { err, orderId: order.id },
-      "offline order email dispatch failed",
-    );
+    logger.error({ err, orderId: order.id }, "offline order email dispatch failed");
   });
 
   emitNewOrder({

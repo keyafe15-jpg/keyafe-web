@@ -30,9 +30,7 @@ export function StoreDoor({
   const imageUrl = categories.find((c) => c.imageUrl)?.imageUrl ?? null;
   const line =
     slug in HOME_COPY.storeDoors.bySlug
-      ? HOME_COPY.storeDoors.bySlug[
-          slug as keyof typeof HOME_COPY.storeDoors.bySlug
-        ]
+      ? HOME_COPY.storeDoors.bySlug[slug as keyof typeof HOME_COPY.storeDoors.bySlug]
       : HOME_COPY.storeDoors.fallbackLine;
   const href = storePath(slug);
   const doorStyle = {
@@ -43,10 +41,7 @@ export function StoreDoor({
 
   return (
     <article className="mx-auto w-full max-w-[360px] sm:max-w-[400px]">
-      <Link
-        to={href}
-        className="storefront group block rounded-[1.5rem] outline-offset-4"
-      >
+      <Link to={href} className="storefront group block rounded-[1.5rem] outline-offset-4">
         <div
           className="relative overflow-hidden rounded-[1.5rem] border-2 shadow-[0_18px_36px_rgba(26,33,42,0.12)]"
           style={{
@@ -57,16 +52,13 @@ export function StoreDoor({
         >
           <div className="relative aspect-[3/4]">
             <Awning accent={colors.accentHex} soft={colors.softHex} deep={colors.deepHex} />
-            <div className="absolute left-1/2 top-[12%] z-20 w-[82%] -translate-x-1/2">
-              <span
-                className="mx-auto mb-0 block h-2.5 w-[2px] bg-ink-700/35"
-                aria-hidden="true"
-              />
+            <div className="absolute top-[12%] left-1/2 z-20 w-[82%] -translate-x-1/2">
+              <span className="mx-auto mb-0 block h-2.5 w-[2px] bg-ink-700/35" aria-hidden="true" />
               <div
                 className="-rotate-1 rounded-[0.65rem] border-[3px] bg-white px-3 py-2 text-center shadow-[0_8px_0_rgba(26,33,42,0.14)] transition duration-500 group-hover:rotate-1"
                 style={{ borderColor: "var(--door-deep)" }}
               >
-                <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-ink-500">
+                <p className="text-[10px] font-semibold tracking-[0.32em] text-ink-500 uppercase">
                   Welcome to
                 </p>
                 <p
@@ -79,7 +71,7 @@ export function StoreDoor({
                   {name}
                 </p>
                 <p
-                  className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.28em] text-white"
+                  className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold tracking-[0.28em] text-white uppercase"
                   style={{ backgroundColor: "var(--door-accent)" }}
                 >
                   Store
@@ -118,14 +110,13 @@ export function StoreDoor({
               className="absolute inset-x-0 bottom-0 h-[8%] border-t"
               style={{
                 borderColor: "color-mix(in srgb, var(--door-deep) 40%, white)",
-                backgroundColor:
-                  "color-mix(in srgb, var(--door-accent) 55%, var(--door-deep))",
+                backgroundColor: "color-mix(in srgb, var(--door-accent) 55%, var(--door-deep))",
               }}
             />
           </div>
         </div>
         <p className="mt-3 text-center text-sm leading-6 text-ink-700">{line}</p>
-        <span className="mt-1 flex items-center justify-center gap-1 text-sm font-semibold text-brand-600">
+        <span className="text-brand-600 mt-1 flex items-center justify-center gap-1 text-sm font-semibold">
           {HOME_COPY.storeDoors.enter}
           <span aria-hidden="true">→</span>
         </span>
@@ -136,7 +127,7 @@ export function StoreDoor({
           <Link
             key={category.id}
             to={`/category/${category.slug}`}
-            className="rounded-full border border-cream-200 bg-white px-3 py-1.5 text-sm text-ink-700 transition hover:border-brand-300 hover:text-brand-600"
+            className="hover:text-brand-600 rounded-full border border-cream-200 bg-white px-3 py-1.5 text-sm text-ink-700 transition hover:border-brand-300"
           >
             {category.name}
           </Link>
@@ -151,9 +142,7 @@ function DoorLeaf({ side }: { side: "left" | "right" }) {
   return (
     <div
       className={`storefront-door relative h-full w-1/2 overflow-hidden border-ink-900/10 ${
-        left
-          ? "origin-left rounded-tl-sm border-r"
-          : "origin-right rounded-tr-sm border-l"
+        left ? "origin-left rounded-tl-sm border-r" : "origin-right rounded-tr-sm border-l"
       }`}
       style={{
         backgroundColor: "color-mix(in srgb, var(--door-soft) 70%, white)",
@@ -178,15 +167,7 @@ function DoorLeaf({ side }: { side: "left" | "right" }) {
   );
 }
 
-function Awning({
-  accent,
-  soft,
-  deep,
-}: {
-  accent: string;
-  soft: string;
-  deep: string;
-}) {
+function Awning({ accent, soft, deep }: { accent: string; soft: string; deep: string }) {
   const stripes = [accent, soft, deep, soft, accent, soft, deep];
 
   return (
@@ -198,11 +179,7 @@ function Awning({
       </div>
       <div className="absolute inset-x-0 bottom-0 flex justify-around">
         {stripes.map((color, i) => (
-          <span
-            key={i}
-            className="h-2 w-[12%] rounded-b-full"
-            style={{ backgroundColor: color }}
-          />
+          <span key={i} className="h-2 w-[12%] rounded-b-full" style={{ backgroundColor: color }} />
         ))}
       </div>
     </div>

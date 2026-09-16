@@ -1,15 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Menu,
-  Search,
-  Volume2,
-  VolumeX,
-  Bell,
-  BellOff,
-  LogOut,
-  User,
-} from "lucide-react";
+import { Menu, Search, Volume2, VolumeX, Bell, BellOff, LogOut, User } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { useAdminAuth } from "@/store/adminAuth";
 import { useAlerts } from "@/store/alerts";
@@ -36,9 +27,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     if (!pushState.supported || pushBusy) return;
     setPushBusy(true);
     try {
-      const next = pushState.subscribed
-        ? await disablePush()
-        : await enablePush();
+      const next = pushState.subscribed ? await disablePush() : await enablePush();
       setPushState(next);
     } finally {
       setPushBusy(false);
@@ -48,11 +37,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const toggleSound = async () => {
     const next = !soundEnabled;
     setSoundEnabled(next);
-    if (
-      next &&
-      typeof Notification !== "undefined" &&
-      Notification.permission === "default"
-    ) {
+    if (next && typeof Notification !== "undefined" && Notification.permission === "default") {
       // Grant browser permission the first time the user enables alerts, so
       // desktop OS notifications work even when the tab isn't focused.
       try {
@@ -75,11 +60,11 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       </button>
 
       <div className="relative hidden max-w-sm flex-1 md:block">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           type="search"
           placeholder="Search orders, products, customers…"
-          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
         />
       </div>
 
@@ -106,11 +91,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
                 : "Enable push on this device (works when the app is closed)"
             }
           >
-            {pushState.subscribed ? (
-              <Bell className="h-4 w-4" />
-            ) : (
-              <BellOff className="h-4 w-4" />
-            )}
+            {pushState.subscribed ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
           </button>
         )}
 
@@ -125,23 +106,17 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           )}
           aria-label={soundEnabled ? "Mute order alarm" : "Enable order alarm"}
           title={
-            soundEnabled
-              ? "Order alarm on — click to mute"
-              : "Order alarm muted — click to enable"
+            soundEnabled ? "Order alarm on — click to mute" : "Order alarm muted — click to enable"
           }
         >
-          {soundEnabled ? (
-            <Volume2 className="h-4 w-4" />
-          ) : (
-            <VolumeX className="h-4 w-4" />
-          )}
+          {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
         </button>
 
         <Dropdown.Root>
           <Dropdown.Trigger asChild>
             <button
               type="button"
-              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-3 text-sm text-slate-700 transition hover:border-brand-300"
+              className="hover:border-brand-300 flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pr-3 pl-1 text-sm text-slate-700 transition"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white">
                 {initial}
@@ -158,12 +133,8 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
               className="z-40 min-w-[180px] rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg"
             >
               <div className="border-b border-slate-100 px-3 py-2">
-                <p className="text-sm font-medium text-slate-900">
-                  {user?.name}
-                </p>
-                <p className="truncate text-xs text-slate-500">
-                  {user?.phone}
-                </p>
+                <p className="text-sm font-medium text-slate-900">{user?.name}</p>
+                <p className="truncate text-xs text-slate-500">{user?.phone}</p>
               </div>
               <Dropdown.Item asChild>
                 <button

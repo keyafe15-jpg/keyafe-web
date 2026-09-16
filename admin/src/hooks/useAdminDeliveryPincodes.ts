@@ -67,13 +67,8 @@ export function useUpdateDeliveryPincode() {
     mutationFn: ({
       pincode,
       ...body
-    }: { pincode: string } & Partial<
-      Omit<DeliveryPincodePayload, "pincode">
-    >) =>
-      api.patch<AdminDeliveryPincode>(
-        `/admin/delivery/pincodes/${pincode}`,
-        body,
-      ),
+    }: { pincode: string } & Partial<Omit<DeliveryPincodePayload, "pincode">>) =>
+      api.patch<AdminDeliveryPincode>(`/admin/delivery/pincodes/${pincode}`, body),
     onSuccess: () => invalidate(qc),
   });
 }
@@ -81,8 +76,7 @@ export function useUpdateDeliveryPincode() {
 export function useDeleteDeliveryPincode() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (pincode: string) =>
-      api.delete<void>(`/admin/delivery/pincodes/${pincode}`),
+    mutationFn: (pincode: string) => api.delete<void>(`/admin/delivery/pincodes/${pincode}`),
     onSuccess: () => invalidate(qc),
   });
 }

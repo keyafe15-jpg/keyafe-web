@@ -17,7 +17,7 @@ function CopyCode({ code }: { code: string }) {
       className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1 font-mono text-xs font-semibold tracking-wide text-brand-700 shadow-sm ring-1 ring-white/60 transition hover:bg-cream-50"
     >
       {code}
-      <span className="text-[9px] font-sans font-semibold uppercase tracking-wider text-ink-500">
+      <span className="font-sans text-[9px] font-semibold tracking-wider text-ink-500 uppercase">
         {copied ? "Copied" : "Copy"}
       </span>
     </button>
@@ -33,25 +33,21 @@ function PromoCard({ coupon }: { coupon: PublicCoupon }) {
       : null;
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-brand-500 via-brand-600 to-ink-900 px-4 py-2.5 text-white shadow-[0_10px_24px_rgba(227,28,121,0.22)] sm:px-5 sm:py-3">
+    <div className="via-brand-600 relative overflow-hidden rounded-xl bg-gradient-to-r from-brand-500 to-ink-900 px-4 py-2.5 text-white shadow-[0_10px_24px_rgba(227,28,121,0.22)] sm:px-5 sm:py-3">
       <div
-        className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full bg-white/15 blur-2xl"
+        className="pointer-events-none absolute -top-10 -right-8 h-24 w-24 rounded-full bg-white/15 blur-2xl"
         aria-hidden="true"
       />
       <div className="relative flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <span className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/75">
+            <span className="text-[9px] font-semibold tracking-[0.22em] text-white/75 uppercase">
               Limited offer
             </span>
-            <h2 className="font-display text-base leading-tight sm:text-lg">
-              {coupon.headline}
-            </h2>
+            <h2 className="font-display text-base leading-tight sm:text-lg">{coupon.headline}</h2>
           </div>
           {coupon.copy && (
-            <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-white/90">
-              {coupon.copy}
-            </p>
+            <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-white/90">{coupon.copy}</p>
           )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -94,7 +90,7 @@ export function HomePromoBanner() {
   if (!current) return null;
 
   return (
-    <div className="mx-auto max-w-6xl px-2 pb-1 pt-2 sm:px-4 sm:pt-3">
+    <div className="mx-auto max-w-6xl px-2 pt-2 pb-1 sm:px-4 sm:pt-3">
       <PromoCard coupon={current} />
       {coupons.length > 1 && (
         <div className="mt-1.5 flex justify-center gap-1">
@@ -105,7 +101,7 @@ export function HomePromoBanner() {
               aria-label={`Show offer ${c.code}`}
               onClick={() => setIndex(i)}
               className={`h-1 rounded-full transition-all ${
-                i === index ? "w-5 bg-brand-500" : "w-1 bg-brand-200"
+                i === index ? "w-5 bg-brand-500" : "bg-brand-200 w-1"
               }`}
             />
           ))}

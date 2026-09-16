@@ -68,11 +68,7 @@ export function CouponsPage() {
     if (!free.data) return;
     setFdFrom(toLocalInput(free.data.freeDeliveryFrom));
     setFdUntil(toLocalInput(free.data.freeDeliveryUntil));
-    setFdMin(
-      free.data.freeDeliveryMinCart != null
-        ? String(free.data.freeDeliveryMinCart)
-        : "",
-    );
+    setFdMin(free.data.freeDeliveryMinCart != null ? String(free.data.freeDeliveryMinCart) : "");
   }, [free.data]);
 
   const loadCoupon = (c: AdminCoupon) => {
@@ -84,10 +80,8 @@ export function CouponsPage() {
       minCartAmount: c.minCartAmount != null ? String(Number(c.minCartAmount)) : "",
       maxDiscount: c.maxDiscount != null ? String(Number(c.maxDiscount)) : "",
       applicableCategoryIds: c.applicableCategoryIds,
-      perCustomerLimit:
-        c.perCustomerLimit != null ? String(c.perCustomerLimit) : "",
-      totalUsageLimit:
-        c.totalUsageLimit != null ? String(c.totalUsageLimit) : "",
+      perCustomerLimit: c.perCustomerLimit != null ? String(c.perCustomerLimit) : "",
+      totalUsageLimit: c.totalUsageLimit != null ? String(c.totalUsageLimit) : "",
       validFrom: toLocalInput(c.validFrom),
       validUntil: toLocalInput(c.validUntil),
       waivesDelivery: c.waivesDelivery,
@@ -111,12 +105,8 @@ export function CouponsPage() {
         minCartAmount: form.minCartAmount ? Number(form.minCartAmount) : null,
         maxDiscount: form.maxDiscount ? Number(form.maxDiscount) : null,
         applicableCategoryIds: form.applicableCategoryIds,
-        perCustomerLimit: form.perCustomerLimit
-          ? Number(form.perCustomerLimit)
-          : null,
-        totalUsageLimit: form.totalUsageLimit
-          ? Number(form.totalUsageLimit)
-          : null,
+        perCustomerLimit: form.perCustomerLimit ? Number(form.perCustomerLimit) : null,
+        totalUsageLimit: form.totalUsageLimit ? Number(form.totalUsageLimit) : null,
         validFrom: new Date(form.validFrom).toISOString(),
         validUntil: new Date(form.validUntil).toISOString(),
         waivesDelivery: form.waivesDelivery,
@@ -146,8 +136,8 @@ export function CouponsPage() {
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-slate-900">Free delivery</h2>
         <p className="mt-1 text-xs text-slate-500">
-          No code needed. Storefront delivery is ₹0 while this window is on.
-          Offline orders still pay the pincode fee.
+          No code needed. Storefront delivery is ₹0 while this window is on. Offline orders still
+          pay the pincode fee.
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <Field label="From">
@@ -183,18 +173,14 @@ export function CouponsPage() {
           onClick={() =>
             saveFree.mutate({
               freeDeliveryFrom: fdFrom ? new Date(fdFrom).toISOString() : null,
-              freeDeliveryUntil: fdUntil
-                ? new Date(fdUntil).toISOString()
-                : null,
+              freeDeliveryUntil: fdUntil ? new Date(fdUntil).toISOString() : null,
               freeDeliveryMinCart: fdMin ? Number(fdMin) : null,
             })
           }
         >
           {saveFree.isPending ? "Saving…" : "Save free delivery"}
         </button>
-        {saveFree.isSuccess && (
-          <span className="ml-3 text-xs text-emerald-700">Saved</span>
-        )}
+        {saveFree.isSuccess && <span className="ml-3 text-xs text-emerald-700">Saved</span>}
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -215,9 +201,7 @@ export function CouponsPage() {
             <select
               className={inputClass}
               value={form.type}
-              onChange={(e) =>
-                setForm({ ...form, type: e.target.value as CouponType })
-              }
+              onChange={(e) => setForm({ ...form, type: e.target.value as CouponType })}
             >
               <option value="PERCENT">Percent off</option>
               <option value="FLAT">Flat ₹ off</option>
@@ -238,9 +222,7 @@ export function CouponsPage() {
               min={0}
               className={inputClass}
               value={form.maxDiscount}
-              onChange={(e) =>
-                setForm({ ...form, maxDiscount: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })}
             />
           </Field>
           <Field label="Min cart ₹">
@@ -249,9 +231,7 @@ export function CouponsPage() {
               min={0}
               className={inputClass}
               value={form.minCartAmount}
-              onChange={(e) =>
-                setForm({ ...form, minCartAmount: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, minCartAmount: e.target.value })}
             />
           </Field>
           <Field label="Total uses" hint="e.g. 50 for launch">
@@ -260,9 +240,7 @@ export function CouponsPage() {
               min={1}
               className={inputClass}
               value={form.totalUsageLimit}
-              onChange={(e) =>
-                setForm({ ...form, totalUsageLimit: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, totalUsageLimit: e.target.value })}
             />
           </Field>
           <Field label="Per phone" hint="Usually 1">
@@ -271,9 +249,7 @@ export function CouponsPage() {
               min={1}
               className={inputClass}
               value={form.perCustomerLimit}
-              onChange={(e) =>
-                setForm({ ...form, perCustomerLimit: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, perCustomerLimit: e.target.value })}
             />
           </Field>
           <Field label="Valid from">
@@ -296,9 +272,7 @@ export function CouponsPage() {
             <input
               className={inputClass}
               value={form.restrictedToPhone}
-              onChange={(e) =>
-                setForm({ ...form, restrictedToPhone: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, restrictedToPhone: e.target.value })}
               placeholder="9330048665"
             />
           </Field>
@@ -332,9 +306,7 @@ export function CouponsPage() {
               rows={2}
               maxLength={240}
               value={form.storefrontCopy}
-              onChange={(e) =>
-                setForm({ ...form, storefrontCopy: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, storefrontCopy: e.target.value })}
               placeholder="Use LAUNCH50 at checkout. First 50 storefront orders only — while it lasts."
             />
           </Field>
@@ -358,7 +330,7 @@ export function CouponsPage() {
                   className={cn(
                     "rounded-full border px-2.5 py-1 text-xs font-medium",
                     on
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      ? "bg-brand-50 border-brand-500 text-brand-700"
                       : "border-slate-200 text-slate-600",
                   )}
                 >
@@ -372,9 +344,7 @@ export function CouponsPage() {
           <input
             type="checkbox"
             checked={form.showOnStorefront}
-            onChange={(e) =>
-              setForm({ ...form, showOnStorefront: e.target.checked })
-            }
+            onChange={(e) => setForm({ ...form, showOnStorefront: e.target.checked })}
           />
           Show on homepage banner
         </label>
@@ -382,9 +352,7 @@ export function CouponsPage() {
           <input
             type="checkbox"
             checked={form.waivesDelivery}
-            onChange={(e) =>
-              setForm({ ...form, waivesDelivery: e.target.checked })
-            }
+            onChange={(e) => setForm({ ...form, waivesDelivery: e.target.checked })}
           />
           Also waive delivery
         </label>
@@ -396,9 +364,7 @@ export function CouponsPage() {
           />
           Active
         </label>
-        {formError && (
-          <p className="mt-3 text-sm text-red-700">{formError}</p>
-        )}
+        {formError && <p className="mt-3 text-sm text-red-700">{formError}</p>}
         <div className="mt-4 flex gap-2">
           <button
             type="button"
@@ -432,7 +398,7 @@ export function CouponsPage() {
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-100 text-xs uppercase text-slate-500">
+              <thead className="border-b border-slate-100 text-xs text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-2">Code</th>
                   <th className="px-4 py-2">Offer</th>
@@ -454,22 +420,16 @@ export function CouponsPage() {
                         {c.code}
                       </button>
                       {!c.isActive && (
-                        <span className="ml-2 text-[10px] uppercase text-slate-400">
-                          off
-                        </span>
+                        <span className="ml-2 text-[10px] text-slate-400 uppercase">off</span>
                       )}
                       {c.showOnStorefront && (
-                        <span className="ml-2 text-[10px] text-brand-600">
-                          homepage
-                        </span>
+                        <span className="ml-2 text-[10px] text-brand-600">homepage</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {c.type === "PERCENT"
-                        ? `${Number(c.value)}%`
-                        : `₹${Number(c.value)}`}
+                      {c.type === "PERCENT" ? `${Number(c.value)}%` : `₹${Number(c.value)}`}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 tabular-nums">
                       {c.usageCount}
                       {c.totalUsageLimit != null ? ` / ${c.totalUsageLimit}` : ""}
                     </td>
@@ -483,9 +443,7 @@ export function CouponsPage() {
                           className="w-40 rounded border border-slate-200 px-2 py-1 text-xs"
                           placeholder="email"
                           value={emailTo[c.code] ?? ""}
-                          onChange={(e) =>
-                            setEmailTo({ ...emailTo, [c.code]: e.target.value })
-                          }
+                          onChange={(e) => setEmailTo({ ...emailTo, [c.code]: e.target.value })}
                         />
                         <button
                           type="button"

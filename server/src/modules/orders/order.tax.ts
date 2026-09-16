@@ -14,9 +14,7 @@ export async function getSellerStateCode(): Promise<string> {
     select: { registeredAddress: true },
   });
   const address = settings?.registeredAddress as
-    | { state?: string | null; stateCode?: string | null }
-    | null
-    | undefined;
+    { state?: string | null; stateCode?: string | null } | null | undefined;
   return (
     normalizeStateCode(address?.stateCode) ??
     stateCodeFromName(address?.state) ??
@@ -99,12 +97,8 @@ export function computeLineTax(input: LineTaxInput): LineTax {
   const rate = Number.isFinite(input.gstRate) ? input.gstRate : 0;
   const gross = input.lineInclusive;
 
-  const taxableValue = input.priceIsGstInclusive
-    ? gross / (1 + rate / 100)
-    : gross;
-  const gstAmount = input.priceIsGstInclusive
-    ? gross - taxableValue
-    : gross * (rate / 100);
+  const taxableValue = input.priceIsGstInclusive ? gross / (1 + rate / 100) : gross;
+  const gstAmount = input.priceIsGstInclusive ? gross - taxableValue : gross * (rate / 100);
 
   if (input.isIntraState) {
     const half = roundMoney(gstAmount / 2);
@@ -151,10 +145,7 @@ export function sumLineTax(lines: LineTax[]): {
  * The coupon path on the storefront uses `discountedLineInclusives` instead,
  * which additionally honours category restrictions.
  */
-export function allocateCartDiscount(
-  lineTotals: number[],
-  discount: number,
-): number[] {
+export function allocateCartDiscount(lineTotals: number[], discount: number): number[] {
   const original = lineTotals.map((v) => roundMoney(v));
   if (discount <= 0) return original;
 
@@ -164,9 +155,7 @@ export function allocateCartDiscount(
   const scale = (subtotal - discount) / subtotal;
   const out = original.map((v) => roundMoney(v * scale));
 
-  const applied = roundMoney(
-    original.reduce((s, v, idx) => s + (v - (out[idx] ?? 0)), 0),
-  );
+  const applied = roundMoney(original.reduce((s, v, idx) => s + (v - (out[idx] ?? 0)), 0));
   const drift = roundMoney(discount - applied);
   if (drift !== 0 && out.length > 0) {
     out[out.length - 1] = roundMoney((out[out.length - 1] ?? 0) - drift);

@@ -39,8 +39,7 @@ export function OrderDetailPage() {
   const canUpdate = useStaffPermission("orders.update");
   const canReadInvoices = useStaffPermission("invoices.read");
   const canReadChallans = useStaffPermission("challans.read");
-  const scheduleLocked =
-    order?.status === "DELIVERED" || order?.status === "CANCELLED";
+  const scheduleLocked = order?.status === "DELIVERED" || order?.status === "CANCELLED";
 
   const [adminNotes, setAdminNotes] = useState("");
   useEffect(() => {
@@ -72,10 +71,7 @@ export function OrderDetailPage() {
     }
   };
 
-  if (isLoading)
-    return (
-      <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-    );
+  if (isLoading) return <div className="p-8 text-center text-sm text-slate-500">Loading…</div>;
   if (isError || !order)
     return (
       <div className="p-8 text-center text-sm text-slate-500">
@@ -100,9 +96,7 @@ export function OrderDetailPage() {
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="font-mono text-2xl font-semibold text-slate-900">
-              {order.orderNumber}
-            </h1>
+            <h1 className="font-mono text-2xl font-semibold text-slate-900">{order.orderNumber}</h1>
             <StatusPill status={order.status} />
           </div>
           <p className="mt-1 text-sm text-slate-500">
@@ -165,35 +159,24 @@ export function OrderDetailPage() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900">
-                      {it.productName}
-                    </p>
+                    <p className="font-medium text-slate-900">{it.productName}</p>
                     <p className="text-xs text-slate-500">
-                      {[it.sizeLabel, it.flavourName]
-                        .filter(Boolean)
-                        .join(" · ")}
+                      {[it.sizeLabel, it.flavourName].filter(Boolean).join(" · ")}
                     </p>
                     {it.messageOnCake && (
-                      <p className="text-xs italic text-slate-600">
-                        Message: "{it.messageOnCake}"
-                      </p>
+                      <p className="text-xs text-slate-600 italic">Message: "{it.messageOnCake}"</p>
                     )}
                     {it.instructions && (
-                      <p className="text-xs text-slate-600">
-                        Notes: {it.instructions}
-                      </p>
+                      <p className="text-xs text-slate-600">Notes: {it.instructions}</p>
                     )}
                     <p className="mt-1 text-[11px] font-medium text-brand-700">
                       {it.deliveryDate && it.deliverySlotLabel
-                        ? `${new Date(it.deliveryDate).toLocaleDateString(
-                            "en-IN",
-                            {
-                              weekday: "short",
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            },
-                          )} · ${it.deliverySlotLabel}`
+                        ? `${new Date(it.deliveryDate).toLocaleDateString("en-IN", {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })} · ${it.deliverySlotLabel}`
                         : "Ships pan-India via courier"}
                     </p>
                     {canUpdate && (
@@ -218,7 +201,7 @@ export function OrderDetailPage() {
                     <p className="text-xs text-slate-500">
                       ₹{Number(it.unitPrice).toFixed(0)} × {it.qty}
                     </p>
-                    <p className="font-medium tabular-nums text-slate-900">
+                    <p className="font-medium text-slate-900 tabular-nums">
                       ₹{Number(it.lineTotal).toFixed(2)}
                     </p>
                     {it.gstRate !== null && (
@@ -237,11 +220,7 @@ export function OrderDetailPage() {
             <div className="space-y-1 text-sm">
               {Number(order.taxableAmount) > 0 && (
                 <>
-                  <Row
-                    label="Taxable amount"
-                    value={Number(order.taxableAmount)}
-                    muted
-                  />
+                  <Row label="Taxable amount" value={Number(order.taxableAmount)} muted />
                   {Number(order.cgstAmount) > 0 && (
                     <Row label="CGST" value={Number(order.cgstAmount)} muted />
                   )}
@@ -254,49 +233,30 @@ export function OrderDetailPage() {
                   <div className="my-1 border-t border-dashed border-slate-200" />
                 </>
               )}
-              <Row
-                label="Subtotal (incl. GST)"
-                value={Number(order.subtotal)}
-              />
-              {isDelivery && (
-                <Row label="Delivery fee" value={Number(order.deliveryFee)} />
-              )}
+              <Row label="Subtotal (incl. GST)" value={Number(order.subtotal)} />
+              {isDelivery && <Row label="Delivery fee" value={Number(order.deliveryFee)} />}
               {Number(order.discount) > 0 && (
                 <Row
-                  label={
-                    order.couponCode
-                      ? `Discount (${order.couponCode})`
-                      : "Discount"
-                  }
+                  label={order.couponCode ? `Discount (${order.couponCode})` : "Discount"}
                   value={-Number(order.discount)}
                 />
               )}
               <div className="my-2 border-t-2 border-slate-900" />
               <div className="flex items-baseline justify-between">
-                <span className="text-sm font-semibold text-slate-900">
-                  Total
-                </span>
-                <span className="text-2xl font-semibold tabular-nums text-slate-900">
+                <span className="text-sm font-semibold text-slate-900">Total</span>
+                <span className="text-2xl font-semibold text-slate-900 tabular-nums">
                   ₹{Number(order.total).toFixed(2)}
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-slate-500">
-                Payment: {order.paymentMethod.toUpperCase()} ·{" "}
-                {order.paymentStatus}
+                Payment: {order.paymentMethod.toUpperCase()} · {order.paymentStatus}
               </p>
               {Number(order.advanceAmount) > 0 && (
                 <>
-                  <Row
-                    label="Advance received"
-                    value={Number(order.advanceAmount)}
-                    muted
-                  />
+                  <Row label="Advance received" value={Number(order.advanceAmount)} muted />
                   <Row
                     label="Pending"
-                    value={Math.max(
-                      Number(order.total) - Number(order.advanceAmount),
-                      0,
-                    )}
+                    value={Math.max(Number(order.total) - Number(order.advanceAmount), 0)}
                     muted
                   />
                 </>
@@ -308,9 +268,7 @@ export function OrderDetailPage() {
 
           {/* Corporate orders need both documents: the tax invoice for the
               books and the challan to hand over with the goods. */}
-          {canReadChallans && isCorporateOrder(order) && (
-            <ChallanCard order={order} />
-          )}
+          {canReadChallans && isCorporateOrder(order) && <ChallanCard order={order} />}
 
           {order.customerNotes && (
             <Card title="Customer notes">
@@ -327,15 +285,11 @@ export function OrderDetailPage() {
               className={textareaClass}
             />
             <div className="mt-2 flex items-center justify-end gap-2">
-              {update.isPending && (
-                <span className="text-xs text-slate-500">Saving…</span>
-              )}
+              {update.isPending && <span className="text-xs text-slate-500">Saving…</span>}
               <button
                 type="button"
                 onClick={() => update.mutate({ id: order.id, adminNotes })}
-                disabled={
-                  update.isPending || adminNotes === (order.adminNotes ?? "")
-                }
+                disabled={update.isPending || adminNotes === (order.adminNotes ?? "")}
                 className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
               >
                 <Save className="h-3.5 w-3.5" /> Save notes
@@ -352,9 +306,7 @@ export function OrderDetailPage() {
                   <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                   {order.customerCompanyName}
                 </p>
-                <p className="text-sm text-slate-600">
-                  Contact: {order.customerName}
-                </p>
+                <p className="text-sm text-slate-600">Contact: {order.customerName}</p>
               </>
             ) : (
               <p className="font-medium text-slate-900">{order.customerName}</p>
@@ -377,25 +329,15 @@ export function OrderDetailPage() {
 
           <Card
             title={isDelivery ? "Delivery to" : "Pickup"}
-            icon={
-              isDelivery ? (
-                <Truck className="h-4 w-4" />
-              ) : (
-                <Store className="h-4 w-4" />
-              )
-            }
+            icon={isDelivery ? <Truck className="h-4 w-4" /> : <Store className="h-4 w-4" />}
           >
             {isDelivery && order.deliveryAddress ? (
               <>
-                <address className="not-italic text-sm text-slate-700">
+                <address className="text-sm text-slate-700 not-italic">
                   <p>{order.deliveryAddress.line1}</p>
-                  {order.deliveryAddress.line2 && (
-                    <p>{order.deliveryAddress.line2}</p>
-                  )}
+                  {order.deliveryAddress.line2 && <p>{order.deliveryAddress.line2}</p>}
                   {order.deliveryAddress.landmark && (
-                    <p className="text-slate-500">
-                      Near {order.deliveryAddress.landmark}
-                    </p>
+                    <p className="text-slate-500">Near {order.deliveryAddress.landmark}</p>
                   )}
                   <p>
                     {[order.deliveryAddress.area, order.deliveryAddress.city]
@@ -406,7 +348,7 @@ export function OrderDetailPage() {
                 </address>
                 {order.deliveryAddress.mapSearchQuery && (
                   <div className="mt-3 rounded-lg border border-brand-500/20 bg-brand-100/50 px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+                    <p className="text-[10px] font-semibold tracking-wide text-brand-700 uppercase">
                       Search on Uber / Rapido
                     </p>
                     <p className="mt-0.5 text-sm font-medium text-slate-900">
@@ -415,9 +357,7 @@ export function OrderDetailPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(
-                          order.deliveryAddress!.mapSearchQuery!,
-                        );
+                        navigator.clipboard.writeText(order.deliveryAddress!.mapSearchQuery!);
                       }}
                       className="mt-1 text-[10px] text-brand-700 hover:underline"
                     >
@@ -427,9 +367,7 @@ export function OrderDetailPage() {
                 )}
               </>
             ) : (
-              <p className="text-sm text-slate-700">
-                Bakery HQ · Howrah 711202
-              </p>
+              <p className="text-sm text-slate-700">Bakery HQ · Howrah 711202</p>
             )}
           </Card>
 
@@ -442,22 +380,12 @@ export function OrderDetailPage() {
               <PaymentPill status={order.paymentStatus} />
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {(
-                [
-                  "PENDING",
-                  "PARTIAL",
-                  "PAID",
-                  "FAILED",
-                  "REFUNDED",
-                ] as PaymentStatus[]
-              )
+              {(["PENDING", "PARTIAL", "PAID", "FAILED", "REFUNDED"] as PaymentStatus[])
                 .filter((s) => s !== order.paymentStatus)
                 .map((s) => (
                   <button
                     key={s}
-                    onClick={() =>
-                      update.mutate({ id: order.id, paymentStatus: s })
-                    }
+                    onClick={() => update.mutate({ id: order.id, paymentStatus: s })}
                     disabled={update.isPending}
                     className="rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700 disabled:opacity-50"
                   >
@@ -467,16 +395,12 @@ export function OrderDetailPage() {
             </div>
 
             <div className="mt-4 border-t border-slate-100 pt-3">
-              <label className="text-xs font-medium text-slate-700">
-                Advance amount
-              </label>
+              <label className="text-xs font-medium text-slate-700">Advance amount</label>
               <div className="mt-1 flex items-center gap-2">
                 <input
                   inputMode="decimal"
                   value={advanceInput}
-                  onChange={(e) =>
-                    setAdvanceInput(e.target.value.replace(/[^0-9.]/g, ""))
-                  }
+                  onChange={(e) => setAdvanceInput(e.target.value.replace(/[^0-9.]/g, ""))}
                   className="w-28 rounded-md border border-slate-200 px-2 py-1 text-sm"
                 />
                 <button
@@ -500,17 +424,12 @@ export function OrderDetailPage() {
               </div>
               <p className="mt-1 text-[11px] text-slate-500">
                 Pending: ₹
-                {Math.max(
-                  Number(order.total) - (Number(advanceInput) || 0),
-                  0,
-                ).toFixed(2)}
+                {Math.max(Number(order.total) - (Number(advanceInput) || 0), 0).toFixed(2)}
               </p>
             </div>
 
             <div className="mt-4 border-t border-slate-100 pt-3">
-              <label className="text-xs font-medium text-slate-700">
-                Payment screenshot
-              </label>
+              <label className="text-xs font-medium text-slate-700">Payment screenshot</label>
               {order.paymentScreenshotUrl && (
                 <a
                   href={order.paymentScreenshotUrl}
@@ -535,13 +454,9 @@ export function OrderDetailPage() {
                 }}
                 className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
               />
-              {screenshotUploading && (
-                <p className="mt-1 text-[11px] text-slate-500">Uploading…</p>
-              )}
+              {screenshotUploading && <p className="mt-1 text-[11px] text-slate-500">Uploading…</p>}
               {screenshotError && (
-                <p className="mt-1 text-[11px] text-red-700">
-                  {screenshotError}
-                </p>
+                <p className="mt-1 text-[11px] text-red-700">{screenshotError}</p>
               )}
             </div>
           </Card>
@@ -602,11 +517,7 @@ function BulkScheduleBar({
   onApply,
 }: {
   pending: boolean;
-  onApply: (
-    deliveryDate: string | null,
-    slotKey: string,
-    slotLabel: string,
-  ) => Promise<unknown>;
+  onApply: (deliveryDate: string | null, slotKey: string, slotLabel: string) => Promise<unknown>;
 }) {
   const [date, setDate] = useState("");
   const [slotKey, setSlotKey] = useState<string>(TIME_SLOTS[0].key);
@@ -614,9 +525,7 @@ function BulkScheduleBar({
 
   return (
     <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-      <p className="mb-2 text-xs font-medium text-slate-600">
-        Set date & slot for every item
-      </p>
+      <p className="mb-2 text-xs font-medium text-slate-600">Set date & slot for every item</p>
       <div className="flex flex-wrap items-end gap-2">
         <input
           type="date"
@@ -670,9 +579,7 @@ function ItemScheduleEditor({
   }) => Promise<unknown>;
 }) {
   const [date, setDate] = useState(toYmd(deliveryDate));
-  const [slotKey, setSlotKey] = useState(
-    deliverySlotKey || TIME_SLOTS[0].key,
-  );
+  const [slotKey, setSlotKey] = useState(deliverySlotKey || TIME_SLOTS[0].key);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -683,8 +590,7 @@ function ItemScheduleEditor({
 
   const originalDate = toYmd(deliveryDate);
   const originalSlot = deliverySlotKey || "";
-  const dirty =
-    date !== originalDate || (date ? slotKey !== originalSlot : false);
+  const dirty = date !== originalDate || (date ? slotKey !== originalSlot : false);
 
   if (locked) return null;
 
@@ -795,14 +701,12 @@ function ChallanCard({ order }: { order: AdminOrder }) {
       </dl>
 
       <p className="mt-3 text-xs text-slate-500">
-        Carries quantities and HSN codes only — no prices or GST. Print it,
-        hand it over with the goods and have the receiver sign it.
+        Carries quantities and HSN codes only — no prices or GST. Print it, hand it over with the
+        goods and have the receiver sign it.
       </p>
 
       {blocked ? (
-        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          {blocked}
-        </p>
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">{blocked}</p>
       ) : (
         <div className="mt-4">
           <button
@@ -814,16 +718,10 @@ function ChallanCard({ order }: { order: AdminOrder }) {
               download
                 .mutateAsync({ id: order.id, orderNumber: order.orderNumber })
                 .then((r) =>
-                  setNote(
-                    r.challanNumber
-                      ? `Downloaded ${r.challanNumber}`
-                      : "Downloaded",
-                  ),
+                  setNote(r.challanNumber ? `Downloaded ${r.challanNumber}` : "Downloaded"),
                 )
                 .catch((err: unknown) =>
-                  setError(
-                    err instanceof Error ? err.message : "Something went wrong",
-                  ),
+                  setError(err instanceof Error ? err.message : "Something went wrong"),
                 );
             }}
             className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
@@ -909,9 +807,7 @@ function InvoiceCard({ order }: { order: AdminOrder }) {
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-xs text-slate-500">Place of supply</dt>
           <dd className="text-right text-slate-700">
-            {order.placeOfSupply
-              ? `${placeName ?? "Unknown"} (${order.placeOfSupply})`
-              : "—"}
+            {order.placeOfSupply ? `${placeName ?? "Unknown"} (${order.placeOfSupply})` : "—"}
             {(isIntraState || isInterState) && (
               <span className="ml-1.5 text-xs text-slate-400">
                 {isIntraState ? "CGST + SGST" : "IGST"}
@@ -924,26 +820,20 @@ function InvoiceCard({ order }: { order: AdminOrder }) {
           <dd className="text-right">
             {order.customerGstin ? (
               <>
-                <span className="text-slate-900">
-                  {order.customerCompanyName}
-                </span>
+                <span className="text-slate-900">{order.customerCompanyName}</span>
                 <span className="ml-1.5 rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-[11px] text-emerald-800">
                   {order.customerGstin}
                 </span>
               </>
             ) : (
-              <span className="text-xs text-slate-400">
-                Individual — no GSTIN on this order
-              </span>
+              <span className="text-xs text-slate-400">Individual — no GSTIN on this order</span>
             )}
           </dd>
         </div>
       </dl>
 
       {blocked ? (
-        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          {blocked}
-        </p>
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">{blocked}</p>
       ) : (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
@@ -986,9 +876,7 @@ function InvoiceCard({ order }: { order: AdminOrder }) {
           </button>
 
           {!order.customerEmail && (
-            <span className="text-xs text-slate-400">
-              No email on this order
-            </span>
+            <span className="text-xs text-slate-400">No email on this order</span>
           )}
         </div>
       )}
@@ -1017,24 +905,14 @@ function Card({
           {icon}
           {title}
         </h2>
-        {subtitle && (
-          <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
-        )}
+        {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
       </div>
       <div className="p-4">{children}</div>
     </section>
   );
 }
 
-function Row({
-  label,
-  value,
-  muted,
-}: {
-  label: string;
-  value: number;
-  muted?: boolean;
-}) {
+function Row({ label, value, muted }: { label: string; value: number; muted?: boolean }) {
   return (
     <div
       className={cn(
@@ -1043,9 +921,7 @@ function Row({
       )}
     >
       <span>{label}</span>
-      <span className={cn("tabular-nums", !muted && "text-slate-900")}>
-        ₹{value.toFixed(2)}
-      </span>
+      <span className={cn("tabular-nums", !muted && "text-slate-900")}>₹{value.toFixed(2)}</span>
     </div>
   );
 }
@@ -1059,12 +935,7 @@ function PaymentPill({ status }: { status: PaymentStatus }) {
     REFUNDED: "bg-amber-50 text-amber-700",
   };
   return (
-    <span
-      className={cn(
-        "inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium",
-        map[status],
-      )}
-    >
+    <span className={cn("inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium", map[status])}>
       {status}
     </span>
   );
@@ -1081,9 +952,7 @@ function StatusChanger({
 }) {
   const currentIdx = STATUS_FLOW.indexOf(currentStatus);
   const next =
-    currentIdx >= 0 && currentIdx < STATUS_FLOW.length - 1
-      ? STATUS_FLOW[currentIdx + 1]
-      : null;
+    currentIdx >= 0 && currentIdx < STATUS_FLOW.length - 1 ? STATUS_FLOW[currentIdx + 1] : null;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -1111,7 +980,7 @@ function StatusChanger({
         value={currentStatus}
         onChange={(e) => onChange(e.target.value as OrderStatus)}
         disabled={pending}
-        className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50"
+        className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:opacity-50"
       >
         {(
           [

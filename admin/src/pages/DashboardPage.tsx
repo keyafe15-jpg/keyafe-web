@@ -1,12 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowUpRight,
-  CalendarRange,
-  Package,
-  ShoppingBag,
-  TrendingUp,
-} from "lucide-react";
+import { ArrowUpRight, CalendarRange, Package, ShoppingBag, TrendingUp } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAdminAuth } from "@/store/adminAuth";
 import { staffHasPermission } from "@/lib/permissions";
@@ -135,7 +129,7 @@ export function DashboardPage() {
 
       <div className="mb-5 flex flex-col gap-3 rounded-card border border-slate-200 bg-white p-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+          <p className="mb-1 text-xs font-medium tracking-wide text-slate-500 uppercase">
             Reporting range
           </p>
           <div className="flex flex-wrap items-center gap-3">
@@ -145,24 +139,22 @@ export function DashboardPage() {
                 type="date"
                 value={from}
                 onChange={(event) => setFrom(event.target.value)}
-                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 outline-none ring-0 transition focus:border-brand-300"
+                className="focus:border-brand-300 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 ring-0 transition outline-none"
               />
             </label>
-            <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
-              to
-            </span>
+            <span className="text-xs tracking-[0.2em] text-slate-400 uppercase">to</span>
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
                 type="date"
                 value={to}
                 onChange={(event) => setTo(event.target.value)}
-                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 outline-none ring-0 transition focus:border-brand-300"
+                className="focus:border-brand-300 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 ring-0 transition outline-none"
               />
             </label>
           </div>
         </div>
 
-        <div className="rounded-full bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700">
+        <div className="bg-brand-50 rounded-full px-3 py-2 text-sm font-medium text-brand-700">
           Range sales: {formatCurrency(summary.rangeSales)}
         </div>
       </div>
@@ -171,31 +163,23 @@ export function DashboardPage() {
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <div
-              key={kpi.label}
-              className="rounded-card border border-slate-200 bg-white p-4"
-            >
+            <div key={kpi.label} className="rounded-card border border-slate-200 bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <span className="text-xs font-medium tracking-wide text-slate-500 uppercase">
                   {kpi.label}
                 </span>
                 <span className={`rounded-md p-1.5 ${kpi.tone} ${kpi.accent}`}>
                   <Icon className="h-4 w-4" />
                 </span>
               </div>
-              <p className="text-2xl font-semibold text-slate-900">
-                {isLoading ? "—" : kpi.value}
-              </p>
+              <p className="text-2xl font-semibold text-slate-900">{isLoading ? "—" : kpi.value}</p>
             </div>
           );
         })}
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[1.5fr_0.8fr]">
-        <PanelCard
-          title="Sales over time"
-          description="Daily sales for the selected period."
-        >
+        <PanelCard title="Sales over time" description="Daily sales for the selected period.">
           {chart.length === 0 ? (
             <EmptyState label="No sales recorded for this range." />
           ) : (
@@ -205,30 +189,12 @@ export function DashboardPage() {
 
         <PanelCard title="Range summary" description="Selected window totals.">
           <div className="space-y-4">
-            <StatLine
-              label="Orders in range"
-              value={formatNumber(summary.rangeOrders)}
-            />
-            <StatLine
-              label="Sales in range"
-              value={formatCurrency(summary.rangeSales)}
-            />
-            <StatLine
-              label="GST in range"
-              value={formatCurrency(summary.rangeGstReceived)}
-            />
-            <StatLine
-              label="Monthly sales"
-              value={formatCurrency(summary.monthlySales)}
-            />
-            <StatLine
-              label="Overall sales"
-              value={formatCurrency(summary.totalSales)}
-            />
-            <StatLine
-              label="Total GST received"
-              value={formatCurrency(summary.totalGstReceived)}
-            />
+            <StatLine label="Orders in range" value={formatNumber(summary.rangeOrders)} />
+            <StatLine label="Sales in range" value={formatCurrency(summary.rangeSales)} />
+            <StatLine label="GST in range" value={formatCurrency(summary.rangeGstReceived)} />
+            <StatLine label="Monthly sales" value={formatCurrency(summary.monthlySales)} />
+            <StatLine label="Overall sales" value={formatCurrency(summary.totalSales)} />
+            <StatLine label="Total GST received" value={formatCurrency(summary.totalGstReceived)} />
           </div>
         </PanelCard>
       </div>
@@ -258,9 +224,7 @@ function PanelCard({
     <section className="rounded-card border border-slate-200 bg-white">
       <div className="border-b border-slate-100 px-4 py-3">
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        {description && (
-          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
-        )}
+        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
       </div>
       <div className="p-4">{children}</div>
     </section>
@@ -280,20 +244,14 @@ function SalesLineChart({
   const labelStep = Math.max(1, Math.ceil(chart.length / 8));
 
   const points = chart.map((point, index) => {
-    const x =
-      padding + (index / Math.max(chart.length - 1, 1)) * (width - padding * 2);
-    const y =
-      height -
-      padding -
-      (point.sales / Math.max(peakSales, 1)) * (height - padding * 2);
+    const x = padding + (index / Math.max(chart.length - 1, 1)) * (width - padding * 2);
+    const y = height - padding - (point.sales / Math.max(peakSales, 1)) * (height - padding * 2);
     return { x, y, point, index };
   });
 
   const area = `${points[0]?.x ?? padding},${height - padding} ${points
     .map(({ x, y }) => `${x},${y}`)
-    .join(
-      " ",
-    )} ${width - padding},${height - padding} ${padding},${height - padding}`;
+    .join(" ")} ${width - padding},${height - padding} ${padding},${height - padding}`;
 
   return (
     <div className="h-64 w-full overflow-hidden">
@@ -326,25 +284,15 @@ function SalesLineChart({
 
         {points.map(({ x, y, point }) => (
           <g key={point.date}>
-            <circle
-              cx={x}
-              cy={y}
-              r="4"
-              fill="#fff"
-              stroke="#e31c79"
-              strokeWidth="2"
-            />
+            <circle cx={x} cy={y} r="4" fill="#fff" stroke="#e31c79" strokeWidth="2" />
             <title>{`${point.label}: ${formatCurrency(point.sales)} (${point.orders} orders)`}</title>
           </g>
         ))}
 
         {chart.map((point, index) => {
-          if (index % labelStep !== 0 && index !== chart.length - 1)
-            return null;
+          if (index % labelStep !== 0 && index !== chart.length - 1) return null;
 
-          const x =
-            padding +
-            (index / Math.max(chart.length - 1, 1)) * (width - padding * 2);
+          const x = padding + (index / Math.max(chart.length - 1, 1)) * (width - padding * 2);
 
           return (
             <text

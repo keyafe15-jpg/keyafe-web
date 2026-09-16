@@ -31,17 +31,15 @@ export function DepartmentsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">Stores</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Groupings such as Dessert and Savoury. Top-level categories pick one;
-          sub-categories inherit it. Shopfront colors paint the home store doors.
+          Groupings such as Dessert and Savoury. Top-level categories pick one; sub-categories
+          inherit it. Shopfront colors paint the home store doors.
         </p>
       </div>
 
       <NewStoreRow />
 
       <div className="mt-4 overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-        )}
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && stores.length === 0 && (
           <div className="p-8 text-center text-sm text-slate-500">
             No stores yet — add your first one above.
@@ -53,15 +51,13 @@ export function DepartmentsPage() {
           // overflow-hidden corners.
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-2 font-medium">Store</th>
                   <th className="px-4 py-2 font-medium">Shopfront</th>
                   <th className="w-24 px-4 py-2 font-medium">Sort</th>
                   <th className="w-24 px-4 py-2 font-medium">Active</th>
-                  <th className="w-28 px-4 py-2 text-right font-medium">
-                    Categories
-                  </th>
+                  <th className="w-28 px-4 py-2 text-right font-medium">Categories</th>
                   <th className="w-12 px-4 py-2" />
                 </tr>
               </thead>
@@ -164,11 +160,7 @@ function NewStoreRow() {
           </button>
         </div>
       </div>
-      {error && (
-        <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
     </div>
   );
 }
@@ -279,15 +271,11 @@ function StoreRow({ store }: { store: AdminDepartment }) {
         <input
           type="checkbox"
           checked={store.isActive}
-          onChange={(e) =>
-            update.mutate({ id: store.id, isActive: e.target.checked })
-          }
+          onChange={(e) => update.mutate({ id: store.id, isActive: e.target.checked })}
           className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
         />
       </td>
-      <td className="px-4 py-3 text-right tabular-nums text-slate-600">
-        {store.categoryCount}
-      </td>
+      <td className="px-4 py-3 text-right text-slate-600 tabular-nums">{store.categoryCount}</td>
       <td className="px-4 py-3 text-right">
         <button
           type="button"
@@ -302,8 +290,7 @@ function StoreRow({ store }: { store: AdminDepartment }) {
             ) {
               if (store.categoryCount > 0) return;
               del.mutate(store.id, {
-                onError: (err) =>
-                  alert(err instanceof Error ? err.message : "Delete failed"),
+                onError: (err) => alert(err instanceof Error ? err.message : "Delete failed"),
               });
             }
           }}

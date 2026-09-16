@@ -67,12 +67,12 @@ function CollectionNavButton({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "group/nav relative overflow-hidden text-ink-800 transition",
+        "group/nav text-ink-800 relative overflow-hidden transition",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500",
         variant === "overlay" &&
           "pointer-events-auto flex h-[4.25rem] w-12 flex-col items-center justify-center gap-1 border border-white/50 bg-white/55 shadow-[0_10px_30px_rgba(26,33,42,0.18)] backdrop-blur-md hover:border-brand-300/70 hover:bg-white/85 hover:text-brand-700",
         variant === "compact" &&
-          "flex h-11 w-11 shrink-0 flex-col items-center justify-center border border-cream-200 bg-white/90 text-ink-800 shadow-sm backdrop-blur-sm hover:border-brand-300 hover:text-brand-700",
+          "text-ink-800 flex h-11 w-11 shrink-0 flex-col items-center justify-center border border-cream-200 bg-white/90 shadow-sm backdrop-blur-sm hover:border-brand-300 hover:text-brand-700",
       )}
     >
       <span
@@ -85,7 +85,7 @@ function CollectionNavButton({
       />
       <ChevronMark direction={direction} />
       {variant === "overlay" && (
-        <span className="font-mono text-[8px] uppercase tracking-[0.28em] text-ink-500 transition-colors group-hover/nav:text-brand-600">
+        <span className="group-hover/nav:text-brand-600 font-mono text-[8px] tracking-[0.28em] text-ink-500 uppercase transition-colors">
           {caption}
         </span>
       )}
@@ -147,7 +147,6 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
 
   const prevTitle = slides[(selectedIndex - 1 + count) % count]?.title;
   const nextTitle = slides[(selectedIndex + 1) % count]?.title;
- 
 
   if (count === 0) {
     return <div className={cn(slideFrame, "animate-pulse bg-[#f7f2eb]")} />;
@@ -178,11 +177,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
             {slides.map((slide, index) => {
               const active = index === selectedIndex;
               return (
-                <div
-                  key={slide.to}
-                  className="w-full shrink-0"
-                  aria-hidden={!active}
-                >
+                <div key={slide.to} className="w-full shrink-0" aria-hidden={!active}>
                   <Link
                     to={slide.to}
                     tabIndex={active ? 0 : -1}
@@ -192,10 +187,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                       {slide.imageUrl || slide.imageUrlMobile ? (
                         <picture>
                           {slide.imageUrlMobile && (
-                            <source
-                              media="(max-width: 639px)"
-                              srcSet={slide.imageUrlMobile}
-                            />
+                            <source media="(max-width: 639px)" srcSet={slide.imageUrlMobile} />
                           )}
                           <img
                             src={slide.imageUrl ?? slide.imageUrlMobile ?? ""}
@@ -215,7 +207,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                           <div className="w-full max-w-[16rem] text-center sm:max-w-md">
                             <div className="border border-white/25 bg-black/25 px-3.5 py-2.5 shadow-[0_10px_28px_rgba(26,33,42,0.22)] backdrop-blur-md sm:rounded-lg sm:px-7 sm:py-5">
                               <div className="mb-1 flex items-center justify-center sm:mb-2">
-                                <span className="inline-flex bg-brand-500/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white sm:rounded-md sm:px-2 sm:text-[10px] sm:tracking-[0.18em]">
+                                <span className="inline-flex bg-brand-500/90 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.16em] text-white uppercase sm:rounded-md sm:px-2 sm:text-[10px] sm:tracking-[0.18em]">
                                   {HOME_COPY.collections.badge}
                                 </span>
                               </div>
@@ -237,24 +229,18 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
           </div>
         </div>
 
-        <div className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden items-center justify-between px-3 sm:flex md:px-4">
+        <div className="pointer-events-none absolute inset-y-0 right-0 left-0 hidden items-center justify-between px-3 sm:flex md:px-4">
           <CollectionNavButton
             direction="prev"
             variant="overlay"
             onClick={goToPrevious}
-            label={
-              prevTitle
-                ? `Previous collection, ${prevTitle}`
-                : "Previous collection"
-            }
+            label={prevTitle ? `Previous collection, ${prevTitle}` : "Previous collection"}
           />
           <CollectionNavButton
             direction="next"
             variant="overlay"
             onClick={goToNext}
-            label={
-              nextTitle ? `Next collection, ${nextTitle}` : "Next collection"
-            }
+            label={nextTitle ? `Next collection, ${nextTitle}` : "Next collection"}
           />
         </div>
       </div>
@@ -267,11 +253,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
               direction="prev"
               variant="compact"
               onClick={goToPrevious}
-              label={
-                prevTitle
-                  ? `Previous collection, ${prevTitle}`
-                  : "Previous collection"
-              }
+              label={prevTitle ? `Previous collection, ${prevTitle}` : "Previous collection"}
             />
             <div className="min-w-0 flex-1 text-center">
               <span className="block font-mono text-[10px] tracking-[0.22em] text-brand-500">
@@ -286,9 +268,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
               direction="next"
               variant="compact"
               onClick={goToNext}
-              label={
-                nextTitle ? `Next collection, ${nextTitle}` : "Next collection"
-              }
+              label={nextTitle ? `Next collection, ${nextTitle}` : "Next collection"}
             />
           </div>
           <div
@@ -308,9 +288,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                   onClick={() => setSelectedIndex(index)}
                   className={cn(
                     "h-2.5 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500",
-                    active
-                      ? "w-6 bg-brand-500"
-                      : "w-2.5 bg-cream-300 hover:bg-brand-300",
+                    active ? "w-6 bg-brand-500" : "bg-cream-300 w-2.5 hover:bg-brand-300",
                   )}
                 />
               );
@@ -338,14 +316,14 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                 aria-current={active ? "true" : undefined}
                 onClick={() => setSelectedIndex(index)}
                 className={cn(
-                  "relative min-w-0 px-2 pb-3 pt-1 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 md:px-3",
+                  "relative min-w-0 px-2 pt-1 pb-3 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 md:px-3",
                   active ? "text-ink-900" : "text-ink-400 hover:text-ink-700",
                 )}
               >
                 <span className="block font-mono text-[10px] tracking-[0.22em] text-brand-500">
                   {String(index + 1).padStart(2, "0")}
                 </span>
-                <span className="mt-0.5 block text-balance text-sm font-medium leading-snug tracking-wide">
+                <span className="mt-0.5 block text-sm leading-snug font-medium tracking-wide text-balance">
                   {slide.title}
                 </span>
                 <span

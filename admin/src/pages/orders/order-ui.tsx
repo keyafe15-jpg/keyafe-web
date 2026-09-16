@@ -56,8 +56,7 @@ export function StatusPill({ status }: { status: OrderStatus }) {
     },
     DELIVERED: {
       label: "Delivered",
-      className:
-        "bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20",
+      className: "bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20",
     },
     CANCELLED: { label: "Cancelled", className: "bg-red-50 text-red-700" },
   };
@@ -75,10 +74,7 @@ export function StatusPill({ status }: { status: OrderStatus }) {
 }
 
 export function SourceBadge({ source }: { source: OrderSource }) {
-  const map: Record<
-    OrderSource,
-    { label: string; className: string; Icon: typeof Globe }
-  > = {
+  const map: Record<OrderSource, { label: string; className: string; Icon: typeof Globe }> = {
     STOREFRONT: {
       label: "Storefront",
       className: "bg-sky-100 text-sky-800",

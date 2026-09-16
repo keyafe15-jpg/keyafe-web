@@ -5,11 +5,7 @@
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { gstinStateCode } from "../../lib/gstin.js";
-import {
-  normalizeStateCode,
-  stateCodeFromName,
-  stateNameFromCode,
-} from "../../lib/indiaStates.js";
+import { normalizeStateCode, stateCodeFromName, stateNameFromCode } from "../../lib/indiaStates.js";
 import { FALLBACK_SELLER_STATE_CODE } from "./order.tax.js";
 import {
   addressLines,
@@ -62,9 +58,7 @@ export async function ensureChallanNumber(
   // Nothing was ever handed over on a cancelled order, so it must not take a
   // number out of the series.
   if (existing.status === "CANCELLED") {
-    throw HttpError.badRequest(
-      "Cannot issue a delivery challan for a cancelled order",
-    );
+    throw HttpError.badRequest("Cannot issue a delivery challan for a cancelled order");
   }
 
   const settings = await getSellerSettings();
@@ -162,10 +156,7 @@ function scheduleLabel(item: {
   return parts.length ? parts.join(" · ") : null;
 }
 
-function sizeText(item: {
-  sizeLabel: string | null;
-  sizeGrams: number | null;
-}): string | null {
+function sizeText(item: { sizeLabel: string | null; sizeGrams: number | null }): string | null {
   if (item.sizeLabel?.trim()) return item.sizeLabel.trim();
   if (!item.sizeGrams) return null;
   return item.sizeGrams >= 1000
@@ -183,8 +174,7 @@ export async function buildChallanData(
 ): Promise<ChallanData> {
   const settings = await getSellerSettings();
   const sellerAddr = asAddress(settings.registeredAddress);
-  const sellerStateCode =
-    sellerAddr.stateCode?.trim() || FALLBACK_SELLER_STATE_CODE;
+  const sellerStateCode = sellerAddr.stateCode?.trim() || FALLBACK_SELLER_STATE_CODE;
 
   const shipAddr = asAddress(order.deliveryAddress);
   const isPickup = order.fulfillment === "PICKUP";
@@ -193,8 +183,7 @@ export async function buildChallanData(
   // registered elsewhere makes the place of supply their own state, and
   // labelling a Howrah address with it would misdescribe the consignee.
   // Left null when the address never captured a state, rather than guessed.
-  const shipStateCode =
-    normalizeStateCode(shipAddr.stateCode) ?? stateCodeFromName(shipAddr.state);
+  const shipStateCode = normalizeStateCode(shipAddr.stateCode) ?? stateCodeFromName(shipAddr.state);
 
   // Same fallback the invoice uses: older orders predate `placeOfSupply`, and
   // refusing to print a challan for one would be worse than deriving it.
@@ -202,9 +191,9 @@ export async function buildChallanData(
     order.placeOfSupply?.trim() ||
     (isPickup
       ? sellerStateCode
-      : normalizeStateCode(shipAddr.stateCode) ??
+      : (normalizeStateCode(shipAddr.stateCode) ??
         stateCodeFromName(shipAddr.state) ??
-        sellerStateCode);
+        sellerStateCode));
 
   // Per-line dates mean one order can span several slots. When they agree the
   // header states it once; when they don't, each line carries its own.
@@ -232,9 +221,7 @@ export async function buildChallanData(
     };
   });
 
-  const partyGstStateCode = order.customerGstin
-    ? gstinStateCode(order.customerGstin)
-    : null;
+  const partyGstStateCode = order.customerGstin ? gstinStateCode(order.customerGstin) : null;
 
   return {
     challanNumber: issued.challanNumber,
@@ -266,11 +253,8 @@ export async function buildChallanData(
     },
     shipTo: {
       name: order.customerName,
-      addressLines: isPickup
-        ? ["Collected at the bakery counter"]
-        : addressLines(shipAddr),
-      stateName:
-        isPickup || !shipStateCode ? null : stateNameFromCode(shipStateCode),
+      addressLines: isPickup ? ["Collected at the bakery counter"] : addressLines(shipAddr),
+      stateName: isPickup || !shipStateCode ? null : stateNameFromCode(shipStateCode),
       stateCode: isPickup ? null : shipStateCode,
       phone: order.customerPhone,
       email: order.customerEmail,
@@ -280,8 +264,7 @@ export async function buildChallanData(
       name: stateNameFromCode(placeCode) ?? placeCode,
     },
     reasonForTransport: DEFAULT_TRANSPORT_REASON,
-    deliveryTime:
-      !isMixedSchedule && order.items[0] ? scheduleLabel(order.items[0]) : null,
+    deliveryTime: !isMixedSchedule && order.items[0] ? scheduleLabel(order.items[0]) : null,
     isMixedSchedule,
     isPickup,
     lines,

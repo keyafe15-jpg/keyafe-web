@@ -1,8 +1,5 @@
 import { useMemo } from "react";
-import {
-  useAdminOrders,
-  type AdminOrderListItem,
-} from "@/hooks/useAdminOrders";
+import { useAdminOrders, type AdminOrderListItem } from "@/hooks/useAdminOrders";
 import { OrderBoardCard } from "@/pages/orders/OrderBoardCard";
 
 const PAGE_SIZE = 100;
@@ -10,8 +7,7 @@ const EXCLUDE: ("DELIVERED" | "CANCELLED")[] = ["DELIVERED", "CANCELLED"];
 
 function sortByReceived(orders: AdminOrderListItem[]) {
   return [...orders].sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 }
 
@@ -58,10 +54,7 @@ export function OrdersPanIndiaView() {
     pageSize: PAGE_SIZE,
   });
 
-  const orders = useMemo(
-    () => sortByReceived(query.data?.items ?? []),
-    [query.data?.items],
-  );
+  const orders = useMemo(() => sortByReceived(query.data?.items ?? []), [query.data?.items]);
 
   const toDispatch = orders.filter((o) => o.status !== "OUT_FOR_DELIVERY");
   const withCourier = orders.filter((o) => o.status === "OUT_FOR_DELIVERY");

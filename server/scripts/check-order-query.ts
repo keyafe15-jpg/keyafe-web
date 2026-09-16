@@ -1,10 +1,7 @@
 // Sanity checks for the admin order query validators. Pure schema work,
 // no database. Run: pnpm --filter server exec tsx scripts/check-order-query.ts
 import type { z } from "zod";
-import {
-  listQuerySchema,
-  scheduleQuerySchema,
-} from "../src/modules/orders/order.admin.routes.js";
+import { listQuerySchema, scheduleQuerySchema } from "../src/modules/orders/order.admin.routes.js";
 
 let failures = 0;
 
@@ -36,9 +33,7 @@ function checkerFor<T extends z.ZodTypeAny>(schema: T) {
     },
     rejects(label: string, query: Record<string, string>, field: string) {
       const parsed = schema.safeParse(query);
-      const ok =
-        !parsed.success &&
-        Object.keys(parsed.error.flatten().fieldErrors).includes(field);
+      const ok = !parsed.success && Object.keys(parsed.error.flatten().fieldErrors).includes(field);
       if (!ok) failures++;
       console.log(
         `${ok ? "ok  " : "FAIL"}  ${label}` +
@@ -89,10 +84,7 @@ list.rejects("unknown status is refused", { status: "ALL" }, "status");
 const excluded = list.accepts("excludeStatus splits on commas", {
   excludeStatus: "DELIVERED, CANCELLED",
 });
-check("  whitespace trimmed", excluded?.excludeStatus, [
-  "DELIVERED",
-  "CANCELLED",
-]);
+check("  whitespace trimmed", excluded?.excludeStatus, ["DELIVERED", "CANCELLED"]);
 check(
   "  empty excludeStatus yields no entries",
   list.accepts("excludeStatus= parses", { excludeStatus: "" })?.excludeStatus,
@@ -105,11 +97,7 @@ list.rejects(
 );
 
 // --- search -----------------------------------------------------------
-check(
-  "search is trimmed",
-  list.accepts("search parses", { search: "  acme  " })?.search,
-  "acme",
-);
+check("search is trimmed", list.accepts("search parses", { search: "  acme  " })?.search, "acme");
 check(
   "blank search becomes unset",
   list.accepts("blank search parses", { search: "   " })?.search,
@@ -136,16 +124,8 @@ list.rejects("rolled-over date is refused", { deliveryFrom: "2026-02-31" }, "del
 list.rejects("month 13 is refused", { deliveryFrom: "2026-13-01" }, "deliveryFrom");
 
 // --- panIndia ---------------------------------------------------------
-check(
-  "panIndia=1 is true",
-  list.accepts("panIndia=1 parses", { panIndia: "1" })?.panIndia,
-  true,
-);
-check(
-  "panIndia=0 is false",
-  list.accepts("panIndia=0 parses", { panIndia: "0" })?.panIndia,
-  false,
-);
+check("panIndia=1 is true", list.accepts("panIndia=1 parses", { panIndia: "1" })?.panIndia, true);
+check("panIndia=0 is false", list.accepts("panIndia=0 parses", { panIndia: "0" })?.panIndia, false);
 list.rejects("panIndia=yes is refused", { panIndia: "yes" }, "panIndia");
 
 console.log("\n== delivery schedule query ==");
@@ -162,11 +142,7 @@ check(
 );
 
 // --- direction --------------------------------------------------------
-check(
-  "dir=desc is accepted",
-  sched.accepts("dir=desc parses", { dir: "desc" })?.dir,
-  "desc",
-);
+check("dir=desc is accepted", sched.accepts("dir=desc parses", { dir: "desc" })?.dir, "desc");
 sched.rejects("unknown dir is refused", { dir: "sideways" }, "dir");
 
 // --- shared filter vocabulary -----------------------------------------
@@ -188,11 +164,7 @@ check(
   undefined,
 );
 sched.rejects("unknown status is refused", { status: "ALL" }, "status");
-sched.rejects(
-  "rolled-over date is refused",
-  { deliveryFrom: "2026-02-31" },
-  "deliveryFrom",
-);
+sched.rejects("rolled-over date is refused", { deliveryFrom: "2026-02-31" }, "deliveryFrom");
 
 // --- pagination -------------------------------------------------------
 sched.rejects("pageSize above the cap is refused", { pageSize: "101" }, "pageSize");

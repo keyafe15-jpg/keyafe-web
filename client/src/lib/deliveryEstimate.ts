@@ -25,11 +25,7 @@ export function computeSameDayEstimate(
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   const durationLabel =
-    hours > 0 && minutes > 0
-      ? `${hours}h ${minutes}m`
-      : hours > 0
-        ? `${hours}h`
-        : `${minutes}m`;
+    hours > 0 && minutes > 0 ? `${hours}h ${minutes}m` : hours > 0 ? `${hours}h` : `${minutes}m`;
 
   return { totalHours, readyAt, timeLabel, durationLabel };
 }

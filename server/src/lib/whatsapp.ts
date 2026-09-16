@@ -27,13 +27,8 @@ export function staffWhatsAppFromEnv(): string[] {
  * Production Meta apps usually need an approved template; this uses session
  * text so local/dev works once a number has messaged the business first.
  */
-export async function sendStaffWhatsApp(
-  body: string,
-  extraPhones: string[] = [],
-): Promise<void> {
-  const to = [
-    ...new Set([...staffWhatsAppFromEnv(), ...extraPhones.map(digits)]),
-  ].filter(Boolean);
+export async function sendStaffWhatsApp(body: string, extraPhones: string[] = []): Promise<void> {
+  const to = [...new Set([...staffWhatsAppFromEnv(), ...extraPhones.map(digits)])].filter(Boolean);
 
   if (!isWhatsAppConfigured()) {
     logger.info(
@@ -70,10 +65,7 @@ export async function sendStaffWhatsApp(
         });
         if (!res.ok) {
           const detail = await res.text().catch(() => "");
-          logger.error(
-            { phone, status: res.status, detail },
-            "whatsapp send failed",
-          );
+          logger.error({ phone, status: res.status, detail }, "whatsapp send failed");
           return;
         }
         logger.info({ phone }, "whatsapp sent");

@@ -1,12 +1,8 @@
 import { z } from "zod";
 
-export const normalizePhone = (value: string) =>
-  value.trim().replace(/[\s().-]/g, "");
+export const normalizePhone = (value: string) => value.trim().replace(/[\s().-]/g, "");
 
-export const formatPhoneWithCountryCode = (
-  countryCode: string,
-  phone: string,
-) => {
+export const formatPhoneWithCountryCode = (countryCode: string, phone: string) => {
   const normalizedCountryCode = countryCode.trim();
   const normalizedPhone = normalizePhone(phone);
   if (!normalizedCountryCode) return normalizedPhone;
@@ -29,10 +25,7 @@ export const phoneSchema = z
   .string()
   .trim()
   .transform((value) => normalizePhone(value))
-  .refine(
-    (value) => /^(?:\+?[1-9]\d{7,14}|[6-9]\d{9})$/.test(value),
-    "Enter a valid phone number",
-  );
+  .refine((value) => /^(?:\+?[1-9]\d{7,14}|[6-9]\d{9})$/.test(value), "Enter a valid phone number");
 
 export const otpSchema = z
   .string()

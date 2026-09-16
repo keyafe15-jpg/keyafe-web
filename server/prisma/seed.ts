@@ -114,7 +114,11 @@ async function seedDeliveryPincodes() {
       sameDayEligible: csvBool(cells[5], true),
       minOrderAmount: csvNumber(cells[6]),
       extraLeadHours: csvNumber(cells[7]) ?? 0,
-      notes: cells.slice(8, cells.length - 5).join(",").trim() || null,
+      notes:
+        cells
+          .slice(8, cells.length - 5)
+          .join(",")
+          .trim() || null,
       isActive: csvBool(cells[cells.length - 5], true),
       expressDeliveryFee: csvNumber(cells[cells.length - 2]),
       expressEligible: csvBool(cells[cells.length - 1], true),
@@ -644,8 +648,7 @@ async function seedProducts() {
       slug: "lemon-zest-birthday-cake",
       name: "Lemon Zest Birthday Cake",
       categorySlug: "birthday-cakes",
-      shortDescription:
-        "Bright citrus layers with soft buttercream and a silky finish.",
+      shortDescription: "Bright citrus layers with soft buttercream and a silky finish.",
       basePrice: 1269,
       template: "CAKE",
       productType: "CONFIGURABLE",
@@ -717,8 +720,7 @@ async function seedSameDayCategories() {
     {
       slug: "signature-cakes",
       name: "Signature Cakes",
-      description:
-        "Single-flavour classics — chocolate truffle, Nutella, and more.",
+      description: "Single-flavour classics — chocolate truffle, Nutella, and more.",
       sortOrder: 20,
     },
     {
@@ -822,9 +824,7 @@ async function seedSameDayCategories() {
     data: { isActive: false },
   });
 
-  logger.info(
-    `Seeded ${categories.length} same-day categories (${deactivated.count} deactivated)`,
-  );
+  logger.info(`Seeded ${categories.length} same-day categories (${deactivated.count} deactivated)`);
 }
 
 async function seedSampleOrders() {
@@ -885,13 +885,7 @@ async function seedSampleOrders() {
         flavourName: itemIndex === 0 ? "Vanilla" : "Chocolate",
         messageOnCake: itemIndex === 0 ? "Happy Birthday!" : null,
         instructions: null,
-        deliveryDate: new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          day + 1,
-          18,
-          0,
-        ),
+        deliveryDate: new Date(today.getFullYear(), today.getMonth(), day + 1, 18, 0),
         deliverySlotKey: "slot-1",
         deliverySlotLabel: "Evening Slot",
         unitPrice,
@@ -900,10 +894,7 @@ async function seedSampleOrders() {
       };
     });
 
-    const subtotal = items.reduce(
-      (sum, item) => sum + Number(item.lineTotal),
-      0,
-    );
+    const subtotal = items.reduce((sum, item) => sum + Number(item.lineTotal), 0);
     const deliveryFee = index % 2 === 0 ? 40 : 60;
     const total = subtotal + deliveryFee;
 
@@ -948,9 +939,7 @@ async function seedSampleOrders() {
     });
   }
 
-  logger.info(
-    `Seeded ${sampleDays.length} sample orders for dashboard analytics`,
-  );
+  logger.info(`Seeded ${sampleDays.length} sample orders for dashboard analytics`);
 }
 
 async function seedTags() {

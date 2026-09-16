@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeft,
-  Copy,
-  Check,
-} from "lucide-react";
+import { ArrowLeft, Copy, Check } from "lucide-react";
 import {
   useAdminOrderLink,
   useCreateOrderLink,
@@ -13,17 +9,9 @@ import {
   type OrderLinkItemPayload,
 } from "@/hooks/useAdminOrderLinks";
 import { useFlavours } from "@/hooks/useFlavours";
-import {
-  Field,
-  inputClass,
-  textareaClass,
-  submitClass,
-} from "@/components/form/Field";
+import { Field, inputClass, textareaClass, submitClass } from "@/components/form/Field";
 import { ManualDiscountFields } from "@/components/form/ManualDiscountFields";
-import {
-  manualDiscountRupees,
-  type ManualDiscountType,
-} from "@/lib/manualDiscount";
+import { manualDiscountRupees, type ManualDiscountType } from "@/lib/manualDiscount";
 import {
   OrderItemsEditor,
   orderLinkItemToDraft,
@@ -52,8 +40,7 @@ export function OrderLinkFormPage() {
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
-  const { items, setItems, patchItem, removeItem, addItem } =
-    useOrderItemsState("CUSTOM");
+  const { items, setItems, patchItem, removeItem, addItem } = useOrderItemsState("CUSTOM");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
@@ -85,10 +72,7 @@ export function OrderLinkFormPage() {
     if (existing.expiresAt) {
       const daysLeft = Math.max(
         1,
-        Math.ceil(
-          (new Date(existing.expiresAt).getTime() - Date.now()) /
-            (24 * 3600 * 1000),
-        ),
+        Math.ceil((new Date(existing.expiresAt).getTime() - Date.now()) / (24 * 3600 * 1000)),
       );
       setExpiresInDays(String(daysLeft));
     } else {
@@ -103,11 +87,7 @@ export function OrderLinkFormPage() {
     (sum, it) => sum + Number(it.unitPrice || 0) * Number(it.qty || 0),
     0,
   );
-  const discount = manualDiscountRupees(
-    itemsTotal,
-    discountType,
-    discountValue,
-  );
+  const discount = manualDiscountRupees(itemsTotal, discountType, discountValue);
   const grandTotal = itemsTotal - discount;
 
   const discountPayload = {
@@ -123,13 +103,7 @@ export function OrderLinkFormPage() {
         setUploading(true);
         const referenceImageUrl = await resolveReferenceImageUrl(it);
         itemPayloads.push(
-          toOrderLinkItemPayload(
-            it,
-            referenceImageUrl,
-            flavours,
-            allToppings,
-            allAddons,
-          ),
+          toOrderLinkItemPayload(it, referenceImageUrl, flavours, allToppings, allAddons),
         );
       }
       setUploading(false);
@@ -230,10 +204,7 @@ export function OrderLinkFormPage() {
             </div>
           </Section>
 
-          <Section
-            title="Admin notes"
-            subtitle="Internal only. Never shown to customer."
-          >
+          <Section title="Admin notes" subtitle="Internal only. Never shown to customer.">
             <textarea
               rows={3}
               value={adminNotes}
@@ -249,19 +220,13 @@ export function OrderLinkFormPage() {
             <h2 className="text-sm font-semibold text-slate-900">Summary</h2>
             <div className="mt-3 space-y-1.5 text-sm">
               {items.map((it, idx) => (
-                <div
-                  key={it.id}
-                  className="flex justify-between text-slate-700"
-                >
+                <div key={it.id} className="flex justify-between text-slate-700">
                   <span className="truncate pr-2">
                     {it.productName.trim() || `Item ${idx + 1}`}
                     {Number(it.qty) > 1 ? ` × ${it.qty}` : ""}
                   </span>
                   <span className="tabular-nums">
-                    ₹
-                    {(Number(it.unitPrice || 0) * Number(it.qty || 0)).toFixed(
-                      0,
-                    )}
+                    ₹{(Number(it.unitPrice || 0) * Number(it.qty || 0)).toFixed(0)}
                   </span>
                 </div>
               ))}
@@ -279,16 +244,13 @@ export function OrderLinkFormPage() {
             )}
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-slate-700">Locked price</span>
-              <span className="text-2xl font-semibold tabular-nums text-slate-900">
+              <span className="text-2xl font-semibold text-slate-900 tabular-nums">
                 ₹{grandTotal.toFixed(0)}
               </span>
             </div>
 
             <div className="mt-4">
-              <Field
-                label="Expires in (days)"
-                hint="Link stops working after this. Blank = never."
-              >
+              <Field label="Expires in (days)" hint="Link stops working after this. Blank = never.">
                 <input
                   type="number"
                   min={1}
@@ -301,9 +263,7 @@ export function OrderLinkFormPage() {
             </div>
 
             {error && (
-              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-                {error}
-              </p>
+              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
             )}
 
             <button
@@ -349,9 +309,7 @@ function Section({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-          {subtitle && (
-            <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
-          )}
+          {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
         </div>
         {action}
       </div>
@@ -359,7 +317,6 @@ function Section({
     </section>
   );
 }
-
 
 function CreatedView({ created }: { created: { token: string; url: string } }) {
   const [copied, setCopied] = useState(false);
@@ -378,13 +335,13 @@ function CreatedView({ created }: { created: { token: string; url: string } }) {
         </div>
         <h1 className="font-display text-2xl text-slate-900">Link created!</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Copy or share it on WhatsApp. Customer opens the link, sees the cake
-          spec, and fills their details.
+          Copy or share it on WhatsApp. Customer opens the link, sees the cake spec, and fills their
+          details.
         </p>
       </div>
 
       <div className="mt-6 rounded-card border border-slate-200 bg-white p-5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase">
           Shareable URL
         </p>
         <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:items-center">

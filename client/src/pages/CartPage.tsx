@@ -17,12 +17,9 @@ export function CartPage() {
     <section className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-8 flex items-end justify-between">
         <div>
-          <h1 className="font-display text-3xl text-ink-900">
-            {CART_COPY.heading}
-          </h1>
+          <h1 className="font-display text-3xl text-ink-900">{CART_COPY.heading}</h1>
           <p className="mt-1 text-sm text-ink-500">
-            {lines.length} item{lines.length === 1 ? "" : "s"} · Review your
-            order before checkout.
+            {lines.length} item{lines.length === 1 ? "" : "s"} · Review your order before checkout.
           </p>
         </div>
         <button
@@ -50,21 +47,13 @@ export function CartPage() {
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-card border border-cream-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 font-display text-lg text-ink-900">
-              Order summary
-            </h2>
+            <h2 className="mb-4 font-display text-lg text-ink-900">Order summary</h2>
             <SummaryRow label={CART_COPY.subtotal} value={subtotal} />
-            <SummaryRow
-              label="Delivery"
-              value={null}
-              hint="Calculated at checkout"
-            />
+            <SummaryRow label="Delivery" value={null} hint="Calculated at checkout" />
             <hr className="my-4 border-cream-200" />
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-ink-700">Total</span>
-              <span className="text-2xl font-semibold text-ink-900">
-                ₹{subtotal.toFixed(2)}
-              </span>
+              <span className="text-2xl font-semibold text-ink-900">₹{subtotal.toFixed(2)}</span>
             </div>
             <p className="mt-1 text-[11px] text-ink-500">
               Inclusive of GST · Delivery added at checkout.
@@ -103,13 +92,9 @@ function CartLineCard({
     <li className="grid gap-4 rounded-card border border-cream-200 bg-white p-4 sm:grid-cols-[110px_1fr_auto]">
       <div className="h-28 w-28 shrink-0 overflow-hidden rounded-lg bg-cream-100 sm:h-full sm:w-[110px]">
         {line.image ? (
-          <img
-            src={line.image}
-            alt={line.name}
-            className="h-full w-full object-cover"
-          />
+          <img src={line.image} alt={line.name} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-ink-400">
+          <div className="text-ink-400 flex h-full w-full items-center justify-center">
             <ImageIcon />
           </div>
         )}
@@ -126,7 +111,7 @@ function CartLineCard({
           <button
             type="button"
             onClick={onRemove}
-            className="shrink-0 rounded-md p-1.5 text-ink-400 transition hover:bg-cream-100 hover:text-brand-500"
+            className="text-ink-400 shrink-0 rounded-md p-1.5 transition hover:bg-cream-100 hover:text-brand-500"
             aria-label={CART_COPY.remove}
             title={CART_COPY.remove}
           >
@@ -136,15 +121,9 @@ function CartLineCard({
 
         <dl className="mt-2 space-y-0.5 text-xs text-ink-500">
           {line.sizeLabel && <Detail label="Size" value={line.sizeLabel} />}
-          {line.flavourName && (
-            <Detail label="Flavour" value={line.flavourName} />
-          )}
-          {line.messageOnCake && (
-            <Detail label="Message" value={`"${line.messageOnCake}"`} />
-          )}
-          {line.instructions && (
-            <Detail label="Notes" value={line.instructions} />
-          )}
+          {line.flavourName && <Detail label="Flavour" value={line.flavourName} />}
+          {line.messageOnCake && <Detail label="Message" value={`"${line.messageOnCake}"`} />}
+          {line.instructions && <Detail label="Notes" value={line.instructions} />}
           {(line.fulfillment || line.date || line.slotLabel) && (
             <Detail
               label={line.fulfillment === "pickup" ? "Pickup" : "Delivery"}
@@ -154,20 +133,14 @@ function CartLineCard({
         </dl>
 
         <div className="mt-3 flex items-center gap-3">
-          <span className="text-xs text-ink-500">
-            ₹{line.unitPrice.toFixed(2)} each
-          </span>
+          <span className="text-xs text-ink-500">₹{line.unitPrice.toFixed(2)} each</span>
           <QtyStepper value={line.qty} onChange={onQty} />
         </div>
       </div>
 
       <div className="text-right sm:min-w-[110px]">
-        <p className="text-[11px] uppercase tracking-wide text-ink-400">
-          Total
-        </p>
-        <p className="text-lg font-semibold tabular-nums text-ink-900">
-          ₹{lineTotal.toFixed(2)}
-        </p>
+        <p className="text-ink-400 text-[11px] tracking-wide uppercase">Total</p>
+        <p className="text-lg font-semibold text-ink-900 tabular-nums">₹{lineTotal.toFixed(2)}</p>
       </div>
     </li>
   );
@@ -194,22 +167,14 @@ function SummaryRow({
   return (
     <div className="flex items-baseline justify-between py-1 text-sm">
       <span className="text-ink-700">{label}</span>
-      <span
-        className={cn("tabular-nums", value == null && "text-xs text-ink-500")}
-      >
+      <span className={cn("tabular-nums", value == null && "text-xs text-ink-500")}>
         {value == null ? hint : `₹${value.toFixed(2)}`}
       </span>
     </div>
   );
 }
 
-function QtyStepper({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-}) {
+function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="inline-flex items-center rounded-lg border border-cream-200 bg-white">
       <button
@@ -285,19 +250,13 @@ function EmptyCart() {
           stroke="currentColor"
           strokeWidth={1.5}
         >
-          <path
-            d="M6 6h15l-1.5 9h-12z"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d="M6 6h15l-1.5 9h-12z" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M6 6L5 3H2" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx="9" cy="19" r="1.5" />
           <circle cx="17" cy="19" r="1.5" />
         </svg>
       </div>
-      <h1 className="mb-3 font-display text-3xl text-ink-900">
-        {CART_COPY.empty.title}
-      </h1>
+      <h1 className="mb-3 font-display text-3xl text-ink-900">{CART_COPY.empty.title}</h1>
       <p className="mb-6 text-ink-500">{CART_COPY.empty.body}</p>
       <Link
         to="/"

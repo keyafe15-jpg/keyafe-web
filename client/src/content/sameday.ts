@@ -7,8 +7,7 @@ export const SAMEDAY_COPY = {
     closed: "Closed · opens at 11 AM",
   },
   emptyCategory: "Nothing in this category right now — check another.",
-  deliveryFeeNote:
-    "Delivery fee for same-day is slightly higher — depends on your pincode.",
+  deliveryFeeNote: "Delivery fee for same-day is slightly higher — depends on your pincode.",
   sidebarHeading: "Categories",
   sidebarMobileLabel: "Browse",
 } as const;

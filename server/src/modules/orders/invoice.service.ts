@@ -3,19 +3,12 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { logger } from "../../utils/logger.js";
 import { roundMoney } from "../coupons/coupon.service.js";
-import {
-  normalizeStateCode,
-  stateCodeFromName,
-  stateNameFromCode,
-} from "../../lib/indiaStates.js";
+import { normalizeStateCode, stateCodeFromName, stateNameFromCode } from "../../lib/indiaStates.js";
 import { FALLBACK_SELLER_STATE_CODE } from "./order.tax.js";
 import { renderInvoicePdf } from "./invoice.pdf.js";
 import type { DocumentParty } from "./pdf.theme.js";
 import { renderInvoiceEmail } from "../email/templates.js";
-import {
-  sendEmail,
-  type EmailAttachment,
-} from "../email/email.service.js";
+import { sendEmail, type EmailAttachment } from "../email/email.service.js";
 
 const IST = "Asia/Kolkata";
 
@@ -106,9 +99,7 @@ export async function ensureInvoiceNumber(
   // the series. Already-numbered cancellations are returned above and should be
   // handled with a credit note instead.
   if (existing.status === "CANCELLED") {
-    throw HttpError.badRequest(
-      "Cannot issue a tax invoice for a cancelled order",
-    );
+    throw HttpError.badRequest("Cannot issue a tax invoice for a cancelled order");
   }
 
   const settings = await getSellerSettings();
@@ -238,24 +229,45 @@ export function asAddress(value: unknown): AddressShape {
 // code, so it gets its own line rather than being buried in the address.
 export function addressLines(addr: AddressShape): string[] {
   const cityLine = [addr.area, addr.city].filter(Boolean).join(", ");
-  const lastLine = [cityLine, addr.pincode]
-    .filter((p) => p && String(p).trim())
-    .join(" · ");
-  return [addr.line1, addr.line2, lastLine]
-    .map((l) => (l ? String(l).trim() : ""))
-    .filter(Boolean);
+  const lastLine = [cityLine, addr.pincode].filter((p) => p && String(p).trim()).join(" · ");
+  return [addr.line1, addr.line2, lastLine].map((l) => (l ? String(l).trim() : "")).filter(Boolean);
 }
 
 /** Indian-system words for a rupee amount, e.g. "One Lakh Twenty". */
 function wordsForInteger(n: number): string {
   const ONES = [
-    "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight",
-    "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen",
-    "Sixteen", "Seventeen", "Eighteen", "Nineteen",
+    "Zero",
+    "One",
+    "Two",
+    "Three",
+    "Four",
+    "Five",
+    "Six",
+    "Seven",
+    "Eight",
+    "Nine",
+    "Ten",
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen",
   ];
   const TENS = [
-    "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy",
-    "Eighty", "Ninety",
+    "",
+    "",
+    "Twenty",
+    "Thirty",
+    "Forty",
+    "Fifty",
+    "Sixty",
+    "Seventy",
+    "Eighty",
+    "Ninety",
   ];
 
   const under100 = (v: number): string => {
@@ -293,9 +305,7 @@ export function amountInWords(amount: number): string {
   const rupees = Math.floor(safe);
   const paise = Math.round((safe - rupees) * 100);
   const head = `Rupees ${wordsForInteger(rupees)}`;
-  return paise > 0
-    ? `${head} and ${wordsForInteger(paise)} Paise Only`
-    : `${head} Only`;
+  return paise > 0 ? `${head} and ${wordsForInteger(paise)} Paise Only` : `${head} Only`;
 }
 
 function itemDescription(item: OrderItem): string {
@@ -338,8 +348,7 @@ export async function buildInvoiceData(
 ): Promise<InvoiceData> {
   const settings = await getSellerSettings();
   const sellerAddr = asAddress(settings.registeredAddress);
-  const sellerStateCode =
-    sellerAddr.stateCode?.trim() || FALLBACK_SELLER_STATE_CODE;
+  const sellerStateCode = sellerAddr.stateCode?.trim() || FALLBACK_SELLER_STATE_CODE;
 
   const buyerAddr = asAddress(order.deliveryAddress);
 
@@ -351,9 +360,9 @@ export async function buildInvoiceData(
     order.placeOfSupply?.trim() ||
     (order.fulfillment === "PICKUP"
       ? sellerStateCode
-      : normalizeStateCode(buyerAddr.stateCode) ??
+      : (normalizeStateCode(buyerAddr.stateCode) ??
         stateCodeFromName(buyerAddr.state) ??
-        sellerStateCode);
+        sellerStateCode));
 
   const deliveryStateCode =
     normalizeStateCode(buyerAddr.stateCode) ?? stateCodeFromName(buyerAddr.state);
@@ -363,9 +372,7 @@ export async function buildInvoiceData(
   // both parties on the face of the invoice in that case, and printing the
   // delivery address under a "Maharashtra" heading would be plainly wrong.
   const shipToDiffers =
-    order.fulfillment === "DELIVERY" &&
-    !!deliveryStateCode &&
-    deliveryStateCode !== placeCode;
+    order.fulfillment === "DELIVERY" && !!deliveryStateCode && deliveryStateCode !== placeCode;
 
   const orderTaxable = Number(order.taxableAmount);
   const orderCgst = Number(order.cgstAmount);
@@ -377,11 +384,7 @@ export async function buildInvoiceData(
   // the state codes only when no GST was collected at all. An invoice that
   // labels the tax differently from the money taken is worse than useless.
   const isIntraState =
-    orderIgst > 0
-      ? false
-      : orderCgst > 0 || orderSgst > 0
-        ? true
-        : placeCode === sellerStateCode;
+    orderIgst > 0 ? false : orderCgst > 0 || orderSgst > 0 ? true : placeCode === sellerStateCode;
 
   // Orders placed before per-line tax existed cannot be split by line or HSN,
   // but most of them still have the order-level GST recorded, so the breakup
@@ -397,8 +400,7 @@ export async function buildInvoiceData(
       qty: item.qty,
       unitPrice: Number(item.unitPrice),
       // Legacy rows fall back to the charged amount so the column still foots.
-      taxableValue:
-        item.taxableValue === null ? lineTotal : Number(item.taxableValue),
+      taxableValue: item.taxableValue === null ? lineTotal : Number(item.taxableValue),
       gstRate: item.gstRate === null ? 0 : Number(item.gstRate),
       cgstAmount: Number(item.cgstAmount),
       sgstAmount: Number(item.sgstAmount),
@@ -408,9 +410,7 @@ export async function buildInvoiceData(
   });
 
   // Per-line values when we have them; otherwise the order-level snapshot.
-  const lineTaxableSum = roundMoney(
-    lines.reduce((s, l) => s + l.taxableValue, 0),
-  );
+  const lineTaxableSum = roundMoney(lines.reduce((s, l) => s + l.taxableValue, 0));
   const useOrderLevelTax = !hasLineTax && orderGstTotal > 0 && orderTaxable > 0;
 
   const taxableTotal = hasLineTax
@@ -439,13 +439,10 @@ export async function buildInvoiceData(
   // Delivery is charged without GST today, so it is shown as its own untaxed
   // row. Any paise left between the printed rows and the amount actually
   // charged becomes the round-off, so the invoice always balances.
-  const printedSum = roundMoney(
-    taxableTotal + cgstTotal + sgstTotal + igstTotal + deliveryFee,
-  );
+  const printedSum = roundMoney(taxableTotal + cgstTotal + sgstTotal + igstTotal + deliveryFee);
   const roundOff = roundMoney(grandTotal - printedSum);
 
-  const amountPaid =
-    order.paymentStatus === "PAID" ? grandTotal : Number(order.advanceAmount);
+  const amountPaid = order.paymentStatus === "PAID" ? grandTotal : Number(order.advanceAmount);
 
   const isTaxInvoice = Boolean(settings.gstin) && settings.gstScheme !== "COMPOSITE";
 

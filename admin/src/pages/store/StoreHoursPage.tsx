@@ -7,12 +7,7 @@ import {
   useDeleteShopClosure,
   type WeeklyHours,
 } from "@/hooks/useStoreHours";
-import {
-  Field,
-  inputClass,
-  submitClass,
-  textareaClass,
-} from "@/components/form/Field";
+import { Field, inputClass, submitClass, textareaClass } from "@/components/form/Field";
 import { cn } from "@/lib/cn";
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -66,9 +61,7 @@ export function StoreHoursPage() {
   }, [data]);
 
   const patchDay = (dayOfWeek: number, patch: Partial<WeeklyHours>) => {
-    setWeekly((prev) =>
-      prev.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, ...patch } : d)),
-    );
+    setWeekly((prev) => prev.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, ...patch } : d)));
     setSaved(false);
   };
 
@@ -140,9 +133,7 @@ export function StoreHoursPage() {
               : "border-slate-200 bg-slate-50 text-slate-700",
           )}
         >
-          <span className="font-semibold">
-            {status.isOpen ? "Open now" : "Closed now"}
-          </span>
+          <span className="font-semibold">{status.isOpen ? "Open now" : "Closed now"}</span>
           <span className="mx-2 text-slate-400">·</span>
           {status.message}
         </div>
@@ -151,8 +142,7 @@ export function StoreHoursPage() {
       <section className="mb-5 rounded-card border border-slate-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-slate-900">Kill switch</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Turns off same-day ordering immediately, regardless of the weekly
-          schedule.
+          Turns off same-day ordering immediately, regardless of the weekly schedule.
         </p>
         <label className="mt-4 flex cursor-pointer items-start gap-3">
           <input
@@ -165,12 +155,9 @@ export function StoreHoursPage() {
             className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
           />
           <span>
-            <span className="block text-sm text-slate-900">
-              Close same-day store now
-            </span>
+            <span className="block text-sm text-slate-900">Close same-day store now</span>
             <span className="block text-xs text-slate-500">
-              Only stops same-day. Scheduled dates still work unless you add
-              days off below.
+              Only stops same-day. Scheduled dates still work unless you add days off below.
             </span>
           </span>
         </label>
@@ -192,9 +179,7 @@ export function StoreHoursPage() {
       <section className="rounded-card border border-slate-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">
-              Weekly hours
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-900">Weekly hours</h2>
             <p className="mt-0.5 text-xs text-slate-500">
               Each day can have its own window, or be marked closed.
             </p>
@@ -213,7 +198,7 @@ export function StoreHoursPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="px-5 py-2 font-medium">Day</th>
                   <th className="px-4 py-2 font-medium">Open</th>
@@ -223,10 +208,7 @@ export function StoreHoursPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {weekly.map((day) => (
-                  <tr
-                    key={day.dayOfWeek}
-                    className={cn(day.isClosed && "bg-slate-50/80")}
-                  >
+                  <tr key={day.dayOfWeek} className={cn(day.isClosed && "bg-slate-50/80")}>
                     <td className="px-5 py-3 font-medium text-slate-900">
                       {DAY_NAMES[day.dayOfWeek]}
                     </td>
@@ -250,9 +232,7 @@ export function StoreHoursPage() {
                         type="time"
                         value={day.openTime}
                         disabled={day.isClosed}
-                        onChange={(e) =>
-                          patchDay(day.dayOfWeek, { openTime: e.target.value })
-                        }
+                        onChange={(e) => patchDay(day.dayOfWeek, { openTime: e.target.value })}
                         className={cn(inputClass, "w-32 disabled:bg-slate-100")}
                       />
                     </td>
@@ -261,9 +241,7 @@ export function StoreHoursPage() {
                         type="time"
                         value={day.closeTime}
                         disabled={day.isClosed}
-                        onChange={(e) =>
-                          patchDay(day.dayOfWeek, { closeTime: e.target.value })
-                        }
+                        onChange={(e) => patchDay(day.dayOfWeek, { closeTime: e.target.value })}
                         className={cn(inputClass, "w-32 disabled:bg-slate-100")}
                       />
                     </td>
@@ -278,8 +256,8 @@ export function StoreHoursPage() {
       <section className="mt-5 rounded-card border border-slate-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-slate-900">Days off</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Kitchen closed for everyone — no same-day or scheduled delivery on
-          these dates. Use this when you are travelling or taking a break.
+          Kitchen closed for everyone — no same-day or scheduled delivery on these dates. Use this
+          when you are travelling or taking a break.
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -325,24 +303,15 @@ export function StoreHoursPage() {
 
         <ul className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-100">
           {(data?.closures ?? []).length === 0 && (
-            <li className="px-3 py-4 text-sm text-slate-500">
-              No upcoming days off.
-            </li>
+            <li className="px-3 py-4 text-sm text-slate-500">No upcoming days off.</li>
           )}
           {(data?.closures ?? []).map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center justify-between gap-3 px-3 py-2.5"
-            >
+            <li key={c.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
               <div>
                 <p className="text-sm font-medium text-slate-900">
-                  {c.startsOn === c.endsOn
-                    ? c.startsOn
-                    : `${c.startsOn} → ${c.endsOn}`}
+                  {c.startsOn === c.endsOn ? c.startsOn : `${c.startsOn} → ${c.endsOn}`}
                 </p>
-                {c.reason && (
-                  <p className="text-xs text-slate-500">{c.reason}</p>
-                )}
+                {c.reason && <p className="text-xs text-slate-500">{c.reason}</p>}
               </div>
               <button
                 type="button"
@@ -366,9 +335,7 @@ export function StoreHoursPage() {
         >
           {update.isPending ? "Saving…" : "Save hours"}
         </button>
-        {saved && !update.isPending && (
-          <span className="text-xs text-emerald-700">Saved</span>
-        )}
+        {saved && !update.isPending && <span className="text-xs text-emerald-700">Saved</span>}
         {error && <span className="text-xs text-brand-700">{error}</span>}
       </div>
     </div>

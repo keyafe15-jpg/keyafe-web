@@ -17,9 +17,7 @@ export function CancelOrderButton({ order }: { order: Order }) {
   const cancelled = order.status === "CANCELLED";
 
   if (cancelled) {
-    return (
-      <p className="text-sm font-medium text-red-700">This order is cancelled.</p>
-    );
+    return <p className="text-sm font-medium text-red-700">This order is cancelled.</p>;
   }
 
   if (!state?.allowed) {
@@ -53,9 +51,7 @@ export function CancelOrderButton({ order }: { order: Order }) {
       )}
       {cancel.isError && (
         <p className="text-xs text-red-700">
-          {cancel.error instanceof Error
-            ? cancel.error.message
-            : "Couldn’t cancel this order."}
+          {cancel.error instanceof Error ? cancel.error.message : "Couldn’t cancel this order."}
         </p>
       )}
     </div>

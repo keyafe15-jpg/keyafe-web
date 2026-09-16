@@ -123,9 +123,7 @@ function totalsBlock(order: OrderWithItems): string {
       ${
         Number(order.discount) > 0
           ? row(
-              order.couponCode
-                ? `Discount (${escapeHtml(order.couponCode)})`
-                : "Discount",
+              order.couponCode ? `Discount (${escapeHtml(order.couponCode)})` : "Discount",
               `−${money(order.discount)}`,
             )
           : ""
@@ -266,10 +264,7 @@ export function renderCustomerCancelled(order: OrderWithItems) {
   };
 }
 
-export function renderAdminCancelled(
-  order: OrderWithItems,
-  by: "customer" | "admin",
-) {
+export function renderAdminCancelled(order: OrderWithItems, by: "customer" | "admin") {
   const who = by === "customer" ? "Customer cancelled" : "Cancelled in admin";
   const html = shell(
     `Order cancelled — ${order.orderNumber}`,
@@ -310,11 +305,7 @@ export function renderInvoiceEmail(args: {
     <p style="margin:0 0 20px;color:#7d8590;">
       Hi ${escapeHtml(order.customerName.split(" ")[0] ?? order.customerName)}, here's the
       ${escapeHtml(title.toLowerCase())} for order ${escapeHtml(order.orderNumber)}, attached as a PDF.
-      ${
-        forBusiness
-          ? "It carries your GSTIN, so you can use it to claim input tax credit."
-          : ""
-      }
+      ${forBusiness ? "It carries your GSTIN, so you can use it to claim input tax credit." : ""}
     </p>
 
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#faf6ec;border-radius:8px;">
@@ -364,9 +355,7 @@ export function renderCouponShare(coupon: {
   minCartAmount: unknown;
 }) {
   const offer =
-    coupon.type === "PERCENT"
-      ? `${Number(coupon.value)}% off`
-      : `${money(coupon.value)} off`;
+    coupon.type === "PERCENT" ? `${Number(coupon.value)}% off` : `${money(coupon.value)} off`;
   const until = coupon.validUntil.toLocaleDateString("en-IN", {
     timeZone: "Asia/Kolkata",
     day: "numeric",

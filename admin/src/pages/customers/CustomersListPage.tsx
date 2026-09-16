@@ -104,19 +104,19 @@ export function CustomersListPage() {
           </div>
 
           <div className="relative w-full max-w-md lg:w-auto">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search by name, phone, or email…"
-              className={cn(inputClass, "w-full pl-9 pr-9")}
+              className={cn(inputClass, "w-full pr-9 pl-9")}
             />
             {searchInput && (
               <button
                 type="button"
                 onClick={() => setSearchInput("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
@@ -134,7 +134,7 @@ export function CustomersListPage() {
               className={cn(
                 "rounded-md border px-2.5 py-1 text-xs font-medium transition",
                 statusTab === t.key
-                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  ? "bg-brand-50 border-brand-500 text-brand-700"
                   : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
               )}
             >
@@ -145,9 +145,7 @@ export function CustomersListPage() {
       </div>
 
       <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-        )}
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && customers.length === 0 && (
           <div className="p-8 text-center text-sm text-slate-500">
             {searching ? (
@@ -170,12 +168,12 @@ export function CustomersListPage() {
             )}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1000px] text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                   <tr>
                     <th className="px-4 py-2 font-medium">Customer</th>
                     <th className="px-4 py-2 font-medium">Phone</th>
                     <th className="px-4 py-2 font-medium">Email</th>
-                    <th className="px-4 py-2 font-medium text-right">Orders</th>
+                    <th className="px-4 py-2 text-right font-medium">Orders</th>
                     <th className="px-4 py-2 font-medium">First seen</th>
                     <th className="px-4 py-2 font-medium">Signals</th>
                     <th className="px-4 py-2 font-medium">Type</th>
@@ -197,25 +195,19 @@ export function CustomersListPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 tabular-nums text-slate-700">
-                        {c.phone}
-                      </td>
+                      <td className="px-4 py-3 text-slate-700 tabular-nums">{c.phone}</td>
                       <td className="px-4 py-3 text-slate-700">
                         {c.email ?? <span className="text-slate-400">—</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <p className="font-medium tabular-nums text-slate-900">
+                        <p className="font-medium text-slate-900 tabular-nums">
                           {c.totalOrderCount}
                         </p>
                         {c.guestCheckoutCount > 0 && (
-                          <p className="text-[10px] text-amber-700">
-                            {c.guestCheckoutCount} guest
-                          </p>
+                          <p className="text-[10px] text-amber-700">{c.guestCheckoutCount} guest</p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatDate(c.createdAt)}
-                      </td>
+                      <td className="px-4 py-3 text-slate-600">{formatDate(c.createdAt)}</td>
                       <td className="px-4 py-3">
                         <ContactSignals customer={c} />
                       </td>
@@ -234,14 +226,8 @@ export function CustomersListPage() {
               page={data?.page ?? 1}
               pageCount={data?.totalPages ?? 1}
               total={total}
-              firstItem={
-                data && data.total > 0
-                  ? (data.page - 1) * data.pageSize + 1
-                  : 0
-              }
-              lastItem={
-                data ? Math.min(data.page * data.pageSize, data.total) : 0
-              }
+              firstItem={data && data.total > 0 ? (data.page - 1) * data.pageSize + 1 : 0}
+              lastItem={data ? Math.min(data.page * data.pageSize, data.total) : 0}
               onPageChange={setPage}
               noun="customers"
               className="mx-4 mb-4"
@@ -250,10 +236,7 @@ export function CustomersListPage() {
         )}
       </div>
 
-      <CustomerDetailDrawer
-        customer={selected}
-        onClose={() => setSelected(null)}
-      />
+      <CustomerDetailDrawer customer={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
@@ -301,9 +284,7 @@ function TypeBadge({ customer }: { customer: AdminCustomer }) {
     <span
       className={cn(
         "inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-medium",
-        customer.isRegistered
-          ? "bg-emerald-50 text-emerald-700"
-          : "bg-amber-50 text-amber-800",
+        customer.isRegistered ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800",
       )}
     >
       {customer.isRegistered ? "Registered" : "Guest"}

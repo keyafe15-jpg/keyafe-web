@@ -87,14 +87,15 @@ export const useAuth = create<AuthState>()(
         const normalizedPhone = normalizePhone(phone);
         set({ isSubmitting: true, error: null });
         try {
-          const data = await api.post<
-            AuthApiResponse | RequiresProfileResponse
-          >("/auth/verify-otp", {
-            phone: normalizedPhone,
-            otp,
-            name,
-            email,
-          });
+          const data = await api.post<AuthApiResponse | RequiresProfileResponse>(
+            "/auth/verify-otp",
+            {
+              phone: normalizedPhone,
+              otp,
+              name,
+              email,
+            },
+          );
 
           if ("requiresProfile" in data && data.requiresProfile) {
             set({ isSubmitting: false, error: null });

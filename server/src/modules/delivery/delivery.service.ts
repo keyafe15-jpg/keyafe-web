@@ -52,9 +52,7 @@ function toPincodeServiceable(zone: {
     deliveryFee: Number(zone.deliveryFee),
     sameDayEligible: zone.sameDayEligible,
     expressEligible: zone.expressEligible,
-    expressDeliveryFee: zone.expressDeliveryFee
-      ? Number(zone.expressDeliveryFee)
-      : null,
+    expressDeliveryFee: zone.expressDeliveryFee ? Number(zone.expressDeliveryFee) : null,
     minOrderAmount: zone.minOrderAmount ? Number(zone.minOrderAmount) : null,
     extraLeadHours: zone.extraLeadHours,
   };

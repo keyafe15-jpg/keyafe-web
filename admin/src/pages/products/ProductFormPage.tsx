@@ -41,12 +41,8 @@ const formSchema = z.object({
   isCustomizable: z.boolean(),
   isEggless: z.boolean(),
   sellByPound: z.boolean(),
-  minGrams: z
-    .union([z.coerce.number().int().positive(), z.literal("")])
-    .optional(),
-  maxGrams: z
-    .union([z.coerce.number().int().positive(), z.literal("")])
-    .optional(),
+  minGrams: z.union([z.coerce.number().int().positive(), z.literal("")]).optional(),
+  maxGrams: z.union([z.coerce.number().int().positive(), z.literal("")]).optional(),
   allowCustomSize: z.boolean(),
   supportsMessageOnCake: z.boolean(),
   messageMaxLength: z.coerce.number().int().positive().max(200),
@@ -235,22 +231,13 @@ export function ProductFormPage() {
       }
       return changed ? next : prev;
     });
-  }, [
-    addonsAll,
-    categories,
-    categoryKey,
-    existing,
-    isEdit,
-    selectedCategoryIds,
-  ]);
+  }, [addonsAll, categories, categoryKey, existing, isEdit, selectedCategoryIds]);
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
     try {
       setIsUploading(true);
-      const uploaded = newImages.length
-        ? await uploadImages(newImages, "product")
-        : [];
+      const uploaded = newImages.length ? await uploadImages(newImages, "product") : [];
       setIsUploading(false);
 
       const payload = {
@@ -306,9 +293,7 @@ export function ProductFormPage() {
       navigate("/products", { replace: true });
     } catch (err) {
       setIsUploading(false);
-      setSubmitError(
-        err instanceof Error ? err.message : "Failed to save product",
-      );
+      setSubmitError(err instanceof Error ? err.message : "Failed to save product");
     }
   });
 
@@ -415,10 +400,7 @@ export function ProductFormPage() {
                 className={inputClass}
               />
             </Field>
-            <Field
-              label="Short description"
-              error={errors.shortDescription?.message}
-            >
+            <Field label="Short description" error={errors.shortDescription?.message}>
               <input
                 {...register("shortDescription")}
                 className={inputClass}
@@ -430,37 +412,25 @@ export function ProductFormPage() {
               error={errors.description?.message}
               hint="Markdown supported. Shown on product page."
             >
-              <textarea
-                {...register("description")}
-                rows={5}
-                className={textareaClass}
-              />
+              <textarea {...register("description")} rows={5} className={textareaClass} />
             </Field>
           </Section>
 
           <Section title="Images">
             {keptImages.length > 0 && (
               <div className="mb-3">
-                <p className="mb-2 text-xs text-slate-500">
-                  Current images — click × to remove
-                </p>
+                <p className="mb-2 text-xs text-slate-500">Current images — click × to remove</p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                   {keptImages.map((url) => (
                     <div
                       key={url}
                       className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white"
                     >
-                      <img
-                        src={url}
-                        alt=""
-                        className="aspect-square w-full object-cover"
-                      />
+                      <img src={url} alt="" className="aspect-square w-full object-cover" />
                       <button
                         type="button"
-                        onClick={() =>
-                          setKeptImages(keptImages.filter((u) => u !== url))
-                        }
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white opacity-0 transition group-hover:opacity-100"
+                        onClick={() => setKeptImages(keptImages.filter((u) => u !== url))}
+                        className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white opacity-0 transition group-hover:opacity-100"
                         aria-label="Remove image"
                       >
                         <X className="h-3 w-3" />
@@ -532,10 +502,7 @@ export function ProductFormPage() {
                     label="Message on cake"
                     hint="Show the message-on-cake input."
                   />
-                  <Field
-                    label="Message max length"
-                    error={errors.messageMaxLength?.message}
-                  >
+                  <Field label="Message max length" error={errors.messageMaxLength?.message}>
                     <input
                       type="number"
                       min={1}
@@ -546,10 +513,7 @@ export function ProductFormPage() {
                   </Field>
                 </>
               )}
-              <Field
-                label="Lead time (hours)"
-                error={errors.leadTimeHours?.message}
-              >
+              <Field label="Lead time (hours)" error={errors.leadTimeHours?.message}>
                 <input
                   type="number"
                   min={0}
@@ -596,10 +560,7 @@ export function ProductFormPage() {
                   showDiameter
                 />
               </Section>
-              <Section
-                title="Crust"
-                description="Optional. Leave empty if only one crust."
-              >
+              <Section title="Crust" description="Optional. Leave empty if only one crust.">
                 <OptionsEditor
                   options={crustOptions}
                   onChange={setCrustOptions}
@@ -691,9 +652,7 @@ export function ProductFormPage() {
                 }}
               />
               {flavorIds.size > 0 && (
-                <p className="mt-2 text-xs text-slate-500">
-                  {flavorIds.size} selected
-                </p>
+                <p className="mt-2 text-xs text-slate-500">{flavorIds.size} selected</p>
               )}
             </Section>
           )}
@@ -712,24 +671,16 @@ export function ProductFormPage() {
               </p>
             ) : (
               <div className="space-y-4">
-                {[
-                  ...new Set(
-                    addonsAll
-                      .filter((a) => a.isActive)
-                      .map((a) => a.group || "Other"),
-                  ),
-                ]
+                {[...new Set(addonsAll.filter((a) => a.isActive).map((a) => a.group || "Other"))]
                   .sort((a, b) => a.localeCompare(b))
                   .map((group) => (
                     <div key={group}>
-                      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
                         {group}
                       </p>
                       <ChipPicker
                         items={addonsAll
-                          .filter(
-                            (a) => a.isActive && (a.group || "Other") === group,
-                          )
+                          .filter((a) => a.isActive && (a.group || "Other") === group)
                           .map((a) => ({
                             id: a.id,
                             label: `${a.name} · +₹${Number(a.priceDelta).toFixed(0)}`,
@@ -748,10 +699,7 @@ export function ProductFormPage() {
             )}
           </Section>
 
-          <Section
-            title="Tags"
-            description="Cross-cutting labels used in filters and badges."
-          >
+          <Section title="Tags" description="Cross-cutting labels used in filters and badges.">
             {tags.length === 0 ? (
               <p className="text-xs text-slate-500">
                 No tags yet —{" "}
@@ -778,15 +726,8 @@ export function ProductFormPage() {
               <Field label="Meta title" error={errors.metaTitle?.message}>
                 <input {...register("metaTitle")} className={inputClass} />
               </Field>
-              <Field
-                label="Meta description"
-                error={errors.metaDescription?.message}
-              >
-                <textarea
-                  {...register("metaDescription")}
-                  rows={2}
-                  className={textareaClass}
-                />
+              <Field label="Meta description" error={errors.metaDescription?.message}>
+                <textarea {...register("metaDescription")} rows={2} className={textareaClass} />
               </Field>
               <Field
                 label="Allergens (comma-separated)"
@@ -799,22 +740,11 @@ export function ProductFormPage() {
                   placeholder="egg, dairy, gluten"
                 />
               </Field>
-              <Field
-                label="Kitchen notes"
-                hint="Internal — never shown to customers."
-              >
-                <textarea
-                  {...register("kitchenNotes")}
-                  rows={2}
-                  className={textareaClass}
-                />
+              <Field label="Kitchen notes" hint="Internal — never shown to customers.">
+                <textarea {...register("kitchenNotes")} rows={2} className={textareaClass} />
               </Field>
               <Field label="Admin notes" hint="Internal note for staff.">
-                <textarea
-                  {...register("adminNotes")}
-                  rows={2}
-                  className={textareaClass}
-                />
+                <textarea {...register("adminNotes")} rows={2} className={textareaClass} />
               </Field>
             </div>
           </Section>
@@ -825,32 +755,23 @@ export function ProductFormPage() {
           <Section title="Pricing">
             {template === "PIZZA" ? (
               <p className="text-xs text-slate-500">
-                Pizza is priced per size — set the customer price for each size
-                in the <span className="font-medium">Sizes</span> section.
+                Pizza is priced per size — set the customer price for each size in the{" "}
+                <span className="font-medium">Sizes</span> section.
                 {sizeOptions.length > 0 && (
                   <>
                     {" "}
                     Current range:{" "}
                     <span className="font-semibold text-slate-900">
-                      ₹
-                      {Math.min(
-                        ...sizeOptions.map((o) => Number(o.price) || 0),
-                      ).toFixed(0)}
+                      ₹{Math.min(...sizeOptions.map((o) => Number(o.price) || 0)).toFixed(0)}
                       {" – ₹"}
-                      {Math.max(
-                        ...sizeOptions.map((o) => Number(o.price) || 0),
-                      ).toFixed(0)}
+                      {Math.max(...sizeOptions.map((o) => Number(o.price) || 0)).toFixed(0)}
                     </span>
                     .
                   </>
                 )}
               </p>
             ) : (
-              <Field
-                label="Base price (₹)"
-                required
-                error={errors.basePrice?.message}
-              >
+              <Field label="Base price (₹)" required error={errors.basePrice?.message}>
                 <input
                   type="number"
                   min={0}
@@ -873,10 +794,7 @@ export function ProductFormPage() {
             <Field label="HSN code" error={errors.hsnCode?.message}>
               <input {...register("hsnCode")} className={inputClass} />
             </Field>
-            <Checkbox
-              {...register("priceIsGstInclusive")}
-              label="Price includes GST"
-            />
+            <Checkbox {...register("priceIsGstInclusive")} label="Price includes GST" />
           </Section>
 
           <Section title="Category & type">
@@ -891,10 +809,7 @@ export function ProductFormPage() {
                   const selected = watch("categoryIds") ?? [];
                   const checked = selected.includes(c.id);
                   return (
-                    <label
-                      key={c.id}
-                      className="flex items-start gap-2 text-sm text-slate-700"
-                    >
+                    <label key={c.id} className="flex items-start gap-2 text-sm text-slate-700">
                       <input
                         type="checkbox"
                         checked={checked}
@@ -929,11 +844,7 @@ export function ProductFormPage() {
           </Section>
 
           <Section title="Status">
-            <Checkbox
-              {...register("isActive")}
-              label="Active"
-              hint="Appears in the catalogue."
-            />
+            <Checkbox {...register("isActive")} label="Active" hint="Appears in the catalogue." />
             <Checkbox
               {...register("isAvailable")}
               label="In stock"
@@ -944,16 +855,8 @@ export function ProductFormPage() {
               label="Featured"
               hint="Appears in featured slots."
             />
-            <Field
-              label="Sort order"
-              hint="Lower shows first."
-              error={errors.sortOrder?.message}
-            >
-              <input
-                type="number"
-                {...register("sortOrder")}
-                className={inputClass}
-              />
+            <Field label="Sort order" hint="Lower shows first." error={errors.sortOrder?.message}>
+              <input type="number" {...register("sortOrder")} className={inputClass} />
             </Field>
           </Section>
         </aside>
@@ -975,9 +878,7 @@ function Section({
     <section className="rounded-card border border-slate-200 bg-white">
       <div className="border-b border-slate-100 px-4 py-3">
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        {description && (
-          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
-        )}
+        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
       </div>
       <div className="space-y-4 p-4">{children}</div>
     </section>
@@ -1029,18 +930,14 @@ function ChipPicker({
             onClick={() => onToggle(item.id)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border py-1 text-xs font-medium transition",
-              item.imageUrl ? "pl-1 pr-2.5" : "px-2.5",
+              item.imageUrl ? "pr-2.5 pl-1" : "px-2.5",
               on
                 ? "border-brand-500 bg-brand-100 text-brand-700"
-                : "border-slate-200 bg-white text-slate-600 hover:border-brand-300",
+                : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
             )}
           >
             {item.imageUrl && (
-              <img
-                src={item.imageUrl}
-                alt=""
-                className="h-5 w-5 rounded-full object-cover"
-              />
+              <img src={item.imageUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
             )}
             {item.label}
           </button>
@@ -1073,11 +970,9 @@ function TemplateChip({
       className={cn(
         "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition",
         active
-          ? "border-brand-500 bg-brand-50/50 ring-1 ring-brand-500/30"
+          ? "bg-brand-50/50 border-brand-500 ring-1 ring-brand-500/30"
           : "border-slate-200 bg-white",
-        disabled
-          ? "cursor-not-allowed"
-          : !active && "hover:border-brand-300",
+        disabled ? "cursor-not-allowed" : !active && "hover:border-brand-300",
         disabled && !active && "opacity-50",
       )}
     >
@@ -1144,9 +1039,7 @@ function OptionRow({
   onPatch: (patch: Partial<ProductOptionInput>) => void;
   onRemove: () => void;
 }) {
-  const [priceStr, setPriceStr] = useState<string>(
-    opt.price === 0 ? "" : String(opt.price),
-  );
+  const [priceStr, setPriceStr] = useState<string>(opt.price === 0 ? "" : String(opt.price));
 
   // Sync external changes (e.g. server load) into local string.
   useEffect(() => {
@@ -1233,26 +1126,20 @@ function OptionsEditor({
   showDiameter?: boolean;
 }) {
   const addRow = () =>
-    onChange([
-      ...options,
-      normalizeOption({ sortOrder: options.length, isActive: true }),
-    ]);
+    onChange([...options, normalizeOption({ sortOrder: options.length, isActive: true })]);
   const patchRow = (idx: number, patch: Partial<ProductOptionInput>) =>
     onChange(options.map((o, i) => (i === idx ? { ...o, ...patch } : o)));
-  const removeRow = (idx: number) =>
-    onChange(options.filter((_, i) => i !== idx));
+  const removeRow = (idx: number) => onChange(options.filter((_, i) => i !== idx));
 
   const priceHeader = priceMode === "ABSOLUTE" ? "Price (₹)" : "Extra (₹)";
 
   return (
     <div className="space-y-2">
       {options.length === 0 && (
-        <p className="text-xs text-slate-500">
-          No options yet — add one below.
-        </p>
+        <p className="text-xs text-slate-500">No options yet — add one below.</p>
       )}
       {options.length > 0 && (
-        <div className="hidden gap-2 px-2 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
+        <div className="hidden gap-2 px-2 text-[10px] font-medium tracking-wide text-slate-500 uppercase sm:grid sm:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
           <span>Label</span>
           <span>Key</span>
           <span>{priceHeader}</span>

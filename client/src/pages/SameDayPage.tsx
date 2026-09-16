@@ -8,17 +8,13 @@ import { LeadTimeChip } from "@/components/product/LeadTimeChip";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { Reveal } from "@/components/motion/Reveal";
 import { SAMEDAY_COPY } from "@/content/sameday";
-import {
-  ClientPagination,
-  PaginationControls,
-} from "@/components/ClientPagination";
+import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 
 const SAME_DAY_PAGE_SIZE = 12;
 
 export function SameDayPage() {
   const { data: status, isLoading: statusLoading } = useSameDayStatus();
-  const { data: products = [], isLoading: productsLoading } =
-    useSameDayProducts();
+  const { data: products = [], isLoading: productsLoading } = useSameDayProducts();
   const { data: categories = [], isLoading: catsLoading } = useCategories();
 
   const isOpen = status?.isOpen ?? false;
@@ -31,20 +27,14 @@ export function SameDayPage() {
   );
 
   // Prune tree — keep a node if it (or any descendant) has same-day products.
-  const pruned = useMemo(
-    () => pruneTree(categories, eligibleIds),
-    [categories, eligibleIds],
-  );
+  const pruned = useMemo(() => pruneTree(categories, eligibleIds), [categories, eligibleIds]);
 
   const [params, setParams] = useSearchParams();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const activeSlug = params.get("cat") ?? pruned[0]?.slug ?? "";
-  const activeNode = useMemo(
-    () => findBySlug(pruned, activeSlug),
-    [pruned, activeSlug],
-  );
+  const activeNode = useMemo(() => findBySlug(pruned, activeSlug), [pruned, activeSlug]);
 
   const setCategory = (slug: string) => {
     setParams({ cat: slug });
@@ -64,10 +54,7 @@ export function SameDayPage() {
   const autoExpanded = useMemo(() => {
     const next = new Set(expanded);
     for (const top of pruned) {
-      if (
-        top.slug === activeSlug ||
-        top.children.some((c) => c.slug === activeSlug)
-      ) {
+      if (top.slug === activeSlug || top.children.some((c) => c.slug === activeSlug)) {
         next.add(top.slug);
       }
     }
@@ -93,15 +80,11 @@ export function SameDayPage() {
       {/* Header + hours banner */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="mb-2 flex items-center gap-2 text-sm uppercase tracking-widest text-brand-500">
+          <p className="mb-2 flex items-center gap-2 text-sm tracking-widest text-brand-500 uppercase">
             <BoltIcon /> {SAMEDAY_COPY.eyebrow}
           </p>
-          <h1 className="font-display text-3xl text-ink-900 md:text-4xl">
-            {SAMEDAY_COPY.title}
-          </h1>
-          <p className="mt-2 max-w-xl text-sm text-ink-500">
-            {SAMEDAY_COPY.sub}
-          </p>
+          <h1 className="font-display text-3xl text-ink-900 md:text-4xl">{SAMEDAY_COPY.title}</h1>
+          <p className="mt-2 max-w-xl text-sm text-ink-500">{SAMEDAY_COPY.sub}</p>
         </div>
         {!statusLoading && (
           <span
@@ -112,12 +95,7 @@ export function SameDayPage() {
                 : "border-cream-200 bg-cream-100 text-ink-500",
             )}
           >
-            <span
-              className={cn(
-                "h-2 w-2 rounded-full",
-                isOpen ? "bg-brand-500" : "bg-ink-500",
-              )}
-            />
+            <span className={cn("h-2 w-2 rounded-full", isOpen ? "bg-brand-500" : "bg-ink-500")} />
             {statusMessage}
           </span>
         )}
@@ -128,13 +106,10 @@ export function SameDayPage() {
           <div className="rounded-full bg-cream-100 p-3 text-ink-500">
             <ClockIcon />
           </div>
-          <h2 className="font-display text-xl text-ink-900">
-            Same-day store is closed
-          </h2>
+          <h2 className="font-display text-xl text-ink-900">Same-day store is closed</h2>
           <p className="max-w-md text-sm text-ink-500">{statusMessage}</p>
           <p className="text-xs text-ink-500">
-            You can still browse our full catalogue and pre-order celebration
-            cakes for later.
+            You can still browse our full catalogue and pre-order celebration cakes for later.
           </p>
         </div>
       )}
@@ -144,19 +119,17 @@ export function SameDayPage() {
         <button
           type="button"
           onClick={() => setMobileNavOpen((v) => !v)}
-          className="flex w-full items-center justify-between rounded-2xl border border-brand-200 bg-gradient-to-r from-white to-[#fff5f9] px-4 py-3 text-sm shadow-sm transition active:scale-[0.99]"
+          className="border-brand-200 flex w-full items-center justify-between rounded-2xl border bg-gradient-to-r from-white to-[#fff5f9] px-4 py-3 text-sm shadow-sm transition active:scale-[0.99]"
         >
           <span className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-white shadow-[0_6px_14px_rgba(227,28,121,0.3)]">
               <BoltIcon />
             </span>
             <span className="text-left">
-              <span className="block text-[10px] uppercase tracking-[0.18em] text-brand-500">
+              <span className="block text-[10px] tracking-[0.18em] text-brand-500 uppercase">
                 {SAMEDAY_COPY.sidebarMobileLabel}
               </span>
-              <span className="block font-semibold text-ink-900">
-                {activeLabel}
-              </span>
+              <span className="block font-semibold text-ink-900">{activeLabel}</span>
             </span>
           </span>
           <span
@@ -189,16 +162,13 @@ export function SameDayPage() {
       <div className="grid gap-6 md:grid-cols-[220px_1fr]">
         <aside className="hidden md:block">
           <div className="sticky top-24">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+            <p className="mb-3 text-xs font-semibold tracking-wide text-ink-500 uppercase">
               {SAMEDAY_COPY.sidebarHeading}
             </p>
             <nav className="space-y-1">
               {catsLoading &&
                 Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-9 animate-pulse rounded-lg bg-cream-100"
-                  />
+                  <div key={i} className="h-9 animate-pulse rounded-lg bg-cream-100" />
                 ))}
               {!catsLoading && (
                 <>
@@ -227,9 +197,7 @@ export function SameDayPage() {
         <div className={cn(!isOpen && "opacity-60")}>
           <h2 className="mb-1 text-xl text-ink-900">{activeLabel}</h2>
           {activeNode?.description && (
-            <p className="mb-4 text-sm text-ink-500">
-              {activeNode.description}
-            </p>
+            <p className="mb-4 text-sm text-ink-500">{activeNode.description}</p>
           )}
 
           {productsLoading && <ProductGridSkeleton />}
@@ -256,11 +224,7 @@ export function SameDayPage() {
                     ))}
                   </div>
 
-                  <PaginationControls
-                    page={page}
-                    pageCount={pageCount}
-                    onPageChange={setPage}
-                  />
+                  <PaginationControls page={page} pageCount={pageCount} onPageChange={setPage} />
                 </>
               )}
             </ClientPagination>
@@ -289,9 +253,7 @@ function SidebarBranch({
   onToggle: (slug: string) => void;
 }) {
   const branchIds = collectIds(node);
-  const count = products.filter((p) =>
-    productInCategoryIds(p, branchIds),
-  ).length;
+  const count = products.filter((p) => productInCategoryIds(p, branchIds)).length;
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.slug);
   return (
@@ -305,12 +267,10 @@ function SidebarBranch({
         onToggle={() => onToggle(node.slug)}
       />
       {hasChildren && isOpen && (
-        <div className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-cream-200 pl-2">
+        <div className="mt-0.5 ml-4 space-y-0.5 border-l-2 border-cream-200 pl-2">
           {node.children.map((child) => {
             const childIds = collectIds(child);
-            const childCount = products.filter((p) =>
-              productInCategoryIds(p, childIds),
-            ).length;
+            const childCount = products.filter((p) => productInCategoryIds(p, childIds)).length;
             return (
               <SidebarLink
                 key={child.id}
@@ -347,16 +307,10 @@ function ParentRow({
     <div
       className={cn(
         "flex items-center rounded-lg text-sm transition",
-        active
-          ? "bg-brand-100 font-medium text-brand-700"
-          : "text-ink-700 hover:bg-cream-100",
+        active ? "bg-brand-100 font-medium text-brand-700" : "text-ink-700 hover:bg-cream-100",
       )}
     >
-      <button
-        type="button"
-        onClick={onSelect}
-        className="flex-1 rounded-l-lg px-3 py-2 text-left"
-      >
+      <button type="button" onClick={onSelect} className="flex-1 rounded-l-lg px-3 py-2 text-left">
         {label}
       </button>
       {hasChildren && (
@@ -391,9 +345,7 @@ function SidebarLink({
       }}
       className={cn(
         "block rounded-lg px-3 py-2 text-sm transition",
-        active
-          ? "bg-brand-100 font-medium text-brand-700"
-          : "text-ink-700 hover:bg-cream-100",
+        active ? "bg-brand-100 font-medium text-brand-700" : "text-ink-700 hover:bg-cream-100",
       )}
     >
       {label}
@@ -417,9 +369,7 @@ function MobileNavItem({
   onToggle: (slug: string) => void;
 }) {
   const branchIds = collectIds(node);
-  const count = products.filter((p) =>
-    productInCategoryIds(p, branchIds),
-  ).length;
+  const count = products.filter((p) => productInCategoryIds(p, branchIds)).length;
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.slug);
   const isActive = node.slug === activeSlug;
@@ -439,10 +389,7 @@ function MobileNavItem({
           className="flex flex-1 items-center gap-2 px-3 py-2.5 text-left text-sm font-medium"
         >
           <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              isActive ? "bg-white" : "bg-brand-300",
-            )}
+            className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-white" : "bg-brand-300")}
           />
           {node.name}
           <span
@@ -476,12 +423,10 @@ function MobileNavItem({
         )}
       </div>
       {hasChildren && isOpen && (
-        <ul className="ml-4 mt-1 space-y-1 border-l-2 border-brand-100 pl-3">
+        <ul className="mt-1 ml-4 space-y-1 border-l-2 border-brand-100 pl-3">
           {node.children.map((child) => {
             const childIds = collectIds(child);
-            const childCount = products.filter((p) =>
-              productInCategoryIds(p, childIds),
-            ).length;
+            const childCount = products.filter((p) => productInCategoryIds(p, childIds)).length;
             const childActive = child.slug === activeSlug;
             return (
               <li key={child.id}>
@@ -499,9 +444,7 @@ function MobileNavItem({
                   <span
                     className={cn(
                       "ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                      childActive
-                        ? "bg-brand-200/60 text-brand-700"
-                        : "bg-cream-100 text-ink-500",
+                      childActive ? "bg-brand-200/60 text-brand-700" : "bg-cream-100 text-ink-500",
                     )}
                   >
                     {childCount}
@@ -519,10 +462,7 @@ function MobileNavItem({
 // -------- tree helpers --------
 
 // Keep only categories that (directly or via a descendant) contain a same-day product.
-function pruneTree(
-  tree: CategoryNode[],
-  eligibleIds: Set<string>,
-): CategoryNode[] {
+function pruneTree(tree: CategoryNode[], eligibleIds: Set<string>): CategoryNode[] {
   return tree
     .map((n) => ({ ...n, children: pruneTree(n.children, eligibleIds) }))
     .filter((n) => eligibleIds.has(n.id) || n.children.length > 0);
@@ -549,13 +489,7 @@ function collectIds(node: CategoryNode): Set<string> {
 
 // -------- card + skeleton --------
 
-function ProductCardView({
-  product,
-  disabled,
-}: {
-  product: ProductCard;
-  disabled: boolean;
-}) {
+function ProductCardView({ product, disabled }: { product: ProductCard; disabled: boolean }) {
   const priceValue = `₹${Number(product.startingPrice).toFixed(0)}`;
   const showsRange = product.template !== "CAKE";
 
@@ -566,7 +500,7 @@ function ProductCardView({
           {product.tags.length > 0 && (
             <ProductCardTags
               tags={product.tags}
-              className="absolute left-2 top-2 z-10 flex flex-wrap gap-1"
+              className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
             />
           )}
           {product.images[0] && (
@@ -581,17 +515,11 @@ function ProductCardView({
           {product.name}
         </h3>
         {product.shortDescription && (
-          <p className="mt-1 line-clamp-2 text-xs text-ink-500">
-            {product.shortDescription}
-          </p>
+          <p className="mt-1 line-clamp-2 text-xs text-ink-500">{product.shortDescription}</p>
         )}
         <div className="mt-2 flex items-center justify-between">
           <span className="text-sm font-semibold text-ink-900">
-            {showsRange && (
-              <span className="mr-1 text-[10px] font-normal text-ink-500">
-                from
-              </span>
-            )}
+            {showsRange && <span className="mr-1 text-[10px] font-normal text-ink-500">from</span>}
             {priceValue}
           </span>
           <LeadTimeChip
@@ -615,10 +543,7 @@ function ProductGridSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="animate-pulse rounded-card border border-cream-200 bg-white p-3"
-        >
+        <div key={i} className="animate-pulse rounded-card border border-cream-200 bg-white p-3">
           <div className="mb-3 aspect-square rounded-lg bg-cream-100" />
           <div className="h-4 w-3/4 rounded bg-cream-100" />
           <div className="mt-2 h-3 w-1/2 rounded bg-cream-100" />
@@ -633,13 +558,7 @@ function ProductGridSkeleton() {
 
 function BoltIcon() {
   return (
-    <svg
-      width={14}
-      height={14}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-    >
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
     </svg>
   );

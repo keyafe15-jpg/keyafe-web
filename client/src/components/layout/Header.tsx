@@ -19,10 +19,7 @@ import { Menu, ShoppingCart, X } from "lucide-react";
 
 type Accent = "brand" | "emerald" | "amber";
 
-const ACCENT_STYLES: Record<
-  Accent,
-  { badge: string; hover: string; active: string }
-> = {
+const ACCENT_STYLES: Record<Accent, { badge: string; hover: string; active: string }> = {
   brand: {
     badge: "bg-brand-100 text-brand-600",
     hover: "hover:bg-brand-50 hover:text-brand-700",
@@ -57,7 +54,7 @@ function FeaturePill({
       to={to}
       className={({ isActive }) =>
         cn(
-          "group inline-flex items-center gap-1.5 whitespace-nowrap rounded-full py-1 pl-1 pr-3 text-sm font-medium text-ink-700 transition-all duration-200",
+          "group inline-flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1 text-sm font-medium whitespace-nowrap text-ink-700 transition-all duration-200",
           !isActive && styles.hover,
           isActive && styles.active,
         )
@@ -90,9 +87,7 @@ export function Header() {
   const { data: departments = [] } = useDepartments();
   const categoryGroups = groupCategoriesByDepartment(categories, departments);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(
-    null,
-  );
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const overlay = isHome && !scrolled;
 
@@ -129,7 +124,7 @@ export function Header() {
             className={cn(
               "flex shrink-0 items-center gap-2.5",
               overlay &&
-                "rounded-full border border-white/50 bg-white/40 pl-1 pr-3 shadow-sm backdrop-blur-md",
+                "rounded-full border border-white/50 bg-white/40 pr-3 pl-1 shadow-sm backdrop-blur-md",
             )}
           >
             <img
@@ -156,7 +151,7 @@ export function Header() {
                 to={storePath(store.slug)}
                 className={({ isActive }) =>
                   cn(
-                    "whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium text-ink-700 transition hover:bg-cream-100",
+                    "rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap text-ink-700 transition hover:bg-cream-100",
                     isActive && "bg-cream-100 text-ink-900",
                   )
                 }
@@ -164,10 +159,7 @@ export function Header() {
                 {store.name}
               </NavLink>
             ))}
-            <span
-              className="mx-1 h-5 w-px shrink-0 bg-cream-200"
-              aria-hidden="true"
-            />
+            <span className="mx-1 h-5 w-px shrink-0 bg-cream-200" aria-hidden="true" />
             <FeaturePill
               to={SAMEDAY_NAV.to}
               label={SAMEDAY_NAV.label}
@@ -228,15 +220,12 @@ export function Header() {
                 </svg>
               }
             />
-            <span
-              className="mx-1 h-5 w-px shrink-0 bg-cream-200"
-              aria-hidden="true"
-            />
+            <span className="mx-1 h-5 w-px shrink-0 bg-cream-200" aria-hidden="true" />
             <NavLink
               to="/about"
               className={({ isActive }) =>
                 cn(
-                  "whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium text-ink-700 transition hover:bg-ink-900 hover:text-white",
+                  "rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap text-ink-700 transition hover:bg-ink-900 hover:text-white",
                   isActive && "bg-ink-900 text-white",
                 )
               }
@@ -259,7 +248,7 @@ export function Header() {
                       className={cn(
                         "rounded-full px-4 py-1.5 text-sm font-medium transition",
                         overlay
-                          ? "border border-white/50 bg-white/40 text-ink-800 backdrop-blur-md hover:bg-white/60"
+                          ? "text-ink-800 border border-white/50 bg-white/40 backdrop-blur-md hover:bg-white/60"
                           : "border border-ink-700 text-ink-700 hover:bg-cream-100",
                       )}
                     >
@@ -276,7 +265,7 @@ export function Header() {
             >
               <ShoppingCart className="h-4 w-4" />
               {count > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
                   {count}
                 </span>
               )}
@@ -287,13 +276,9 @@ export function Header() {
               aria-label="Open menu"
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen((open) => !open)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e7d6b4] bg-white text-ink-800 shadow-sm lg:hidden"
+              className="text-ink-800 flex h-10 w-10 items-center justify-center rounded-full border border-[#e7d6b4] bg-white shadow-sm lg:hidden"
             >
-              {mobileMenuOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
@@ -309,11 +294,7 @@ export function Header() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-cream-100 bg-white/95 px-5 py-3.5 backdrop-blur">
-              <Link
-                to="/"
-                onClick={closeMobileMenu}
-                className="flex items-center gap-2"
-              >
+              <Link to="/" onClick={closeMobileMenu} className="flex items-center gap-2">
                 <img
                   src={BRAND.logoSrc}
                   alt={BRAND.logoAlt}
@@ -339,12 +320,8 @@ export function Header() {
                       {user.name.charAt(0).toUpperCase()}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-ink-900">
-                        {user.name}
-                      </p>
-                      <p className="truncate text-xs text-ink-500">
-                        {user.phone}
-                      </p>
+                      <p className="truncate text-sm font-semibold text-ink-900">{user.name}</p>
+                      <p className="truncate text-xs text-ink-500">{user.phone}</p>
                     </div>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
@@ -390,7 +367,7 @@ export function Header() {
 
               {departments.length > 0 && (
                 <div>
-                  <p className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">
+                  <p className="mb-2.5 px-1 text-[11px] font-semibold tracking-[0.2em] text-ink-500 uppercase">
                     Stores
                   </p>
                   <div className="grid grid-cols-2 gap-2">
@@ -408,7 +385,7 @@ export function Header() {
                             )
                           }
                         >
-                          <span className="text-xs font-semibold leading-tight text-ink-800">
+                          <span className="text-ink-800 text-xs leading-tight font-semibold">
                             {item.label}
                           </span>
                         </NavLink>
@@ -419,7 +396,7 @@ export function Header() {
               )}
 
               <div>
-                <p className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">
+                <p className="mb-2.5 px-1 text-[11px] font-semibold tracking-[0.2em] text-ink-500 uppercase">
                   Quick links
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -428,7 +405,7 @@ export function Header() {
                     onClick={closeMobileMenu}
                     className={({ isActive }) =>
                       cn(
-                        "flex flex-col items-center gap-1.5 rounded-2xl border border-brand-200 bg-gradient-to-b from-[#fff1f6] to-[#ffe6ef] px-2 py-3 text-center transition active:scale-95",
+                        "border-brand-200 flex flex-col items-center gap-1.5 rounded-2xl border bg-gradient-to-b from-[#fff1f6] to-[#ffe6ef] px-2 py-3 text-center transition active:scale-95",
                         isActive && "ring-2 ring-brand-300",
                       )
                     }
@@ -436,7 +413,7 @@ export function Header() {
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-base shadow-sm">
                       ⚡
                     </span>
-                    <span className="text-xs font-semibold leading-tight text-brand-700">
+                    <span className="text-xs leading-tight font-semibold text-brand-700">
                       {SAMEDAY_NAV.label}
                     </span>
                   </NavLink>
@@ -453,7 +430,7 @@ export function Header() {
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-base shadow-sm">
                       🌿
                     </span>
-                    <span className="text-xs font-semibold leading-tight text-emerald-700">
+                    <span className="text-xs leading-tight font-semibold text-emerald-700">
                       {HEALTHY_NAV.label}
                     </span>
                   </NavLink>
@@ -470,7 +447,7 @@ export function Header() {
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-base shadow-sm">
                       🚚
                     </span>
-                    <span className="text-xs font-semibold leading-tight text-amber-700">
+                    <span className="text-xs leading-tight font-semibold text-amber-700">
                       {PANINDIA_NAV.label}
                     </span>
                   </NavLink>
@@ -487,7 +464,7 @@ export function Header() {
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-base shadow-sm">
                       ✦
                     </span>
-                    <span className="text-xs font-semibold leading-tight text-slate-700">
+                    <span className="text-xs leading-tight font-semibold text-slate-700">
                       About
                     </span>
                   </NavLink>
@@ -495,7 +472,7 @@ export function Header() {
               </div>
 
               <div>
-                <p className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">
+                <p className="mb-2.5 px-1 text-[11px] font-semibold tracking-[0.2em] text-ink-500 uppercase">
                   Categories
                 </p>
                 <div className="space-y-3">
@@ -513,28 +490,27 @@ export function Header() {
                         <Link
                           to={storePath(group.department.slug)}
                           onClick={closeMobileMenu}
-                          className="block bg-cream-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600"
+                          className="text-brand-600 block bg-cream-50 px-4 py-2 text-[11px] font-semibold tracking-[0.16em] uppercase"
                         >
                           {group.department.name} store
                         </Link>
                       ) : (
-                        <p className="bg-cream-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                        <p className="text-ink-400 bg-cream-50 px-4 py-2 text-[11px] font-semibold tracking-[0.16em] uppercase">
                           More
                         </p>
                       )}
                       <div className="divide-y divide-cream-100">
                         {group.categories.map((category) => {
                           const hasChildren = category.children.length > 0;
-                          const isExpanded =
-                            expandedCategoryId === category.id;
+                          const isExpanded = expandedCategoryId === category.id;
 
                           return (
                             <div key={category.id} className="bg-white">
-                              <div className="flex items-center justify-between gap-3 pl-4 pr-2">
+                              <div className="flex items-center justify-between gap-3 pr-2 pl-4">
                                 <Link
                                   to={`/category/${category.slug}`}
                                   onClick={closeMobileMenu}
-                                  className="flex-1 py-3 text-sm font-medium text-ink-800 transition hover:text-brand-500"
+                                  className="text-ink-800 flex-1 py-3 text-sm font-medium transition hover:text-brand-500"
                                 >
                                   {category.name}
                                 </Link>
@@ -543,9 +519,7 @@ export function Header() {
                                     type="button"
                                     onClick={() =>
                                       setExpandedCategoryId((current) =>
-                                        current === category.id
-                                          ? null
-                                          : category.id,
+                                        current === category.id ? null : category.id,
                                       )
                                     }
                                     aria-label={
@@ -569,13 +543,13 @@ export function Header() {
                               </div>
 
                               {hasChildren && isExpanded && (
-                                <div className="space-y-0.5 bg-cream-50/60 py-1.5 pl-7 pr-3">
+                                <div className="space-y-0.5 bg-cream-50/60 py-1.5 pr-3 pl-7">
                                   {category.children.map((child) => (
                                     <Link
                                       key={child.id}
                                       to={`/category/${child.slug}`}
                                       onClick={closeMobileMenu}
-                                      className="block rounded-lg px-2 py-1.5 text-sm text-ink-600 transition hover:bg-white hover:text-brand-500"
+                                      className="text-ink-600 block rounded-lg px-2 py-1.5 text-sm transition hover:bg-white hover:text-brand-500"
                                     >
                                       {child.name}
                                     </Link>

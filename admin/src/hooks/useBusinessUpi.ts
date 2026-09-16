@@ -17,8 +17,7 @@ export function useBusinessUpi() {
 export function useUpdateBusinessUpi() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: BusinessUpi) =>
-      api.patch<BusinessUpi>("/admin/business/upi", input),
+    mutationFn: (input: BusinessUpi) => api.patch<BusinessUpi>("/admin/business/upi", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "business", "upi"] });
     },

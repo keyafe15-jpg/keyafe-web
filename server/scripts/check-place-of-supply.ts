@@ -10,10 +10,7 @@
 //
 // Run: ./node_modules/.bin/tsx scripts/check-place-of-supply.ts
 import { prisma } from "../src/config/db.js";
-import {
-  createOrder,
-  createOrderSchema,
-} from "../src/modules/orders/order.service.js";
+import { createOrder, createOrderSchema } from "../src/modules/orders/order.service.js";
 
 const PROBE_PHONE = "9999000001";
 const PROBE_NAME_PREFIX = "Tax Probe";
@@ -26,7 +23,9 @@ function check(label: string, actual: unknown, expected: unknown) {
   if (!ok) failures++;
   console.log(
     `${ok ? "ok  " : "FAIL"}  ${label}` +
-      (ok ? "" : `\n        got ${JSON.stringify(actual)}\n        want ${JSON.stringify(expected)}`),
+      (ok
+        ? ""
+        : `\n        got ${JSON.stringify(actual)}\n        want ${JSON.stringify(expected)}`),
   );
 }
 
@@ -137,7 +136,11 @@ async function main() {
   console.log(`\n-- pan-India but WB address, order ${panWb.orderNumber}`);
   check("pan-India WB placeOfSupply", panWb.placeOfSupply, "19");
   check("pan-India WB no igst", Number(panWb.igstAmount), 0);
-  check("pan-India WB has cgst+sgst", Number(panWb.cgstAmount) + Number(panWb.sgstAmount) > 0, true);
+  check(
+    "pan-India WB has cgst+sgst",
+    Number(panWb.cgstAmount) + Number(panWb.sgstAmount) > 0,
+    true,
+  );
 
   // 4. B2B order: company name and GSTIN persist, normalised.
   const b2b = await place("B2B", "27", "Maharashtra", "400001", pan.id, 1000, {
@@ -191,9 +194,7 @@ main()
         name: { startsWith: PROBE_NAME_PREFIX },
       },
     });
-    console.log(
-      `\nCleaned up ${created.length} probe order(s) and ${count} probe profile(s)`,
-    );
+    console.log(`\nCleaned up ${created.length} probe order(s) and ${count} probe profile(s)`);
     console.log(failures === 0 ? "All checks passed" : `${failures} check(s) FAILED`);
     await prisma.$disconnect();
     process.exit(failures === 0 ? 0 : 1);

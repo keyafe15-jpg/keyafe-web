@@ -21,9 +21,7 @@ export interface PushState {
 
 export function getPushState(): PushState {
   const supported =
-    "serviceWorker" in navigator &&
-    "PushManager" in window &&
-    "Notification" in window;
+    "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   if (!supported) {
     return { supported: false, permission: "unsupported", subscribed: false };
   }
@@ -60,9 +58,7 @@ export async function enablePush(): Promise<PushState> {
   const reg = await ensureServiceWorker();
   if (!reg) return getPushState();
 
-  const { publicKey } = await api.get<{ publicKey: string }>(
-    "/admin/push/vapid-public-key",
-  );
+  const { publicKey } = await api.get<{ publicKey: string }>("/admin/push/vapid-public-key");
 
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {

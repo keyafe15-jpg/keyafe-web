@@ -1,14 +1,16 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useHealthyTreatProducts, type ProductCard, categoryNames, productInCategoryIds } from "@/hooks/useProducts";
+import {
+  useHealthyTreatProducts,
+  type ProductCard,
+  categoryNames,
+  productInCategoryIds,
+} from "@/hooks/useProducts";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { HEALTHY_COPY } from "@/content/healthy";
 import { cn } from "@/lib/cn";
-import {
-  ClientPagination,
-  PaginationControls,
-} from "@/components/ClientPagination";
+import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 
 const PAGE_SIZE = 12;
 
@@ -29,9 +31,7 @@ export function HealthyPage() {
   }, [products]);
 
   const visibleProducts = activeCategoryId
-    ? products.filter((p) =>
-        productInCategoryIds(p, new Set([activeCategoryId])),
-      )
+    ? products.filter((p) => productInCategoryIds(p, new Set([activeCategoryId])))
     : products;
 
   const selectCategory = (id: string | null) => {
@@ -41,12 +41,10 @@ export function HealthyPage() {
   return (
     <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">
       <div className="mb-8">
-        <p className="mb-2 flex items-center gap-2 text-sm uppercase tracking-widest text-brand-500">
+        <p className="mb-2 flex items-center gap-2 text-sm tracking-widest text-brand-500 uppercase">
           <LeafIcon /> {HEALTHY_COPY.eyebrow}
         </p>
-        <h1 className="font-display text-3xl text-ink-900 md:text-4xl">
-          {HEALTHY_COPY.title}
-        </h1>
+        <h1 className="font-display text-3xl text-ink-900 md:text-4xl">{HEALTHY_COPY.title}</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-500">{HEALTHY_COPY.sub}</p>
       </div>
 
@@ -92,11 +90,7 @@ export function HealthyPage() {
                 ))}
               </div>
 
-              <PaginationControls
-                page={page}
-                pageCount={pageCount}
-                onPageChange={setPage}
-              />
+              <PaginationControls page={page} pageCount={pageCount} onPageChange={setPage} />
             </>
           )}
         </ClientPagination>
@@ -122,7 +116,7 @@ function PillButton({
         "rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
         active
           ? "border-brand-500 bg-brand-500 text-white shadow-[0_8px_16px_rgba(227,28,121,0.2)]"
-          : "border-cream-200 bg-white text-ink-700 hover:border-brand-200 hover:text-brand-600",
+          : "hover:border-brand-200 hover:text-brand-600 border-cream-200 bg-white text-ink-700",
       )}
     >
       {label}
@@ -142,7 +136,7 @@ function HealthyProductCard({ product }: { product: ProductCard }) {
         {product.tags.length > 0 && (
           <ProductCardTags
             tags={product.tags}
-            className="absolute left-2 top-2 z-10 flex flex-wrap gap-1"
+            className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
           />
         )}
         {product.images[0] ? (
@@ -153,20 +147,20 @@ function HealthyProductCard({ product }: { product: ProductCard }) {
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-ink-400">
+          <div className="text-ink-400 flex h-full w-full items-center justify-center text-xs">
             No image
           </div>
         )}
       </div>
       <div className="p-2.5 sm:p-4">
-        <p className="text-[10px] uppercase tracking-wide text-ink-400 sm:text-xs">
+        <p className="text-ink-400 text-[10px] tracking-wide uppercase sm:text-xs">
           {categoryNames(product)}
         </p>
         <h3 className="mt-1 line-clamp-1 text-sm text-ink-900 group-hover:text-brand-500 sm:text-lg">
           {product.name}
         </h3>
         {product.shortDescription && (
-          <p className="mt-1 hidden line-clamp-2 text-sm text-ink-500 sm:block">
+          <p className="mt-1 line-clamp-2 hidden text-sm text-ink-500 sm:block">
             {product.shortDescription}
           </p>
         )}
@@ -198,10 +192,7 @@ function ProductGridSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="overflow-hidden rounded-card border border-cream-200 bg-white"
-        >
+        <div key={i} className="overflow-hidden rounded-card border border-cream-200 bg-white">
           <div className="aspect-square animate-pulse bg-cream-100" />
           <div className="space-y-2 p-4">
             <div className="h-3 w-1/3 animate-pulse rounded bg-cream-100" />

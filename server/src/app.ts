@@ -16,35 +16,20 @@ import {
   adminBusinessRouter,
   adminStoreRouter,
 } from "./modules/store/store.routes.js";
-import {
-  adminDeliveryRouter,
-  deliveryRouter,
-} from "./modules/delivery/delivery.routes.js";
+import { adminDeliveryRouter, deliveryRouter } from "./modules/delivery/delivery.routes.js";
 import { categoryRouter } from "./modules/categories/category.routes.js";
 import { adminCategoryRouter } from "./modules/categories/category.admin.routes.js";
 import {
   adminDepartmentRouter,
   departmentRouter,
 } from "./modules/departments/department.routes.js";
-import {
-  flavorRouter,
-  adminFlavorRouter,
-} from "./modules/flavors/flavor.routes.js";
+import { flavorRouter, adminFlavorRouter } from "./modules/flavors/flavor.routes.js";
 import { adminTagRouter, tagRouter } from "./modules/tags/tag.routes.js";
 import { adminProductRouter } from "./modules/products/product.routes.js";
 import { publicProductRouter } from "./modules/products/product.public.routes.js";
-import {
-  cakeSizeRouter,
-  adminCakeSizeRouter,
-} from "./modules/cake-sizes/cake-size.routes.js";
-import {
-  adminToppingRouter,
-  toppingRouter,
-} from "./modules/toppings/topping.routes.js";
-import {
-  addonRouter,
-  adminAddonRouter,
-} from "./modules/addons/addon.routes.js";
+import { cakeSizeRouter, adminCakeSizeRouter } from "./modules/cake-sizes/cake-size.routes.js";
+import { adminToppingRouter, toppingRouter } from "./modules/toppings/topping.routes.js";
+import { addonRouter, adminAddonRouter } from "./modules/addons/addon.routes.js";
 import { orderRouter } from "./modules/orders/order.routes.js";
 import { adminOrderRouter } from "./modules/orders/order.admin.routes.js";
 import {
@@ -81,11 +66,7 @@ export function createApp() {
       // Without this the browser hides these headers from cross-origin
       // fetches, so the admin couldn't name a downloaded document or show the
       // number that was issued for it.
-      exposedHeaders: [
-        "Content-Disposition",
-        "X-Invoice-Number",
-        "X-Challan-Number",
-      ],
+      exposedHeaders: ["Content-Disposition", "X-Invoice-Number", "X-Challan-Number"],
     }),
   );
   app.use(
@@ -167,18 +148,8 @@ export function createApp() {
     requirePermission("toppings.write"),
     adminToppingRouter,
   );
-  app.use(
-    "/api/admin/addons",
-    requireStaff,
-    requirePermission("addons.write"),
-    adminAddonRouter,
-  );
-  app.use(
-    "/api/admin/tags",
-    requireStaff,
-    requirePermission("tags.write"),
-    adminTagRouter,
-  );
+  app.use("/api/admin/addons", requireStaff, requirePermission("addons.write"), adminAddonRouter);
+  app.use("/api/admin/tags", requireStaff, requirePermission("tags.write"), adminTagRouter);
   app.use("/api/admin/orders", requireStaff, adminOrderRouter);
   app.use("/api/admin/order-links", requireStaff, adminOrderLinkRouter);
   app.use("/api/admin/offline-orders", requireStaff, adminOfflineOrderRouter);
@@ -195,12 +166,7 @@ export function createApp() {
     requirePermission("settings.update"),
     adminBusinessRouter,
   );
-  app.use(
-    "/api/admin/store",
-    requireStaff,
-    requirePermission("store.write"),
-    adminStoreRouter,
-  );
+  app.use("/api/admin/store", requireStaff, requirePermission("store.write"), adminStoreRouter);
   app.use("/api/admin/quotes", requireStaff, adminQuoteRouter);
   app.use(
     "/api/admin/coupons",

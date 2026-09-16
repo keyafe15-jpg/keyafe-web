@@ -1,19 +1,12 @@
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import {
-  useCategories,
-  useDepartments,
-  type CategoryNode,
-} from "@/hooks/useCategories";
+import { useCategories, useDepartments, type CategoryNode } from "@/hooks/useCategories";
 import { useProductsByDepartment } from "@/hooks/useProducts";
 import { STORE_COPY } from "@/content/store";
 import { CATEGORY_PLACEHOLDER_COPY } from "@/content/misc";
 import { Reveal } from "@/components/motion/Reveal";
 import { PaginationControls } from "@/components/ClientPagination";
-import {
-  CatalogProductCard,
-  ProductGridSkeleton,
-} from "@/components/product/CatalogProductCard";
+import { CatalogProductCard, ProductGridSkeleton } from "@/components/product/CatalogProductCard";
 
 const PAGE_SIZE = 12;
 
@@ -34,17 +27,12 @@ export function StorePage() {
   );
 
   const store = stores.find((s) => s.slug === slug) ?? null;
-  const groups = useMemo(
-    () => tree.filter((c) => c.department?.slug === slug),
-    [tree, slug],
-  );
+  const groups = useMemo(() => tree.filter((c) => c.department?.slug === slug), [tree, slug]);
   const products = listing?.items ?? [];
   const totalPages = listing?.totalPages ?? 1;
 
   const copy =
-    slug in STORE_COPY.bySlug
-      ? STORE_COPY.bySlug[slug as keyof typeof STORE_COPY.bySlug]
-      : null;
+    slug in STORE_COPY.bySlug ? STORE_COPY.bySlug[slug as keyof typeof STORE_COPY.bySlug] : null;
   const title = copy?.title ?? (store ? `The ${store.name} Store` : "Store");
   const sub = copy?.sub ?? STORE_COPY.fallbackSub;
   const eyebrow = copy?.eyebrow ?? store?.name ?? "Shop";
@@ -75,7 +63,7 @@ export function StorePage() {
       </nav>
 
       <header className="mb-8">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-brand-500">
+        <p className="mb-2 text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
           {eyebrow}
         </p>
         <h1 className="text-3xl text-ink-900">{title}</h1>
@@ -93,7 +81,7 @@ export function StorePage() {
         </div>
       ) : groups.length > 0 ? (
         <div className="mb-12">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-ink-500">
+          <p className="mb-3 text-xs font-semibold tracking-[0.2em] text-ink-500 uppercase">
             {STORE_COPY.shopByCategory}
           </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-6">
@@ -128,7 +116,7 @@ function CategoryDoor({ category }: { category: CategoryNode }) {
           className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-brand-50 to-cream-100 text-4xl">
+        <div className="from-brand-50 flex h-full w-full items-center justify-center bg-gradient-to-br to-cream-100 text-4xl">
           {category.name.slice(0, 1)}
         </div>
       )}

@@ -24,7 +24,7 @@ export function UpiQrCode({ uri, size = 180 }: { uri: string; size?: number }) {
     return (
       <div
         style={{ width: size, height: size }}
-        className="flex items-center justify-center rounded-md border border-cream-200 bg-cream-50 text-[11px] text-ink-400"
+        className="text-ink-400 flex items-center justify-center rounded-md border border-cream-200 bg-cream-50 text-[11px]"
       >
         Generating…
       </div>

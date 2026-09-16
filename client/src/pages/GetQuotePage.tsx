@@ -2,22 +2,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
-import {
-  Field,
-  inputClass,
-  submitClass,
-  textareaClass,
-} from "@/components/form/Field";
+import { Field, inputClass, submitClass, textareaClass } from "@/components/form/Field";
 import { MultiImageUpload } from "@/components/form/MultiImageUpload";
 import { getQuoteSchema, type GetQuoteInput } from "@/lib/validators";
 import { QUOTE_COPY } from "@/content/quote";
 import { api } from "@/lib/api";
 import { uploadImages } from "@/lib/uploads";
-import {
-  closedDayMessage,
-  closureForDate,
-  useShopClosures,
-} from "@/hooks/useShopClosures";
+import { closedDayMessage, closureForDate, useShopClosures } from "@/hooks/useShopClosures";
 
 function todayIso() {
   const d = new Date();
@@ -72,9 +63,7 @@ export function GetQuotePage() {
       setReferenceImages([]);
       reset();
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "Could not send your request.",
-      );
+      setSubmitError(err instanceof Error ? err.message : "Could not send your request.");
     } finally {
       setIsSubmitting(false);
     }
@@ -83,9 +72,7 @@ export function GetQuotePage() {
   if (submitted) {
     return (
       <section className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="mb-3 font-display text-4xl text-ink-900">
-          {QUOTE_COPY.successTitle}
-        </h1>
+        <h1 className="mb-3 font-display text-4xl text-ink-900">{QUOTE_COPY.successTitle}</h1>
         <p className="mb-8 text-ink-500">{QUOTE_COPY.successBody}</p>
         <div className="flex justify-center gap-3">
           <Link
@@ -109,12 +96,10 @@ export function GetQuotePage() {
   return (
     <section className="mx-auto max-w-2xl px-4 py-12">
       <div className="mb-8 text-center">
-        <p className="mb-3 text-sm uppercase tracking-widest text-brand-500">
+        <p className="mb-3 text-sm tracking-widest text-brand-500 uppercase">
           {QUOTE_COPY.eyebrow}
         </p>
-        <h1 className="mb-4 font-display text-4xl text-ink-900 md:text-5xl">
-          {QUOTE_COPY.title}
-        </h1>
+        <h1 className="mb-4 font-display text-4xl text-ink-900 md:text-5xl">{QUOTE_COPY.title}</h1>
         <p className="mx-auto max-w-lg text-ink-500">{QUOTE_COPY.intro}</p>
       </div>
 
@@ -124,11 +109,7 @@ export function GetQuotePage() {
         className="space-y-5 rounded-card border border-cream-200 bg-white p-6 shadow-sm md:p-8"
       >
         <div className="grid gap-5 md:grid-cols-2">
-          <Field
-            label={QUOTE_COPY.fields.name.label}
-            required
-            error={errors.name?.message}
-          >
+          <Field label={QUOTE_COPY.fields.name.label} required error={errors.name?.message}>
             <input
               autoComplete="name"
               aria-required="true"
@@ -136,11 +117,7 @@ export function GetQuotePage() {
               {...register("name")}
             />
           </Field>
-          <Field
-            label={QUOTE_COPY.fields.phone.label}
-            required
-            error={errors.phone?.message}
-          >
+          <Field label={QUOTE_COPY.fields.phone.label} required error={errors.phone?.message}>
             <input
               type="tel"
               autoComplete="tel"
@@ -157,12 +134,7 @@ export function GetQuotePage() {
           error={errors.email?.message}
           hint={QUOTE_COPY.fields.email.hint}
         >
-          <input
-            type="email"
-            autoComplete="email"
-            className={inputClass}
-            {...register("email")}
-          />
+          <input type="email" autoComplete="email" className={inputClass} {...register("email")} />
         </Field>
 
         <Field
@@ -209,15 +181,8 @@ export function GetQuotePage() {
           />
         </Field>
 
-        <Field
-          label={QUOTE_COPY.fields.image.label}
-          hint={QUOTE_COPY.fields.image.hint}
-        >
-          <MultiImageUpload
-            value={referenceImages}
-            onChange={setReferenceImages}
-            max={4}
-          />
+        <Field label={QUOTE_COPY.fields.image.label} hint={QUOTE_COPY.fields.image.hint}>
+          <MultiImageUpload value={referenceImages} onChange={setReferenceImages} max={4} />
         </Field>
 
         <Field

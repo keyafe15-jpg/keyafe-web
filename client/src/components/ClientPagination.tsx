@@ -23,10 +23,7 @@ export function ClientPagination<T>({
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
   const currentPage = Math.min(page, pageCount);
-  const paginatedItems = items.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
-  );
+  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   useEffect(() => {
     setPage(1);
@@ -59,19 +56,17 @@ export function PaginationControls({
   };
 
   return (
-    <div
-      className={cn("mt-8 flex items-center justify-center gap-2", className)}
-    >
+    <div className={cn("mt-8 flex items-center justify-center gap-2", className)}>
       <button
         type="button"
         onClick={() => goToPage(page - 1)}
         disabled={page <= 1}
-        className="h-8 min-w-[72px] rounded-full border border-cream-200 bg-white px-2.5 text-xs font-medium text-ink-700 transition hover:border-brand-200 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-cream-100 disabled:text-ink-300"
+        className="hover:border-brand-200 hover:text-brand-600 disabled:text-ink-300 h-8 min-w-[72px] rounded-full border border-cream-200 bg-white px-2.5 text-xs font-medium text-ink-700 transition disabled:cursor-not-allowed disabled:border-cream-100"
       >
         Prev
       </button>
 
-      <div className="rounded-full border border-cream-200 bg-cream-50 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-ink-500">
+      <div className="rounded-full border border-cream-200 bg-cream-50 px-3 py-1.5 text-[11px] font-medium tracking-[0.2em] text-ink-500 uppercase">
         {page}/{pageCount}
       </div>
 
@@ -79,7 +74,7 @@ export function PaginationControls({
         type="button"
         onClick={() => goToPage(page + 1)}
         disabled={page >= pageCount}
-        className="h-8 min-w-[72px] rounded-full border border-brand-200 bg-brand-50 px-2.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:border-cream-100 disabled:bg-cream-50 disabled:text-ink-300"
+        className="border-brand-200 bg-brand-50 disabled:text-ink-300 h-8 min-w-[72px] rounded-full border px-2.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:border-cream-100 disabled:bg-cream-50"
       >
         Next
       </button>

@@ -2,13 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { X, Upload } from "lucide-react";
 
 const MAX_BYTES = 12 * 1024 * 1024;
-const ACCEPTED = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-];
+const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -87,9 +81,7 @@ export function MultiImageUpload({
           className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50/60 px-4 py-8 text-center transition hover:border-brand-500 hover:bg-slate-50"
         >
           <Upload className="h-6 w-6 text-slate-400" />
-          <span className="text-sm font-medium text-slate-700">
-            Upload product photos
-          </span>
+          <span className="text-sm font-medium text-slate-700">Upload product photos</span>
           <span className="text-xs text-slate-500">
             Up to {max} · JPG / PNG / WEBP · 12 MB each
           </span>
@@ -109,18 +101,14 @@ export function MultiImageUpload({
               <button
                 type="button"
                 onClick={() => onChange(value.filter((_, i) => i !== idx))}
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white opacity-0 transition group-hover:opacity-100"
+                className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white opacity-0 transition group-hover:opacity-100"
                 aria-label="Remove"
               >
                 <X className="h-3 w-3" />
               </button>
               <div className="border-t border-slate-100 px-2 py-1">
-                <p className="truncate text-[11px] text-slate-700">
-                  {file.name}
-                </p>
-                <p className="text-[10px] text-slate-500">
-                  {formatSize(file.size)}
-                </p>
+                <p className="truncate text-[11px] text-slate-700">{file.name}</p>
+                <p className="text-[10px] text-slate-500">{formatSize(file.size)}</p>
               </div>
             </div>
           ))}
@@ -130,9 +118,7 @@ export function MultiImageUpload({
               className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50/60 text-center transition hover:border-brand-500 hover:bg-slate-50"
             >
               <Upload className="h-5 w-5 text-slate-400" />
-              <span className="text-xs font-medium text-slate-700">
-                Add more
-              </span>
+              <span className="text-xs font-medium text-slate-700">Add more</span>
               <span className="text-[10px] text-slate-500">
                 {value.length}/{max}
               </span>

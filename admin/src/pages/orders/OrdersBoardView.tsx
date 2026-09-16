@@ -1,8 +1,5 @@
 import { useMemo } from "react";
-import {
-  useAdminOrders,
-  type AdminOrderListItem,
-} from "@/hooks/useAdminOrders";
+import { useAdminOrders, type AdminOrderListItem } from "@/hooks/useAdminOrders";
 import { OrderBoardCard } from "@/pages/orders/OrderBoardCard";
 import { deliveryIso } from "@/pages/orders/order-ui";
 
@@ -37,9 +34,7 @@ function BoardSection({
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
         <p className="text-sm text-slate-500">{subtitle}</p>
       </div>
-      {isLoading && (
-        <p className="text-sm text-slate-500">Loading…</p>
-      )}
+      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
       {!isLoading && orders.length === 0 && (
         <div className="rounded-card border border-dashed border-slate-200 bg-slate-50/50 px-6 py-10 text-center text-sm text-slate-500">
           {emptyMessage}

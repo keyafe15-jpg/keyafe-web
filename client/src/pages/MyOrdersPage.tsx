@@ -15,9 +15,7 @@ export function MyOrdersPage() {
   return (
     <section className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-8">
-        <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-500">
-          Profile
-        </p>
+        <p className="text-xs font-medium tracking-[0.2em] text-brand-500 uppercase">Profile</p>
         <h1 className="mt-2 font-display text-3xl text-ink-900">My orders</h1>
       </div>
 
@@ -42,7 +40,7 @@ export function MyOrdersPage() {
             >
               <div className="mb-4 flex flex-col gap-3 border-b border-cream-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-ink-500">
+                  <p className="text-xs font-medium tracking-[0.18em] text-ink-500 uppercase">
                     Order {order.orderNumber}
                   </p>
                   <p className="mt-1 text-sm text-ink-500">
@@ -56,7 +54,7 @@ export function MyOrdersPage() {
 
                 <div className="flex items-center gap-3">
                   <span
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide uppercase ${
                       order.status === "CANCELLED"
                         ? "bg-red-50 text-red-700"
                         : "bg-brand-100 text-brand-700"
@@ -66,7 +64,7 @@ export function MyOrdersPage() {
                   </span>
                   <Link
                     to={`/order/${order.orderNumber}/success`}
-                    className="text-sm font-medium text-brand-500 hover:text-brand-600"
+                    className="hover:text-brand-600 text-sm font-medium text-brand-500"
                   >
                     View details
                   </Link>
@@ -87,18 +85,14 @@ export function MyOrdersPage() {
                     )}
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink-900">
-                        {item.productName}
-                      </p>
+                      <p className="truncate font-medium text-ink-900">{item.productName}</p>
                       <p className="truncate text-xs text-ink-500">
-                        {[item.sizeLabel, item.flavourName]
-                          .filter(Boolean)
-                          .join(" · ")}
+                        {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
                       </p>
                       <p className="text-xs text-ink-500">Qty {item.qty}</p>
                     </div>
 
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-ink-900">
+                    <span className="shrink-0 text-sm font-medium text-ink-900 tabular-nums">
                       ₹{Number(item.lineTotal).toFixed(0)}
                     </span>
                   </div>
@@ -108,7 +102,7 @@ export function MyOrdersPage() {
               <div className="mt-4 flex flex-col gap-3 border-t border-cream-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center justify-between gap-4 text-sm sm:justify-start">
                   <span className="text-ink-500">Total</span>
-                  <span className="font-medium tabular-nums text-ink-900">
+                  <span className="font-medium text-ink-900 tabular-nums">
                     ₹{Number(order.total).toFixed(2)}
                   </span>
                 </div>

@@ -36,112 +36,109 @@ export const router = createBrowserRouter([
       {
         element: <RequirePermission />,
         children: [
-      { index: true, element: <DashboardPage /> },
-      {
-        path: "orders",
-        element: <OrdersListPage />,
-      },
-      {
-        path: "orders/:idOrNumber",
-        element: <OrderDetailPage />,
-      },
-      {
-        path: "offline-orders",
-        element: <OrderLinksListPage />,
-      },
-      {
-        path: "offline-orders/new",
-        element: <OrderLinkFormPage />,
-      },
-      {
-        path: "offline-orders/place",
-        element: <OfflineOrderDirectFormPage />,
-      },
-      {
-        path: "offline-orders/:id/edit",
-        element: <OrderLinkFormPage />,
-      },
-      {
-        path: "quotes",
-        element: <QuotesListPage />,
-      },
-      {
-        path: "products",
-        element: <ProductsListPage />,
-      },
-      {
-        path: "products/new",
-        element: <ProductFormPage />,
-      },
-      {
-        path: "products/:id",
-        element: <ProductFormPage />,
-      },
-      {
-        path: "stores",
-        element: <DepartmentsPage />,
-      },
-      {
-        path: "categories",
-        element: <CategoriesPage />,
-      },
-      {
-        path: "flavours",
-        element: <FlavoursPage />,
-      },
-      {
-        path: "cake-sizes",
-        element: <CakeSizesPage />,
-      },
-      {
-        path: "toppings",
-        element: <ToppingsPage />,
-      },
-      {
-        path: "addons",
-        element: <AddonsPage />,
-      },
-      {
-        path: "tags",
-        element: <TagsPage />,
-      },
-      {
-        path: "same-day",
-        element: <StoreHoursPage />,
-      },
-      {
-        path: "same-day-categories",
-        element: (
-          <StubPage
-            title="Same-Day Categories"
-            subtitle="Ready-to-grab menu structure."
-          />
-        ),
-      },
-      {
-        path: "announcement",
-        element: <AnnouncementPage />,
-      },
-      {
-        path: "coupons",
-        element: <CouponsPage />,
-      },
-      {
-        path: "delivery",
-        element: <DeliveryPincodesPage />,
-      },
-      {
-        path: "customers",
-        element: <CustomersListPage />,
-      },
-      {
-        path: "users",
-        element: <UsersRolesPage />,
-      },
-      {
-        path: "settings",
-        element: <SettingsPage />,
-      },
+          { index: true, element: <DashboardPage /> },
+          {
+            path: "orders",
+            element: <OrdersListPage />,
+          },
+          {
+            path: "orders/:idOrNumber",
+            element: <OrderDetailPage />,
+          },
+          {
+            path: "offline-orders",
+            element: <OrderLinksListPage />,
+          },
+          {
+            path: "offline-orders/new",
+            element: <OrderLinkFormPage />,
+          },
+          {
+            path: "offline-orders/place",
+            element: <OfflineOrderDirectFormPage />,
+          },
+          {
+            path: "offline-orders/:id/edit",
+            element: <OrderLinkFormPage />,
+          },
+          {
+            path: "quotes",
+            element: <QuotesListPage />,
+          },
+          {
+            path: "products",
+            element: <ProductsListPage />,
+          },
+          {
+            path: "products/new",
+            element: <ProductFormPage />,
+          },
+          {
+            path: "products/:id",
+            element: <ProductFormPage />,
+          },
+          {
+            path: "stores",
+            element: <DepartmentsPage />,
+          },
+          {
+            path: "categories",
+            element: <CategoriesPage />,
+          },
+          {
+            path: "flavours",
+            element: <FlavoursPage />,
+          },
+          {
+            path: "cake-sizes",
+            element: <CakeSizesPage />,
+          },
+          {
+            path: "toppings",
+            element: <ToppingsPage />,
+          },
+          {
+            path: "addons",
+            element: <AddonsPage />,
+          },
+          {
+            path: "tags",
+            element: <TagsPage />,
+          },
+          {
+            path: "same-day",
+            element: <StoreHoursPage />,
+          },
+          {
+            path: "same-day-categories",
+            element: (
+              <StubPage title="Same-Day Categories" subtitle="Ready-to-grab menu structure." />
+            ),
+          },
+          {
+            path: "announcement",
+            element: <AnnouncementPage />,
+          },
+          {
+            path: "coupons",
+            element: <CouponsPage />,
+          },
+          {
+            path: "delivery",
+            element: <DeliveryPincodesPage />,
+          },
+          {
+            path: "customers",
+            element: <CustomersListPage />,
+          },
+          {
+            path: "users",
+            element: <UsersRolesPage />,
+          },
+          {
+            path: "settings",
+            element: <SettingsPage />,
+          },
         ],
       },
     ],

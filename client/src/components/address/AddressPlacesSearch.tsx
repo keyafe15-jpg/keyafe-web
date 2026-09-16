@@ -27,11 +27,9 @@ export function AddressPlacesSearch({
   disabled?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const elementRef = useRef<google.maps.places.PlaceAutocompleteElement | null>(
-    null,
-  );
-  const [status, setStatus] = useState<"loading" | "ready" | "fallback" | "error">(
-    () => (getGoogleMapsApiKey() ? "loading" : "fallback"),
+  const elementRef = useRef<google.maps.places.PlaceAutocompleteElement | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "fallback" | "error">(() =>
+    getGoogleMapsApiKey() ? "loading" : "fallback",
   );
 
   const handleSelect = useEffectEvent(
@@ -157,7 +155,7 @@ export function AddressPlacesSearch({
 
       {showFallback && (
         <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">
+          <span className="text-ink-400 pointer-events-none absolute top-1/2 left-3 -translate-y-1/2">
             <svg
               width={16}
               height={16}
@@ -180,9 +178,7 @@ export function AddressPlacesSearch({
             autoComplete="off"
             onChange={(e) => onChange(e.target.value)}
             placeholder={
-              status === "error"
-                ? "Search unavailable — type a place name for riders"
-                : placeholder
+              status === "error" ? "Search unavailable — type a place name for riders" : placeholder
             }
             className={fallbackInputClass}
           />
@@ -201,7 +197,8 @@ export function AddressPlacesSearch({
       )}
       {status === "ready" && !value && (
         <p className="mt-1 text-[11px] text-ink-500">
-          Pick a nearby place if you can — or type what riders should search. Exact house goes in the fields below.
+          Pick a nearby place if you can — or type what riders should search. Exact house goes in
+          the fields below.
         </p>
       )}
     </div>

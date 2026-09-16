@@ -116,14 +116,9 @@ export function useAdminCustomers({
   registered = "ALL",
 }: AdminCustomersFilter = {}) {
   const q = search?.trim() ?? "";
-  const activeParam =
-    active === "ACTIVE" ? "true" : active === "INACTIVE" ? "false" : null;
+  const activeParam = active === "ACTIVE" ? "true" : active === "INACTIVE" ? "false" : null;
   const registeredParam =
-    registered === "REGISTERED"
-      ? "true"
-      : registered === "GUEST"
-        ? "false"
-        : null;
+    registered === "REGISTERED" ? "true" : registered === "GUEST" ? "false" : null;
 
   return useQuery<AdminCustomersPage>({
     queryKey: ["admin", "customers", page, pageSize, q, active, registered],
@@ -144,10 +139,7 @@ export function useAdminCustomers({
 export function useAdminCustomerDetail(id: string | null) {
   return useQuery<AdminCustomerDetail>({
     queryKey: ["admin", "customer", id],
-    queryFn: () =>
-      api.get<AdminCustomerDetail>(
-        `/admin/customers/${encodeURIComponent(id!)}`,
-      ),
+    queryFn: () => api.get<AdminCustomerDetail>(`/admin/customers/${encodeURIComponent(id!)}`),
     enabled: !!id,
     staleTime: 30_000,
   });

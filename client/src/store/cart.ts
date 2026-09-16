@@ -28,15 +28,11 @@ export const useCart = create<CartState>()(
       },
       updateQty: (id, qty) =>
         set((s) => ({
-          lines: s.lines.map((l) =>
-            l.id === id ? { ...l, qty: Math.max(1, qty) } : l,
-          ),
+          lines: s.lines.map((l) => (l.id === id ? { ...l, qty: Math.max(1, qty) } : l)),
         })),
-      removeLine: (id) =>
-        set((s) => ({ lines: s.lines.filter((l) => l.id !== id) })),
+      removeLine: (id) => set((s) => ({ lines: s.lines.filter((l) => l.id !== id) })),
       clear: () => set({ lines: [] }),
-      subtotal: () =>
-        get().lines.reduce((sum, l) => sum + l.unitPrice * l.qty, 0),
+      subtotal: () => get().lines.reduce((sum, l) => sum + l.unitPrice * l.qty, 0),
       itemCount: () => get().lines.reduce((sum, l) => sum + l.qty, 0),
     }),
     { name: "keyafe-cart", version: 2 },

@@ -1,13 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 const MAX_BYTES = 12 * 1024 * 1024; // 12 MB
-const ACCEPTED = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-];
+const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -119,9 +113,7 @@ export function ImageUpload({
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
           <span className="text-sm font-medium text-ink-700">{label}</span>
-          <span className="text-xs text-ink-500">
-            JPG, PNG, WEBP or HEIC · up to 12 MB
-          </span>
+          <span className="text-xs text-ink-500">JPG, PNG, WEBP or HEIC · up to 12 MB</span>
         </label>
       )}
 

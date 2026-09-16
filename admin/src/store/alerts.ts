@@ -46,23 +46,17 @@ export const useAlerts = create<AlertsState>()(
       pending: [],
       enqueue: (alert) =>
         set((s) =>
-          s.pending.some((a) => a.id === alert.id)
-            ? s
-            : { pending: [...s.pending, alert] },
+          s.pending.some((a) => a.id === alert.id) ? s : { pending: [...s.pending, alert] },
         ),
-      dequeue: (id) =>
-        set((s) => ({ pending: s.pending.filter((a) => a.id !== id) })),
+      dequeue: (id) => set((s) => ({ pending: s.pending.filter((a) => a.id !== id) })),
       clear: () => set({ pending: [] }),
 
       cancelled: [],
       enqueueCancelled: (alert) =>
         set((s) =>
-          s.cancelled.some((a) => a.id === alert.id)
-            ? s
-            : { cancelled: [...s.cancelled, alert] },
+          s.cancelled.some((a) => a.id === alert.id) ? s : { cancelled: [...s.cancelled, alert] },
         ),
-      dismissCancelled: (id) =>
-        set((s) => ({ cancelled: s.cancelled.filter((a) => a.id !== id) })),
+      dismissCancelled: (id) => set((s) => ({ cancelled: s.cancelled.filter((a) => a.id !== id) })),
     }),
     {
       name: "keyafe-admin-alerts",

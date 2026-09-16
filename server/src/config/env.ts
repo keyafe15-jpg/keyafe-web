@@ -2,21 +2,15 @@ import "dotenv/config";
 import { z } from "zod";
 
 const envSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   CLIENT_ORIGIN: z.string().url().default("http://localhost:5173"),
   ADMIN_ORIGIN: z.string().url().default("http://localhost:5175"),
   DATABASE_URL: z.string().min(1),
-  LOG_LEVEL: z
-    .enum(["fatal", "error", "warn", "info", "debug", "trace"])
-    .default("info"),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
   // Storage
-  STORAGE_PROVIDER: z
-    .enum(["local", "r2", "s3", "cloudinary"])
-    .default("local"),
+  STORAGE_PROVIDER: z.enum(["local", "r2", "s3", "cloudinary"]).default("local"),
   UPLOAD_DIR: z.string().default("./uploads"),
   PUBLIC_BASE_URL: z.string().url().default("http://localhost:4000"),
   UPLOAD_TOKEN_SECRET: z
@@ -64,10 +58,7 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error(
-    "Invalid environment variables:",
-    parsed.error.flatten().fieldErrors,
-  );
+  console.error("Invalid environment variables:", parsed.error.flatten().fieldErrors);
   process.exit(1);
 }
 

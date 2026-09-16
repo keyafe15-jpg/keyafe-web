@@ -51,11 +51,7 @@ interface ProductTagBadgeProps {
   size?: "sm" | "md";
 }
 
-export function ProductTagBadge({
-  tag,
-  className,
-  size = "sm",
-}: ProductTagBadgeProps) {
+export function ProductTagBadge({ tag, className, size = "sm" }: ProductTagBadgeProps) {
   const { bg, color } = tagColors(tag.colorHex);
   const height = size === "sm" ? 22 : 28;
   const padLeft = size === "sm" ? 15 : 19;
@@ -88,7 +84,7 @@ export function ProductTagBadge({
       </svg>
       <span
         className={cn(
-          "relative z-10 font-semibold leading-none whitespace-nowrap",
+          "relative z-10 leading-none font-semibold whitespace-nowrap",
           size === "sm" ? "text-[9px] sm:text-[10px]" : "text-[10px] sm:text-xs",
         )}
         style={{
@@ -110,12 +106,7 @@ interface ProductCardTagsProps {
   size?: "sm" | "md";
 }
 
-export function ProductCardTags({
-  tags,
-  max = 2,
-  className,
-  size = "sm",
-}: ProductCardTagsProps) {
+export function ProductCardTags({ tags, max = 2, className, size = "sm" }: ProductCardTagsProps) {
   if (tags.length === 0) return null;
   return (
     <div className={className ?? "flex flex-wrap gap-1.5"}>

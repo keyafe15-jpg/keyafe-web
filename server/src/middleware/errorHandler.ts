@@ -29,7 +29,5 @@ export function errorHandler(
   }
 
   logger.error({ err }, "Unhandled error");
-  res
-    .status(StatusCodes.INTERNAL_SERVER_ERROR)
-    .json({ error: "Internal server error" });
+  res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: "Internal server error" });
 }

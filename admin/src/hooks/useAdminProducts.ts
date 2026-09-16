@@ -127,8 +127,7 @@ export interface CreateProductPayload {
 export function useCreateProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateProductPayload) =>
-      api.post<AdminProduct>("/admin/products", input),
+    mutationFn: (input: CreateProductPayload) => api.post<AdminProduct>("/admin/products", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "products"] });
     },
@@ -159,10 +158,7 @@ export function useAdminProduct(id: string | undefined) {
 export function useUpdateProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      ...input
-    }: { id: string } & Partial<CreateProductPayload>) =>
+    mutationFn: ({ id, ...input }: { id: string } & Partial<CreateProductPayload>) =>
       api.patch<AdminProduct>(`/admin/products/${id}`, input),
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({ queryKey: ["admin", "products"] });

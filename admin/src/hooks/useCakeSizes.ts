@@ -29,8 +29,7 @@ export interface CakeSizePayload {
 export function useCreateCakeSize() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CakeSizePayload) =>
-      api.post<CakeSize>("/admin/cake-sizes", input),
+    mutationFn: (input: CakeSizePayload) => api.post<CakeSize>("/admin/cake-sizes", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "cake-sizes"] });
     },

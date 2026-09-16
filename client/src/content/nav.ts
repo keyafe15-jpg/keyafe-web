@@ -17,9 +17,7 @@ export const PANINDIA_NAV = {
   label: "Pan India",
 } as const;
 
-export const UTILITY_LINKS = [
-  { to: "/get-quote", label: "Get a Quote" },
-] as const;
+export const UTILITY_LINKS = [{ to: "/get-quote", label: "Get a Quote" }] as const;
 
 export function storeNavItem(store: { slug: string; name: string }) {
   return {

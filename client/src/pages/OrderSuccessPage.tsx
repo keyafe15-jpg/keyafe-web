@@ -18,12 +18,9 @@ export function OrderSuccessPage() {
   if (isError || !order) {
     return (
       <section className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="mb-3 font-display text-3xl text-ink-900">
-          Order not found
-        </h1>
+        <h1 className="mb-3 font-display text-3xl text-ink-900">Order not found</h1>
         <p className="mb-6 text-ink-500">
-          We couldn't find this order. Try opening the link from your
-          confirmation SMS.
+          We couldn't find this order. Try opening the link from your confirmation SMS.
         </p>
         <Link
           to="/"
@@ -42,9 +39,7 @@ export function OrderSuccessPage() {
     <section className="mx-auto max-w-3xl px-4 py-12">
       <div
         className={`rounded-card border p-6 text-center sm:p-8 ${
-          cancelled
-            ? "border-red-200 bg-red-50/50"
-            : "border-emerald-200 bg-emerald-50/50"
+          cancelled ? "border-red-200 bg-red-50/50" : "border-emerald-200 bg-emerald-50/50"
         }`}
       >
         <div
@@ -63,11 +58,7 @@ export function OrderSuccessPage() {
             strokeLinejoin="round"
             aria-hidden="true"
           >
-            {cancelled ? (
-              <path d="M18 6L6 18M6 6l12 12" />
-            ) : (
-              <path d="M20 6L9 17l-5-5" />
-            )}
+            {cancelled ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M20 6L9 17l-5-5" />}
           </svg>
         </div>
         <h1 className="font-display text-3xl text-ink-900">
@@ -79,7 +70,7 @@ export function OrderSuccessPage() {
             : `Thanks ${order.customerName.split(" ")[0]} — we've got your order.`}
         </p>
         <p
-          className={`mt-3 inline-block rounded-full bg-white px-3 py-1 text-xs font-medium tabular-nums text-ink-700 ring-1 ${
+          className={`mt-3 inline-block rounded-full bg-white px-3 py-1 text-xs font-medium text-ink-700 tabular-nums ring-1 ${
             cancelled ? "ring-red-200" : "ring-emerald-200"
           }`}
         >
@@ -91,16 +82,12 @@ export function OrderSuccessPage() {
         <InfoCard title={isDelivery ? "Delivery to" : "Pickup at"}>
           {isDelivery && order.deliveryAddress ? (
             <>
-              <address className="not-italic text-sm text-ink-700">
+              <address className="text-sm text-ink-700 not-italic">
                 <p className="font-medium">{order.customerName}</p>
                 <p>{order.deliveryAddress.line1}</p>
-                {order.deliveryAddress.line2 && (
-                  <p>{order.deliveryAddress.line2}</p>
-                )}
+                {order.deliveryAddress.line2 && <p>{order.deliveryAddress.line2}</p>}
                 {order.deliveryAddress.landmark && (
-                  <p className="text-ink-500">
-                    Near {order.deliveryAddress.landmark}
-                  </p>
+                  <p className="text-ink-500">Near {order.deliveryAddress.landmark}</p>
                 )}
                 <p>
                   {[order.deliveryAddress.area, order.deliveryAddress.city]
@@ -112,7 +99,7 @@ export function OrderSuccessPage() {
               </address>
               {order.deliveryAddress.mapSearchQuery && (
                 <div className="mt-3 rounded-lg border border-brand-500/20 bg-brand-100/40 px-3 py-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+                  <p className="text-[10px] font-semibold tracking-wide text-brand-700 uppercase">
                     Search on Uber / Rapido
                   </p>
                   <p className="mt-0.5 text-sm font-medium text-ink-900">
@@ -146,16 +133,12 @@ export function OrderSuccessPage() {
                 <div className="h-12 w-12 shrink-0 rounded-md bg-cream-100" />
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-ink-900">
-                  {it.productName}
-                </p>
+                <p className="truncate font-medium text-ink-900">{it.productName}</p>
                 <p className="truncate text-xs text-ink-500">
                   {[it.sizeLabel, it.flavourName].filter(Boolean).join(" · ")}
                 </p>
                 {it.messageOnCake && (
-                  <p className="truncate text-xs italic text-ink-500">
-                    "{it.messageOnCake}"
-                  </p>
+                  <p className="truncate text-xs text-ink-500 italic">"{it.messageOnCake}"</p>
                 )}
                 <p className="text-xs text-ink-500">Qty {it.qty}</p>
                 <p className="mt-1 text-[11px] font-medium text-brand-700">
@@ -164,7 +147,7 @@ export function OrderSuccessPage() {
                     : "Ships pan-India via courier"}
                 </p>
               </div>
-              <span className="shrink-0 text-sm font-medium tabular-nums text-ink-900">
+              <span className="shrink-0 text-sm font-medium text-ink-900 tabular-nums">
                 ₹{Number(it.lineTotal).toFixed(0)}
               </span>
             </li>
@@ -177,14 +160,11 @@ export function OrderSuccessPage() {
           Number(order.sgstAmount) > 0 ||
           Number(order.igstAmount) > 0) && (
           <div className="mb-3 rounded-lg border border-cream-200 bg-cream-50/60 px-3 py-2 text-xs">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-500">
+            <p className="mb-1 text-[10px] font-semibold tracking-wide text-ink-500 uppercase">
               GST breakup
             </p>
             <div className="space-y-1 text-ink-700">
-              <BreakupRow
-                label="Taxable amount"
-                value={Number(order.taxableAmount)}
-              />
+              <BreakupRow label="Taxable amount" value={Number(order.taxableAmount)} />
               {Number(order.cgstAmount) > 0 && (
                 <BreakupRow label="CGST" value={Number(order.cgstAmount)} />
               )}
@@ -198,32 +178,23 @@ export function OrderSuccessPage() {
           </div>
         )}
 
-        <SummaryRow
-          label="Subtotal (incl. GST)"
-          value={Number(order.subtotal)}
-        />
+        <SummaryRow label="Subtotal (incl. GST)" value={Number(order.subtotal)} />
         {Number(order.discount) > 0 && (
           <SummaryRow
-            label={
-              order.couponCode
-                ? `Discount (${order.couponCode})`
-                : "Discount"
-            }
+            label={order.couponCode ? `Discount (${order.couponCode})` : "Discount"}
             value={-Number(order.discount)}
           />
         )}
         {isDelivery && (
           <SummaryRow
-            label={
-              Number(order.deliveryFee) === 0 ? "Delivery (free)" : "Delivery"
-            }
+            label={Number(order.deliveryFee) === 0 ? "Delivery (free)" : "Delivery"}
             value={Number(order.deliveryFee)}
           />
         )}
         <hr className="my-3 border-cream-200" />
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-ink-700">Total</span>
-          <span className="text-2xl font-semibold tabular-nums text-ink-900">
+          <span className="text-2xl font-semibold text-ink-900 tabular-nums">
             ₹{Number(order.total).toFixed(2)}
           </span>
         </div>
@@ -259,16 +230,10 @@ export function OrderSuccessPage() {
   );
 }
 
-function InfoCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-card border border-cream-200 bg-white p-5">
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-500">
+      <p className="mb-2 text-[11px] font-semibold tracking-wider text-ink-500 uppercase">
         {title}
       </p>
       {children}
@@ -276,27 +241,11 @@ function InfoCard({
   );
 }
 
-function SummaryRow({
-  label,
-  value,
-  muted,
-}: {
-  label: string;
-  value: number;
-  muted?: boolean;
-}) {
+function SummaryRow({ label, value, muted }: { label: string; value: number; muted?: boolean }) {
   return (
     <div className="flex items-baseline justify-between py-0.5 text-sm">
-      <span className={muted ? "text-ink-500 text-xs" : "text-ink-700"}>
-        {label}
-      </span>
-      <span
-        className={
-          muted
-            ? "tabular-nums text-xs text-ink-500"
-            : "tabular-nums text-ink-900"
-        }
-      >
+      <span className={muted ? "text-xs text-ink-500" : "text-ink-700"}>{label}</span>
+      <span className={muted ? "text-xs text-ink-500 tabular-nums" : "text-ink-900 tabular-nums"}>
         ₹{value.toFixed(2)}
       </span>
     </div>

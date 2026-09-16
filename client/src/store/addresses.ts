@@ -84,10 +84,7 @@ export const useSavedAddresses = create<AddressState>()((set, get) => ({
 
       set((state) => ({
         addresses: created.isDefault
-          ? [
-              created,
-              ...state.addresses.filter((item) => item.id !== created.id),
-            ]
+          ? [created, ...state.addresses.filter((item) => item.id !== created.id)]
           : [...state.addresses, created],
         loading: false,
       }));
@@ -129,13 +126,9 @@ export const useSavedAddresses = create<AddressState>()((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const updated = await api.patch<SavedAddress>(
-        `/addresses/${id}/default`,
-        undefined,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const updated = await api.patch<SavedAddress>(`/addresses/${id}/default`, undefined, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       set((state) => ({
         addresses: state.addresses
           .map((address) => ({
@@ -148,10 +141,7 @@ export const useSavedAddresses = create<AddressState>()((set, get) => ({
     } catch (err) {
       set({
         loading: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : "Unable to update default address",
+        error: err instanceof Error ? err.message : "Unable to update default address",
       });
     }
   },

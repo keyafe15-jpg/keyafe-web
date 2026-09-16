@@ -27,10 +27,7 @@ export function ClientPagination<T>({
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
   const currentPage = Math.min(page, pageCount);
-  const paginatedItems = items.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
-  );
+  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const firstItem = items.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const lastItem = Math.min(currentPage * pageSize, items.length);
 

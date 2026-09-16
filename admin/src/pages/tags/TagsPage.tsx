@@ -1,11 +1,6 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import {
-  useAdminTags,
-  useCreateTag,
-  useUpdateTag,
-  type AdminTag,
-} from "@/hooks/useTags";
+import { useAdminTags, useCreateTag, useUpdateTag, type AdminTag } from "@/hooks/useTags";
 import { cn } from "@/lib/cn";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
 
@@ -26,17 +21,15 @@ export function TagsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">Product tags</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Labels like &ldquo;New launch&rdquo; and &ldquo;Best seller&rdquo;.
-          Assign them on each product; they show as badges on the storefront.
+          Labels like &ldquo;New launch&rdquo; and &ldquo;Best seller&rdquo;. Assign them on each
+          product; they show as badges on the storefront.
         </p>
       </div>
 
       <NewTagRow />
 
       <div className="mt-4 overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-        )}
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && tags.length === 0 && (
           <div className="p-8 text-center text-sm text-slate-500">
             No tags yet — add your first one above.
@@ -45,13 +38,11 @@ export function TagsPage() {
         {!isLoading && tags.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-2 font-medium">Tag</th>
                   <th className="w-36 px-4 py-2 font-medium">Color</th>
-                  <th className="w-28 px-4 py-2 text-right font-medium">
-                    Products
-                  </th>
+                  <th className="w-28 px-4 py-2 text-right font-medium">Products</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -128,11 +119,7 @@ function NewTagRow() {
           </button>
         </div>
       </div>
-      {error && (
-        <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
     </div>
   );
 }
@@ -195,9 +182,7 @@ function TagRow({ tag }: { tag: AdminTag }) {
           </span>
         </div>
       </td>
-      <td className="px-4 py-3 text-right tabular-nums text-slate-600">
-        {tag.productCount}
-      </td>
+      <td className="px-4 py-3 text-right text-slate-600 tabular-nums">{tag.productCount}</td>
     </tr>
   );
 }

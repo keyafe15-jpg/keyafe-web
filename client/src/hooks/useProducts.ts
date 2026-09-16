@@ -29,17 +29,11 @@ export interface ProductTag {
   colorHex: string | null;
 }
 
-export function productInCategoryIds(
-  product: { categories: { id: string }[] },
-  ids: Set<string>,
-) {
+export function productInCategoryIds(product: { categories: { id: string }[] }, ids: Set<string>) {
   return product.categories.some((c) => ids.has(c.id));
 }
 
-export function categoryNames(
-  product: { categories: { name: string }[] },
-  fallback = "",
-) {
+export function categoryNames(product: { categories: { name: string }[] }, fallback = "") {
   if (product.categories.length === 0) return fallback;
   return product.categories.map((c) => c.name).join(" · ");
 }
@@ -52,11 +46,7 @@ export interface PaginatedProductsResponse {
   totalPages: number;
 }
 
-export function useProductsByCategory(
-  slug: string | undefined,
-  page = 1,
-  pageSize = 12,
-) {
+export function useProductsByCategory(slug: string | undefined, page = 1, pageSize = 12) {
   return useQuery<PaginatedProductsResponse>({
     queryKey: ["products", "category", slug, page, pageSize],
     queryFn: () =>
@@ -68,11 +58,7 @@ export function useProductsByCategory(
   });
 }
 
-export function useProductsByDepartment(
-  slug: string | undefined,
-  page = 1,
-  pageSize = 12,
-) {
+export function useProductsByDepartment(slug: string | undefined, page = 1, pageSize = 12) {
   return useQuery<PaginatedProductsResponse>({
     queryKey: ["products", "department", slug, page, pageSize],
     queryFn: () =>
@@ -209,8 +195,7 @@ export interface ProductDetail {
 export function useProduct(slug: string | undefined) {
   return useQuery<ProductDetail>({
     queryKey: ["product", slug],
-    queryFn: () =>
-      api.get<ProductDetail>(`/products/${encodeURIComponent(slug!)}`),
+    queryFn: () => api.get<ProductDetail>(`/products/${encodeURIComponent(slug!)}`),
     enabled: !!slug,
     staleTime: 60_000,
   });

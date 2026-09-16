@@ -9,9 +9,7 @@ export function CancelledOrderToasts() {
 
   useEffect(() => {
     if (cancelled.length === 0) return;
-    const timers = cancelled.map((a) =>
-      window.setTimeout(() => dismiss(a.id), 12_000),
-    );
+    const timers = cancelled.map((a) => window.setTimeout(() => dismiss(a.id), 12_000));
     return () => {
       for (const t of timers) window.clearTimeout(t);
     };
@@ -20,7 +18,7 @@ export function CancelledOrderToasts() {
   if (cancelled.length === 0) return null;
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-[min(100%-2rem,22rem)] flex-col gap-2">
+    <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-[min(100%-2rem,22rem)] flex-col gap-2">
       {cancelled.map((a) => (
         <div
           key={a.id}
@@ -28,15 +26,13 @@ export function CancelledOrderToasts() {
         >
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+              <p className="text-xs font-semibold tracking-wide text-red-700 uppercase">
                 Order cancelled
               </p>
-              <p className="mt-0.5 font-mono text-sm font-medium text-slate-900">
-                {a.orderNumber}
-              </p>
+              <p className="mt-0.5 font-mono text-sm font-medium text-slate-900">{a.orderNumber}</p>
               <p className="mt-0.5 text-sm text-slate-600">
-                {a.cancelledBy === "customer" ? "Customer" : "Admin"} cancelled{" "}
-                {a.customerName} · ₹{Number(a.total).toFixed(0)}
+                {a.cancelledBy === "customer" ? "Customer" : "Admin"} cancelled {a.customerName} · ₹
+                {Number(a.total).toFixed(0)}
               </p>
               <Link
                 to={`/orders/${a.orderNumber}`}

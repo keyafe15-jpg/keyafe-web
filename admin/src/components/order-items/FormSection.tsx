@@ -16,9 +16,7 @@ export function FormSection({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-          {subtitle ? (
-            <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
-          ) : null}
+          {subtitle ? <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p> : null}
         </div>
         {action}
       </div>

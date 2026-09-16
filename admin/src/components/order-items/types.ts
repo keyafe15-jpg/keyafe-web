@@ -77,8 +77,7 @@ export function orderLinkItemToDraft(it: OrderLinkItem): OrderItemDraft {
     sizeGrams: it.sizeGrams ? String(it.sizeGrams) : "",
     customTemplate: "CAKE",
     flavourId: it.flavourId ?? "",
-    customFlavour:
-      !it.flavourId && it.flavourName ? it.flavourName : "",
+    customFlavour: !it.flavourId && it.flavourName ? it.flavourName : "",
     messageOnCake: it.messageHint ?? "",
     instructions: "",
     unitPrice: Number(it.unitPrice).toFixed(0),

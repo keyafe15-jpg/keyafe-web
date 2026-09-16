@@ -5,10 +5,7 @@ import {
   resolvePlaceOfSupply,
   sumLineTax,
 } from "../src/modules/orders/order.tax.js";
-import {
-  normalizeStateCode,
-  stateCodeFromName,
-} from "../src/lib/indiaStates.js";
+import { normalizeStateCode, stateCodeFromName } from "../src/lib/indiaStates.js";
 import { gstinIssue, normalizeGstin } from "../src/lib/gstin.js";
 
 let failures = 0;
@@ -17,7 +14,9 @@ function check(label: string, actual: unknown, expected: unknown) {
   const e = JSON.stringify(expected);
   const ok = a === e;
   if (!ok) failures++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${label}${ok ? "" : `\n        got ${a}\n        want ${e}`}`);
+  console.log(
+    `${ok ? "ok  " : "FAIL"}  ${label}${ok ? "" : `\n        got ${a}\n        want ${e}`}`,
+  );
 }
 
 // --- inclusive pricing, intra-state: ₹1000 at 5% inclusive
@@ -83,7 +82,10 @@ const cart = [
   { gross: 555.55, rate: 18, incl: true },
   { gross: 333.33, rate: 12, incl: false },
 ];
-const charged = allocateCartDiscount(cart.map((c) => c.gross), 150);
+const charged = allocateCartDiscount(
+  cart.map((c) => c.gross),
+  150,
+);
 const taxes = cart.map((c, i) =>
   computeLineTax({
     lineInclusive: charged[i]!,
@@ -94,8 +96,7 @@ const taxes = cart.map((c, i) =>
 );
 const totals = sumLineTax(taxes);
 const summed = {
-  taxableAmount:
-    Math.round(taxes.reduce((s, t) => s + t.taxableValue, 0) * 100) / 100,
+  taxableAmount: Math.round(taxes.reduce((s, t) => s + t.taxableValue, 0) * 100) / 100,
   cgstAmount: Math.round(taxes.reduce((s, t) => s + t.cgstAmount, 0) * 100) / 100,
   sgstAmount: Math.round(taxes.reduce((s, t) => s + t.sgstAmount, 0) * 100) / 100,
   igstAmount: 0,
@@ -213,12 +214,7 @@ try {
 check("unknown delivery state throws rather than assuming", threw, true);
 
 // --- GSTIN validation. These four are documented-valid numbers.
-for (const valid of [
-  "27AAACR5055K1Z7",
-  "12AAACI1681G1Z0",
-  "27AAPFU0939F1ZV",
-  "29AAGCB7383J1Z4",
-]) {
+for (const valid of ["27AAACR5055K1Z7", "12AAACI1681G1Z0", "27AAPFU0939F1ZV", "29AAGCB7383J1Z4"]) {
   check(`gstin ${valid} accepted`, gstinIssue(valid), null);
 }
 check("lowercase accepted", gstinIssue("27aaacr5055k1z7"), null);
@@ -232,11 +228,7 @@ check(
   "GSTIN checksum does not match — please re-check the number",
 );
 // State code 47 does not exist.
-check(
-  "unknown state code rejected",
-  gstinIssue("47AAACI1681G1ZN"),
-  'Unknown GST state code "47"',
-);
+check("unknown state code rejected", gstinIssue("47AAACI1681G1ZN"), 'Unknown GST state code "47"');
 check("too short rejected", gstinIssue("27AAACR5055K1Z"), "GSTIN must be exactly 15 characters");
 check("empty rejected", gstinIssue(""), "GSTIN must be exactly 15 characters");
 check(

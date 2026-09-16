@@ -30,32 +30,28 @@ const makers = [
   {
     name: "Srijita Thakur",
     role: "Founder • Full-stack developer • dreamer",
-    image:
-      "/srijitathakur.jpg",
+    image: "/srijitathakur.jpg",
     description:
       "I am Srijita Thakur — the founder, builder of this website, and a full-stack developer who wanted Keyafe to feel as warm and personal as the food itself.",
   },
   {
     name: "Subrata Thakur",
     role: "The backbone of our logistics & delivery",
-    image:
-      "/subratathakur.jpg",
+    image: "/subratathakur.jpg",
     description:
       "At 68, my father is the pillar of this business — he manages delivery, operations, and the unseen chaos behind every smooth order.",
   },
   {
     name: "Keya Thakur",
     role: "Family support • sweet-thinking partner",
-    image:
-      "/keyathakur.jpg",
+    image: "/keyathakur.jpg",
     description:
       "Keya brings warmth, care and constant support to the work behind every celebration and every batch of freshly baked treats.",
   },
   {
     name: "Souvik Thakur",
     role: "A steady hand in the family journey",
-    image:
-      "/souvikthakur.jpg",
+    image: "/souvikthakur.jpg",
     description:
       "Souvik stands with the family in building Keyafe with love, patience and belief in the work we do together.",
   },
@@ -110,23 +106,22 @@ export function AboutPage() {
       <section className="mx-auto max-w-6xl px-4 pt-14 md:pt-20">
         <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <p className="mb-3 text-sm font-medium uppercase tracking-[0.22em] text-brand-500">
+            <p className="mb-3 text-sm font-medium tracking-[0.22em] text-brand-500 uppercase">
               About Keyafe
             </p>
             <h1 className="max-w-xl text-4xl leading-tight text-ink-900 md:text-6xl">
               A sweet story, grown from our family kitchen.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-8 text-ink-700 md:text-lg">
-              What began on 16 December 2019 in Belur, Howrah, has grown into a
-              heartfelt bakery and dessert studio built with love, patience and
-              a lot of togetherness.
+              What began on 16 December 2019 in Belur, Howrah, has grown into a heartfelt bakery and
+              dessert studio built with love, patience and a lot of togetherness.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
               {storyPillars.map((pill) => (
                 <span
                   key={pill}
-                  className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700"
+                  className="border-brand-200 bg-brand-50 rounded-full border px-3 py-1.5 text-xs font-medium text-brand-700"
                 >
                   {pill}
                 </span>
@@ -165,8 +160,8 @@ export function AboutPage() {
                   className="h-[170px] w-full object-cover"
                 />
               </div>
-              <div className="rounded-[1.5rem] border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+              <div className="border-brand-200 from-brand-50 rounded-[1.5rem] border bg-gradient-to-br to-white p-5 shadow-sm">
+                <p className="text-xs font-semibold tracking-[0.2em] text-brand-700 uppercase">
                   Our promise
                 </p>
                 <p className="mt-3 text-2xl font-semibold text-ink-900">
@@ -180,9 +175,7 @@ export function AboutPage() {
 
       <section className="mx-auto mt-20 max-w-6xl px-4">
         <div className="mb-8 max-w-2xl">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-brand-500">
-            Our story
-          </p>
+          <p className="text-sm font-medium tracking-[0.2em] text-brand-500 uppercase">Our story</p>
           <h2 className="mt-2 text-3xl text-ink-900 md:text-5xl">
             Built on love, learning and a lot of practice.
           </h2>
@@ -194,7 +187,7 @@ export function AboutPage() {
               key={item.year}
               className="rounded-[1.5rem] border border-cream-200 bg-white p-6 shadow-sm"
             >
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-500">
+              <p className="text-sm font-semibold tracking-[0.18em] text-brand-500 uppercase">
                 {item.year}
               </p>
               <h3 className="mt-4 text-2xl text-ink-900">{item.title}</h3>
@@ -207,7 +200,7 @@ export function AboutPage() {
       <section className="mx-auto mt-20 max-w-6xl px-4">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-brand-500">
+            <p className="text-sm font-medium tracking-[0.2em] text-brand-500 uppercase">
               The people behind Keyafe
             </p>
             <h2 className="mt-2 text-3xl text-ink-900 md:text-5xl">
@@ -222,19 +215,13 @@ export function AboutPage() {
               key={person.name}
               className="overflow-hidden rounded-[1.5rem] border border-cream-200 bg-white shadow-sm"
             >
-              <img
-                src={person.image}
-                alt={person.name}
-                className="h-64 w-full object-cover"
-              />
+              <img src={person.image} alt={person.name} className="h-64 w-full object-cover" />
               <div className="p-5">
                 <h3 className="text-2xl text-ink-900">{person.name}</h3>
-                <p className="mt-1 text-sm font-medium uppercase tracking-[0.15em] text-brand-500">
+                <p className="mt-1 text-sm font-medium tracking-[0.15em] text-brand-500 uppercase">
                   {person.role}
                 </p>
-                <p className="mt-3 leading-7 text-ink-700">
-                  {person.description}
-                </p>
+                <p className="mt-3 leading-7 text-ink-700">{person.description}</p>
               </div>
             </article>
           ))}
@@ -244,7 +231,7 @@ export function AboutPage() {
       <section className="mx-auto mt-20 max-w-6xl px-4">
         <div className="grid gap-8 rounded-[2rem] border border-cream-200 bg-white p-6 shadow-sm lg:grid-cols-[0.9fr_1.1fr] lg:p-8">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-brand-500">
+            <p className="text-sm font-medium tracking-[0.2em] text-brand-500 uppercase">
               What we make
             </p>
             <h2 className="mt-2 text-3xl text-ink-900 md:text-5xl">
@@ -270,7 +257,7 @@ export function AboutPage() {
           {principles.map((principle) => (
             <div
               key={principle.title}
-              className="rounded-[1.5rem] border border-brand-100 bg-gradient-to-br from-brand-50 to-white p-6"
+              className="from-brand-50 rounded-[1.5rem] border border-brand-100 bg-gradient-to-br to-white p-6"
             >
               <h3 className="text-2xl text-ink-900">{principle.title}</h3>
               <p className="mt-3 leading-7 text-ink-700">{principle.text}</p>
@@ -280,18 +267,18 @@ export function AboutPage() {
       </section>
 
       <section className="mx-auto mt-20 max-w-5xl px-4">
-        <div className="rounded-[2rem] bg-gradient-to-r from-ink-900 via-ink-800 to-brand-700 p-8 text-white md:p-12">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-brand-100">
+        <div className="via-ink-800 rounded-[2rem] bg-gradient-to-r from-ink-900 to-brand-700 p-8 text-white md:p-12">
+          <p className="text-sm font-medium tracking-[0.2em] text-brand-100 uppercase">
             Thank you for being part of our journey
           </p>
           <h2 className="mt-3 max-w-2xl text-3xl md:text-5xl">
-            We hope you will support Keyafe as we continue to grow, learn and
-            bring joy to more homes.
+            We hope you will support Keyafe as we continue to grow, learn and bring joy to more
+            homes.
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-7 text-cream-50">
-            From our family to yours, every order is a little story of trust,
-            care and celebration. We’re grateful for every smile, every feedback
-            and every chance to make your moments sweeter.
+            From our family to yours, every order is a little story of trust, care and celebration.
+            We’re grateful for every smile, every feedback and every chance to make your moments
+            sweeter.
           </p>
           <div className="mt-7 flex flex-wrap gap-4">
             <Link

@@ -12,11 +12,7 @@ export function ProductsListPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const { data, isLoading, isFetching } = useAdminProducts(
-    page,
-    PAGE_SIZE,
-    search,
-  );
+  const { data, isLoading, isFetching } = useAdminProducts(page, PAGE_SIZE, search);
   const products = data?.items ?? [];
   const total = data?.total ?? 0;
   const navigate = useNavigate();
@@ -52,19 +48,19 @@ export function ProductsListPage() {
 
       <div className="mb-4">
         <div className="relative max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search by name, slug, or category…"
-            className={cn(inputClass, "pl-9 pr-9")}
+            className={cn(inputClass, "pr-9 pl-9")}
           />
           {searchInput && (
             <button
               type="button"
               onClick={() => setSearchInput("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
@@ -74,9 +70,7 @@ export function ProductsListPage() {
       </div>
 
       <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-        )}
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && products.length === 0 && (
           <div className="p-8 text-center text-sm text-slate-500">
             {searching ? (
@@ -84,10 +78,7 @@ export function ProductsListPage() {
             ) : (
               <>
                 No products yet.{" "}
-                <Link
-                  to="/products/new"
-                  className="text-brand-500 hover:underline"
-                >
+                <Link to="/products/new" className="text-brand-500 hover:underline">
                   Add your first product
                 </Link>
                 .
@@ -97,92 +88,80 @@ export function ProductsListPage() {
         )}
         {!isLoading && products.length > 0 && (
           <>
-          {isFetching && !isLoading && (
-            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-              Updating results…
-            </div>
-          )}
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[780px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Product</th>
-                  <th className="px-4 py-2 font-medium">Category</th>
-                  <th className="px-4 py-2 font-medium text-right">Price</th>
-                  <th className="px-4 py-2 font-medium">Type</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {products.map((p) => (
-                  <tr
-                    key={p.id}
-                    onClick={() => navigate(`/products/${p.id}`)}
-                    className="cursor-pointer hover:bg-slate-50"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        {p.images[0] ? (
-                          <img
-                            src={p.images[0]}
-                            alt=""
-                            className="h-10 w-10 shrink-0 rounded-md object-cover"
-                          />
-                        ) : (
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
-                            <ImageOff className="h-4 w-4" />
-                          </span>
-                        )}
-                        <div className="min-w-0">
-                          <p className="truncate font-medium text-slate-900">
-                            {p.name}
-                          </p>
-                          <p className="truncate text-xs text-slate-500">
-                            /{p.slug}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {p.categories.map((c) => c.name).join(" · ") || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums">
-                      <PriceCell priceMin={p.priceMin} priceMax={p.priceMax} />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
-                      {p.productType === "CONFIGURABLE"
-                        ? "Configurable"
-                        : "Variants"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadges
-                        productId={p.id}
-                        isActive={p.isActive}
-                        isAvailable={p.isAvailable}
-                        isFeatured={p.isFeatured}
-                      />
-                    </td>
+            {isFetching && !isLoading && (
+              <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+                Updating results…
+              </div>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[780px] text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Product</th>
+                    <th className="px-4 py-2 font-medium">Category</th>
+                    <th className="px-4 py-2 text-right font-medium">Price</th>
+                    <th className="px-4 py-2 font-medium">Type</th>
+                    <th className="px-4 py-2 font-medium">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <PaginationControls
-            page={data?.page ?? 1}
-            pageCount={data?.totalPages ?? 1}
-            total={total}
-            firstItem={
-              data && data.total > 0
-                ? (data.page - 1) * data.pageSize + 1
-                : 0
-            }
-            lastItem={
-              data ? Math.min(data.page * data.pageSize, data.total) : 0
-            }
-            onPageChange={setPage}
-            noun="products"
-            className="mx-4 mb-4"
-          />
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {products.map((p) => (
+                    <tr
+                      key={p.id}
+                      onClick={() => navigate(`/products/${p.id}`)}
+                      className="cursor-pointer hover:bg-slate-50"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {p.images[0] ? (
+                            <img
+                              src={p.images[0]}
+                              alt=""
+                              className="h-10 w-10 shrink-0 rounded-md object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
+                              <ImageOff className="h-4 w-4" />
+                            </span>
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-slate-900">{p.name}</p>
+                            <p className="truncate text-xs text-slate-500">/{p.slug}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {p.categories.map((c) => c.name).join(" · ") || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums">
+                        <PriceCell priceMin={p.priceMin} priceMax={p.priceMax} />
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500">
+                        {p.productType === "CONFIGURABLE" ? "Configurable" : "Variants"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadges
+                          productId={p.id}
+                          isActive={p.isActive}
+                          isAvailable={p.isAvailable}
+                          isFeatured={p.isFeatured}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <PaginationControls
+              page={data?.page ?? 1}
+              pageCount={data?.totalPages ?? 1}
+              total={total}
+              firstItem={data && data.total > 0 ? (data.page - 1) * data.pageSize + 1 : 0}
+              lastItem={data ? Math.min(data.page * data.pageSize, data.total) : 0}
+              onPageChange={setPage}
+              noun="products"
+              className="mx-4 mb-4"
+            />
           </>
         )}
       </div>
@@ -190,13 +169,7 @@ export function ProductsListPage() {
   );
 }
 
-function PriceCell({
-  priceMin,
-  priceMax,
-}: {
-  priceMin: number;
-  priceMax: number;
-}) {
+function PriceCell({ priceMin, priceMax }: { priceMin: number; priceMax: number }) {
   if (priceMin !== priceMax) {
     return (
       <span>

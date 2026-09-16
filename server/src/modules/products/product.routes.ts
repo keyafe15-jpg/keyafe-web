@@ -14,8 +14,7 @@ import {
 export const adminProductRouter = Router();
 
 adminProductRouter.get("/", async (req, res) => {
-  const search =
-    typeof req.query.search === "string" ? req.query.search : undefined;
+  const search = typeof req.query.search === "string" ? req.query.search : undefined;
   const products = await listProducts(
     Number(req.query.page ?? 1),
     Number(req.query.pageSize ?? 20),
@@ -41,10 +40,7 @@ adminProductRouter.post("/", async (req, res) => {
 adminProductRouter.patch("/:id", async (req, res) => {
   const parsed = updateProductSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw HttpError.badRequest(
-      "Invalid product update",
-      parsed.error.flatten(),
-    );
+    throw HttpError.badRequest("Invalid product update", parsed.error.flatten());
   }
   const product = await updateProduct(req.params.id, parsed.data);
   res.json(product);

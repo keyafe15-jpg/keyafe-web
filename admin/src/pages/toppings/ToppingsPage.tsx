@@ -8,12 +8,7 @@ import {
   type ToppingKind,
 } from "@/hooks/useToppings";
 import { cn } from "@/lib/cn";
-import {
-  Field,
-  inputClass,
-  selectClass,
-  submitClass,
-} from "@/components/form/Field";
+import { Field, inputClass, selectClass, submitClass } from "@/components/form/Field";
 
 const slugify = (s: string) =>
   s
@@ -30,12 +25,10 @@ export function ToppingsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">
-          Toppings & condiments
-        </h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Toppings & condiments</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Master list for pizzas and similar products. Price delta is added to
-          the item price when a customer picks the option.
+          Master list for pizzas and similar products. Price delta is added to the item price when a
+          customer picks the option.
         </p>
       </div>
 
@@ -43,10 +36,7 @@ export function ToppingsPage() {
         <TabButton active={tab === "TOPPING"} onClick={() => setTab("TOPPING")}>
           Toppings ({toppings.filter((t) => t.kind === "TOPPING").length})
         </TabButton>
-        <TabButton
-          active={tab === "CONDIMENT"}
-          onClick={() => setTab("CONDIMENT")}
-        >
+        <TabButton active={tab === "CONDIMENT"} onClick={() => setTab("CONDIMENT")}>
           Condiments ({toppings.filter((t) => t.kind === "CONDIMENT").length})
         </TabButton>
       </div>
@@ -54,9 +44,7 @@ export function ToppingsPage() {
       <NewToppingRow kind={tab} />
 
       <div className="mt-4 overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-        )}
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && filtered.length === 0 && (
           <div className="p-8 text-center text-sm text-slate-500">
             No {tab === "TOPPING" ? "toppings" : "condiments"} yet.
@@ -65,16 +53,12 @@ export function ToppingsPage() {
         {!isLoading && filtered.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[620px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-2 font-medium">Name</th>
-                  <th className="w-32 px-4 py-2 text-right font-medium">
-                    Price (₹)
-                  </th>
+                  <th className="w-32 px-4 py-2 text-right font-medium">Price (₹)</th>
                   <th className="w-24 px-4 py-2 text-center font-medium">Veg</th>
-                  <th className="w-24 px-4 py-2 text-center font-medium">
-                    Active
-                  </th>
+                  <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -159,20 +143,14 @@ function NewToppingRow({ kind }: { kind: ToppingKind }) {
           </button>
         </div>
       </div>
-      {error && (
-        <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
     </div>
   );
 }
 
 function ToppingRow({ topping }: { topping: AdminTopping }) {
   const update = useUpdateTopping();
-  const [amount, setAmount] = useState<string>(
-    Number(topping.priceDelta).toString(),
-  );
+  const [amount, setAmount] = useState<string>(Number(topping.priceDelta).toString());
   const [dirty, setDirty] = useState(false);
 
   const commit = async () => {
@@ -205,7 +183,7 @@ function ToppingRow({ topping }: { topping: AdminTopping }) {
               (e.target as HTMLInputElement).blur();
             }
           }}
-          className="w-24 rounded-md border border-slate-200 bg-white py-1.5 px-2 text-right text-sm tabular-nums text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+          className="w-24 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-right text-sm text-slate-900 tabular-nums outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
         />
       </td>
       <td className="px-4 py-3 text-center">
@@ -213,9 +191,7 @@ function ToppingRow({ topping }: { topping: AdminTopping }) {
           <input
             type="checkbox"
             checked={topping.isVeg}
-            onChange={(e) =>
-              update.mutate({ id: topping.id, isVeg: e.target.checked })
-            }
+            onChange={(e) => update.mutate({ id: topping.id, isVeg: e.target.checked })}
             className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
           />
         </label>
@@ -225,9 +201,7 @@ function ToppingRow({ topping }: { topping: AdminTopping }) {
           <input
             type="checkbox"
             checked={topping.isActive}
-            onChange={(e) =>
-              update.mutate({ id: topping.id, isActive: e.target.checked })
-            }
+            onChange={(e) => update.mutate({ id: topping.id, isActive: e.target.checked })}
             className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
           />
         </label>
@@ -251,9 +225,7 @@ function TabButton({
       onClick={onClick}
       className={cn(
         "rounded-md px-3 py-1.5 text-sm font-medium transition",
-        active
-          ? "bg-brand-500 text-white shadow-sm"
-          : "text-slate-600 hover:bg-slate-100",
+        active ? "bg-brand-500 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100",
       )}
     >
       {children}

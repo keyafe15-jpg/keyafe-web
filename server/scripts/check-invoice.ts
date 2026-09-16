@@ -48,8 +48,7 @@ function section(title: string) {
 // --------------------------------------------------------------------------
 function checkPureLogic() {
   section("financial year labels (FY starts April)");
-  const fy = (iso: string, start = 4) =>
-    financialYearLabel(new Date(iso), start);
+  const fy = (iso: string, start = 4) => financialYearLabel(new Date(iso), start);
   check("mid-FY September", fy("2026-09-16T10:00:00Z"), "26-27");
   check("first day of FY", fy("2026-04-01T06:00:00Z"), "26-27");
   check("last day of previous FY", fy("2026-03-31T12:00:00Z"), "25-26");
@@ -103,13 +102,16 @@ function checkPureLogic() {
   check(
     "merges same hsn+rate",
     summary.find((r) => r.hsnCode === "1905" && r.gstRate === 18),
-    { hsnCode: "1905", gstRate: 18, taxableValue: 300, cgstAmount: 27, sgstAmount: 27, igstAmount: 0 },
+    {
+      hsnCode: "1905",
+      gstRate: 18,
+      taxableValue: 300,
+      cgstAmount: 27,
+      sgstAmount: 27,
+      igstAmount: 0,
+    },
   );
-  check(
-    "missing hsn becomes a dash row",
-    summary.find((r) => r.hsnCode === "—")?.taxableValue,
-    50,
-  );
+  check("missing hsn becomes a dash row", summary.find((r) => r.hsnCode === "—")?.taxableValue, 50);
 
   section("invoice filenames");
   check("slashes are stripped", invoiceFileName("KEY/26-27/0001"), "KEY-26-27-0001.pdf");
@@ -230,11 +232,7 @@ async function main() {
     ensureInvoiceNumber(wb.id),
     ensureInvoiceNumber(wb.id),
   ]);
-  check(
-    "concurrent issues agree",
-    new Set(raced.map((r) => r.invoiceNumber)).size,
-    1,
-  );
+  check("concurrent issues agree", new Set(raced.map((r) => r.invoiceNumber)).size, 1);
 
   const mh = await placeOrder("MH", {
     stateCode: "27",
@@ -271,11 +269,7 @@ async function main() {
   }
   check("cancelled order cannot be invoiced", refused, true);
   const counterAfter = await prisma.invoiceCounter.findUnique({ where: { series } });
-  check(
-    "refusal burned no number",
-    counterAfter?.lastNumber,
-    seqOf(second.invoiceNumber),
-  );
+  check("refusal burned no number", counterAfter?.lastNumber, seqOf(second.invoiceNumber));
 
   section("intra-state invoice (CGST + SGST)");
   const wbInvoice = await getInvoiceForOrder(wb.id);
@@ -305,9 +299,7 @@ async function main() {
   check("invoice balances to the order total", balance(wbInvoice), 0);
   check(
     "hsn summary foots to the taxable total",
-    Math.round(
-      wbInvoice.hsnSummary.reduce((s, r) => s + r.taxableValue, 0) * 100,
-    ) / 100,
+    Math.round(wbInvoice.hsnSummary.reduce((s, r) => s + r.taxableValue, 0) * 100) / 100,
     wbInvoice.taxableTotal,
   );
   console.log(`        ${wbInvoice.amountInWords}`);
@@ -335,11 +327,7 @@ async function main() {
     gst: { companyName: "Acme Foods Pvt Ltd", gstin: "27AAACR5055K1Z7" },
   });
   const billToInvoice = await getInvoiceForOrder(billTo.id);
-  check(
-    "place of supply follows the buyer's gstin",
-    billToInvoice.placeOfSupply.code,
-    "27",
-  );
+  check("place of supply follows the buyer's gstin", billToInvoice.placeOfSupply.code, "27");
   check("charged igst despite a local delivery", billToInvoice.igstTotal > 0, true);
   check("no cgst on a bill-to/ship-to order", billToInvoice.cgstTotal, 0);
   check("ship-to block present", billToInvoice.shipTo !== null, true);
@@ -505,9 +493,7 @@ main()
         where: { id: restore.settings.id },
         data: { gstin: restore.settings.gstin },
       });
-      console.log(
-        `Restored BusinessSettings.gstin to ${JSON.stringify(restore.settings.gstin)}`,
-      );
+      console.log(`Restored BusinessSettings.gstin to ${JSON.stringify(restore.settings.gstin)}`);
     }
 
     for (const id of created) {

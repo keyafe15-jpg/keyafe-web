@@ -35,10 +35,7 @@ export function formatDate(d: Date): string {
 // The logo lives outside src/ because `tsc` doesn't copy assets into dist/.
 // src/modules/orders and dist/modules/orders sit at the same depth under the
 // package root, so one relative path resolves correctly in dev and in prod.
-export const LOGO_PATH = path.resolve(
-  import.meta.dirname,
-  "../../../assets/invoice-logo.png",
-);
+export const LOGO_PATH = path.resolve(import.meta.dirname, "../../../assets/invoice-logo.png");
 
 // `undefined` means "not looked up yet", `null` means "looked up and absent".
 let logoCache: Buffer | null | undefined;
@@ -73,12 +70,7 @@ export interface DocumentParty {
 }
 
 /** Renders one party's details as a block, advancing `doc.y` past it. */
-export function partyBlock(
-  doc: Doc,
-  party: DocumentParty,
-  x: number,
-  width: number,
-) {
+export function partyBlock(doc: Doc, party: DocumentParty, x: number, width: number) {
   doc.fillColor(INK).fontSize(9.5).font("Helvetica-Bold");
   doc.text(party.name, x, doc.y, { width });
   doc.font("Helvetica").fillColor(MUTED).fontSize(8.5);

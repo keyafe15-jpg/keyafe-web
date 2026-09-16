@@ -3,12 +3,7 @@ import path from "node:path";
 import jwt from "jsonwebtoken";
 import { customAlphabet } from "nanoid";
 import { env } from "../../config/env.js";
-import type {
-  PresignInput,
-  PresignResult,
-  StorageProvider,
-  UploadPurpose,
-} from "./types.js";
+import type { PresignInput, PresignResult, StorageProvider, UploadPurpose } from "./types.js";
 
 const nano = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 12);
 

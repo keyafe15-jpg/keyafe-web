@@ -52,8 +52,7 @@ const invalidate = (qc: ReturnType<typeof useQueryClient>) => {
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CategoryPayload) =>
-      api.post<AdminCategory>("/admin/categories", input),
+    mutationFn: (input: CategoryPayload) => api.post<AdminCategory>("/admin/categories", input),
     onSuccess: () => invalidate(qc),
   });
 }

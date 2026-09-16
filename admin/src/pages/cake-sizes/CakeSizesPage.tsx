@@ -64,21 +64,17 @@ export function CakeSizesPage() {
       </div>
 
       <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-        )}
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[780px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="w-32 px-4 py-2 font-medium">Grams</th>
                   <th className="px-4 py-2 font-medium">Label</th>
                   <th className="px-4 py-2 font-medium">Serves</th>
                   <th className="w-24 px-4 py-2 text-center font-medium">Sort</th>
-                  <th className="w-24 px-4 py-2 text-center font-medium">
-                    Active
-                  </th>
+                  <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
                   <th className="w-16 px-4 py-2" />
                 </tr>
               </thead>
@@ -94,9 +90,7 @@ export function CakeSizesPage() {
                         step="1"
                         min={1}
                         value={newSize.grams}
-                        onChange={(e) =>
-                          setNewSize({ ...newSize, grams: e.target.value })
-                        }
+                        onChange={(e) => setNewSize({ ...newSize, grams: e.target.value })}
                         placeholder="500"
                         className={inputClass}
                       />
@@ -104,9 +98,7 @@ export function CakeSizesPage() {
                     <td className="px-4 py-2">
                       <input
                         value={newSize.label}
-                        onChange={(e) =>
-                          setNewSize({ ...newSize, label: e.target.value })
-                        }
+                        onChange={(e) => setNewSize({ ...newSize, label: e.target.value })}
                         placeholder="1 pound"
                         className={inputClass}
                       />
@@ -114,9 +106,7 @@ export function CakeSizesPage() {
                     <td className="px-4 py-2">
                       <input
                         value={newSize.servesText}
-                        onChange={(e) =>
-                          setNewSize({ ...newSize, servesText: e.target.value })
-                        }
+                        onChange={(e) => setNewSize({ ...newSize, servesText: e.target.value })}
                         placeholder="Serves 4–6"
                         className={inputClass}
                       />
@@ -149,9 +139,7 @@ export function CakeSizesPage() {
           </div>
         )}
         {error && (
-          <p className="border-t border-slate-100 px-4 py-2 text-xs text-brand-700">
-            {error}
-          </p>
+          <p className="border-t border-slate-100 px-4 py-2 text-xs text-brand-700">{error}</p>
         )}
       </div>
     </div>
@@ -176,9 +164,7 @@ function SizeRow({ size }: { size: CakeSize }) {
 
   return (
     <tr className="hover:bg-slate-50">
-      <td className="px-4 py-3 font-medium tabular-nums text-slate-900">
-        {size.grams} g
-      </td>
+      <td className="px-4 py-3 font-medium text-slate-900 tabular-nums">{size.grams} g</td>
       <td className="px-4 py-2">
         <input
           value={label}
@@ -204,8 +190,7 @@ function SizeRow({ size }: { size: CakeSize }) {
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value)}
           onBlur={() =>
-            Number(sortOrder) !== size.sortOrder &&
-            patch({ sortOrder: Number(sortOrder) })
+            Number(sortOrder) !== size.sortOrder && patch({ sortOrder: Number(sortOrder) })
           }
           className={cn(inputClass, "w-16 text-center")}
         />

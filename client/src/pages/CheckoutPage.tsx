@@ -6,10 +6,7 @@ import { useCart } from "@/store/cart";
 import { useSavedAddresses } from "@/store/addresses";
 import { useCreateOrder } from "@/hooks/useOrders";
 import { useFreeDelivery, usePreviewCoupon } from "@/hooks/useCoupons";
-import {
-  usePincodeCheck,
-  type PincodeCheckResult,
-} from "@/hooks/usePincodeCheck";
+import { usePincodeCheck, type PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
 import { StateSelect } from "@/components/address/StateSelect";
 import { BusinessGstFields } from "@/components/checkout/BusinessGstFields";
@@ -54,12 +51,8 @@ export function CheckoutPage() {
   const [isBusinessOrder, setIsBusinessOrder] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [gstin, setGstin] = useState("");
-  const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(
-    null,
-  );
-  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<
-    string | null
-  >(null);
+  const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(null);
+  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [notes, setNotes] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -91,8 +84,7 @@ export function CheckoutPage() {
       return;
     }
 
-    const defaultAddress =
-      savedAddresses.find((address) => address.isDefault) ?? savedAddresses[0];
+    const defaultAddress = savedAddresses.find((address) => address.isDefault) ?? savedAddresses[0];
     if (!selectedSavedAddressId && !showNewAddressForm) {
       setSelectedSavedAddressId(defaultAddress.id);
     }
@@ -111,16 +103,13 @@ export function CheckoutPage() {
 
   // Every line already carries its own delivery date + slot (set on the PDP).
   // Pan-India (courier-shipped) lines intentionally skip that — no local slot.
-  const hasOnlyPanIndiaItems =
-    lines.length > 0 && lines.every((l) => l.isPanIndia);
+  const hasOnlyPanIndiaItems = lines.length > 0 && lines.every((l) => l.isPanIndia);
   const scheduledLines = lines.filter((l) => !l.isPanIndia);
 
   // Place of supply. Local delivery zones are all inside West Bengal, so only
   // courier carts have to ask — and they must, since the state is what decides
   // CGST + SGST versus IGST on the invoice.
-  const effectiveStateCode = hasOnlyPanIndiaItems
-    ? stateCode
-    : WEST_BENGAL_CODE;
+  const effectiveStateCode = hasOnlyPanIndiaItems ? stateCode : WEST_BENGAL_CODE;
   const effectiveStateName = stateNameFromCode(effectiveStateCode);
   const missingSchedule = scheduledLines.some((l) => !l.date || !l.slotKey);
   // Recompute against a live tick so the "past slot" state flips right as it expires.
@@ -130,10 +119,7 @@ export function CheckoutPage() {
     return () => clearInterval(id);
   }, []);
   const expiredLines = useMemo(
-    () =>
-      scheduledLines.filter(
-        (l) => l.date && l.slotKey && isSlotInPast(l.date, l.slotKey, now),
-      ),
+    () => scheduledLines.filter((l) => l.date && l.slotKey && isSlotInPast(l.date, l.slotKey, now)),
     [scheduledLines, now],
   );
   const hasExpired = expiredLines.length > 0;
@@ -145,8 +131,7 @@ export function CheckoutPage() {
       : 0;
   const deliveryIsFree =
     listedDeliveryFee > 0 &&
-    (Boolean(appliedCoupon?.waivesDelivery) ||
-      Boolean(freeDelivery.data?.active));
+    (Boolean(appliedCoupon?.waivesDelivery) || Boolean(freeDelivery.data?.active));
   const deliveryFee = deliveryIsFree ? 0 : listedDeliveryFee;
   const discount = appliedCoupon?.discount ?? 0;
   const total = Math.max(0, subtotal - discount + deliveryFee);
@@ -171,17 +156,14 @@ export function CheckoutPage() {
     const e: Record<string, string> = {};
     if (name.trim().length < 2) e.name = "Enter your name";
     if (!PHONE_RE.test(phone.trim())) e.phone = "Enter a valid phone";
-    if (email.trim() && !EMAIL_RE.test(email.trim()))
-      e.email = "Enter a valid email";
+    if (email.trim() && !EMAIL_RE.test(email.trim())) e.email = "Enter a valid email";
     if (isBusinessOrder) {
-      if (companyName.trim().length < 2)
-        e.companyName = "Enter the registered business name";
+      if (companyName.trim().length < 2) e.companyName = "Enter the registered business name";
       const issue = gstinIssue(gstin);
       if (issue) e.gstin = issue;
     }
     if (missingSchedule)
-      e.schedule =
-        "Each item needs a delivery date. Set it on the product page.";
+      e.schedule = "Each item needs a delivery date. Set it on the product page.";
     if (hasExpired)
       e.schedule =
         expiredLines.length === lines.length
@@ -199,8 +181,7 @@ export function CheckoutPage() {
       //     "We may still deliver here, please call or WhatsApp us to confirm";
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
-      if (hasOnlyPanIndiaItems && !stateCode)
-        e.stateCode = "Select the delivery state";
+      if (hasOnlyPanIndiaItems && !stateCode) e.stateCode = "Select the delivery state";
     }
     return e;
   }, [
@@ -227,12 +208,8 @@ export function CheckoutPage() {
   if (lines.length === 0) {
     return (
       <section className="mx-auto max-w-3xl px-4 py-20 text-center">
-        <h1 className="mb-3 font-display text-3xl text-ink-900">
-          Your cart is empty
-        </h1>
-        <p className="mb-6 text-ink-500">
-          Add something delicious before checking out.
-        </p>
+        <h1 className="mb-3 font-display text-3xl text-ink-900">Your cart is empty</h1>
+        <p className="mb-6 text-ink-500">Add something delicious before checking out.</p>
         <Link
           to="/"
           className="inline-block rounded-full bg-brand-500 px-6 py-3 text-sm font-medium text-white hover:bg-brand-700"
@@ -314,9 +291,7 @@ export function CheckoutPage() {
           instructions: l.instructions ?? null,
           deliveryDate: l.isPanIndia ? null : (l.date ?? null),
           deliverySlotKey: l.isPanIndia ? null : (l.slotKey ?? null),
-          deliverySlotLabel: l.isPanIndia
-            ? null
-            : (l.slotLabel ?? PRODUCT_COPY.timeSlots[0].label),
+          deliverySlotLabel: l.isPanIndia ? null : (l.slotLabel ?? PRODUCT_COPY.timeSlots[0].label),
           unitPrice: l.unitPrice,
           qty: l.qty,
         })),
@@ -324,9 +299,7 @@ export function CheckoutPage() {
       clear();
       navigate(`/order/${order.orderNumber}/success`, { replace: true });
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "Something went wrong",
-      );
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong");
     }
   };
 
@@ -364,18 +337,10 @@ export function CheckoutPage() {
           <FormCard title="2 · Contact details">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Full name" required error={errors.name}>
-                <Input
-                  value={name}
-                  onChange={setName}
-                  placeholder="Aarav Sharma"
-                />
+                <Input value={name} onChange={setName} placeholder="Aarav Sharma" />
               </Field>
               <Field label="Phone" required error={errors.phone}>
-                <Input
-                  value={phone}
-                  onChange={setPhone}
-                  placeholder="9330048665"
-                />
+                <Input value={phone} onChange={setPhone} placeholder="9330048665" />
               </Field>
               <Field
                 label="Email"
@@ -383,11 +348,7 @@ export function CheckoutPage() {
                 error={errors.email}
                 className="sm:col-span-2"
               >
-                <Input
-                  value={email}
-                  onChange={setEmail}
-                  placeholder="you@example.com"
-                />
+                <Input value={email} onChange={setEmail} placeholder="you@example.com" />
               </Field>
               <BusinessGstFields
                 enabled={isBusinessOrder}
@@ -406,7 +367,7 @@ export function CheckoutPage() {
             <FormCard title="3 · Delivery address">
               {user && savedAddresses.length > 0 && !showNewAddressForm && (
                 <div className="mb-5 space-y-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-ink-500">
+                  <p className="text-xs font-medium tracking-wide text-ink-500 uppercase">
                     Saved addresses
                   </p>
                   <div className="space-y-2">
@@ -424,11 +385,9 @@ export function CheckoutPage() {
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-ink-900">
-                              {address.label}
-                            </span>
+                            <span className="font-medium text-ink-900">{address.label}</span>
                             {address.isDefault && (
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700 uppercase">
                                 Default
                               </span>
                             )}
@@ -438,8 +397,8 @@ export function CheckoutPage() {
                           </p>
                           <p className="text-xs text-ink-500">
                             {address.line1}
-                            {address.line2 ? `, ${address.line2}` : ""} ·{" "}
-                            {address.city} - {address.pincode}
+                            {address.line2 ? `, ${address.line2}` : ""} · {address.city} -{" "}
+                            {address.pincode}
                           </p>
                         </div>
                       </button>
@@ -451,7 +410,7 @@ export function CheckoutPage() {
                       setShowNewAddressForm(true);
                       setSelectedSavedAddressId(null);
                     }}
-                    className="text-sm font-medium text-brand-500 hover:text-brand-600"
+                    className="hover:text-brand-600 text-sm font-medium text-brand-500"
                   >
                     + Add a new address
                   </button>
@@ -467,30 +426,22 @@ export function CheckoutPage() {
                         onClick={() => {
                           setShowNewAddressForm(false);
                           const defaultAddress =
-                            savedAddresses.find(
-                              (address) => address.isDefault,
-                            ) ?? savedAddresses[0];
+                            savedAddresses.find((address) => address.isDefault) ??
+                            savedAddresses[0];
                           if (defaultAddress) applySavedAddress(defaultAddress);
                         }}
-                        className="text-sm font-medium text-brand-500 hover:text-brand-600"
+                        className="hover:text-brand-600 text-sm font-medium text-brand-500"
                       >
                         ← Use a saved address
                       </button>
                     </div>
                   )}
 
-                  <Field
-                    label="Pincode"
-                    required
-                    error={errors.pincode}
-                    className="sm:col-span-2"
-                  >
+                  <Field label="Pincode" required error={errors.pincode} className="sm:col-span-2">
                     <div className="flex items-center gap-3">
                       <Input
                         value={pincode}
-                        onChange={(v) =>
-                          setPincode(v.replace(/\D/g, "").slice(0, 6))
-                        }
+                        onChange={(v) => setPincode(v.replace(/\D/g, "").slice(0, 6))}
                         placeholder="711202"
                         className="w-32"
                         inputMode="numeric"
@@ -539,10 +490,7 @@ export function CheckoutPage() {
                       placeholder="Area / locality (optional)"
                     />
                   </Field>
-                  <Field
-                    label="Landmark"
-                    hint="Helps our delivery partner find you"
-                  >
+                  <Field label="Landmark" hint="Helps our delivery partner find you">
                     <Input
                       value={landmark}
                       onChange={setLandmark}
@@ -560,14 +508,13 @@ export function CheckoutPage() {
                       <StateSelect value={stateCode} onChange={setStateCode} />
                     </Field>
                   )}
-                  
 
                   {user && (
-                    <div className="sm:col-span-2 flex justify-end">
+                    <div className="flex justify-end sm:col-span-2">
                       <button
                         type="button"
                         onClick={() => void saveNewAddress()}
-                        className="rounded-full border border-brand-500 bg-brand-50 px-4 py-2 text-sm font-medium text-brand-600 transition hover:bg-brand-100"
+                        className="bg-brand-50 text-brand-600 rounded-full border border-brand-500 px-4 py-2 text-sm font-medium transition hover:bg-brand-100"
                       >
                         Save address & continue
                       </button>
@@ -585,7 +532,7 @@ export function CheckoutPage() {
               >
                 <Dialog.Portal>
                   <Dialog.Overlay className="fixed inset-0 z-50 bg-ink-900/60 backdrop-blur-sm" />
-                  <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-cream-200 bg-white p-5 shadow-2xl focus:outline-none">
+                  <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[92vw] max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-cream-200 bg-white p-5 shadow-2xl focus:outline-none">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <Dialog.Title className="font-display text-2xl text-ink-900">
@@ -624,9 +571,7 @@ export function CheckoutPage() {
                         <div className="flex items-center gap-3">
                           <Input
                             value={pincode}
-                            onChange={(v) =>
-                              setPincode(v.replace(/\D/g, "").slice(0, 6))
-                            }
+                            onChange={(v) => setPincode(v.replace(/\D/g, "").slice(0, 6))}
                             placeholder="711202"
                             className="w-32"
                             inputMode="numeric"
@@ -661,10 +606,7 @@ export function CheckoutPage() {
                         />
                       </Field>
 
-                      <Field
-                        label="Landmark"
-                        hint="Helps our delivery partner find you"
-                      >
+                      <Field label="Landmark" hint="Helps our delivery partner find you">
                         <Input
                           value={landmark}
                           onChange={setLandmark}
@@ -679,10 +621,7 @@ export function CheckoutPage() {
                           error={errors.stateCode}
                           hint="Needed for courier delivery and your invoice"
                         >
-                          <StateSelect
-                            value={stateCode}
-                            onChange={setStateCode}
-                          />
+                          <StateSelect value={stateCode} onChange={setStateCode} />
                         </Field>
                       )}
 
@@ -715,7 +654,7 @@ export function CheckoutPage() {
                       <Dialog.Close asChild>
                         <button
                           type="button"
-                          className="rounded-full border border-cream-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:border-brand-300 hover:text-brand-600"
+                          className="hover:text-brand-600 rounded-full border border-cream-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:border-brand-300"
                         >
                           Cancel
                         </button>
@@ -743,7 +682,7 @@ export function CheckoutPage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Please call before arriving. Cake to be a surprise…"
-              className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
             />
           </FormCard>
 
@@ -754,8 +693,7 @@ export function CheckoutPage() {
             <div className="rounded-lg border border-cream-200 bg-cream-50 px-4 py-3 text-sm text-ink-700">
               <span className="font-medium">Cash on delivery / pickup</span>
               <p className="mt-0.5 text-xs text-ink-500">
-                Pay the delivery partner or at the bakery when you receive the
-                order.
+                Pay the delivery partner or at the bakery when you receive the order.
               </p>
             </div>
           </FormCard>
@@ -763,14 +701,11 @@ export function CheckoutPage() {
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-card border border-cream-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 font-display text-lg text-ink-900">
-              Order summary
-            </h2>
+            <h2 className="mb-3 font-display text-lg text-ink-900">Order summary</h2>
 
             {missingSchedule && (
               <div className="mb-4 rounded-lg border border-brand-500/30 bg-brand-100/40 px-3 py-2 text-xs text-brand-700">
-                Some items don't have a delivery date. Go back to those product
-                pages to pick one.
+                Some items don't have a delivery date. Go back to those product pages to pick one.
               </div>
             )}
 
@@ -787,10 +722,7 @@ export function CheckoutPage() {
 
             <ul className="mb-4 space-y-3">
               {lines.map((l) => {
-                const expired =
-                  l.date && l.slotKey
-                    ? isSlotInPast(l.date, l.slotKey, now)
-                    : false;
+                const expired = l.date && l.slotKey ? isSlotInPast(l.date, l.slotKey, now) : false;
                 return (
                   <li key={l.id} className="flex items-start gap-3 text-sm">
                     {l.image ? (
@@ -803,13 +735,9 @@ export function CheckoutPage() {
                       <div className="h-12 w-12 shrink-0 rounded-md bg-cream-100" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink-900">
-                        {l.name}
-                      </p>
+                      <p className="truncate font-medium text-ink-900">{l.name}</p>
                       <p className="truncate text-xs text-ink-500">
-                        {[l.sizeLabel, l.flavourName]
-                          .filter(Boolean)
-                          .join(" · ")}
+                        {[l.sizeLabel, l.flavourName].filter(Boolean).join(" · ")}
                       </p>
                       <p className="text-xs text-ink-500">Qty {l.qty}</p>
                       {l.date && (
@@ -828,10 +756,7 @@ export function CheckoutPage() {
                               {" "}
                               <span className="not-italic no-underline">
                                 — expired,{" "}
-                                <Link
-                                  to={`/product/${l.slug}`}
-                                  className="underline"
-                                >
+                                <Link to={`/product/${l.slug}`} className="underline">
                                   update
                                 </Link>
                               </span>
@@ -840,7 +765,7 @@ export function CheckoutPage() {
                         </p>
                       )}
                     </div>
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-ink-900">
+                    <span className="shrink-0 text-sm font-medium text-ink-900 tabular-nums">
                       ₹{(l.unitPrice * l.qty).toFixed(0)}
                     </span>
                   </li>
@@ -850,19 +775,12 @@ export function CheckoutPage() {
             <hr className="my-3 border-cream-200" />
             <SummaryRow label="Subtotal" value={subtotal} />
             {appliedCoupon && (
-              <SummaryRow
-                label={appliedCoupon.label}
-                value={-appliedCoupon.discount}
-              />
+              <SummaryRow label={appliedCoupon.label} value={-appliedCoupon.discount} />
             )}
             {fulfillment === "DELIVERY" && (
               <SummaryRow
                 label={
-                  hasOnlyPanIndiaItems
-                    ? "Courier"
-                    : deliveryIsFree
-                      ? "Delivery (free)"
-                      : "Delivery"
+                  hasOnlyPanIndiaItems ? "Courier" : deliveryIsFree ? "Delivery (free)" : "Delivery"
                 }
                 value={
                   hasOnlyPanIndiaItems
@@ -878,9 +796,9 @@ export function CheckoutPage() {
                     ? "Ships pan-India"
                     : pincodeResult?.serviceable
                       ? deliveryIsFree
-                        ? (appliedCoupon?.waivesDelivery
+                        ? ((appliedCoupon?.waivesDelivery
                             ? "Included with coupon"
-                            : freeDelivery.data?.label) ?? "Free delivery"
+                            : freeDelivery.data?.label) ?? "Free delivery")
                         : undefined
                       : "Enter pincode"
                 }
@@ -890,10 +808,7 @@ export function CheckoutPage() {
               {appliedCoupon ? (
                 <div className="flex items-center justify-between gap-2 text-sm">
                   <span className="text-ink-700">
-                    Promo{" "}
-                    <span className="font-mono text-brand-700">
-                      {appliedCoupon.code}
-                    </span>
+                    Promo <span className="font-mono text-brand-700">{appliedCoupon.code}</span>
                   </span>
                   <button
                     type="button"
@@ -922,7 +837,7 @@ export function CheckoutPage() {
                     <p className="text-[11px] text-ink-500">Promo code</p>
                     <button
                       type="button"
-                      className="text-[11px] text-ink-400 hover:text-ink-600"
+                      className="text-ink-400 hover:text-ink-600 text-[11px]"
                       onClick={() => {
                         setCouponOpen(false);
                         setCouponInput("");
@@ -934,7 +849,7 @@ export function CheckoutPage() {
                   </div>
                   <div className="flex gap-2">
                     <input
-                      className="min-w-0 flex-1 rounded-lg border border-cream-200 px-3 py-2 text-sm uppercase tracking-wide"
+                      className="min-w-0 flex-1 rounded-lg border border-cream-200 px-3 py-2 text-sm tracking-wide uppercase"
                       placeholder="Enter code"
                       autoFocus
                       value={couponInput}
@@ -969,9 +884,7 @@ export function CheckoutPage() {
                           setCouponOpen(false);
                         } catch (err) {
                           setCouponError(
-                            err instanceof Error
-                              ? err.message
-                              : "Couldn’t apply coupon",
+                            err instanceof Error ? err.message : "Couldn’t apply coupon",
                           );
                         }
                       }}
@@ -979,16 +892,14 @@ export function CheckoutPage() {
                       {previewCoupon.isPending ? "…" : "Apply"}
                     </button>
                   </div>
-                  {couponError && (
-                    <p className="text-xs text-red-700">{couponError}</p>
-                  )}
+                  {couponError && <p className="text-xs text-red-700">{couponError}</p>}
                 </div>
               )}
             </div>
             <hr className="my-3 border-cream-200" />
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-ink-700">Total</span>
-              <span className="text-2xl font-semibold tabular-nums text-ink-900">
+              <span className="text-2xl font-semibold text-ink-900 tabular-nums">
                 ₹{total.toFixed(2)}
               </span>
             </div>
@@ -1029,9 +940,7 @@ function FormCard({
   return (
     <section className="rounded-card border border-cream-200 bg-white p-5 shadow-sm">
       <h2 className="font-display text-lg text-ink-900">{title}</h2>
-      {subtitle && (
-        <p className="mb-4 mt-0.5 text-xs text-ink-500">{subtitle}</p>
-      )}
+      {subtitle && <p className="mt-0.5 mb-4 text-xs text-ink-500">{subtitle}</p>}
       <div className={cn(!subtitle && "mt-3")}>{children}</div>
     </section>
   );
@@ -1088,12 +997,7 @@ function Field({
       </span>
       {children}
       {(hint || error) && (
-        <span
-          className={cn(
-            "mt-1 block text-[11px]",
-            error ? "text-brand-700" : "text-ink-500",
-          )}
-        >
+        <span className={cn("mt-1 block text-[11px]", error ? "text-brand-700" : "text-ink-500")}>
           {error ?? hint}
         </span>
       )}
@@ -1122,7 +1026,7 @@ function Input({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={cn(
-        "w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20",
+        "w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none",
         className,
       )}
     />
@@ -1142,14 +1046,9 @@ function PincodeStatus({
 }) {
   if (!PINCODE_RE.test(value)) return null;
   if (panIndiaOnly) {
-    return (
-      <span className="text-xs text-emerald-700">
-        Ships pan-India via courier
-      </span>
-    );
+    return <span className="text-xs text-emerald-700">Ships pan-India via courier</span>;
   }
-  if (isChecking)
-    return <span className="text-xs text-ink-500">Checking…</span>;
+  if (isChecking) return <span className="text-xs text-ink-500">Checking…</span>;
   if (!result) return null;
   if (!result.serviceable)
     return (
@@ -1177,9 +1076,7 @@ function SummaryRow({
   return (
     <div className="flex items-baseline justify-between py-0.5 text-sm">
       <span className="text-ink-700">{label}</span>
-      <span
-        className={cn("tabular-nums", value == null && "text-xs text-ink-500")}
-      >
+      <span className={cn("tabular-nums", value == null && "text-xs text-ink-500")}>
         {value == null ? hint : `₹${value.toFixed(2)}`}
       </span>
     </div>

@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  Store,
-  Truck,
-} from "lucide-react";
+import { ArrowLeft, Store, Truck } from "lucide-react";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
 import { TIME_SLOTS } from "@/content/slots";
 import { api } from "@/lib/api";
@@ -53,8 +49,7 @@ export function OfflineOrderDirectFormPage() {
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
-  const { items, patchItem, removeItem, addItem, setItems } =
-    useOrderItemsState("CATALOG");
+  const { items, patchItem, removeItem, addItem, setItems } = useOrderItemsState("CATALOG");
   const [uploading, setUploading] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
@@ -64,9 +59,7 @@ export function OfflineOrderDirectFormPage() {
   const [customerCompanyName, setCustomerCompanyName] = useState("");
   const [customerGstin, setCustomerGstin] = useState("");
 
-  const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">(
-    "DELIVERY",
-  );
+  const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
   const [landmark, setLandmark] = useState("");
@@ -84,9 +77,7 @@ export function OfflineOrderDirectFormPage() {
   const [paymentMode, setPaymentMode] = useState<"FULL" | "ADVANCE">("FULL");
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(
-    null,
-  );
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
@@ -137,16 +128,10 @@ export function OfflineOrderDirectFormPage() {
   }, [pincode, fulfillment]);
 
   const deliveryFee =
-    fulfillment === "DELIVERY" && pincodeInfo?.serviceable
-      ? Number(pincodeInfo.deliveryFee)
-      : 0;
+    fulfillment === "DELIVERY" && pincodeInfo?.serviceable ? Number(pincodeInfo.deliveryFee) : 0;
 
   const subtotal = useMemo(
-    () =>
-      items.reduce(
-        (sum, it) => sum + Number(it.unitPrice || 0) * Number(it.qty || 0),
-        0,
-      ),
+    () => items.reduce((sum, it) => sum + Number(it.unitPrice || 0) * Number(it.qty || 0), 0),
     [items],
   );
   const discount = useMemo(
@@ -161,9 +146,7 @@ export function OfflineOrderDirectFormPage() {
       Number(advanceAmount) > 0 &&
       Number(advanceAmount) <= grandTotal);
   const pendingAmount =
-    paymentMode === "FULL"
-      ? 0
-      : Math.max(grandTotal - (Number(advanceAmount) || 0), 0);
+    paymentMode === "FULL" ? 0 : Math.max(grandTotal - (Number(advanceAmount) || 0), 0);
 
   const addressValid =
     fulfillment === "PICKUP" ||
@@ -177,8 +160,7 @@ export function OfflineOrderDirectFormPage() {
   // Only checked when the GST block is open, so ordinary orders are unaffected.
   const gstinError = isBusinessOrder ? gstinIssue(customerGstin) : null;
   const businessValid =
-    !isBusinessOrder ||
-    (customerCompanyName.trim().length >= 2 && gstinError === null);
+    !isBusinessOrder || (customerCompanyName.trim().length >= 2 && gstinError === null);
 
   const canSubmit =
     itemsValid &&
@@ -191,10 +173,7 @@ export function OfflineOrderDirectFormPage() {
     !uploading &&
     !pincodeChecking;
 
-  const slot = useMemo(
-    () => TIME_SLOTS.find((s) => s.key === slotKey) ?? TIME_SLOTS[0],
-    [slotKey],
-  );
+  const slot = useMemo(() => TIME_SLOTS.find((s) => s.key === slotKey) ?? TIME_SLOTS[0], [slotKey]);
 
   const submit = async () => {
     setError(null);
@@ -204,13 +183,7 @@ export function OfflineOrderDirectFormPage() {
         setUploading(true);
         const referenceImageUrl = await resolveReferenceImageUrl(it);
         itemPayloads.push(
-          toOfflineOrderItemPayload(
-            it,
-            referenceImageUrl,
-            flavours,
-            allToppings,
-            allAddons,
-          ),
+          toOfflineOrderItemPayload(it, referenceImageUrl, flavours, allToppings, allAddons),
         );
       }
       setUploading(false);
@@ -229,9 +202,7 @@ export function OfflineOrderDirectFormPage() {
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerEmail: customerEmail.trim() || null,
-        customerCompanyName: isBusinessOrder
-          ? customerCompanyName.trim()
-          : null,
+        customerCompanyName: isBusinessOrder ? customerCompanyName.trim() : null,
         customerGstin: isBusinessOrder ? customerGstin : null,
 
         fulfillment,
@@ -256,8 +227,7 @@ export function OfflineOrderDirectFormPage() {
         customerNotes: customerNotes.trim() || null,
         adminNotes: adminNotes.trim() || null,
         paymentMode,
-        advanceAmount:
-          paymentMode === "ADVANCE" ? Number(advanceAmount) || 0 : undefined,
+        advanceAmount: paymentMode === "ADVANCE" ? Number(advanceAmount) || 0 : undefined,
         paymentScreenshotUrl,
         discountType: discount > 0 ? discountType : null,
         discountValue: discount > 0 ? Number(discountValue) : null,
@@ -283,8 +253,8 @@ export function OfflineOrderDirectFormPage() {
         New offline order — full details
       </h1>
       <p className="mt-1 text-sm text-slate-500">
-        Enter one or more items and the customer's details. Order is placed
-        straight away — no customer link needed.
+        Enter one or more items and the customer's details. Order is placed straight away — no
+        customer link needed.
       </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -360,9 +330,7 @@ export function OfflineOrderDirectFormPage() {
                     <input
                       value={customerGstin}
                       onChange={(e) =>
-                        setCustomerGstin(
-                          normalizeGstin(e.target.value).slice(0, 15),
-                        )
+                        setCustomerGstin(normalizeGstin(e.target.value).slice(0, 15))
                       }
                       placeholder="27AAACR5055K1Z7"
                       spellCheck={false}
@@ -399,15 +367,11 @@ export function OfflineOrderDirectFormPage() {
                     inputMode="numeric"
                     maxLength={6}
                     value={pincode}
-                    onChange={(e) =>
-                      setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                    }
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="700001"
                     className={inputClass}
                   />
-                  {pincodeChecking && (
-                    <p className="mt-1 text-xs text-slate-500">Checking…</p>
-                  )}
+                  {pincodeChecking && <p className="mt-1 text-xs text-slate-500">Checking…</p>}
                   {pincodeInfo?.serviceable && (
                     <p className="mt-1 text-xs text-emerald-700">
                       {pincodeInfo.city}
@@ -415,15 +379,9 @@ export function OfflineOrderDirectFormPage() {
                       {Number(pincodeInfo.deliveryFee).toFixed(0)} delivery
                     </p>
                   )}
-                  {pincodeError && (
-                    <p className="mt-1 text-xs text-red-700">{pincodeError}</p>
-                  )}
+                  {pincodeError && <p className="mt-1 text-xs text-red-700">{pincodeError}</p>}
                 </Field>
-                <Field
-                  label="Address line 1"
-                  required
-                  className="sm:col-span-1"
-                >
+                <Field label="Address line 1" required className="sm:col-span-1">
                   <input
                     value={line1}
                     onChange={(e) => setLine1(e.target.value)}
@@ -539,17 +497,11 @@ export function OfflineOrderDirectFormPage() {
 
             {paymentMode === "ADVANCE" && (
               <div className="mt-4">
-                <Field
-                  label="Advance amount"
-                  required
-                  hint={`Max ₹${grandTotal.toFixed(0)}.`}
-                >
+                <Field label="Advance amount" required hint={`Max ₹${grandTotal.toFixed(0)}.`}>
                   <input
                     inputMode="decimal"
                     value={advanceAmount}
-                    onChange={(e) =>
-                      setAdvanceAmount(e.target.value.replace(/[^0-9.]/g, ""))
-                    }
+                    onChange={(e) => setAdvanceAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                     placeholder="0"
                     className={inputClass}
                   />
@@ -570,9 +522,7 @@ export function OfflineOrderDirectFormPage() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) =>
-                    setScreenshotFile(e.target.files?.[0] ?? null)
-                  }
+                  onChange={(e) => setScreenshotFile(e.target.files?.[0] ?? null)}
                   className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
                 />
                 {screenshotPreview && (
@@ -586,10 +536,7 @@ export function OfflineOrderDirectFormPage() {
             </div>
           </Section>
 
-          <Section
-            title="Admin notes"
-            subtitle="Internal only. Never shown to customer."
-          >
+          <Section title="Admin notes" subtitle="Internal only. Never shown to customer.">
             <textarea
               rows={3}
               value={adminNotes}
@@ -605,19 +552,13 @@ export function OfflineOrderDirectFormPage() {
             <h2 className="text-sm font-semibold text-slate-900">Summary</h2>
             <div className="mt-3 space-y-1.5 text-sm">
               {items.map((it, idx) => (
-                <div
-                  key={it.id}
-                  className="flex justify-between text-slate-700"
-                >
+                <div key={it.id} className="flex justify-between text-slate-700">
                   <span className="truncate pr-2">
                     {it.productName.trim() || `Item ${idx + 1}`}
                     {Number(it.qty) > 1 ? ` × ${it.qty}` : ""}
                   </span>
                   <span className="tabular-nums">
-                    ₹
-                    {(Number(it.unitPrice || 0) * Number(it.qty || 0)).toFixed(
-                      0,
-                    )}
+                    ₹{(Number(it.unitPrice || 0) * Number(it.qty || 0)).toFixed(0)}
                   </span>
                 </div>
               ))}
@@ -652,24 +593,18 @@ export function OfflineOrderDirectFormPage() {
                 <>
                   <div className="flex justify-between text-emerald-700">
                     <span>Advance</span>
-                    <span className="tabular-nums">
-                      ₹{Number(advanceAmount).toFixed(0)}
-                    </span>
+                    <span className="tabular-nums">₹{Number(advanceAmount).toFixed(0)}</span>
                   </div>
                   <div className="flex justify-between font-medium text-amber-700">
                     <span>Pending</span>
-                    <span className="tabular-nums">
-                      ₹{pendingAmount.toFixed(0)}
-                    </span>
+                    <span className="tabular-nums">₹{pendingAmount.toFixed(0)}</span>
                   </div>
                 </>
               )}
             </div>
 
             {error && (
-              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-                {error}
-              </p>
+              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
             )}
 
             <button
@@ -678,11 +613,7 @@ export function OfflineOrderDirectFormPage() {
               disabled={!canSubmit || create.isPending}
               className={cn(submitClass, "mt-5 w-full")}
             >
-              {uploading
-                ? "Uploading…"
-                : create.isPending
-                  ? "Placing order…"
-                  : "Place order"}
+              {uploading ? "Uploading…" : create.isPending ? "Placing order…" : "Place order"}
             </button>
             <Link
               to="/offline-orders"
@@ -696,7 +627,6 @@ export function OfflineOrderDirectFormPage() {
     </div>
   );
 }
-
 
 function Section({
   title,
@@ -714,9 +644,7 @@ function Section({
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-          {subtitle && (
-            <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
-          )}
+          {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
         </div>
         {action}
       </div>
@@ -745,8 +673,8 @@ function KindButton({
       className={cn(
         "flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition",
         active
-          ? "border-brand-500 bg-brand-50/50 ring-1 ring-brand-500/30"
-          : "border-slate-200 bg-white hover:border-brand-300",
+          ? "bg-brand-50/50 border-brand-500 ring-1 ring-brand-500/30"
+          : "hover:border-brand-300 border-slate-200 bg-white",
       )}
     >
       <span

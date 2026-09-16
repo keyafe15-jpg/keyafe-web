@@ -35,10 +35,7 @@ export function closedDateSet(closures: ShopClosure[]): Set<string> {
   return set;
 }
 
-export function closureForDate(
-  closures: ShopClosure[],
-  iso: string,
-): ShopClosure | undefined {
+export function closureForDate(closures: ShopClosure[], iso: string): ShopClosure | undefined {
   const day = iso.slice(0, 10);
   return closures.find((c) => day >= c.startsOn && day <= c.endsOn);
 }

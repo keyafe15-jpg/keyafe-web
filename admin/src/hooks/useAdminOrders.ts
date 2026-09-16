@@ -2,20 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 export type OrderStatus =
-  | "PENDING"
-  | "CONFIRMED"
-  | "IN_KITCHEN"
-  | "READY"
-  | "OUT_FOR_DELIVERY"
-  | "DELIVERED"
-  | "CANCELLED";
+  "PENDING" | "CONFIRMED" | "IN_KITCHEN" | "READY" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED";
 
-export type PaymentStatus =
-  | "PENDING"
-  | "PARTIAL"
-  | "PAID"
-  | "FAILED"
-  | "REFUNDED";
+export type PaymentStatus = "PENDING" | "PARTIAL" | "PAID" | "FAILED" | "REFUNDED";
 export type OrderFulfillment = "DELIVERY" | "PICKUP";
 export type OrderSource = "STOREFRONT" | "OFFLINE_LINK" | "OFFLINE_DIRECT";
 export type PaymentMode = "FULL" | "ADVANCE";
@@ -186,8 +175,7 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
 export function useAdminOrderCounts() {
   return useQuery<Record<OrderStatus | "ALL", number>>({
     queryKey: ["admin", "orders", "counts"],
-    queryFn: () =>
-      api.get<Record<OrderStatus | "ALL", number>>("/admin/orders/counts"),
+    queryFn: () => api.get<Record<OrderStatus | "ALL", number>>("/admin/orders/counts"),
     staleTime: 15_000,
   });
 }
@@ -239,9 +227,7 @@ export function useDownloadInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (order: { id: string; orderNumber: string }) => {
-      const { blob, filename, headers } = await api.getBlob(
-        `/admin/orders/${order.id}/invoice`,
-      );
+      const { blob, filename, headers } = await api.getBlob(`/admin/orders/${order.id}/invoice`);
       const name = filename ?? `invoice-${order.orderNumber}.pdf`;
 
       const url = URL.createObjectURL(blob);
@@ -291,9 +277,7 @@ export function useDownloadChallan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (order: { id: string; orderNumber: string }) => {
-      const { blob, filename, headers } = await api.getBlob(
-        `/admin/orders/${order.id}/challan`,
-      );
+      const { blob, filename, headers } = await api.getBlob(`/admin/orders/${order.id}/challan`);
       const name = filename ?? `challan-${order.orderNumber}.pdf`;
 
       const url = URL.createObjectURL(blob);

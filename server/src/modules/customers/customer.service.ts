@@ -2,10 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { Prisma as PrismaTypes } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
-import {
-  normalizeCustomerPhone,
-  phoneLookupVariants,
-} from "../../lib/phone.js";
+import { normalizeCustomerPhone, phoneLookupVariants } from "../../lib/phone.js";
 
 type DbClient = PrismaTypes.TransactionClient | typeof prisma;
 
@@ -115,10 +112,7 @@ export async function ensureCustomerForOrder(
     });
     return created.id;
   } catch (err) {
-    if (
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === "P2002"
-    ) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       const retry =
         (await findCustomerByPhone(db, input.phone)) ??
         (email ? await db.user.findUnique({ where: { email } }) : null);
@@ -143,9 +137,11 @@ function buildAdminCustomerSearchWhere(search?: string) {
   };
 }
 
-function contactOrderWhere(
-  user: { id: string; phone: string; email: string | null },
-): Prisma.OrderWhereInput {
+function contactOrderWhere(user: {
+  id: string;
+  phone: string;
+  email: string | null;
+}): Prisma.OrderWhereInput {
   const phoneVariants = phoneLookupVariants(user.phone);
   const or: Prisma.OrderWhereInput[] = [
     { userId: user.id },
@@ -157,14 +153,12 @@ function contactOrderWhere(
   return { OR: or };
 }
 
-async function aggregateContactStats(
-  user: {
-    id: string;
-    phone: string;
-    email: string | null;
-    name: string;
-  },
-) {
+async function aggregateContactStats(user: {
+  id: string;
+  phone: string;
+  email: string | null;
+  name: string;
+}) {
   const orders = await prisma.order.findMany({
     where: contactOrderWhere(user),
     select: {
@@ -198,12 +192,8 @@ async function aggregateContactStats(
   if (user.email) emails.add(user.email.toLowerCase());
 
   const nameVariants = [...names].filter((n) => n !== user.name);
-  const emailVariants = [...emails].filter(
-    (e) => !user.email || e !== user.email.toLowerCase(),
-  );
-  const phoneVariants = [...phones].filter(
-    (p) => p !== normalizeCustomerPhone(user.phone),
-  );
+  const emailVariants = [...emails].filter((e) => !user.email || e !== user.email.toLowerCase());
+  const phoneVariants = [...phones].filter((p) => p !== normalizeCustomerPhone(user.phone));
 
   return {
     totalOrderCount: orders.length,
@@ -263,10 +253,7 @@ function mapCustomerListItem(row: {
     phoneVerifiedAt: row.phoneVerifiedAt?.toISOString() ?? null,
     emailVerifiedAt: row.emailVerifiedAt?.toISOString() ?? null,
     lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
-    createdAt:
-      row.createdAt instanceof Date
-        ? row.createdAt.toISOString()
-        : row.createdAt,
+    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
   };
 }
 
@@ -310,11 +297,7 @@ async function listOrderOnlyContacts(
     if (matchesUser) continue;
 
     if (q) {
-      const hay = [
-        order.customerName,
-        order.customerPhone,
-        order.customerEmail ?? "",
-      ]
+      const hay = [order.customerName, order.customerPhone, order.customerEmail ?? ""]
         .join(" ")
         .toLowerCase();
       if (!hay.includes(q)) continue;
@@ -366,8 +349,7 @@ async function listOrderOnlyContacts(
         nameVariants: names.slice(1),
         emailVariants: emails.slice(1),
         phoneVariants: [],
-        hasMixedContactInfo:
-          names.length > 1 || emails.length > 1 || g.orderCount > 0,
+        hasMixedContactInfo: names.length > 1 || emails.length > 1 || g.orderCount > 0,
         isOrderOnly: true,
       });
     });
@@ -495,12 +477,8 @@ export async function getCustomerDetail(key: string) {
     }
 
     const names = new Set(orders.map((o) => o.customerName));
-    const emails = new Set(
-      orders.map((o) => o.customerEmail).filter(Boolean) as string[],
-    );
-    const phones = new Set(
-      orders.map((o) => normalizeCustomerPhone(o.customerPhone)),
-    );
+    const emails = new Set(orders.map((o) => o.customerEmail).filter(Boolean) as string[]);
+    const phones = new Set(orders.map((o) => normalizeCustomerPhone(o.customerPhone)));
 
     const totalSpent = orders.reduce((s, o) => s + Number(o.total), 0);
 
@@ -558,14 +536,8 @@ export async function getCustomerDetail(key: string) {
     isOrderOnly: false,
     contactVariants: {
       names: [user.name, ...stats.nameVariants],
-      emails: [
-        ...(user.email ? [user.email] : []),
-        ...stats.emailVariants,
-      ],
-      phones: [
-        normalizeCustomerPhone(user.phone),
-        ...stats.phoneVariants,
-      ],
+      emails: [...(user.email ? [user.email] : []), ...stats.emailVariants],
+      phones: [normalizeCustomerPhone(user.phone), ...stats.phoneVariants],
     },
     addresses: user.addresses.map((a) => ({
       id: a.id,
@@ -591,9 +563,7 @@ export async function getCustomerDetail(key: string) {
   };
 }
 
-function formatCustomerOrderRow(
-  o: Prisma.OrderGetPayload<{ select: typeof ORDER_DETAIL_SELECT }>,
-) {
+function formatCustomerOrderRow(o: Prisma.OrderGetPayload<{ select: typeof ORDER_DETAIL_SELECT }>) {
   return {
     id: o.id,
     orderNumber: o.orderNumber,

@@ -1,19 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Truck,
-  Store,
-  Phone,
-  ChevronRight,
-  Search,
-  X,
-  Building2,
-} from "lucide-react";
-import {
-  useAdminOrders,
-  useAdminOrderCounts,
-  type OrderStatus,
-} from "@/hooks/useAdminOrders";
+import { Truck, Store, Phone, ChevronRight, Search, X, Building2 } from "lucide-react";
+import { useAdminOrders, useAdminOrderCounts, type OrderStatus } from "@/hooks/useAdminOrders";
 import { PaginationControls } from "@/components/ClientPagination";
 import { inputClass } from "@/components/form/Field";
 import { SourceBadge, StatusPill } from "@/pages/orders/order-ui";
@@ -132,9 +120,7 @@ export function OrdersAllView() {
           {/* The date inputs get their own row on mobile so the native
               control keeps the width dd/mm/yyyy needs. */}
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <label className="text-xs font-medium text-slate-600">
-              Delivering
-            </label>
+            <label className="text-xs font-medium text-slate-600">Delivering</label>
             <div className="flex items-center gap-2">
               <input
                 type="date"
@@ -144,7 +130,7 @@ export function OrdersAllView() {
                   setPage(1);
                 }}
                 max={deliveryTo || undefined}
-                className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-36 sm:flex-none"
+                className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none sm:w-36 sm:flex-none"
               />
               <span className="shrink-0 text-xs text-slate-400">→</span>
               <input
@@ -155,34 +141,32 @@ export function OrdersAllView() {
                   setPage(1);
                 }}
                 min={deliveryFrom || undefined}
-                className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-36 sm:flex-none"
+                className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none sm:w-36 sm:flex-none"
               />
             </div>
           </div>
 
           {rangeInvalid && (
-            <p className="text-[11px] text-brand-700">
-              "From" must be on or before "To".
-            </p>
+            <p className="text-[11px] text-brand-700">"From" must be on or before "To".</p>
           )}
         </div>
       </div>
 
       <div className="mb-4">
         <div className="relative max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search order #, customer, phone, or product…"
-            className={cn(inputClass, "pl-9 pr-9")}
+            className={cn(inputClass, "pr-9 pl-9")}
           />
           {searchInput && (
             <button
               type="button"
               onClick={() => setSearchInput("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
@@ -209,9 +193,7 @@ export function OrdersAllView() {
                 <span
                   className={cn(
                     "ml-1.5 rounded-full px-1.5 text-[10px] font-bold",
-                    tab === t.key
-                      ? "bg-white/20 text-white"
-                      : "bg-slate-200 text-slate-700",
+                    tab === t.key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700",
                   )}
                 >
                   {counts[t.key]}
@@ -223,14 +205,10 @@ export function OrdersAllView() {
       </div>
 
       <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && (
-          <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
-        )}
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && orders.length === 0 && (
           <div className="p-12 text-center text-sm text-slate-500">
-            {searching
-              ? `No orders match “${search}”.`
-              : "No orders in this bucket yet."}
+            {searching ? `No orders match “${search}”.` : "No orders in this bucket yet."}
           </div>
         )}
 
@@ -242,13 +220,13 @@ export function OrdersAllView() {
               </div>
             )}
             <table className="hidden w-full text-left text-sm md:table">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-2 font-medium">Order</th>
                   <th className="px-4 py-2 font-medium">Customer</th>
                   <th className="px-4 py-2 font-medium">Source</th>
                   <th className="px-4 py-2 font-medium">Deliver on</th>
-                  <th className="px-4 py-2 font-medium text-right">Amount</th>
+                  <th className="px-4 py-2 text-right font-medium">Amount</th>
                   <th className="px-4 py-2 font-medium">Status</th>
                   <th className="px-4 py-2" />
                 </tr>
@@ -300,9 +278,7 @@ export function OrdersAllView() {
                         </>
                       ) : (
                         <>
-                          <p className="font-medium text-slate-900">
-                            {o.customerName}
-                          </p>
+                          <p className="font-medium text-slate-900">{o.customerName}</p>
                           <div className="flex items-center gap-1 text-[11px] text-slate-500">
                             <Phone className="h-3 w-3" />
                             {o.customerPhone}
@@ -317,25 +293,20 @@ export function OrdersAllView() {
                       {o.earliestDelivery ? (
                         <>
                           <p className="text-xs font-medium text-slate-900">
-                            {new Date(o.earliestDelivery).toLocaleDateString(
-                              "en-IN",
-                              {
-                                weekday: "short",
-                                day: "numeric",
-                                month: "short",
-                              },
-                            )}
+                            {new Date(o.earliestDelivery).toLocaleDateString("en-IN", {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                            })}
                           </p>
-                          <p className="text-[11px] text-slate-500">
-                            {o.earliestSlotLabel}
-                          </p>
+                          <p className="text-[11px] text-slate-500">{o.earliestSlotLabel}</p>
                         </>
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <p className="text-sm font-medium tabular-nums text-slate-900">
+                      <p className="text-sm font-medium text-slate-900 tabular-nums">
                         ₹{Number(o.total).toFixed(0)}
                       </p>
                       <p className="text-[11px] text-slate-500">
@@ -383,9 +354,7 @@ export function OrdersAllView() {
                           <p className="flex items-center gap-1 truncate text-[11px] text-slate-500">
                             {o.customerCompanyName && (
                               <>
-                                <span className="truncate">
-                                  {o.customerName}
-                                </span>
+                                <span className="truncate">{o.customerName}</span>
                                 <span className="text-slate-300">·</span>
                               </>
                             )}
@@ -395,7 +364,7 @@ export function OrdersAllView() {
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold tabular-nums text-slate-900">
+                        <p className="text-sm font-semibold text-slate-900 tabular-nums">
                           ₹{Number(o.total).toFixed(0)}
                         </p>
                         <div className="mt-1">
@@ -408,14 +377,11 @@ export function OrdersAllView() {
                       <SourceBadge source={o.source} />
                       {o.earliestDelivery && (
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700">
-                          {new Date(o.earliestDelivery).toLocaleDateString(
-                            "en-IN",
-                            {
-                              weekday: "short",
-                              day: "numeric",
-                              month: "short",
-                            },
-                          )}
+                          {new Date(o.earliestDelivery).toLocaleDateString("en-IN", {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                          })}
                           {o.earliestSlotLabel && ` · ${o.earliestSlotLabel}`}
                         </span>
                       )}
@@ -435,12 +401,8 @@ export function OrdersAllView() {
               page={data?.page ?? 1}
               pageCount={data?.totalPages ?? 1}
               total={data?.total ?? 0}
-              firstItem={
-                data && data.total > 0 ? (data.page - 1) * data.pageSize + 1 : 0
-              }
-              lastItem={
-                data ? Math.min(data.page * data.pageSize, data.total) : 0
-              }
+              firstItem={data && data.total > 0 ? (data.page - 1) * data.pageSize + 1 : 0}
+              lastItem={data ? Math.min(data.page * data.pageSize, data.total) : 0}
               onPageChange={setPage}
               noun="orders"
               className="mx-4 mb-4"

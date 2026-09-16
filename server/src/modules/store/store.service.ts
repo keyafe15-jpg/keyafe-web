@@ -14,8 +14,7 @@ export interface SameDayStatus {
 const DEFAULT_TIMEZONE = "Asia/Kolkata";
 const DEFAULT_OPEN = "11:00";
 const DEFAULT_CLOSE = "23:00";
-const DEFAULT_CLOSED_MESSAGE =
-  "Sorry — we're closed right now. Please check back later.";
+const DEFAULT_CLOSED_MESSAGE = "Sorry — we're closed right now. Please check back later.";
 
 function formatHm12(hm: string): string {
   const [rawHour, rawMinute] = hm.split(":");
@@ -28,21 +27,16 @@ function formatHm12(hm: string): string {
 
   const period = h >= 12 ? "PM" : "AM";
   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return m === 0
-    ? `${hour12} ${period}`
-    : `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+  return m === 0 ? `${hour12} ${period}` : `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
-export async function computeSameDayStatus(
-  now: Date = new Date(),
-): Promise<SameDayStatus> {
+export async function computeSameDayStatus(now: Date = new Date()): Promise<SameDayStatus> {
   const settings = await prisma.businessSettings.findFirst();
 
   const timezone = settings?.timezone ?? DEFAULT_TIMEZONE;
   const fallbackOpen = settings?.expressStart ?? DEFAULT_OPEN;
   const fallbackClose = settings?.expressEnd ?? DEFAULT_CLOSE;
-  const closedMessage =
-    settings?.sameDayClosedMessage ?? DEFAULT_CLOSED_MESSAGE;
+  const closedMessage = settings?.sameDayClosedMessage ?? DEFAULT_CLOSED_MESSAGE;
 
   const { dayOfWeek, dateKey, hourMinute } = getWallTimeInZone(now, timezone);
 
@@ -52,8 +46,7 @@ export async function computeSameDayStatus(
     return {
       isOpen: false,
       message:
-        shopOff.reason?.trim() ||
-        "We're taking a few days off. Please order for a later date.",
+        shopOff.reason?.trim() || "We're taking a few days off. Please order for a later date.",
       timezone,
     };
   }
@@ -82,8 +75,7 @@ export async function computeSameDayStatus(
   const openTime = rule?.openTime ?? fallbackOpen;
   const closeTime = rule?.closeTime ?? fallbackClose;
 
-  const isOpen =
-    !hmBefore(hourMinute, openTime) && hmBefore(hourMinute, closeTime);
+  const isOpen = !hmBefore(hourMinute, openTime) && hmBefore(hourMinute, closeTime);
 
   if (isOpen) {
     return {
@@ -193,8 +185,7 @@ export async function getStoreHours() {
   return {
     timezone: settings?.timezone ?? DEFAULT_TIMEZONE,
     isSameDayStoreClosed: settings?.isSameDayStoreClosed ?? false,
-    sameDayClosedMessage:
-      settings?.sameDayClosedMessage ?? DEFAULT_CLOSED_MESSAGE,
+    sameDayClosedMessage: settings?.sameDayClosedMessage ?? DEFAULT_CLOSED_MESSAGE,
     weekly: mergeWeekly(weeklyRows),
     closures,
     status,
@@ -209,9 +200,7 @@ export async function updateStoreHours(input: UpdateStoreHoursInput) {
     }
     seen.add(day.dayOfWeek);
     if (!day.isClosed && !hmBefore(day.openTime, day.closeTime)) {
-      throw HttpError.badRequest(
-        `Open time must be before close time on day ${day.dayOfWeek}`,
-      );
+      throw HttpError.badRequest(`Open time must be before close time on day ${day.dayOfWeek}`);
     }
   }
   if (seen.size !== 7) {

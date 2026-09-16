@@ -58,11 +58,9 @@ async function main() {
   });
 
   const mintToken = (user: { id: string; phone: string }) =>
-    jwt.sign(
-      { sub: user.id, type: "access", phone: user.phone },
-      env.JWT_SECRET,
-      { expiresIn: "10m" },
-    );
+    jwt.sign({ sub: user.id, type: "access", phone: user.phone }, env.JWT_SECRET, {
+      expiresIn: "10m",
+    });
   const token = mintToken(staff);
 
   const app = createApp();
@@ -71,11 +69,7 @@ async function main() {
   const { port } = server.address() as AddressInfo;
   const base = `http://127.0.0.1:${port}/api/admin/business/gst`;
 
-  const call = async (
-    method: "GET" | "PATCH",
-    body?: unknown,
-    auth: string | null = token,
-  ) => {
+  const call = async (method: "GET" | "PATCH", body?: unknown, auth: string | null = token) => {
     const res = await fetch(base, {
       method,
       headers: {
@@ -143,11 +137,7 @@ async function main() {
     check("PATCH valid payload succeeds", saved.status, 200);
     check("gstin saved", saved.body.gstin, "19AAACR5055K1Z4");
     check("invoicePrefix upper-cased", saved.body.invoicePrefix, "KEY");
-    check(
-      "challan terms saved",
-      saved.body.challanTerms,
-      goodPayload.challanTerms,
-    );
+    check("challan terms saved", saved.body.challanTerms, goodPayload.challanTerms);
 
     // Blank terms must collapse to null, so the challan omits the box rather
     // than printing an empty heading.
@@ -201,9 +191,7 @@ async function main() {
     check("GET fills in a blank address shape", emptyAddr.status, 200);
     check(
       "blank address has all keys",
-      Object.keys(
-        (emptyAddr.body.registeredAddress as Record<string, unknown>) ?? {},
-      ).sort(),
+      Object.keys((emptyAddr.body.registeredAddress as Record<string, unknown>) ?? {}).sort(),
       ["city", "line1", "line2", "pincode", "state", "stateCode"],
     );
   } finally {
@@ -231,9 +219,7 @@ main()
     console.error("script error:", err);
   })
   .finally(async () => {
-    console.log(
-      failures === 0 ? "All checks passed" : `${failures} check(s) FAILED`,
-    );
+    console.log(failures === 0 ? "All checks passed" : `${failures} check(s) FAILED`);
     await prisma.$disconnect();
     process.exit(failures === 0 ? 0 : 1);
   });

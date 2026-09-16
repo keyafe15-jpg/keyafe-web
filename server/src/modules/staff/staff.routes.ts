@@ -1,10 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { HttpError } from "../../utils/httpError.js";
-import {
-  requirePermission,
-  type AuthenticatedRequest,
-} from "../../middleware/auth.js";
+import { requirePermission, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { normalizeCustomerPhone } from "../../lib/phone.js";
 import {
   createRole,
@@ -29,17 +26,13 @@ const listUsersSchema = z.object({
     .transform((v) => (v === "true" ? true : v === "false" ? false : null)),
 });
 
-adminStaffRouter.get(
-  "/users",
-  requirePermission("users.manage"),
-  async (req, res) => {
-    const parsed = listUsersSchema.safeParse(req.query);
-    if (!parsed.success) {
-      throw HttpError.badRequest("Invalid query", parsed.error.flatten());
-    }
-    res.json(await listStaffUsers(parsed.data));
-  },
-);
+adminStaffRouter.get("/users", requirePermission("users.manage"), async (req, res) => {
+  const parsed = listUsersSchema.safeParse(req.query);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid query", parsed.error.flatten());
+  }
+  res.json(await listStaffUsers(parsed.data));
+});
 
 const createUserSchema = z.object({
   name: z.string().trim().min(2),
@@ -61,18 +54,14 @@ const createUserSchema = z.object({
   promote: z.boolean().optional(),
 });
 
-adminStaffRouter.post(
-  "/users",
-  requirePermission("users.manage"),
-  async (req, res) => {
-    const parsed = createUserSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw HttpError.badRequest("Invalid staff user", parsed.error.flatten());
-    }
-    const created = await createStaffUser(parsed.data);
-    res.status(201).json(created);
-  },
-);
+adminStaffRouter.post("/users", requirePermission("users.manage"), async (req, res) => {
+  const parsed = createUserSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid staff user", parsed.error.flatten());
+  }
+  const created = await createStaffUser(parsed.data);
+  res.status(201).json(created);
+});
 
 const updateUserSchema = z.object({
   name: z.string().trim().min(2).optional(),
@@ -81,19 +70,15 @@ const updateUserSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-adminStaffRouter.patch(
-  "/users/:id",
-  requirePermission("users.manage"),
-  async (req, res) => {
-    const parsed = updateUserSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw HttpError.badRequest("Invalid update", parsed.error.flatten());
-    }
-    const actorId = (req as AuthenticatedRequest).staff?.id;
-    if (!actorId) throw HttpError.unauthorized("Authentication required");
-    res.json(await updateStaffUser(req.params.id ?? "", parsed.data, actorId));
-  },
-);
+adminStaffRouter.patch("/users/:id", requirePermission("users.manage"), async (req, res) => {
+  const parsed = updateUserSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid update", parsed.error.flatten());
+  }
+  const actorId = (req as AuthenticatedRequest).staff?.id;
+  if (!actorId) throw HttpError.unauthorized("Authentication required");
+  res.json(await updateStaffUser(req.params.id ?? "", parsed.data, actorId));
+});
 
 adminStaffRouter.get(
   "/roles",
@@ -103,13 +88,9 @@ adminStaffRouter.get(
   },
 );
 
-adminStaffRouter.get(
-  "/permissions",
-  requirePermission("roles.manage"),
-  async (_req, res) => {
-    res.json(await listPermissions());
-  },
-);
+adminStaffRouter.get("/permissions", requirePermission("roles.manage"), async (_req, res) => {
+  res.json(await listPermissions());
+});
 
 const createRoleSchema = z.object({
   name: z.string().trim().min(2),
@@ -121,18 +102,14 @@ const createRoleSchema = z.object({
   description: z.string().trim().max(500).nullable().optional(),
 });
 
-adminStaffRouter.post(
-  "/roles",
-  requirePermission("roles.manage"),
-  async (req, res) => {
-    const parsed = createRoleSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw HttpError.badRequest("Invalid role", parsed.error.flatten());
-    }
-    const created = await createRole(parsed.data);
-    res.status(201).json(created);
-  },
-);
+adminStaffRouter.post("/roles", requirePermission("roles.manage"), async (req, res) => {
+  const parsed = createRoleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid role", parsed.error.flatten());
+  }
+  const created = await createRole(parsed.data);
+  res.status(201).json(created);
+});
 
 const updateRoleSchema = z.object({
   name: z.string().trim().min(2).optional(),
@@ -140,14 +117,10 @@ const updateRoleSchema = z.object({
   permissionIds: z.array(z.string()).optional(),
 });
 
-adminStaffRouter.patch(
-  "/roles/:id",
-  requirePermission("roles.manage"),
-  async (req, res) => {
-    const parsed = updateRoleSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw HttpError.badRequest("Invalid role update", parsed.error.flatten());
-    }
-    res.json(await updateRole(req.params.id ?? "", parsed.data));
-  },
-);
+adminStaffRouter.patch("/roles/:id", requirePermission("roles.manage"), async (req, res) => {
+  const parsed = updateRoleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid role update", parsed.error.flatten());
+  }
+  res.json(await updateRole(req.params.id ?? "", parsed.data));
+});

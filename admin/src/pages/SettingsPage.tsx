@@ -46,12 +46,9 @@ export function SettingsPage() {
       <p className="mt-1 text-sm text-slate-500">Business, GST, invoicing.</p>
 
       <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-900">
-          UPI payment collection
-        </h2>
+        <h2 className="text-sm font-semibold text-slate-900">UPI payment collection</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Shown to customers on order links so they can pay you directly — no
-          gateway, no fees.
+          Shown to customers on order links so they can pay you directly — no gateway, no fees.
         </p>
 
         {isLoading ? (
@@ -112,10 +109,7 @@ function BusinessGstSection() {
     if (data) setForm(data);
   }, [data]);
 
-  const setField = <K extends keyof BusinessGst>(
-    key: K,
-    value: BusinessGst[K],
-  ) => {
+  const setField = <K extends keyof BusinessGst>(key: K, value: BusinessGst[K]) => {
     setSaved(false);
     setError(null);
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -125,14 +119,11 @@ function BusinessGstSection() {
     setSaved(false);
     setError(null);
     setForm((prev) =>
-      prev
-        ? { ...prev, registeredAddress: { ...prev.registeredAddress, [key]: value } }
-        : prev,
+      prev ? { ...prev, registeredAddress: { ...prev.registeredAddress, [key]: value } } : prev,
     );
   };
 
-  const gstinError =
-    form?.gstin && form.gstin.trim() ? gstinIssue(form.gstin) : null;
+  const gstinError = form?.gstin && form.gstin.trim() ? gstinIssue(form.gstin) : null;
 
   // The GSTIN's first two characters are the state it was issued in. A
   // mismatch with the registered address means one of them is mistyped, and
@@ -174,8 +165,8 @@ function BusinessGstSection() {
     <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
       <h2 className="text-sm font-semibold text-slate-900">Business & GST</h2>
       <p className="mt-1 text-xs text-slate-500">
-        Printed on every tax invoice. Until a GSTIN is saved here, invoices are
-        issued as a plain "Invoice" rather than a "Tax Invoice".
+        Printed on every tax invoice. Until a GSTIN is saved here, invoices are issued as a plain
+        "Invoice" rather than a "Tax Invoice".
       </p>
 
       {isLoading || !form ? (
@@ -183,10 +174,7 @@ function BusinessGstSection() {
       ) : (
         <div className="mt-4 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Legal name"
-              hint="As registered with GST"
-            >
+            <Field label="Legal name" hint="As registered with GST">
               <input
                 value={form.legalName}
                 onChange={(e) => setField("legalName", e.target.value)}
@@ -213,24 +201,17 @@ function BusinessGstSection() {
           >
             <input
               value={form.gstin ?? ""}
-              onChange={(e) =>
-                setField("gstin", normalizeGstin(e.target.value).slice(0, 15))
-              }
+              onChange={(e) => setField("gstin", normalizeGstin(e.target.value).slice(0, 15))}
               placeholder="19AAACR5055K1Z7"
               spellCheck={false}
               className={`${inputClass} font-mono tracking-wide`}
             />
           </Field>
 
-          <Field
-            label="GST scheme"
-            hint="Composition dealers cannot charge GST on invoices"
-          >
+          <Field label="GST scheme" hint="Composition dealers cannot charge GST on invoices">
             <select
               value={form.gstScheme}
-              onChange={(e) =>
-                setField("gstScheme", e.target.value as BusinessGst["gstScheme"])
-              }
+              onChange={(e) => setField("gstScheme", e.target.value as BusinessGst["gstScheme"])}
               className={selectClass}
             >
               <option value="REGULAR">Regular</option>
@@ -239,9 +220,7 @@ function BusinessGstSection() {
           </Field>
 
           <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
-            <p className="text-xs font-semibold text-slate-700">
-              Registered address
-            </p>
+            <p className="text-xs font-semibold text-slate-700">Registered address</p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <Field label="Address line 1" className="sm:col-span-2">
                 <input
@@ -273,10 +252,7 @@ function BusinessGstSection() {
                   maxLength={6}
                   value={form.registeredAddress.pincode}
                   onChange={(e) =>
-                    setAddress(
-                      "pincode",
-                      e.target.value.replace(/\D/g, "").slice(0, 6),
-                    )
+                    setAddress("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))
                   }
                   placeholder="711202"
                   className={inputClass}
@@ -319,10 +295,7 @@ function BusinessGstSection() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Invoice prefix"
-              hint='Invoice numbers look like "KEY/26-27/0001"'
-            >
+            <Field label="Invoice prefix" hint='Invoice numbers look like "KEY/26-27/0001"'>
               <input
                 value={form.invoicePrefix}
                 onChange={(e) =>
@@ -335,15 +308,10 @@ function BusinessGstSection() {
                 className={inputClass}
               />
             </Field>
-            <Field
-              label="Financial year starts"
-              hint="April for the Indian FY"
-            >
+            <Field label="Financial year starts" hint="April for the Indian FY">
               <select
                 value={form.fyStartMonth}
-                onChange={(e) =>
-                  setField("fyStartMonth", Number(e.target.value))
-                }
+                onChange={(e) => setField("fyStartMonth", Number(e.target.value))}
                 className={selectClass}
               >
                 {MONTHS.map((month, idx) => (
@@ -369,23 +337,14 @@ function BusinessGstSection() {
             />
           </Field>
 
-          {stateMismatch && (
-            <p className="text-xs text-red-700">{stateMismatch}</p>
-          )}
+          {stateMismatch && <p className="text-xs text-red-700">{stateMismatch}</p>}
           {error && <p className="text-xs text-red-700">{error}</p>}
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!canSave}
-              className={submitClass}
-            >
+            <button type="button" onClick={submit} disabled={!canSave} className={submitClass}>
               {update.isPending ? "Saving…" : "Save"}
             </button>
-            {saved && !update.isPending && (
-              <span className="text-xs text-emerald-700">Saved</span>
-            )}
+            {saved && !update.isPending && <span className="text-xs text-emerald-700">Saved</span>}
           </div>
         </div>
       )}

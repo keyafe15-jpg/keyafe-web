@@ -2,10 +2,7 @@ import type { OrderItem, OrderStatus } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { sendEmail } from "../email/email.service.js";
-import {
-  renderAdminCancelled,
-  renderCustomerCancelled,
-} from "../email/templates.js";
+import { renderAdminCancelled, renderCustomerCancelled } from "../email/templates.js";
 import { logger } from "../../utils/logger.js";
 import { emitOrderCancelled } from "../../lib/events.js";
 import { sendStaffWhatsApp } from "../../lib/whatsapp.js";
@@ -46,10 +43,7 @@ type OrderForCancel = {
   status: OrderStatus;
   customerName: string;
   customerEmail: string | null;
-  items: Pick<
-    OrderItem,
-    "deliveryDate" | "deliverySlotKey" | "deliverySlotLabel"
-  >[];
+  items: Pick<OrderItem, "deliveryDate" | "deliverySlotKey" | "deliverySlotLabel">[];
 };
 
 function pad2(n: number): string {
@@ -63,9 +57,7 @@ function utcYmd(d: Date): string {
 function slotStartAt(deliveryDate: Date, slotKey: string | null): Date {
   const start = SLOT_START[slotKey ?? ""] ?? { hour: 11, minute: 0 };
   const ymd = utcYmd(deliveryDate);
-  return new Date(
-    `${ymd}T${pad2(start.hour)}:${pad2(start.minute)}:00${BAKERY_TZ_OFFSET}`,
-  );
+  return new Date(`${ymd}T${pad2(start.hour)}:${pad2(start.minute)}:00${BAKERY_TZ_OFFSET}`);
 }
 
 /** Earliest dated item's slot start. Null when every line is pan-India (no date). */
@@ -115,9 +107,7 @@ export function getCustomerCancelState(
     return { allowed: true, reason: null, deadlineAt: null };
   }
 
-  const deadlineAt = new Date(
-    deliveryAt.getTime() - CUSTOMER_CANCEL_CUTOFF_HOURS * 60 * 60 * 1000,
-  );
+  const deadlineAt = new Date(deliveryAt.getTime() - CUSTOMER_CANCEL_CUTOFF_HOURS * 60 * 60 * 1000);
 
   if (now.getTime() >= deadlineAt.getTime()) {
     return {
@@ -134,9 +124,7 @@ export function getCustomerCancelState(
   };
 }
 
-export function withCustomerCancel<T extends Pick<OrderForCancel, "status" | "items">>(
-  order: T,
-) {
+export function withCustomerCancel<T extends Pick<OrderForCancel, "status" | "items">>(order: T) {
   return { ...order, customerCancel: getCustomerCancelState(order) };
 }
 
@@ -166,10 +154,7 @@ export async function cancelOrderAsCustomer(idOrNumber: string) {
   });
 
   void notifyCancelled(updated, "customer").catch((err) => {
-    logger.error(
-      { err, orderId: updated.id },
-      "cancel notification failed",
-    );
+    logger.error({ err, orderId: updated.id }, "cancel notification failed");
   });
 
   return withCustomerCancel(updated);
@@ -192,10 +177,7 @@ export async function cancelOrderAsAdmin(id: string) {
   });
 
   void notifyCancelled(updated, "admin").catch((err) => {
-    logger.error(
-      { err, orderId: updated.id },
-      "cancel notification failed",
-    );
+    logger.error({ err, orderId: updated.id }, "cancel notification failed");
   });
 
   return updated;
@@ -216,8 +198,8 @@ async function notifyCancelled(
   });
   const adminRecipients = [
     ...new Set(
-      [settings?.orderNotificationEmail, settings?.supportEmail].filter(
-        (e): e is string => Boolean(e),
+      [settings?.orderNotificationEmail, settings?.supportEmail].filter((e): e is string =>
+        Boolean(e),
       ),
     ),
   ];
@@ -265,8 +247,5 @@ async function notifyCancelled(
     `${order.customerPhone} · ₹${Number(order.total).toFixed(0)} · ${order.items.length} item${order.items.length === 1 ? "" : "s"}`,
   ].join("\n");
 
-  await sendStaffWhatsApp(
-    waBody,
-    settings?.supportPhone ? [settings.supportPhone] : [],
-  );
+  await sendStaffWhatsApp(waBody, settings?.supportPhone ? [settings.supportPhone] : []);
 }

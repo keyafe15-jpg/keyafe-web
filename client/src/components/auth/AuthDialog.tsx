@@ -3,11 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/store/auth";
-import {
-  formatPhoneWithCountryCode,
-  otpAuthSchema,
-  type OtpAuthInput,
-} from "@/lib/validators";
+import { formatPhoneWithCountryCode, otpAuthSchema, type OtpAuthInput } from "@/lib/validators";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
 import { AUTH_COPY } from "@/content/auth";
 import { cn } from "@/lib/cn";
@@ -48,8 +44,8 @@ export function AuthDialog({ trigger }: AuthDialogProps) {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-ink-900/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-cream-200 bg-cream-50 p-6 shadow-2xl focus:outline-none">
+        <Dialog.Overlay className="data-[state=open]:animate-in data-[state=open]:fade-in fixed inset-0 z-50 bg-ink-900/60 backdrop-blur-sm" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-cream-200 bg-cream-50 p-6 shadow-2xl focus:outline-none">
           <Dialog.Title className="mb-1 font-display text-2xl text-ink-900">
             {AUTH_COPY.title}
           </Dialog.Title>
@@ -60,7 +56,7 @@ export function AuthDialog({ trigger }: AuthDialogProps) {
           <OtpAuthForm onSuccess={() => setOpen(false)} />
 
           <Dialog.Close
-            className="absolute right-3 top-3 rounded-full p-1 text-ink-500 transition hover:bg-cream-100 hover:text-ink-900"
+            className="absolute top-3 right-3 rounded-full p-1 text-ink-500 transition hover:bg-cream-100 hover:text-ink-900"
             aria-label="Close"
           >
             <svg
@@ -106,10 +102,7 @@ function OtpAuthForm({ onSuccess }: { onSuccess: () => void }) {
   });
 
   const onSubmit = handleSubmit(async (values) => {
-    const combinedPhone = formatPhoneWithCountryCode(
-      values.countryCode,
-      values.phone,
-    );
+    const combinedPhone = formatPhoneWithCountryCode(values.countryCode, values.phone);
 
     if (step === "profile") {
       if (!values.name?.trim()) {
@@ -156,8 +149,7 @@ function OtpAuthForm({ onSuccess }: { onSuccess: () => void }) {
     await sendOtp(formatPhoneWithCountryCode(countryCode, phone));
   };
 
-  const currentStepLabel =
-    step === "profile" ? AUTH_COPY.createAccount : AUTH_COPY.submit;
+  const currentStepLabel = step === "profile" ? AUTH_COPY.createAccount : AUTH_COPY.submit;
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -172,17 +164,14 @@ function OtpAuthForm({ onSuccess }: { onSuccess: () => void }) {
               list="country-codes"
               aria-label={AUTH_COPY.fields.countryCode.label}
               className={cn(
-                "w-[100px] shrink-0 rounded-xl border border-brand-400 bg-white px-2 py-2 text-lg font-medium text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20",
+                "border-brand-400 w-[100px] shrink-0 rounded-xl border bg-white px-2 py-2 text-lg font-medium text-ink-900 transition outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20",
               )}
               placeholder="🇮🇳 +91"
               {...register("countryCode")}
             />
             <datalist id="country-codes">
               {COUNTRY_OPTIONS.map((country) => (
-                <option
-                  key={`${country.code}-${country.label}`}
-                  value={country.code}
-                >
+                <option key={`${country.code}-${country.label}`} value={country.code}>
                   {country.label}
                 </option>
               ))}
@@ -199,7 +188,7 @@ function OtpAuthForm({ onSuccess }: { onSuccess: () => void }) {
               type="button"
               onClick={() => void onSendOtp()}
               disabled={isSubmitting}
-              className="shrink-0 whitespace-nowrap rounded-xl border border-brand-500 bg-transparent px-4 py-2 text-sm font-medium text-brand-600 transition hover:bg-brand-50 disabled:opacity-60"
+              className="text-brand-600 hover:bg-brand-50 shrink-0 rounded-xl border border-brand-500 bg-transparent px-4 py-2 text-sm font-medium whitespace-nowrap transition disabled:opacity-60"
             >
               {AUTH_COPY.sendOtp}
             </button>
@@ -209,11 +198,7 @@ function OtpAuthForm({ onSuccess }: { onSuccess: () => void }) {
 
       {step !== "phone" && (
         <>
-          <Field
-            label={AUTH_COPY.fields.otp.label}
-            required
-            error={errors.otp?.message}
-          >
+          <Field label={AUTH_COPY.fields.otp.label} required error={errors.otp?.message}>
             <input
               inputMode="numeric"
               autoComplete="one-time-code"
