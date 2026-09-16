@@ -9,10 +9,16 @@
     "dev:admin": "pnpm --filter admin dev",
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d",
     "db:logs": "docker compose logs -f postgres"
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "prettier": "^3.9.7",
+    "prettier-plugin-tailwindcss": "^0.8.1"
+  }
 }
