@@ -31,25 +31,27 @@ export function FlavoursPage() {
           </div>
         )}
         {!isLoading && flavours.length > 0 && (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Flavour</th>
-                <th className="px-4 py-2 font-medium">Tags</th>
-                <th className="w-40 px-4 py-2 text-right font-medium">
-                  Additional (₹)
-                </th>
-                <th className="w-24 px-4 py-2 text-center font-medium">
-                  Active
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {flavours.map((f) => (
-                <FlavourRow key={f.id} flavour={f} />
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Flavour</th>
+                  <th className="px-4 py-2 font-medium">Tags</th>
+                  <th className="w-40 px-4 py-2 text-right font-medium">
+                    Additional (₹)
+                  </th>
+                  <th className="w-24 px-4 py-2 text-center font-medium">
+                    Active
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {flavours.map((f) => (
+                  <FlavourRow key={f.id} flavour={f} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

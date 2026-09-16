@@ -129,31 +129,35 @@ export function OrdersAllView() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          {/* The date inputs get their own row on mobile so the native
+              control keeps the width dd/mm/yyyy needs. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <label className="text-xs font-medium text-slate-600">
               Delivering
             </label>
-            <input
-              type="date"
-              value={deliveryFrom}
-              onChange={(e) => {
-                setDeliveryFrom(e.target.value);
-                setPage(1);
-              }}
-              max={deliveryTo || undefined}
-              className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:flex-none"
-            />
-            <span className="text-xs text-slate-400">→</span>
-            <input
-              type="date"
-              value={deliveryTo}
-              onChange={(e) => {
-                setDeliveryTo(e.target.value);
-                setPage(1);
-              }}
-              min={deliveryFrom || undefined}
-              className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:flex-none"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={deliveryFrom}
+                onChange={(e) => {
+                  setDeliveryFrom(e.target.value);
+                  setPage(1);
+                }}
+                max={deliveryTo || undefined}
+                className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-36 sm:flex-none"
+              />
+              <span className="shrink-0 text-xs text-slate-400">→</span>
+              <input
+                type="date"
+                value={deliveryTo}
+                onChange={(e) => {
+                  setDeliveryTo(e.target.value);
+                  setPage(1);
+                }}
+                min={deliveryFrom || undefined}
+                className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-36 sm:flex-none"
+              />
+            </div>
           </div>
 
           {rangeInvalid && (
@@ -187,8 +191,8 @@ export function OrdersAllView() {
         </div>
       </div>
 
-      <div className="mb-5 -mx-4 overflow-x-auto sm:mx-0">
-        <div className="mx-4 inline-flex min-w-full flex-wrap gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 sm:mx-0">
+      <div className="mb-5">
+        <div className="flex flex-wrap gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5">
           {TABS.map((t) => (
             <button
               key={t.key}

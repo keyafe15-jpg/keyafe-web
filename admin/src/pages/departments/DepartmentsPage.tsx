@@ -48,25 +48,30 @@ export function DepartmentsPage() {
           </div>
         )}
         {!isLoading && stores.length > 0 && (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Store</th>
-                <th className="px-4 py-2 font-medium">Shopfront</th>
-                <th className="w-24 px-4 py-2 font-medium">Sort</th>
-                <th className="w-24 px-4 py-2 font-medium">Active</th>
-                <th className="w-28 px-4 py-2 text-right font-medium">
-                  Categories
-                </th>
-                <th className="w-12 px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {stores.map((store) => (
-                <StoreRow key={store.id} store={store} />
-              ))}
-            </tbody>
-          </table>
+          // Six columns of editable controls can't fit a phone, so the table
+          // scrolls inside the card rather than being clipped by its
+          // overflow-hidden corners.
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Store</th>
+                  <th className="px-4 py-2 font-medium">Shopfront</th>
+                  <th className="w-24 px-4 py-2 font-medium">Sort</th>
+                  <th className="w-24 px-4 py-2 font-medium">Active</th>
+                  <th className="w-28 px-4 py-2 text-right font-medium">
+                    Categories
+                  </th>
+                  <th className="w-12 px-4 py-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {stores.map((store) => (
+                  <StoreRow key={store.id} store={store} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

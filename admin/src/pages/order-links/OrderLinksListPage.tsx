@@ -72,8 +72,8 @@ export function OrderLinksListPage() {
         </div>
       </div>
 
-      <div className="mb-5 -mx-4 overflow-x-auto sm:mx-0">
-        <div className="mx-4 inline-flex min-w-full flex-wrap gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 sm:mx-0">
+      <div className="mb-5">
+        <div className="flex flex-wrap gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5">
           {TABS.map((t) => (
             <button
               key={t.key}

@@ -105,24 +105,26 @@ function StaffTab() {
           </div>
         )}
         {!isLoading && users.length > 0 && (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Name</th>
-                <th className="px-4 py-2 font-medium">Phone</th>
-                <th className="px-4 py-2 font-medium">Role</th>
-                <th className="px-4 py-2 font-medium">Last login</th>
-                <th className="w-28 px-4 py-2 text-center font-medium">
-                  Active
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {users.map((user) => (
-                <StaffRow key={user.id} user={user} roles={roles} />
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[780px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Name</th>
+                  <th className="px-4 py-2 font-medium">Phone</th>
+                  <th className="px-4 py-2 font-medium">Role</th>
+                  <th className="px-4 py-2 font-medium">Last login</th>
+                  <th className="w-28 px-4 py-2 text-center font-medium">
+                    Active
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {users.map((user) => (
+                  <StaffRow key={user.id} user={user} roles={roles} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       {data && data.totalPages > 1 && (

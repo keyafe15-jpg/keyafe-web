@@ -237,38 +237,43 @@ export function OrdersScheduleView() {
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          {/* The two date inputs get a row to themselves on mobile: sharing
+              one with the label, arrow and sort toggle squeezes the native
+              control below the width dd/mm/yyyy needs, clipping the date. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <label className="text-xs font-medium text-slate-600">
               Delivering
             </label>
-            <input
-              type="date"
-              value={deliveryFrom}
-              onChange={(e) => {
-                setDeliveryFrom(e.target.value);
-                setPage(1);
-              }}
-              max={deliveryTo || undefined}
-              className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:flex-none"
-            />
-            <span className="text-xs text-slate-400">→</span>
-            <input
-              type="date"
-              value={deliveryTo}
-              onChange={(e) => {
-                setDeliveryTo(e.target.value);
-                setPage(1);
-              }}
-              min={deliveryFrom || undefined}
-              className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:flex-none"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={deliveryFrom}
+                onChange={(e) => {
+                  setDeliveryFrom(e.target.value);
+                  setPage(1);
+                }}
+                max={deliveryTo || undefined}
+                className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-36 sm:flex-none"
+              />
+              <span className="shrink-0 text-xs text-slate-400">→</span>
+              <input
+                type="date"
+                value={deliveryTo}
+                onChange={(e) => {
+                  setDeliveryTo(e.target.value);
+                  setPage(1);
+                }}
+                min={deliveryFrom || undefined}
+                className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-36 sm:flex-none"
+              />
+            </div>
             <button
               type="button"
               onClick={() => {
                 setDir(dir === "asc" ? "desc" : "asc");
                 setPage(1);
               }}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-medium text-slate-600 hover:border-brand-500 hover:text-brand-700"
+              className="inline-flex items-center gap-1 self-start rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-medium text-slate-600 hover:border-brand-500 hover:text-brand-700 sm:self-auto"
               title={
                 dir === "asc"
                   ? "Soonest first — switch to latest first"

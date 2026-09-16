@@ -211,65 +211,67 @@ export function StoreHoursPage() {
         {isLoading || weekly.length === 0 ? (
           <p className="px-5 py-8 text-sm text-slate-500">Loading…</p>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-5 py-2 font-medium">Day</th>
-                <th className="px-4 py-2 font-medium">Open</th>
-                <th className="px-4 py-2 font-medium">From</th>
-                <th className="px-4 py-2 font-medium">To</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {weekly.map((day) => (
-                <tr
-                  key={day.dayOfWeek}
-                  className={cn(day.isClosed && "bg-slate-50/80")}
-                >
-                  <td className="px-5 py-3 font-medium text-slate-900">
-                    {DAY_NAMES[day.dayOfWeek]}
-                  </td>
-                  <td className="px-4 py-3">
-                    <label className="inline-flex items-center gap-2 text-xs text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={!day.isClosed}
-                        onChange={(e) =>
-                          patchDay(day.dayOfWeek, {
-                            isClosed: !e.target.checked,
-                          })
-                        }
-                        className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-                      />
-                      {day.isClosed ? "Closed" : "Open"}
-                    </label>
-                  </td>
-                  <td className="px-4 py-2">
-                    <input
-                      type="time"
-                      value={day.openTime}
-                      disabled={day.isClosed}
-                      onChange={(e) =>
-                        patchDay(day.dayOfWeek, { openTime: e.target.value })
-                      }
-                      className={cn(inputClass, "w-32 disabled:bg-slate-100")}
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <input
-                      type="time"
-                      value={day.closeTime}
-                      disabled={day.isClosed}
-                      onChange={(e) =>
-                        patchDay(day.dayOfWeek, { closeTime: e.target.value })
-                      }
-                      className={cn(inputClass, "w-32 disabled:bg-slate-100")}
-                    />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-5 py-2 font-medium">Day</th>
+                  <th className="px-4 py-2 font-medium">Open</th>
+                  <th className="px-4 py-2 font-medium">From</th>
+                  <th className="px-4 py-2 font-medium">To</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {weekly.map((day) => (
+                  <tr
+                    key={day.dayOfWeek}
+                    className={cn(day.isClosed && "bg-slate-50/80")}
+                  >
+                    <td className="px-5 py-3 font-medium text-slate-900">
+                      {DAY_NAMES[day.dayOfWeek]}
+                    </td>
+                    <td className="px-4 py-3">
+                      <label className="inline-flex items-center gap-2 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={!day.isClosed}
+                          onChange={(e) =>
+                            patchDay(day.dayOfWeek, {
+                              isClosed: !e.target.checked,
+                            })
+                          }
+                          className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+                        />
+                        {day.isClosed ? "Closed" : "Open"}
+                      </label>
+                    </td>
+                    <td className="px-4 py-2">
+                      <input
+                        type="time"
+                        value={day.openTime}
+                        disabled={day.isClosed}
+                        onChange={(e) =>
+                          patchDay(day.dayOfWeek, { openTime: e.target.value })
+                        }
+                        className={cn(inputClass, "w-32 disabled:bg-slate-100")}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <input
+                        type="time"
+                        value={day.closeTime}
+                        disabled={day.isClosed}
+                        onChange={(e) =>
+                          patchDay(day.dayOfWeek, { closeTime: e.target.value })
+                        }
+                        className={cn(inputClass, "w-32 disabled:bg-slate-100")}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

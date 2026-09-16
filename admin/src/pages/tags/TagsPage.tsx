@@ -43,22 +43,24 @@ export function TagsPage() {
           </div>
         )}
         {!isLoading && tags.length > 0 && (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Tag</th>
-                <th className="w-36 px-4 py-2 font-medium">Color</th>
-                <th className="w-28 px-4 py-2 text-right font-medium">
-                  Products
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {tags.map((tag) => (
-                <TagRow key={tag.id} tag={tag} />
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Tag</th>
+                  <th className="w-36 px-4 py-2 font-medium">Color</th>
+                  <th className="w-28 px-4 py-2 text-right font-medium">
+                    Products
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {tags.map((tag) => (
+                  <TagRow key={tag.id} tag={tag} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

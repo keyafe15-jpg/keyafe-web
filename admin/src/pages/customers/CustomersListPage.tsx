@@ -168,66 +168,68 @@ export function CustomersListPage() {
                 Updating results…
               </div>
             )}
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Customer</th>
-                  <th className="px-4 py-2 font-medium">Phone</th>
-                  <th className="px-4 py-2 font-medium">Email</th>
-                  <th className="px-4 py-2 font-medium text-right">Orders</th>
-                  <th className="px-4 py-2 font-medium">First seen</th>
-                  <th className="px-4 py-2 font-medium">Signals</th>
-                  <th className="px-4 py-2 font-medium">Type</th>
-                  <th className="w-8" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {customers.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => setSelected(c)}
-                    className="cursor-pointer hover:bg-slate-50"
-                  >
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">{c.name}</p>
-                      {!c.isActive && (
-                        <span className="mt-0.5 inline-flex rounded bg-slate-100 px-1 py-0.5 text-[10px] font-medium text-slate-600">
-                          Disabled
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-700">
-                      {c.phone}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {c.email ?? <span className="text-slate-400">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <p className="font-medium tabular-nums text-slate-900">
-                        {c.totalOrderCount}
-                      </p>
-                      {c.guestCheckoutCount > 0 && (
-                        <p className="text-[10px] text-amber-700">
-                          {c.guestCheckoutCount} guest
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatDate(c.createdAt)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <ContactSignals customer={c} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <TypeBadge customer={c} />
-                    </td>
-                    <td className="px-2 py-3 text-slate-300">
-                      <ChevronRight className="h-4 w-4" />
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1000px] text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Customer</th>
+                    <th className="px-4 py-2 font-medium">Phone</th>
+                    <th className="px-4 py-2 font-medium">Email</th>
+                    <th className="px-4 py-2 font-medium text-right">Orders</th>
+                    <th className="px-4 py-2 font-medium">First seen</th>
+                    <th className="px-4 py-2 font-medium">Signals</th>
+                    <th className="px-4 py-2 font-medium">Type</th>
+                    <th className="w-8" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {customers.map((c) => (
+                    <tr
+                      key={c.id}
+                      onClick={() => setSelected(c)}
+                      className="cursor-pointer hover:bg-slate-50"
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-slate-900">{c.name}</p>
+                        {!c.isActive && (
+                          <span className="mt-0.5 inline-flex rounded bg-slate-100 px-1 py-0.5 text-[10px] font-medium text-slate-600">
+                            Disabled
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-slate-700">
+                        {c.phone}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {c.email ?? <span className="text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <p className="font-medium tabular-nums text-slate-900">
+                          {c.totalOrderCount}
+                        </p>
+                        {c.guestCheckoutCount > 0 && (
+                          <p className="text-[10px] text-amber-700">
+                            {c.guestCheckoutCount} guest
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDate(c.createdAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <ContactSignals customer={c} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <TypeBadge customer={c} />
+                      </td>
+                      <td className="px-2 py-3 text-slate-300">
+                        <ChevronRight className="h-4 w-4" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <PaginationControls
               page={data?.page ?? 1}
               pageCount={data?.totalPages ?? 1}

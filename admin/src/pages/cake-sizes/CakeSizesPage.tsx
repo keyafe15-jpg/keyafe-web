@@ -68,83 +68,85 @@ export function CakeSizesPage() {
           <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
         )}
         {!isLoading && (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="w-32 px-4 py-2 font-medium">Grams</th>
-                <th className="px-4 py-2 font-medium">Label</th>
-                <th className="px-4 py-2 font-medium">Serves</th>
-                <th className="w-24 px-4 py-2 text-center font-medium">Sort</th>
-                <th className="w-24 px-4 py-2 text-center font-medium">
-                  Active
-                </th>
-                <th className="w-16 px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {sizes.map((s) => (
-                <SizeRow key={s.id} size={s} />
-              ))}
-              {adding && (
-                <tr className="bg-slate-50/60">
-                  <td className="px-4 py-2">
-                    <input
-                      type="number"
-                      step="1"
-                      min={1}
-                      value={newSize.grams}
-                      onChange={(e) =>
-                        setNewSize({ ...newSize, grams: e.target.value })
-                      }
-                      placeholder="500"
-                      className={inputClass}
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <input
-                      value={newSize.label}
-                      onChange={(e) =>
-                        setNewSize({ ...newSize, label: e.target.value })
-                      }
-                      placeholder="1 pound"
-                      className={inputClass}
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <input
-                      value={newSize.servesText}
-                      onChange={(e) =>
-                        setNewSize({ ...newSize, servesText: e.target.value })
-                      }
-                      placeholder="Serves 4–6"
-                      className={inputClass}
-                    />
-                  </td>
-                  <td className="px-4 py-2" colSpan={2}>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setAdding(false);
-                          setError(null);
-                        }}
-                        className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-white"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={submitNew}
-                        disabled={createSize.isPending}
-                        className="rounded-md bg-brand-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-                      >
-                        {createSize.isPending ? "Saving…" : "Save"}
-                      </button>
-                    </div>
-                  </td>
-                  <td />
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[780px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="w-32 px-4 py-2 font-medium">Grams</th>
+                  <th className="px-4 py-2 font-medium">Label</th>
+                  <th className="px-4 py-2 font-medium">Serves</th>
+                  <th className="w-24 px-4 py-2 text-center font-medium">Sort</th>
+                  <th className="w-24 px-4 py-2 text-center font-medium">
+                    Active
+                  </th>
+                  <th className="w-16 px-4 py-2" />
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {sizes.map((s) => (
+                  <SizeRow key={s.id} size={s} />
+                ))}
+                {adding && (
+                  <tr className="bg-slate-50/60">
+                    <td className="px-4 py-2">
+                      <input
+                        type="number"
+                        step="1"
+                        min={1}
+                        value={newSize.grams}
+                        onChange={(e) =>
+                          setNewSize({ ...newSize, grams: e.target.value })
+                        }
+                        placeholder="500"
+                        className={inputClass}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <input
+                        value={newSize.label}
+                        onChange={(e) =>
+                          setNewSize({ ...newSize, label: e.target.value })
+                        }
+                        placeholder="1 pound"
+                        className={inputClass}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <input
+                        value={newSize.servesText}
+                        onChange={(e) =>
+                          setNewSize({ ...newSize, servesText: e.target.value })
+                        }
+                        placeholder="Serves 4–6"
+                        className={inputClass}
+                      />
+                    </td>
+                    <td className="px-4 py-2" colSpan={2}>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setAdding(false);
+                            setError(null);
+                          }}
+                          className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-white"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={submitNew}
+                          disabled={createSize.isPending}
+                          className="rounded-md bg-brand-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+                        >
+                          {createSize.isPending ? "Saving…" : "Save"}
+                        </button>
+                      </div>
+                    </td>
+                    <td />
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
         {error && (
           <p className="border-t border-slate-100 px-4 py-2 text-xs text-brand-700">

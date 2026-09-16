@@ -63,25 +63,27 @@ export function ToppingsPage() {
           </div>
         )}
         {!isLoading && filtered.length > 0 && (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Name</th>
-                <th className="w-32 px-4 py-2 text-right font-medium">
-                  Price (₹)
-                </th>
-                <th className="w-24 px-4 py-2 text-center font-medium">Veg</th>
-                <th className="w-24 px-4 py-2 text-center font-medium">
-                  Active
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((t) => (
-                <ToppingRow key={t.id} topping={t} />
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[620px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Name</th>
+                  <th className="w-32 px-4 py-2 text-right font-medium">
+                    Price (₹)
+                  </th>
+                  <th className="w-24 px-4 py-2 text-center font-medium">Veg</th>
+                  <th className="w-24 px-4 py-2 text-center font-medium">
+                    Active
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((t) => (
+                  <ToppingRow key={t.id} topping={t} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
