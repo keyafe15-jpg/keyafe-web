@@ -8,3 +8,15 @@ export const TIME_SLOTS = [
 ] as const;
 
 export type TimeSlotKey = (typeof TIME_SLOTS)[number]["key"];
+
+/**
+ * Chronological position of a slot, for ordering within a single day.
+ * Needed because slot keys sort alphabetically in SQL ("afternoon" before
+ * "morning"), which is not the order cakes go out in. Same-day and any
+ * unrecognised key sort last, since they have no fixed window.
+ */
+export function slotRank(key: string | null | undefined): number {
+  if (!key) return TIME_SLOTS.length + 1;
+  const index = TIME_SLOTS.findIndex((s) => s.key === key);
+  return index === -1 ? TIME_SLOTS.length : index;
+}

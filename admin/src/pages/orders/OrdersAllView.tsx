@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Truck, Store, Phone, ChevronRight, Search, X } from "lucide-react";
+import {
+  Truck,
+  Store,
+  Phone,
+  ChevronRight,
+  Search,
+  X,
+  Building2,
+} from "lucide-react";
 import {
   useAdminOrders,
   useAdminOrderCounts,
@@ -273,13 +281,30 @@ export function OrdersAllView() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">
-                        {o.customerName}
-                      </p>
-                      <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                        <Phone className="h-3 w-3" />
-                        {o.customerPhone}
-                      </div>
+                      {o.customerCompanyName ? (
+                        <>
+                          <p className="flex items-center gap-1 font-medium text-slate-900">
+                            <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                            {o.customerCompanyName}
+                          </p>
+                          <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                            {o.customerName}
+                            <span className="text-slate-300">·</span>
+                            <Phone className="h-3 w-3" />
+                            {o.customerPhone}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium text-slate-900">
+                            {o.customerName}
+                          </p>
+                          <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                            <Phone className="h-3 w-3" />
+                            {o.customerPhone}
+                          </div>
+                        </>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <SourceBadge source={o.source} />
@@ -343,11 +368,24 @@ export function OrdersAllView() {
                           <p className="font-mono text-xs font-medium text-slate-900">
                             {o.orderNumber}
                           </p>
-                          <p className="truncate text-sm font-medium text-slate-900">
-                            {o.customerName}
+                          <p className="flex items-center gap-1 truncate text-sm font-medium text-slate-900">
+                            {o.customerCompanyName && (
+                              <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                            )}
+                            <span className="truncate">
+                              {o.customerCompanyName ?? o.customerName}
+                            </span>
                           </p>
-                          <p className="flex items-center gap-1 text-[11px] text-slate-500">
-                            <Phone className="h-3 w-3" />
+                          <p className="flex items-center gap-1 truncate text-[11px] text-slate-500">
+                            {o.customerCompanyName && (
+                              <>
+                                <span className="truncate">
+                                  {o.customerName}
+                                </span>
+                                <span className="text-slate-300">·</span>
+                              </>
+                            )}
+                            <Phone className="h-3 w-3 shrink-0" />
                             {o.customerPhone}
                           </p>
                         </div>

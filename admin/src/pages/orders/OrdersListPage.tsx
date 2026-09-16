@@ -2,12 +2,14 @@ import { useState } from "react";
 import { OrdersBoardView } from "@/pages/orders/OrdersBoardView";
 import { OrdersAllView } from "@/pages/orders/OrdersAllView";
 import { OrdersPanIndiaView } from "@/pages/orders/OrdersPanIndiaView";
+import { OrdersScheduleView } from "@/pages/orders/OrdersScheduleView";
 import { cn } from "@/lib/cn";
 
-type PageTab = "kitchen" | "pan-india" | "all";
+type PageTab = "kitchen" | "schedule" | "pan-india" | "all";
 
 const PAGE_TABS: { key: PageTab; label: string }[] = [
   { key: "kitchen", label: "Kitchen" },
+  { key: "schedule", label: "Schedule" },
   { key: "pan-india", label: "Pan-India" },
   { key: "all", label: "All orders" },
 ];
@@ -23,9 +25,11 @@ export function OrdersListPage() {
           <p className="mt-1 text-sm text-slate-500">
             {pageTab === "kitchen"
               ? "Today & tomorrow — local cakes to make and deliver."
-              : pageTab === "pan-india"
-                ? "Courier orders — pack and dispatch nationwide."
-                : "Full order history with search and filters."}
+              : pageTab === "schedule"
+                ? "Every delivery by date — plan prep ahead."
+                : pageTab === "pan-india"
+                  ? "Courier orders — pack and dispatch nationwide."
+                  : "Full order history with search and filters."}
           </p>
         </div>
 
@@ -50,6 +54,8 @@ export function OrdersListPage() {
 
       {pageTab === "kitchen" ? (
         <OrdersBoardView />
+      ) : pageTab === "schedule" ? (
+        <OrdersScheduleView />
       ) : pageTab === "pan-india" ? (
         <OrdersPanIndiaView />
       ) : (

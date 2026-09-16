@@ -11,6 +11,7 @@ import {
   FileText,
   Download,
   ClipboardList,
+  Building2,
 } from "lucide-react";
 import {
   useAdminOrder,
@@ -345,7 +346,19 @@ export function OrderDetailPage() {
 
         <aside className="space-y-6">
           <Card title="Customer">
-            <p className="font-medium text-slate-900">{order.customerName}</p>
+            {order.customerCompanyName ? (
+              <>
+                <p className="flex items-center gap-1.5 font-medium text-slate-900">
+                  <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  {order.customerCompanyName}
+                </p>
+                <p className="text-sm text-slate-600">
+                  Contact: {order.customerName}
+                </p>
+              </>
+            ) : (
+              <p className="font-medium text-slate-900">{order.customerName}</p>
+            )}
             <a
               href={`tel:${order.customerPhone}`}
               className="mt-1 flex items-center gap-1.5 text-sm text-brand-700 hover:underline"

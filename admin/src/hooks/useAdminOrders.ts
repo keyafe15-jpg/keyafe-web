@@ -24,6 +24,8 @@ export interface AdminOrderListItem {
   id: string;
   orderNumber: string;
   customerName: string;
+  /** Set on corporate orders; the contact person stays in customerName. */
+  customerCompanyName: string | null;
   customerPhone: string;
   customerEmail: string | null;
   fulfillment: OrderFulfillment;
@@ -96,8 +98,7 @@ export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
   cgstAmount: string;
   sgstAmount: string;
   igstAmount: string;
-  // GST / invoicing
-  customerCompanyName: string | null;
+  // GST / invoicing (customerCompanyName is inherited from the list item)
   customerGstin: string | null;
   /** Two-digit state code the CGST+SGST vs IGST split was decided against. */
   placeOfSupply: string | null;

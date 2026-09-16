@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
+import { Prisma } from "@prisma/client";
 import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
@@ -27,6 +28,90 @@ const ORDER_STATUSES = [
   "CANCELLED",
 ] as const satisfies readonly OrderStatus[];
 
+/**
+ * A `YYYY-MM-DD` day as sent by `<input type="date">`, resolved to local
+ * midnight. The refine rejects rollovers like 2026-02-31, which the regex
+ * alone would let through and Date would silently turn into March 3rd.
+ */
+const isoDay = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD")
+  .superRefine((value, ctx) => {
+    const [y, m, d] = value.split("-").map(Number);
+    const parsed = new Date(y!, m! - 1, d!);
+    if (
+      parsed.getFullYear() !== y ||
+      parsed.getMonth() !== m! - 1 ||
+      parsed.getDate() !== d
+    ) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Not a real date" });
+    }
+  })
+  .transform((value) => {
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(y!, m! - 1, d!, 0, 0, 0, 0);
+  });
+
+/** Blank query params mean "unset" rather than "match the empty string". */
+const optionalText = z
+  .string()
+  .optional()
+  .transform((value) => value?.trim() || undefined);
+
+/** A comma-separated `?excludeStatus=DELIVERED,CANCELLED` list. */
+const statusListParam = z
+  .string()
+  .transform((value) =>
+    value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  )
+  .pipe(z.array(z.enum(ORDER_STATUSES)))
+  .optional();
+
+export const listQuerySchema = z.object({
+  status: z.enum(ORDER_STATUSES).optional(),
+  deliveryFrom: isoDay.optional(),
+  deliveryTo: isoDay.optional(),
+  search: optionalText,
+  excludeStatus: statusListParam,
+  panIndia: z
+    .enum(["0", "1", "true", "false"])
+    .transform((value) => value === "1" || value === "true")
+    .optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  // Capped so a client can't ask for the whole table in one request. The
+  // admin's board and pan-India views already request exactly 100.
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+type OrderListQuery = z.infer<typeof listQuerySchema>;
+
+const analyticsQuerySchema = z.object({
+  from: isoDay.optional(),
+  to: isoDay.optional(),
+});
+
+// The schedule lists delivery events rather than orders, so its unit is a
+// (order, delivery date, slot) group and `dir` sorts by that date.
+export const scheduleQuerySchema = z.object({
+  deliveryFrom: isoDay.optional(),
+  deliveryTo: isoDay.optional(),
+  status: z.enum(ORDER_STATUSES).optional(),
+  excludeStatus: statusListParam,
+  search: optionalText,
+  dir: z.enum(["asc", "desc"]).default("asc"),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function addressField(addr: unknown, key: "pincode" | "city"): string | null {
   if (!addr || typeof addr !== "object") return null;
   const value = (addr as Record<string, unknown>)[key];
@@ -41,42 +126,56 @@ function addressCity(addr: unknown) {
   return addressField(addr, "city");
 }
 
-function buildAdminOrderListWhere(opts: {
-  status?: string | null;
-  deliveryFrom?: string | null;
-  deliveryTo?: string | null;
-  search?: string | null;
-  excludeStatuses?: string[];
-  panIndia?: boolean;
-}): Record<string, unknown> | undefined {
+/**
+ * The requested delivery window, or null when no range was given. Shared by
+ * the order `where` and the nested item selection so the summary an order
+ * carries describes the window that matched it.
+ */
+function deliveryDateFilter(
+  opts: Pick<OrderListQuery, "deliveryFrom" | "deliveryTo">,
+): { gte?: Date; lt?: Date } | null {
+  const filter: { gte?: Date; lt?: Date } = {};
+  if (opts.deliveryFrom) {
+    filter.gte = opts.deliveryFrom;
+  }
+  if (opts.deliveryTo) {
+    // `deliveryTo` is inclusive, so the exclusive bound is the next midnight.
+    const next = new Date(opts.deliveryTo);
+    next.setDate(next.getDate() + 1);
+    filter.lt = next;
+  }
+  return filter.gte || filter.lt ? filter : null;
+}
+
+/** Free-text match across the order's own fields and the products on it. */
+function orderSearchOr(q: string): Prisma.OrderWhereInput[] {
+  return [
+    { orderNumber: { contains: q, mode: "insensitive" } },
+    { customerName: { contains: q, mode: "insensitive" } },
+    { customerCompanyName: { contains: q, mode: "insensitive" } },
+    { customerPhone: { contains: q, mode: "insensitive" } },
+    { customerEmail: { contains: q, mode: "insensitive" } },
+    { items: { some: { productName: { contains: q, mode: "insensitive" } } } },
+  ];
+}
+
+// Takes the parsed query, so statuses are known-valid enum members and the
+// dates are already real Dates; no re-validation needed here.
+function buildAdminOrderListWhere(
+  opts: OrderListQuery,
+): Record<string, unknown> | undefined {
   const and: Record<string, unknown>[] = [];
 
-  if (
-    opts.status &&
-    (ORDER_STATUSES as readonly string[]).includes(opts.status)
-  ) {
+  if (opts.status) {
     and.push({ status: opts.status });
   }
 
-  if (opts.excludeStatuses && opts.excludeStatuses.length > 0) {
-    const valid = opts.excludeStatuses.filter((s) =>
-      (ORDER_STATUSES as readonly string[]).includes(s),
-    );
-    if (valid.length > 0) {
-      and.push({ status: { notIn: valid } });
-    }
+  if (opts.excludeStatus && opts.excludeStatus.length > 0) {
+    and.push({ status: { notIn: opts.excludeStatus } });
   }
 
-  const dateFilter: { gte?: Date; lt?: Date } = {};
-  if (opts.deliveryFrom && /^\d{4}-\d{2}-\d{2}$/.test(opts.deliveryFrom)) {
-    const [y, m, d] = opts.deliveryFrom.split("-").map(Number);
-    dateFilter.gte = new Date(y!, m! - 1, d!, 0, 0, 0);
-  }
-  if (opts.deliveryTo && /^\d{4}-\d{2}-\d{2}$/.test(opts.deliveryTo)) {
-    const [y, m, d] = opts.deliveryTo.split("-").map(Number);
-    dateFilter.lt = new Date(y!, m! - 1, d! + 1, 0, 0, 0);
-  }
-  if (dateFilter.gte || dateFilter.lt) {
+  const dateFilter = deliveryDateFilter(opts);
+  if (dateFilter) {
     and.push({ items: { some: { deliveryDate: dateFilter } } });
   }
 
@@ -89,21 +188,8 @@ function buildAdminOrderListWhere(opts: {
     });
   }
 
-  const q = opts.search?.trim();
-  if (q) {
-    and.push({
-      OR: [
-        { orderNumber: { contains: q, mode: "insensitive" } },
-        { customerName: { contains: q, mode: "insensitive" } },
-        { customerPhone: { contains: q, mode: "insensitive" } },
-        { customerEmail: { contains: q, mode: "insensitive" } },
-        {
-          items: {
-            some: { productName: { contains: q, mode: "insensitive" } },
-          },
-        },
-      ],
-    });
+  if (opts.search) {
+    and.push({ OR: orderSearchOr(opts.search) });
   }
 
   if (and.length === 0) return undefined;
@@ -112,33 +198,17 @@ function buildAdminOrderListWhere(opts: {
 }
 
 adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => {
-  const status = typeof req.query.status === "string" ? req.query.status : null;
-  const deliveryFrom =
-    typeof req.query.deliveryFrom === "string" ? req.query.deliveryFrom : null;
-  const deliveryTo =
-    typeof req.query.deliveryTo === "string" ? req.query.deliveryTo : null;
-  const search =
-    typeof req.query.search === "string" ? req.query.search : null;
-  const excludeStatus =
-    typeof req.query.excludeStatus === "string"
-      ? req.query.excludeStatus
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
-  const panIndia =
-    req.query.panIndia === "1" || req.query.panIndia === "true";
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
+  const parsed = listQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid filters", parsed.error.flatten());
+  }
+  const { page, pageSize } = parsed.data;
 
-  const whereClause = buildAdminOrderListWhere({
-    status,
-    deliveryFrom,
-    deliveryTo,
-    search,
-    excludeStatuses: excludeStatus,
-    panIndia,
-  });
+  const whereClause = buildAdminOrderListWhere(parsed.data);
+  // An order matches on *some* item in the window, so the items it carries
+  // are scoped to that same window. Otherwise an order with cakes on the
+  // 15th and the 17th, listed for the 17th, would summarise as the 15th.
+  const itemWindow = deliveryDateFilter(parsed.data);
 
   const [total, rows] = await Promise.all([
     prisma.order.count({ where: whereClause }),
@@ -151,6 +221,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
         id: true,
         orderNumber: true,
         customerName: true,
+        customerCompanyName: true,
         customerPhone: true,
         customerEmail: true,
         fulfillment: true,
@@ -168,6 +239,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
         deliveryAddress: true,
         _count: { select: { items: true } },
         items: {
+          ...(itemWindow ? { where: { deliveryDate: itemWindow } } : {}),
           select: {
             id: true,
             productName: true,
@@ -193,6 +265,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
       id: r.id,
       orderNumber: r.orderNumber,
       customerName: r.customerName,
+      customerCompanyName: r.customerCompanyName,
       customerPhone: r.customerPhone,
       customerEmail: r.customerEmail,
       fulfillment: r.fulfillment,
@@ -222,6 +295,171 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
   });
 });
 
+// Delivery events, not orders: one entry per (order, delivery date, slot), so
+// an order with items on two dates is listed under each of them. Declared
+// above the `/:idOrNumber` routes so "schedule" isn't matched as an id.
+adminOrderRouter.get("/schedule", requirePermission("orders.read"), async (req, res) => {
+  const parsed = scheduleQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid filters", parsed.error.flatten());
+  }
+  const { deliveryFrom, deliveryTo, status, excludeStatus, search, dir, page, pageSize } =
+    parsed.data;
+
+  // Without an explicit lower bound the tab opens as a forward-looking prep
+  // queue rather than replaying the whole delivery history.
+  const from = deliveryFrom ?? startOfToday();
+  const deliveryDate: Prisma.DateTimeNullableFilter = { not: null, gte: from };
+  if (deliveryTo) {
+    const next = new Date(deliveryTo);
+    next.setDate(next.getDate() + 1);
+    deliveryDate.lt = next;
+  }
+
+  // Kept as an AND list so `status` and `excludeStatus` can both apply.
+  const orderAnd: Prisma.OrderWhereInput[] = [];
+  if (status) orderAnd.push({ status });
+  if (excludeStatus && excludeStatus.length > 0) {
+    orderAnd.push({ status: { notIn: excludeStatus } });
+  }
+  if (search) orderAnd.push({ OR: orderSearchOr(search) });
+
+  const where: Prisma.OrderItemWhereInput = {
+    deliveryDate,
+    ...(orderAnd.length > 0 ? { order: { AND: orderAnd } } : {}),
+  };
+
+  // `by` is inlined in both calls rather than shared: Prisma infers the shape
+  // of `_count`/`_sum` from the array literal.
+  const [allGroups, groups] = await Promise.all([
+    // Counting groups needs the grouping itself; `_count` would count rows.
+    // Cheap here because the result is one row per delivery event.
+    prisma.orderItem.groupBy({
+      by: ["orderId", "deliveryDate", "deliverySlotKey"],
+      where,
+    }),
+    prisma.orderItem.groupBy({
+      by: ["orderId", "deliveryDate", "deliverySlotKey"],
+      where,
+      orderBy: [
+        { deliveryDate: dir },
+        { deliverySlotKey: "asc" },
+        { orderId: "asc" },
+      ],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      _count: { _all: true },
+      _sum: { qty: true },
+    }),
+  ]);
+  const total = allGroups.length;
+
+  const rows =
+    groups.length === 0
+      ? []
+      : await prisma.orderItem.findMany({
+          where: {
+            OR: groups.map((g) => ({
+              orderId: g.orderId,
+              deliveryDate: g.deliveryDate,
+              deliverySlotKey: g.deliverySlotKey,
+            })),
+          },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            orderId: true,
+            deliveryDate: true,
+            deliverySlotKey: true,
+            deliverySlotLabel: true,
+            productName: true,
+            productImage: true,
+            sizeLabel: true,
+            flavourName: true,
+            qty: true,
+            messageOnCake: true,
+            instructions: true,
+            referenceImageUrl: true,
+            order: {
+              select: {
+                id: true,
+                orderNumber: true,
+                customerName: true,
+                customerCompanyName: true,
+                customerPhone: true,
+                status: true,
+                paymentStatus: true,
+                fulfillment: true,
+                source: true,
+                total: true,
+                deliveryAddress: true,
+              },
+            },
+          },
+        });
+
+  const groupKey = (
+    orderId: string,
+    date: Date | null,
+    slotKey: string | null,
+  ) => `${orderId}|${date ? date.toISOString() : ""}|${slotKey ?? ""}`;
+
+  const byGroup = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const key = groupKey(row.orderId, row.deliveryDate, row.deliverySlotKey);
+    const bucket = byGroup.get(key);
+    if (bucket) bucket.push(row);
+    else byGroup.set(key, [row]);
+  }
+
+  res.json({
+    items: groups.map((g) => {
+      const key = groupKey(g.orderId, g.deliveryDate, g.deliverySlotKey);
+      const lines = byGroup.get(key) ?? [];
+      const order = lines[0]?.order ?? null;
+      return {
+        key,
+        deliveryDate: g.deliveryDate,
+        deliverySlotKey: g.deliverySlotKey,
+        deliverySlotLabel: lines[0]?.deliverySlotLabel ?? null,
+        itemCount: g._count._all,
+        totalQty: g._sum.qty ?? 0,
+        order: order && {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          customerCompanyName: order.customerCompanyName,
+          customerPhone: order.customerPhone,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+          fulfillment: order.fulfillment,
+          source: order.source,
+          // The whole order's money, not this event's. Never sum it across
+          // entries or a two-date order gets counted twice.
+          orderTotal: order.total,
+          pincode: addressPincode(order.deliveryAddress),
+          city: addressCity(order.deliveryAddress),
+        },
+        items: lines.map((l) => ({
+          id: l.id,
+          productName: l.productName,
+          productImage: l.productImage,
+          sizeLabel: l.sizeLabel,
+          flavourName: l.flavourName,
+          qty: l.qty,
+          messageOnCake: l.messageOnCake,
+          instructions: l.instructions,
+          referenceImageUrl: l.referenceImageUrl,
+        })),
+      };
+    }),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  });
+});
+
 adminOrderRouter.get("/counts", requirePermission("orders.read"), async (_req, res) => {
   const grouped = await prisma.order.groupBy({
     by: ["status"],
@@ -242,18 +480,15 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
   const today = new Date();
   today.setHours(23, 59, 59, 999);
 
-  const parseDate = (value: unknown, fallback: Date) => {
-    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return fallback;
-    }
+  const parsed = analyticsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid date range", parsed.error.flatten());
+  }
 
-    const [year, month, day] = value.split("-").map(Number);
-    const parsed = new Date(year!, month! - 1, day!);
-    return Number.isNaN(parsed.getTime()) ? fallback : parsed;
-  };
-
-  const rangeFrom = parseDate(req.query.from, monthStart);
-  const rangeTo = parseDate(req.query.to, today);
+  // Defaults are month-to-date, so they depend on "now" and can't live in the
+  // schema. Both bounds get their time normalised below.
+  const rangeFrom = parsed.data.from ?? monthStart;
+  const rangeTo = parsed.data.to ?? today;
 
   if (rangeFrom > rangeTo) {
     throw HttpError.badRequest("From date must be before or equal to To date.");

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Truck, Store, Phone, ImageOff } from "lucide-react";
+import { Truck, Store, Phone, ImageOff, Building2 } from "lucide-react";
 import {
   useUpdateOrder,
   type AdminOrderListItem,
@@ -128,8 +128,14 @@ export function OrderBoardCard({
 
         <footer className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
           <div className="flex min-w-0 items-center gap-1 truncate">
-            <Phone className="h-3 w-3 shrink-0" />
-            <span className="truncate">{order.customerName}</span>
+            {order.customerCompanyName ? (
+              <Building2 className="h-3 w-3 shrink-0" />
+            ) : (
+              <Phone className="h-3 w-3 shrink-0" />
+            )}
+            <span className="truncate">
+              {order.customerCompanyName ?? order.customerName}
+            </span>
             <span className="text-slate-300">·</span>
             <a
               href={`tel:${order.customerPhone}`}
