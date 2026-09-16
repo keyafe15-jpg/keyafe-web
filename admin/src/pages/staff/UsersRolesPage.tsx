@@ -99,24 +99,22 @@ function StaffTab() {
           <div className="p-8 text-center text-sm text-slate-500">No staff users yet.</div>
         )}
         {!isLoading && users.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[780px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Name</th>
-                  <th className="px-4 py-2 font-medium">Phone</th>
-                  <th className="px-4 py-2 font-medium">Role</th>
-                  <th className="px-4 py-2 font-medium">Last login</th>
-                  <th className="w-28 px-4 py-2 text-center font-medium">Active</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {users.map((user) => (
-                  <StaffRow key={user.id} user={user} roles={roles} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <table className="w-full text-left text-sm">
+            <thead className="hidden border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase md:table-header-group">
+              <tr>
+                <th className="px-4 py-2 font-medium">Name</th>
+                <th className="px-4 py-2 font-medium">Phone</th>
+                <th className="px-4 py-2 font-medium">Role</th>
+                <th className="px-4 py-2 font-medium">Last login</th>
+                <th className="w-28 px-4 py-2 text-center font-medium">Active</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.map((user) => (
+                <StaffRow key={user.id} user={user} roles={roles} />
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
       {data && data.totalPages > 1 && (
@@ -223,43 +221,57 @@ function StaffRow({ user, roles }: { user: StaffUser; roles: StaffRole[] }) {
   const update = useUpdateStaffUser();
 
   return (
-    <tr className="hover:bg-slate-50">
-      <td className="px-4 py-3">
+    <tr className="block p-4 hover:bg-slate-50 md:table-row md:p-0">
+      <td className="block md:table-cell md:px-4 md:py-3">
         <p className="font-medium text-slate-900">{user.name}</p>
         {user.email && <p className="text-xs text-slate-500">{user.email}</p>}
       </td>
-      <td className="px-4 py-3 text-slate-700 tabular-nums">{user.phone}</td>
-      <td className="px-4 py-3">
-        <select
-          value={user.role.id}
-          disabled={update.isPending}
-          onChange={(e) => update.mutate({ id: user.id, roleId: e.target.value })}
-          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
-        >
-          {roles.map((role) => (
-            <option key={role.id} value={role.id}>
-              {role.name}
-            </option>
-          ))}
-        </select>
+      <td className="mt-2 block text-slate-700 tabular-nums md:mt-0 md:table-cell md:px-4 md:py-3">
+        <div className="flex items-center justify-between gap-2 md:justify-start">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Phone</span>
+          {user.phone}
+        </div>
       </td>
-      <td className="px-4 py-3 text-slate-500">
-        {user.lastLoginAt
-          ? new Date(user.lastLoginAt).toLocaleString("en-IN", {
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "Never"}
+      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-3">
+        <div className="flex items-center justify-between gap-2 md:justify-start">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Role</span>
+          <select
+            value={user.role.id}
+            disabled={update.isPending}
+            onChange={(e) => update.mutate({ id: user.id, roleId: e.target.value })}
+            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
+          >
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </td>
-      <td className="px-4 py-3 text-center">
-        <input
-          type="checkbox"
-          checked={user.isActive}
-          onChange={(e) => update.mutate({ id: user.id, isActive: e.target.checked })}
-          className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-        />
+      <td className="mt-2 block text-slate-500 md:mt-0 md:table-cell md:px-4 md:py-3">
+        <div className="flex items-center justify-between gap-2 md:justify-start">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Last login</span>
+          {user.lastLoginAt
+            ? new Date(user.lastLoginAt).toLocaleString("en-IN", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "Never"}
+        </div>
+      </td>
+      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
+        <label className="flex cursor-pointer items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Active</span>
+          <input
+            type="checkbox"
+            checked={user.isActive}
+            onChange={(e) => update.mutate({ id: user.id, isActive: e.target.checked })}
+            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+          />
+        </label>
       </td>
     </tr>
   );

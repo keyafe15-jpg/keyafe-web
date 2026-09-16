@@ -21,23 +21,21 @@ export function FlavoursPage() {
           <div className="p-8 text-center text-sm text-slate-500">No flavours yet.</div>
         )}
         {!isLoading && flavours.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Flavour</th>
-                  <th className="px-4 py-2 font-medium">Tags</th>
-                  <th className="w-40 px-4 py-2 text-right font-medium">Additional (₹)</th>
-                  <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {flavours.map((f) => (
-                  <FlavourRow key={f.id} flavour={f} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <table className="w-full text-left text-sm">
+            <thead className="hidden border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase md:table-header-group">
+              <tr>
+                <th className="px-4 py-2 font-medium">Flavour</th>
+                <th className="px-4 py-2 font-medium">Tags</th>
+                <th className="w-40 px-4 py-2 text-right font-medium">Additional (₹)</th>
+                <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {flavours.map((f) => (
+                <FlavourRow key={f.id} flavour={f} />
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
@@ -66,52 +64,56 @@ function FlavourRow({ flavour }: { flavour: AdminFlavour }) {
   };
 
   return (
-    <tr className="hover:bg-slate-50">
-      <td className="px-4 py-3">
+    <tr className="block p-4 hover:bg-slate-50 md:table-row md:p-0">
+      <td className="block md:table-cell md:px-4 md:py-3">
         <p className="font-medium text-slate-900">{flavour.name}</p>
         <p className="text-xs text-slate-500">/{flavour.slug}</p>
       </td>
-      <td className="px-4 py-3">
-        <div className="flex flex-wrap gap-1">
+      <td className="block md:table-cell md:px-4 md:py-3">
+        <div className="mt-2 flex flex-wrap gap-1 empty:hidden md:mt-0">
           {flavour.isEggless && <Tag label="Eggless" tone="green" />}
           {flavour.isSugarFree && <Tag label="Sugar-free" tone="brand" />}
           {flavour.isHealthy && <Tag label="Healthy" tone="emerald" />}
         </div>
       </td>
-      <td className="px-4 py-2 text-right">
-        <div className="flex items-center justify-end gap-2">
-          <div className="relative">
-            <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-slate-400">
-              +₹
-            </span>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={amount}
-              onChange={(e) => {
-                setAmount(e.target.value);
-                setDirty(true);
-              }}
-              onBlur={() => dirty && commit()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  (e.target as HTMLInputElement).blur();
-                }
-              }}
-              className={cn(
-                "w-28 rounded-md border border-slate-200 bg-white py-1.5 pr-2 pl-7 text-right text-sm text-slate-900 tabular-nums outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20",
-                error && "border-brand-500",
-              )}
-            />
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-2 md:text-right">
+        <div className="flex items-center justify-between gap-2 md:justify-end">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Additional</span>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-slate-400">
+                +₹
+              </span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={amount}
+                onChange={(e) => {
+                  setAmount(e.target.value);
+                  setDirty(true);
+                }}
+                onBlur={() => dirty && commit()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className={cn(
+                  "w-28 rounded-md border border-slate-200 bg-white py-1.5 pr-2 pl-7 text-right text-sm text-slate-900 tabular-nums outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20",
+                  error && "border-brand-500",
+                )}
+              />
+            </div>
+            {update.isPending && <span className="text-xs text-slate-400">…</span>}
           </div>
-          {update.isPending && <span className="text-xs text-slate-400">…</span>}
         </div>
         {error && <p className="mt-1 text-xs text-brand-700">{error}</p>}
       </td>
-      <td className="px-4 py-3 text-center">
-        <label className="inline-flex cursor-pointer items-center">
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
+        <label className="flex cursor-pointer items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Active</span>
           <input
             type="checkbox"
             checked={flavour.isActive}

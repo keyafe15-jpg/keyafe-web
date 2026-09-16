@@ -123,27 +123,25 @@ export function DeliveryPincodesPage() {
                 </div>
               )}
               {!isLoading && filtered.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[980px] text-left text-sm">
-                    <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
-                      <tr>
-                        <th className="px-4 py-2 font-medium">Area</th>
-                        <th className="w-28 px-4 py-2 text-right font-medium">Fee</th>
-                        <th className="w-32 px-4 py-2 text-right font-medium">Min order</th>
-                        <th className="w-32 px-4 py-2 text-center font-medium">Same day</th>
-                        <th className="w-28 px-4 py-2 text-center font-medium">Express</th>
-                        <th className="w-32 px-4 py-2 text-center font-medium">Lead</th>
-                        <th className="w-28 px-4 py-2 text-center font-medium">Active</th>
-                        <th className="w-24 px-4 py-2 text-right font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {items.map((row) => (
-                        <PincodeRow key={row.pincode} row={row} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <table className="w-full text-left text-sm">
+                  <thead className="hidden border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase md:table-header-group">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">Area</th>
+                      <th className="w-28 px-4 py-2 text-right font-medium">Fee</th>
+                      <th className="w-32 px-4 py-2 text-right font-medium">Min order</th>
+                      <th className="w-32 px-4 py-2 text-center font-medium">Same day</th>
+                      <th className="w-28 px-4 py-2 text-center font-medium">Express</th>
+                      <th className="w-32 px-4 py-2 text-center font-medium">Lead</th>
+                      <th className="w-28 px-4 py-2 text-center font-medium">Active</th>
+                      <th className="w-24 px-4 py-2 text-right font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((row) => (
+                      <PincodeRow key={row.pincode} row={row} />
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
             {!isLoading && total > 0 && (
@@ -571,8 +569,8 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
 
   if (editing) {
     return (
-      <tr className="bg-brand-50/40 align-top">
-        <td className="px-4 py-3" colSpan={8}>
+      <tr className="bg-brand-50/40 block align-top md:table-row">
+        <td className="block px-4 py-3 md:table-cell" colSpan={8}>
           <div className="grid gap-3 lg:grid-cols-6">
             <Field label="Area">
               <input
@@ -697,32 +695,56 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
   }
 
   return (
-    <tr className="hover:bg-slate-50">
-      <td className="px-4 py-3">
+    <tr className="block p-4 hover:bg-slate-50 md:table-row md:p-0">
+      <td className="block md:table-cell md:px-4 md:py-3">
         <p className="font-medium text-slate-900">{row.area || "Unnamed area"}</p>
         <p className="text-xs text-slate-500">
           {row.pincode} · {row.city} · {row.district}
         </p>
         {row.notes && <p className="mt-1 text-xs text-slate-400">{row.notes}</p>}
       </td>
-      <td className="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">
-        ₹{Number(row.deliveryFee)}
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
+        <div className="flex items-center justify-between gap-2 md:justify-end">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Fee</span>
+          <span className="font-semibold text-slate-900 tabular-nums">
+            ₹{Number(row.deliveryFee)}
+          </span>
+        </div>
       </td>
-      <td className="px-4 py-3 text-right text-slate-700 tabular-nums">
-        {row.minOrderAmount ? `₹${Number(row.minOrderAmount)}` : "—"}
+      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
+        <div className="flex items-center justify-between gap-2 md:justify-end">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Min order</span>
+          <span className="text-slate-700 tabular-nums">
+            {row.minOrderAmount ? `₹${Number(row.minOrderAmount)}` : "—"}
+          </span>
+        </div>
       </td>
-      <td className="px-4 py-3 text-center">
-        <StatusPill active={row.sameDayEligible} label={row.sameDayEligible ? "Yes" : "No"} />
+      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
+        <div className="flex items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Same day</span>
+          <StatusPill active={row.sameDayEligible} label={row.sameDayEligible ? "Yes" : "No"} />
+        </div>
       </td>
-      <td className="px-4 py-3 text-center">
-        <StatusPill active={row.expressEligible} label={row.expressEligible ? "Yes" : "No"} />
+      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
+        <div className="flex items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Express</span>
+          <StatusPill active={row.expressEligible} label={row.expressEligible ? "Yes" : "No"} />
+        </div>
       </td>
-      <td className="px-4 py-3 text-center text-slate-700 tabular-nums">+{row.extraLeadHours}h</td>
-      <td className="px-4 py-3 text-center">
-        <StatusPill active={row.isActive} label={row.isActive ? "Active" : "Off"} />
+      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
+        <div className="flex items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Lead</span>
+          <span className="text-slate-700 tabular-nums">+{row.extraLeadHours}h</span>
+        </div>
       </td>
-      <td className="px-4 py-3 text-right">
-        <div className="inline-flex gap-1">
+      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
+        <div className="flex items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Active</span>
+          <StatusPill active={row.isActive} label={row.isActive ? "Active" : "Off"} />
+        </div>
+      </td>
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
+        <div className="flex gap-1 md:inline-flex">
           <button
             type="button"
             onClick={() => setEditing(true)}

@@ -93,65 +93,117 @@ export function ProductsListPage() {
                 Updating results…
               </div>
             )}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[780px] text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
-                  <tr>
-                    <th className="px-4 py-2 font-medium">Product</th>
-                    <th className="px-4 py-2 font-medium">Category</th>
-                    <th className="px-4 py-2 text-right font-medium">Price</th>
-                    <th className="px-4 py-2 font-medium">Type</th>
-                    <th className="px-4 py-2 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {products.map((p) => (
-                    <tr
-                      key={p.id}
-                      onClick={() => navigate(`/products/${p.id}`)}
-                      className="cursor-pointer hover:bg-slate-50"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {p.images[0] ? (
-                            <img
-                              src={p.images[0]}
-                              alt=""
-                              className="h-10 w-10 shrink-0 rounded-md object-cover"
-                            />
-                          ) : (
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
-                              <ImageOff className="h-4 w-4" />
-                            </span>
-                          )}
-                          <div className="min-w-0">
-                            <p className="truncate font-medium text-slate-900">{p.name}</p>
-                            <p className="truncate text-xs text-slate-500">/{p.slug}</p>
-                          </div>
+            <table className="hidden w-full text-left text-sm md:table">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Product</th>
+                  <th className="px-4 py-2 font-medium">Category</th>
+                  <th className="px-4 py-2 text-right font-medium">Price</th>
+                  <th className="px-4 py-2 font-medium">Type</th>
+                  <th className="px-4 py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {products.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => navigate(`/products/${p.id}`)}
+                    className="cursor-pointer hover:bg-slate-50"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {p.images[0] ? (
+                          <img
+                            src={p.images[0]}
+                            alt=""
+                            className="h-10 w-10 shrink-0 rounded-md object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
+                            <ImageOff className="h-4 w-4" />
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-slate-900">{p.name}</p>
+                          <p className="truncate text-xs text-slate-500">/{p.slug}</p>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {p.categories.map((c) => c.name).join(" · ") || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium tabular-nums">
-                        <PriceCell priceMin={p.priceMin} priceMax={p.priceMax} />
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-500">
-                        {p.productType === "CONFIGURABLE" ? "Configurable" : "Variants"}
-                      </td>
-                      <td className="px-4 py-3">
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {p.categories.map((c) => c.name).join(" · ") || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums">
+                      <PriceCell priceMin={p.priceMin} priceMax={p.priceMax} />
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">
+                      {p.productType === "CONFIGURABLE" ? "Configurable" : "Variants"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadges
+                        productId={p.id}
+                        isActive={p.isActive}
+                        isAvailable={p.isAvailable}
+                        isFeatured={p.isFeatured}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {products.map((p) => (
+                <li
+                  key={p.id}
+                  className="relative px-4 py-3 transition focus-within:bg-slate-50 hover:bg-slate-50"
+                >
+                  {/* Covers the whole row so tapping anywhere opens the product,
+                      while the stock toggle re-enables its own pointer events. */}
+                  <Link
+                    to={`/products/${p.id}`}
+                    className="absolute inset-0"
+                    aria-label={`Open ${p.name}`}
+                  />
+                  <div className="pointer-events-none relative flex items-start gap-3">
+                    {p.images[0] ? (
+                      <img
+                        src={p.images[0]}
+                        alt=""
+                        className="h-12 w-12 shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
+                        <ImageOff className="h-4 w-4" />
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="truncate font-medium text-slate-900">{p.name}</p>
+                        <span className="shrink-0 text-sm font-semibold text-slate-900 tabular-nums">
+                          <PriceCell priceMin={p.priceMin} priceMax={p.priceMax} />
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-slate-500">/{p.slug}</p>
+                      <p className="mt-1 truncate text-xs text-slate-600">
+                        {p.categories.map((c) => c.name).join(" · ") || "Uncategorised"}
+                      </p>
+                      <div className="pointer-events-auto mt-2 flex flex-wrap items-center gap-1">
                         <StatusBadges
                           productId={p.id}
                           isActive={p.isActive}
                           isAvailable={p.isAvailable}
                           isFeatured={p.isFeatured}
                         />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        <span className="text-[10px] text-slate-400">
+                          {p.productType === "CONFIGURABLE" ? "Configurable" : "Variants"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
             <PaginationControls
               page={data?.page ?? 1}
               pageCount={data?.totalPages ?? 1}

@@ -66,25 +66,26 @@ export function CakeSizesPage() {
       <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
         {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[780px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
-                <tr>
-                  <th className="w-32 px-4 py-2 font-medium">Grams</th>
-                  <th className="px-4 py-2 font-medium">Label</th>
-                  <th className="px-4 py-2 font-medium">Serves</th>
-                  <th className="w-24 px-4 py-2 text-center font-medium">Sort</th>
-                  <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
-                  <th className="w-16 px-4 py-2" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sizes.map((s) => (
-                  <SizeRow key={s.id} size={s} />
-                ))}
-                {adding && (
-                  <tr className="bg-slate-50/60">
-                    <td className="px-4 py-2">
+          <table className="w-full text-left text-sm">
+            <thead className="hidden border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase md:table-header-group">
+              <tr>
+                <th className="w-32 px-4 py-2 font-medium">Grams</th>
+                <th className="px-4 py-2 font-medium">Label</th>
+                <th className="px-4 py-2 font-medium">Serves</th>
+                <th className="w-24 px-4 py-2 text-center font-medium">Sort</th>
+                <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
+                <th className="w-16 px-4 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {sizes.map((s) => (
+                <SizeRow key={s.id} size={s} />
+              ))}
+              {adding && (
+                <tr className="block bg-slate-50/60 p-4 md:table-row md:p-0">
+                  <td className="block md:table-cell md:px-4 md:py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-500 md:hidden">Grams</span>
                       <input
                         type="number"
                         step="1"
@@ -94,49 +95,55 @@ export function CakeSizesPage() {
                         placeholder="500"
                         className={inputClass}
                       />
-                    </td>
-                    <td className="px-4 py-2">
+                    </div>
+                  </td>
+                  <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-500 md:hidden">Label</span>
                       <input
                         value={newSize.label}
                         onChange={(e) => setNewSize({ ...newSize, label: e.target.value })}
                         placeholder="1 pound"
                         className={inputClass}
                       />
-                    </td>
-                    <td className="px-4 py-2">
+                    </div>
+                  </td>
+                  <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-500 md:hidden">Serves</span>
                       <input
                         value={newSize.servesText}
                         onChange={(e) => setNewSize({ ...newSize, servesText: e.target.value })}
                         placeholder="Serves 4–6"
                         className={inputClass}
                       />
-                    </td>
-                    <td className="px-4 py-2" colSpan={2}>
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => {
-                            setAdding(false);
-                            setError(null);
-                          }}
-                          className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-white"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={submitNew}
-                          disabled={createSize.isPending}
-                          className="rounded-md bg-brand-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-                        >
-                          {createSize.isPending ? "Saving…" : "Save"}
-                        </button>
-                      </div>
-                    </td>
-                    <td />
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </td>
+                  <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-2" colSpan={2}>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setAdding(false);
+                          setError(null);
+                        }}
+                        className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={submitNew}
+                        disabled={createSize.isPending}
+                        className="rounded-md bg-brand-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+                      >
+                        {createSize.isPending ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  </td>
+                  <td className="hidden md:table-cell" />
+                </tr>
+              )}
+            </tbody>
+          </table>
         )}
         {error && (
           <p className="border-t border-slate-100 px-4 py-2 text-xs text-brand-700">{error}</p>
@@ -163,56 +170,73 @@ function SizeRow({ size }: { size: CakeSize }) {
   ) => update.mutate({ id: size.id, ...body });
 
   return (
-    <tr className="hover:bg-slate-50">
-      <td className="px-4 py-3 font-medium text-slate-900 tabular-nums">{size.grams} g</td>
-      <td className="px-4 py-2">
-        <input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          onBlur={() => label !== size.label && patch({ label })}
-          className={inputClass}
-        />
+    <tr className="block p-4 hover:bg-slate-50 md:table-row md:p-0">
+      <td className="block font-medium text-slate-900 tabular-nums md:table-cell md:px-4 md:py-3">
+        {size.grams} g
       </td>
-      <td className="px-4 py-2">
-        <input
-          value={servesText}
-          onChange={(e) => setServesText(e.target.value)}
-          onBlur={() =>
-            (servesText || "") !== (size.servesText ?? "") &&
-            patch({ servesText: servesText || null })
-          }
-          className={inputClass}
-        />
+      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Label</span>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            onBlur={() => label !== size.label && patch({ label })}
+            className={inputClass}
+          />
+        </div>
       </td>
-      <td className="px-4 py-2 text-center">
-        <input
-          type="number"
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value)}
-          onBlur={() =>
-            Number(sortOrder) !== size.sortOrder && patch({ sortOrder: Number(sortOrder) })
-          }
-          className={cn(inputClass, "w-16 text-center")}
-        />
+      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Serves</span>
+          <input
+            value={servesText}
+            onChange={(e) => setServesText(e.target.value)}
+            onBlur={() =>
+              (servesText || "") !== (size.servesText ?? "") &&
+              patch({ servesText: servesText || null })
+            }
+            className={inputClass}
+          />
+        </div>
       </td>
-      <td className="px-4 py-3 text-center">
-        <input
-          type="checkbox"
-          checked={size.isActive}
-          onChange={(e) => patch({ isActive: e.target.checked })}
-          className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-        />
+      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-2 md:text-center">
+        <div className="flex items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Sort</span>
+          <input
+            type="number"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            onBlur={() =>
+              Number(sortOrder) !== size.sortOrder && patch({ sortOrder: Number(sortOrder) })
+            }
+            className={cn(inputClass, "w-16 text-center")}
+          />
+        </div>
       </td>
-      <td className="px-4 py-3 text-right">
-        <button
-          onClick={() => {
-            if (confirm(`Delete "${size.label}"?`)) del.mutate(size.id);
-          }}
-          className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-500"
-          title="Delete"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
+        <label className="flex cursor-pointer items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Active</span>
+          <input
+            type="checkbox"
+            checked={size.isActive}
+            onChange={(e) => patch({ isActive: e.target.checked })}
+            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+          />
+        </label>
+      </td>
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
+        <div className="flex items-center justify-between gap-2 md:justify-end">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Delete</span>
+          <button
+            onClick={() => {
+              if (confirm(`Delete "${size.label}"?`)) del.mutate(size.id);
+            }}
+            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-500"
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </td>
     </tr>
   );

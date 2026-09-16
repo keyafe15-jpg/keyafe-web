@@ -46,28 +46,23 @@ export function DepartmentsPage() {
           </div>
         )}
         {!isLoading && stores.length > 0 && (
-          // Six columns of editable controls can't fit a phone, so the table
-          // scrolls inside the card rather than being clipped by its
-          // overflow-hidden corners.
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Store</th>
-                  <th className="px-4 py-2 font-medium">Shopfront</th>
-                  <th className="w-24 px-4 py-2 font-medium">Sort</th>
-                  <th className="w-24 px-4 py-2 font-medium">Active</th>
-                  <th className="w-28 px-4 py-2 text-right font-medium">Categories</th>
-                  <th className="w-12 px-4 py-2" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {stores.map((store) => (
-                  <StoreRow key={store.id} store={store} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <table className="w-full text-left text-sm">
+            <thead className="hidden border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase md:table-header-group">
+              <tr>
+                <th className="px-4 py-2 font-medium">Store</th>
+                <th className="px-4 py-2 font-medium">Shopfront</th>
+                <th className="w-24 px-4 py-2 font-medium">Sort</th>
+                <th className="w-24 px-4 py-2 font-medium">Active</th>
+                <th className="w-28 px-4 py-2 text-right font-medium">Categories</th>
+                <th className="w-12 px-4 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {stores.map((store) => (
+                <StoreRow key={store.id} store={store} />
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
@@ -208,8 +203,8 @@ function StoreRow({ store }: { store: AdminDepartment }) {
   };
 
   return (
-    <tr className="hover:bg-slate-50">
-      <td className="px-4 py-3">
+    <tr className="block p-4 hover:bg-slate-50 md:table-row md:p-0">
+      <td className="block md:table-cell md:px-4 md:py-3">
         <input
           value={name}
           onChange={(e) => {
@@ -227,77 +222,94 @@ function StoreRow({ store }: { store: AdminDepartment }) {
         />
         <p className="text-xs text-slate-500">/{store.slug}</p>
       </td>
-      <td className="px-4 py-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <ColorPicker
-            label="Accent"
-            value={accentHex}
-            onChange={(hex) => {
-              setAccentHex(hex);
-              setColorsDirty(true);
-            }}
-            onCommit={() => void commitColors()}
-          />
-          <ColorPicker
-            label="Soft"
-            value={softHex}
-            onChange={(hex) => {
-              setSoftHex(hex);
-              setColorsDirty(true);
-            }}
-            onCommit={() => void commitColors()}
-          />
-          <ColorPicker
-            label="Deep"
-            value={deepHex}
-            onChange={(hex) => {
-              setDeepHex(hex);
-              setColorsDirty(true);
-            }}
-            onCommit={() => void commitColors()}
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Shopfront</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <ColorPicker
+              label="Accent"
+              value={accentHex}
+              onChange={(hex) => {
+                setAccentHex(hex);
+                setColorsDirty(true);
+              }}
+              onCommit={() => void commitColors()}
+            />
+            <ColorPicker
+              label="Soft"
+              value={softHex}
+              onChange={(hex) => {
+                setSoftHex(hex);
+                setColorsDirty(true);
+              }}
+              onCommit={() => void commitColors()}
+            />
+            <ColorPicker
+              label="Deep"
+              value={deepHex}
+              onChange={(hex) => {
+                setDeepHex(hex);
+                setColorsDirty(true);
+              }}
+              onCommit={() => void commitColors()}
+            />
+          </div>
+        </div>
+      </td>
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Sort</span>
+          <input
+            type="number"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            onBlur={() => void commitSort()}
+            className={cn(inputClass, "w-20 py-1.5 text-center text-xs")}
           />
         </div>
       </td>
-      <td className="px-4 py-3">
-        <input
-          type="number"
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value)}
-          onBlur={() => void commitSort()}
-          className={cn(inputClass, "w-20 py-1.5 text-center text-xs")}
-        />
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3">
+        <label className="flex cursor-pointer items-center justify-between gap-2">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Active</span>
+          <input
+            type="checkbox"
+            checked={store.isActive}
+            onChange={(e) => update.mutate({ id: store.id, isActive: e.target.checked })}
+            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+          />
+        </label>
       </td>
-      <td className="px-4 py-3">
-        <input
-          type="checkbox"
-          checked={store.isActive}
-          onChange={(e) => update.mutate({ id: store.id, isActive: e.target.checked })}
-          className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-        />
+      <td className="mt-3 block text-slate-600 tabular-nums md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
+        <div className="flex items-center justify-between gap-2 md:justify-end">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Categories</span>
+          {store.categoryCount}
+        </div>
       </td>
-      <td className="px-4 py-3 text-right text-slate-600 tabular-nums">{store.categoryCount}</td>
-      <td className="px-4 py-3 text-right">
-        <button
-          type="button"
-          title="Delete"
-          onClick={() => {
-            if (
-              confirm(
-                store.categoryCount > 0
-                  ? `"${store.name}" still has ${store.categoryCount} categor${store.categoryCount === 1 ? "y" : "ies"}. Move them first.`
-                  : `Delete "${store.name}"?`,
-              )
-            ) {
-              if (store.categoryCount > 0) return;
-              del.mutate(store.id, {
-                onError: (err) => alert(err instanceof Error ? err.message : "Delete failed"),
-              });
-            }
-          }}
-          className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-brand-500 hover:text-brand-500"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
+        <div className="flex items-center justify-between gap-2 md:justify-end">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Delete</span>
+          <button
+            type="button"
+            title="Delete"
+            onClick={() => {
+              if (
+                confirm(
+                  store.categoryCount > 0
+                    ? `"${store.name}" still has ${store.categoryCount} categor${store.categoryCount === 1 ? "y" : "ies"}. Move them first.`
+                    : `Delete "${store.name}"?`,
+                )
+              ) {
+                if (store.categoryCount > 0) return;
+                del.mutate(store.id, {
+                  onError: (err) => alert(err instanceof Error ? err.message : "Delete failed"),
+                });
+              }
+            }}
+            className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-brand-500 hover:text-brand-500"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </td>
     </tr>
   );
