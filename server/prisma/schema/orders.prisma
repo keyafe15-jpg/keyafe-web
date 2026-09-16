@@ -47,6 +47,11 @@ model Order {
   customerPhone String
   customerEmail String?
 
+  // Buyer GST details, captured when the customer bills to a business so they
+  // can claim input tax credit. Both null on ordinary B2C orders.
+  customerCompanyName String?
+  customerGstin       String?
+
   // Fulfillment
   fulfillment       OrderFulfillment
   // Snapshotted delivery address; null for pickup. Shape: { line1, line2?, landmark?, pincode, city, area?, state, stateCode }
@@ -67,6 +72,15 @@ model Order {
   cgstAmount    Decimal @default(0) @db.Decimal(10, 2)
   sgstAmount    Decimal @default(0) @db.Decimal(10, 2)
   igstAmount    Decimal @default(0) @db.Decimal(10, 2)
+
+  // State code the CGST+SGST vs IGST split was decided against — the delivery
+  // state for shipped orders, the seller's own state for pickup.
+  placeOfSupply String?
+
+  // Tax invoice snapshot. Assigned lazily on first download/email so pending
+  // and cancelled orders never burn a number out of the FY series.
+  invoiceNumber String?   @unique
+  invoiceDate   DateTime?
 
   // Payment (simple stub until Razorpay lands)
   paymentMethod String        @default("cod") // "cod" | "upi" | "razorpay"
@@ -129,6 +143,17 @@ model OrderItem {
   unitPrice Decimal @db.Decimal(10, 2)
   qty       Int
   lineTotal Decimal @db.Decimal(10, 2)
+
+  // Per-line tax snapshot. A GST tax invoice needs an HSN rate-wise summary,
+  // which cannot be rebuilt from the order-level totals alone. `hsnCode`,
+  // `gstRate` and `taxableValue` stay null on orders placed before invoicing
+  // existed, so the invoice falls back to one consolidated line for those.
+  hsnCode      String?
+  gstRate      Decimal? @db.Decimal(5, 2)
+  taxableValue Decimal? @db.Decimal(10, 2)
+  cgstAmount   Decimal  @default(0) @db.Decimal(10, 2)
+  sgstAmount   Decimal  @default(0) @db.Decimal(10, 2)
+  igstAmount   Decimal  @default(0) @db.Decimal(10, 2)
 
   createdAt DateTime @default(now())
 

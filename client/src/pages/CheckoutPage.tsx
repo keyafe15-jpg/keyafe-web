@@ -11,8 +11,12 @@ import {
   type PincodeCheckResult,
 } from "@/hooks/usePincodeCheck";
 import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
+import { StateSelect } from "@/components/address/StateSelect";
+import { BusinessGstFields } from "@/components/checkout/BusinessGstFields";
+import { gstinIssue } from "@/lib/gstin";
 import { PRODUCT_COPY } from "@/content/product";
 import { cn } from "@/lib/cn";
+import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
 
@@ -45,6 +49,11 @@ export function CheckoutPage() {
   const [landmark, setLandmark] = useState("");
   const [mapSearchQuery, setMapSearchQuery] = useState("");
   const [pincode, setPincode] = useState("");
+  // Only collected for pan-India carts; local zones are all West Bengal.
+  const [stateCode, setStateCode] = useState("");
+  const [isBusinessOrder, setIsBusinessOrder] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [gstin, setGstin] = useState("");
   const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(
     null,
   );
@@ -96,6 +105,7 @@ export function CheckoutPage() {
     setLine2(address.line2 ?? "");
     setLandmark(address.landmark ?? "");
     setPincode(address.pincode);
+    setStateCode(address.stateCode ?? "");
     setMapSearchQuery(`${address.line1}, ${address.city}, ${address.pincode}`);
   };
 
@@ -104,6 +114,14 @@ export function CheckoutPage() {
   const hasOnlyPanIndiaItems =
     lines.length > 0 && lines.every((l) => l.isPanIndia);
   const scheduledLines = lines.filter((l) => !l.isPanIndia);
+
+  // Place of supply. Local delivery zones are all inside West Bengal, so only
+  // courier carts have to ask — and they must, since the state is what decides
+  // CGST + SGST versus IGST on the invoice.
+  const effectiveStateCode = hasOnlyPanIndiaItems
+    ? stateCode
+    : WEST_BENGAL_CODE;
+  const effectiveStateName = stateNameFromCode(effectiveStateCode);
   const missingSchedule = scheduledLines.some((l) => !l.date || !l.slotKey);
   // Recompute against a live tick so the "past slot" state flips right as it expires.
   const [now, setNow] = useState(() => new Date());
@@ -155,6 +173,12 @@ export function CheckoutPage() {
     if (!PHONE_RE.test(phone.trim())) e.phone = "Enter a valid phone";
     if (email.trim() && !EMAIL_RE.test(email.trim()))
       e.email = "Enter a valid email";
+    if (isBusinessOrder) {
+      if (companyName.trim().length < 2)
+        e.companyName = "Enter the registered business name";
+      const issue = gstinIssue(gstin);
+      if (issue) e.gstin = issue;
+    }
     if (missingSchedule)
       e.schedule =
         "Each item needs a delivery date. Set it on the product page.";
@@ -175,6 +199,8 @@ export function CheckoutPage() {
       //     "We may still deliver here, please call or WhatsApp us to confirm";
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
+      if (hasOnlyPanIndiaItems && !stateCode)
+        e.stateCode = "Select the delivery state";
     }
     return e;
   }, [
@@ -191,6 +217,10 @@ export function CheckoutPage() {
     pincodeResult,
     mapSearchQuery,
     hasOnlyPanIndiaItems,
+    stateCode,
+    isBusinessOrder,
+    companyName,
+    gstin,
   ]);
   const isValid = Object.keys(errors).length === 0 && lines.length > 0;
 
@@ -229,8 +259,8 @@ export function CheckoutPage() {
       landmark: landmark.trim() || undefined,
       mapSearchQuery: mapSearchQuery.trim(),
       city: pincodeResult?.serviceable ? pincodeResult.city : "Kolkata",
-      state: "West Bengal",
-      stateCode: "19",
+      state: effectiveStateName ?? "West Bengal",
+      stateCode: effectiveStateCode || WEST_BENGAL_CODE,
       pincode: pincode.trim(),
       isDefault: savedAddresses.length === 0,
     });
@@ -254,6 +284,8 @@ export function CheckoutPage() {
         customerName: name.trim(),
         customerPhone: phone.trim(),
         customerEmail: email.trim() || null,
+        customerCompanyName: isBusinessOrder ? companyName.trim() : null,
+        customerGstin: isBusinessOrder ? gstin : null,
         fulfillment,
         deliveryAddress:
           fulfillment === "DELIVERY"
@@ -265,8 +297,8 @@ export function CheckoutPage() {
                 pincode,
                 city: pincodeResult?.serviceable ? pincodeResult.city : null,
                 area: pincodeResult?.serviceable ? pincodeResult.area : null,
-                state: "West Bengal",
-                stateCode: "19",
+                state: effectiveStateName,
+                stateCode: effectiveStateCode,
               }
             : null,
         customerNotes: notes.trim() || null,
@@ -357,6 +389,16 @@ export function CheckoutPage() {
                   placeholder="you@example.com"
                 />
               </Field>
+              <BusinessGstFields
+                enabled={isBusinessOrder}
+                onEnabledChange={setIsBusinessOrder}
+                companyName={companyName}
+                onCompanyNameChange={setCompanyName}
+                gstin={gstin}
+                onGstinChange={setGstin}
+                companyError={errors.companyName}
+                gstinError={errors.gstin}
+              />
             </div>
           </FormCard>
 
@@ -474,6 +516,7 @@ export function CheckoutPage() {
                       onPlaceSelect={(place) => {
                         if (place.line1) setLine1(place.line1);
                         if (place.pincode) setPincode(place.pincode);
+                        if (place.stateCode) setStateCode(place.stateCode);
                       }}
                     />
                   </Field>
@@ -506,6 +549,17 @@ export function CheckoutPage() {
                       placeholder="Near the metro station"
                     />
                   </Field>
+
+                  {hasOnlyPanIndiaItems && (
+                    <Field
+                      label="State"
+                      required
+                      error={errors.stateCode}
+                      hint="Needed for courier delivery and your invoice"
+                    >
+                      <StateSelect value={stateCode} onChange={setStateCode} />
+                    </Field>
+                  )}
                   
 
                   {user && (
@@ -618,6 +672,20 @@ export function CheckoutPage() {
                         />
                       </Field>
 
+                      {hasOnlyPanIndiaItems && (
+                        <Field
+                          label="State"
+                          required
+                          error={errors.stateCode}
+                          hint="Needed for courier delivery and your invoice"
+                        >
+                          <StateSelect
+                            value={stateCode}
+                            onChange={setStateCode}
+                          />
+                        </Field>
+                      )}
+
                       <Field
                         label="Find your address"
                         required
@@ -631,6 +699,7 @@ export function CheckoutPage() {
                           onPlaceSelect={(place) => {
                             if (place.line1) setLine1(place.line1);
                             if (place.pincode) setPincode(place.pincode);
+                            if (place.stateCode) setStateCode(place.stateCode);
                           }}
                         />
                       </Field>

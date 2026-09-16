@@ -18,10 +18,19 @@ function csvNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+// `gstin` and the registered address lines are deliberately left blank here.
+// They appear on every tax invoice, so they are owned by the admin (Settings →
+// Business & GST) rather than committed to the repo. Until a GSTIN is saved,
+// invoices render as a plain "Invoice" instead of a "Tax Invoice".
 async function seedBusinessSettings() {
   const existing = await prisma.businessSettings.findFirst();
   if (existing) {
     logger.info("BusinessSettings already exists — skipping");
+    if (!existing.gstin) {
+      logger.warn(
+        "BusinessSettings.gstin is not set — tax invoices will render as plain invoices until it is filled in from Admin → Settings",
+      );
+    }
     return existing;
   }
 
@@ -42,6 +51,9 @@ async function seedBusinessSettings() {
     },
   });
   logger.info(`Created BusinessSettings ${created.id}`);
+  logger.warn(
+    "Set legalName, gstin and registeredAddress from Admin → Settings before issuing any tax invoice",
+  );
   return created;
 }
 

@@ -10,9 +10,12 @@ import { uploadImage } from "@/lib/uploads";
 import { usePaymentInfo } from "@/hooks/usePaymentInfo";
 import { buildUpiUri } from "@/lib/upi";
 import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
+import { BusinessGstFields } from "@/components/checkout/BusinessGstFields";
+import { gstinIssue } from "@/lib/gstin";
 import { UpiQrCode } from "@/components/UpiQrCode";
 import { cn } from "@/lib/cn";
 import { manualDiscountRupees } from "@/lib/manualDiscount";
+import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
 type PayChoice = "FULL" | "ADVANCE" | "COD";
@@ -92,6 +95,9 @@ function LinkForm({
   const [name, setName] = useState(link.customerName ?? "");
   const [phone, setPhone] = useState(link.customerPhone ?? "");
   const [email, setEmail] = useState("");
+  const [isBusinessOrder, setIsBusinessOrder] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [gstin, setGstin] = useState("");
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
   const [landmark, setLandmark] = useState("");
@@ -186,6 +192,12 @@ function LinkForm({
     if (!PHONE_RE.test(phone.trim())) e.phone = "Enter a valid phone";
     if (email.trim() && !EMAIL_RE.test(email.trim()))
       e.email = "Enter a valid email";
+    if (isBusinessOrder) {
+      if (companyName.trim().length < 2)
+        e.companyName = "Enter the registered business name";
+      const issue = gstinIssue(gstin);
+      if (issue) e.gstin = issue;
+    }
     if (!date) e.date = "Pick a delivery date";
     if (fulfillment === "DELIVERY") {
       if (line1.trim().length < 3) e.line1 = "Street address is required";
@@ -210,6 +222,9 @@ function LinkForm({
     name,
     phone,
     email,
+    isBusinessOrder,
+    companyName,
+    gstin,
     date,
     fulfillment,
     line1,
@@ -240,6 +255,8 @@ function LinkForm({
         customerName: name.trim(),
         customerPhone: phone.trim(),
         customerEmail: email.trim() || null,
+        customerCompanyName: isBusinessOrder ? companyName.trim() : null,
+        customerGstin: isBusinessOrder ? gstin : null,
         fulfillment,
         deliveryAddress:
           fulfillment === "DELIVERY"
@@ -251,8 +268,10 @@ function LinkForm({
                 pincode,
                 city: pincodeResult?.serviceable ? pincodeResult.city : null,
                 area: pincodeResult?.serviceable ? pincodeResult.area : null,
-                state: "West Bengal",
-                stateCode: "19",
+                // Order links are local-delivery only, so the place of supply
+                // is always the seller's own state.
+                state: stateNameFromCode(WEST_BENGAL_CODE),
+                stateCode: WEST_BENGAL_CODE,
               }
             : null,
         deliveryDate: date,
@@ -391,6 +410,16 @@ function LinkForm({
                 placeholder="you@example.com"
               />
             </Field>
+            <BusinessGstFields
+              enabled={isBusinessOrder}
+              onEnabledChange={setIsBusinessOrder}
+              companyName={companyName}
+              onCompanyNameChange={setCompanyName}
+              gstin={gstin}
+              onGstinChange={setGstin}
+              companyError={errors.companyName}
+              gstinError={errors.gstin}
+            />
           </div>
         </Section>
 

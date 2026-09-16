@@ -18,6 +18,13 @@ import {
   redeemCouponInTx,
 } from "../coupons/coupon.service.js";
 import { ensureCustomerForOrder } from "../customers/customer.service.js";
+import {
+  computeLineTax,
+  getSellerStateCode,
+  resolvePlaceOfSupply,
+  sumLineTax,
+} from "./order.tax.js";
+import { buyerGstFields } from "../../lib/gstin.js";
 
 const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
 
@@ -60,6 +67,7 @@ export const createOrderSchema = z.object({
     .trim()
     .regex(/^[0-9+\-\s]{7,15}$/, "Enter a valid phone number"),
   customerEmail: z.string().email().trim().optional().nullable(),
+  ...buyerGstFields,
 
   fulfillment: z.enum(["DELIVERY", "PICKUP"]),
   deliveryAddress: addressSchema.optional().nullable(),
@@ -118,6 +126,7 @@ export async function createOrder(input: CreateOrderInput) {
       isActive: true,
       isAvailable: true,
       gstRate: true,
+      hsnCode: true,
       priceIsGstInclusive: true,
       canBeDeliveredPanIndia: true,
       categoryLinks: { select: { categoryId: true } },
@@ -142,6 +151,9 @@ export async function createOrder(input: CreateOrderInput) {
   // Local cakes stay zone-restricted. Courier-only carts can ship anywhere
   // in India (still need a 6-digit pincode on the address).
   let deliveryFee = 0;
+  // A serviceable local pincode is by definition inside the seller's state,
+  // which lets GST resolve even when the address carries no state.
+  let isLocalZone = false;
   if (input.fulfillment === "DELIVERY" && input.deliveryAddress) {
     if (allPanIndia) {
       deliveryFee = 0;
@@ -153,6 +165,7 @@ export async function createOrder(input: CreateOrderInput) {
         );
       }
       deliveryFee = Number(info.deliveryFee);
+      isLocalZone = true;
     }
   }
 
@@ -193,30 +206,29 @@ export async function createOrder(input: CreateOrderInput) {
 
   const total = subtotal - discount + deliveryFee;
 
-  // GST breakup — per item to respect different HSN rates, then aggregated
-  // and split into CGST+SGST (intra-state, i.e. West Bengal) or IGST (other).
-  const BUSINESS_STATE_CODE = "19";
-  let taxableAmount = 0;
-  let gstAmount = 0;
-  input.items.forEach((i, idx) => {
-    const p = productMap.get(i.productId)!;
-    const rate = Number(p.gstRate);
-    const lineIncl = lineInclusives[idx] ?? i.unitPrice * i.qty;
-    if (p.priceIsGstInclusive) {
-      const base = lineIncl / (1 + rate / 100);
-      taxableAmount += base;
-      gstAmount += lineIncl - base;
-    } else {
-      taxableAmount += lineIncl;
-      gstAmount += lineIncl * (rate / 100);
-    }
+  // GST breakup — computed per line so the tax invoice can rebuild an HSN
+  // rate-wise summary, then aggregated. Delivery inside the seller's state
+  // (and every pickup) is CGST + SGST; anywhere else is IGST.
+  const sellerStateCode = await getSellerStateCode();
+  const placeOfSupply = resolvePlaceOfSupply({
+    fulfillment: input.fulfillment,
+    deliveryAddress: input.deliveryAddress,
+    sellerStateCode,
+    localZoneStateCode: isLocalZone ? sellerStateCode : null,
   });
-  const isIntraState =
-    input.fulfillment === "PICKUP" ||
-    input.deliveryAddress?.stateCode === BUSINESS_STATE_CODE;
-  const cgstAmount = isIntraState ? gstAmount / 2 : 0;
-  const sgstAmount = isIntraState ? gstAmount / 2 : 0;
-  const igstAmount = isIntraState ? 0 : gstAmount;
+  const isIntraState = placeOfSupply === sellerStateCode;
+
+  const lineTaxes = input.items.map((i, idx) => {
+    const p = productMap.get(i.productId)!;
+    return computeLineTax({
+      lineInclusive: lineInclusives[idx] ?? i.unitPrice * i.qty,
+      gstRate: Number(p.gstRate),
+      priceIsGstInclusive: p.priceIsGstInclusive,
+      isIntraState,
+    });
+  });
+  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } =
+    sumLineTax(lineTaxes);
 
   const orderNumber = buildOrderNumber();
 
@@ -235,6 +247,8 @@ export async function createOrder(input: CreateOrderInput) {
         customerName: input.customerName,
         customerPhone: input.customerPhone,
         customerEmail: input.customerEmail ?? null,
+        customerCompanyName: input.customerCompanyName ?? null,
+        customerGstin: input.customerGstin ?? null,
         fulfillment: input.fulfillment,
         deliveryAddress: input.deliveryAddress ?? undefined,
         subtotal,
@@ -246,12 +260,14 @@ export async function createOrder(input: CreateOrderInput) {
         cgstAmount,
         sgstAmount,
         igstAmount,
+        placeOfSupply,
         paymentMethod: input.paymentMethod,
         source: "STOREFRONT",
         customerNotes: input.customerNotes ?? null,
         items: {
-          create: input.items.map((i) => {
+          create: input.items.map((i, idx) => {
             const p = productMap.get(i.productId)!;
+            const tax = lineTaxes[idx]!;
             return {
               productId: p.id,
               productName: p.name,
@@ -269,6 +285,12 @@ export async function createOrder(input: CreateOrderInput) {
               unitPrice: i.unitPrice,
               qty: i.qty,
               lineTotal: i.unitPrice * i.qty,
+              hsnCode: p.hsnCode,
+              gstRate: p.gstRate,
+              taxableValue: tax.taxableValue,
+              cgstAmount: tax.cgstAmount,
+              sgstAmount: tax.sgstAmount,
+              igstAmount: tax.igstAmount,
             };
           }),
         },

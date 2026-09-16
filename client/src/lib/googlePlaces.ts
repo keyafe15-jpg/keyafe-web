@@ -1,4 +1,5 @@
 import { importLibrary, setOptions } from "@googlemaps/js-api-loader";
+import { stateCodeFromName, stateNameFromCode } from "./indiaStates";
 
 /** Bias Places results toward Greater Kolkata / Belur. */
 export const KOLKATA_CENTER = { lat: 22.629, lng: 88.341 };
@@ -76,9 +77,11 @@ export function parsePlace(place: google.maps.places.Place): ParsedPlace {
     component(components, "administrative_area_level_2") ||
     "Kolkata";
 
-  const state =
-    component(components, "administrative_area_level_1") || "West Bengal";
-  const stateCode = "19";
+  // The state drives the GST split (CGST+SGST vs IGST), so keep whatever
+  // Google returned rather than assuming West Bengal, and resolve its code.
+  const rawState = component(components, "administrative_area_level_1");
+  const stateCode = stateCodeFromName(rawState) ?? "";
+  const state = stateNameFromCode(stateCode) ?? rawState;
 
   const pincode = component(components, "postal_code").replace(/\D/g, "").slice(0, 6);
 

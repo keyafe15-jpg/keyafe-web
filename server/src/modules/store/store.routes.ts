@@ -2,6 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
+import { gstinIssue, gstinStateCode, normalizeGstin } from "../../lib/gstin.js";
+import { FALLBACK_SELLER_STATE_CODE } from "../orders/order.tax.js";
 import { computeSameDayStatus, getStoreHours, updateStoreHours, updateStoreHoursSchema, listUpcomingClosures, createShopClosure, createClosureSchema, deleteShopClosure } from "./store.service.js";
 
 export const storeRouter = Router();
@@ -72,7 +74,8 @@ storeRouter.get("/payment-info", async (_req, res) => {
   });
 });
 
-// TODO: gate behind requireAuth + requirePermission("settings.update") once auth lands.
+// adminBusinessRouter is mounted in app.ts behind requireStaff +
+// requirePermission("settings.update"), so handlers here assume staff access.
 const businessUpiSchema = z.object({
   upiId: z.string().trim().min(3).nullable(),
   upiPayeeName: z.string().trim().min(2).nullable().optional(),
@@ -101,6 +104,113 @@ adminBusinessRouter.patch("/upi", async (req, res) => {
     where: { id: existing.id },
     data: parsed.data,
     select: { upiId: true, upiPayeeName: true },
+  });
+  res.json(updated);
+});
+
+// Seller identity printed on every tax invoice. Deliberately not seeded — it
+// is entered here once, and `registeredAddress.stateCode` is what decides
+// CGST+SGST versus IGST on every order.
+const gstSelect = {
+  legalName: true,
+  tradeName: true,
+  gstin: true,
+  gstScheme: true,
+  registeredAddress: true,
+  invoicePrefix: true,
+  fyStartMonth: true,
+} as const;
+
+// Every field here prints on the invoice, so the whole address is required
+// once the seller saves it — the admin form enforces the same.
+const registeredAddressSchema = z.object({
+  line1: z.string().trim().min(1, "Required").max(200),
+  line2: z.string().trim().max(200).optional().default(""),
+  city: z.string().trim().min(1, "Required").max(100),
+  state: z.string().trim().min(1, "Required").max(100),
+  stateCode: z.string().trim().regex(/^\d{2}$/, "Two-digit GST state code"),
+  pincode: z.string().trim().regex(/^\d{6}$/, "Six-digit pincode"),
+});
+
+const businessGstSchema = z.object({
+  legalName: z.string().trim().min(2).max(160),
+  tradeName: z.string().trim().min(2).max(160),
+  // Null is allowed: an unregistered seller issues a plain invoice, not a
+  // tax invoice. A present value must be a real GSTIN.
+  gstin: z
+    .string()
+    .trim()
+    .transform((v) => (v ? normalizeGstin(v) : null))
+    .nullable()
+    .refine((v) => v === null || gstinIssue(v) === null, {
+      message: "Enter a valid 15-character GSTIN",
+    }),
+  gstScheme: z.enum(["REGULAR", "COMPOSITE"]),
+  registeredAddress: registeredAddressSchema,
+  invoicePrefix: z
+    .string()
+    .trim()
+    .min(1)
+    .max(10)
+    .regex(/^[A-Za-z0-9]+$/, "Letters and numbers only")
+    .transform((v) => v.toUpperCase()),
+  fyStartMonth: z.coerce.number().int().min(1).max(12),
+});
+
+const EMPTY_REGISTERED_ADDRESS = {
+  line1: "",
+  line2: "",
+  city: "",
+  state: "",
+  stateCode: FALLBACK_SELLER_STATE_CODE,
+  pincode: "",
+};
+
+adminBusinessRouter.get("/gst", async (_req, res) => {
+  const settings = await prisma.businessSettings.findFirst({
+    select: gstSelect,
+  });
+  if (!settings) throw HttpError.notFound("Business settings not found");
+  // registeredAddress is a Json column that starts out unset. Always hand the
+  // admin form a complete object so it has something to bind its inputs to.
+  const stored =
+    settings.registeredAddress && typeof settings.registeredAddress === "object"
+      ? (settings.registeredAddress as Record<string, unknown>)
+      : {};
+  res.json({
+    ...settings,
+    registeredAddress: { ...EMPTY_REGISTERED_ADDRESS, ...stored },
+  });
+});
+
+adminBusinessRouter.patch("/gst", async (req, res) => {
+  const parsed = businessGstSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid input", parsed.error.flatten());
+  }
+
+  // A GSTIN starts with the state code of the state it was issued in. If that
+  // disagrees with the registered address, one of the two is a typo and every
+  // invoice would carry the error.
+  const { gstin, registeredAddress } = parsed.data;
+  if (gstin) {
+    const gstinState = gstinStateCode(gstin);
+    if (gstinState && gstinState !== registeredAddress.stateCode) {
+      throw HttpError.badRequest(
+        `GSTIN begins with state code ${gstinState} but the registered address says ${registeredAddress.stateCode}. Please correct whichever is wrong.`,
+      );
+    }
+  }
+
+  const existing = await prisma.businessSettings.findFirst({
+    select: { id: true },
+  });
+  if (!existing) throw HttpError.notFound("Business settings not found");
+
+  const updated = await prisma.businessSettings.update({
+    where: { id: existing.id },
+    data: parsed.data,
+    select: gstSelect,
   });
   res.json(updated);
 });

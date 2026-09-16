@@ -52,3 +52,13 @@ model BusinessSettings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// One row per financial-year invoice series, e.g. "KEY/26-27". GST requires
+// invoice numbers to be sequential with no gaps and never reused, so
+// `lastNumber` is incremented atomically inside a transaction rather than
+// derived from a count of existing orders.
+model InvoiceCounter {
+  series     String   @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}

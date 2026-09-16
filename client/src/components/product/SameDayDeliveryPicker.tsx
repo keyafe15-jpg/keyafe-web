@@ -120,7 +120,7 @@ export function SameDayDeliveryPicker({
           <div className="rounded-lg border border-brand-200 bg-brand-100/40 px-3 py-2.5 text-sm">
             <p className="font-medium text-ink-900">Delivering today</p>
             <p className="mt-0.5 text-ink-600">
-              Ready in ~{estimate.durationLabel} · arriving around{" "}
+              Ready in ~{estimate.durationLabel} · you may receive it around{" "}
               {estimate.timeLabel}
             </p>
           </div>

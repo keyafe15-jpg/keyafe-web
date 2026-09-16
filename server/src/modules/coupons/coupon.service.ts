@@ -38,37 +38,6 @@ export function manualDiscountRupees(
   return roundMoney(Math.min(subtotal, value));
 }
 
-/** Scale GST snapshots after an items-only discount (delivery is never discounted). */
-export function scaleGstForCartDiscount(
-  taxable: number,
-  cgst: number,
-  sgst: number,
-  igst: number,
-  subtotal: number,
-  discount: number,
-): {
-  taxableAmount: number;
-  cgstAmount: number;
-  sgstAmount: number;
-  igstAmount: number;
-} {
-  if (discount <= 0 || subtotal <= 0) {
-    return {
-      taxableAmount: roundMoney(taxable),
-      cgstAmount: roundMoney(cgst),
-      sgstAmount: roundMoney(sgst),
-      igstAmount: roundMoney(igst),
-    };
-  }
-  const scale = (subtotal - discount) / subtotal;
-  return {
-    taxableAmount: roundMoney(taxable * scale),
-    cgstAmount: roundMoney(cgst * scale),
-    sgstAmount: roundMoney(sgst * scale),
-    igstAmount: roundMoney(igst * scale),
-  };
-}
-
 export interface CartLine {
   productId: string;
   unitPrice: number;

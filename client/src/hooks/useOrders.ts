@@ -94,6 +94,9 @@ export interface CreateOrderPayload {
   customerName: string;
   customerPhone: string;
   customerEmail?: string | null;
+  // B2B billing — sent only when the customer asks for a GST invoice.
+  customerCompanyName?: string | null;
+  customerGstin?: string | null;
   fulfillment: "DELIVERY" | "PICKUP";
   deliveryAddress?: OrderAddress | null;
   customerNotes?: string | null;

@@ -14,10 +14,18 @@ import { buildOrderNumber } from "../orders/order.service.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import {
   manualDiscountRupees,
-  scaleGstForCartDiscount,
+  roundMoney,
   type ManualDiscountType,
 } from "../coupons/coupon.service.js";
 import { ensureCustomerForOrder } from "../customers/customer.service.js";
+import {
+  allocateCartDiscount,
+  computeLineTax,
+  getSellerStateCode,
+  resolvePlaceOfSupply,
+  sumLineTax,
+} from "../orders/order.tax.js";
+import { buyerGstFields } from "../../lib/gstin.js";
 
 // 31-char lower-safe alphabet (drops i, l, o, 1, 0 to avoid ambiguity).
 const tokenGen = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
@@ -26,6 +34,7 @@ const tokenGen = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
 // Standard bakery HSN 1905 → 5% inclusive. Admin can override later.
 const CUSTOM_GST_RATE = 5;
 const CUSTOM_GST_INCLUSIVE = true;
+const CUSTOM_HSN_CODE = "1905";
 
 // Shared by the order-link and offline-direct flows — turns a chosen
 // payment mode + raw advance amount into the amount/status/method to persist.
@@ -334,6 +343,7 @@ export const placeOrderLinkSchema = z.object({
     .trim()
     .regex(/^[0-9+\-\s]{7,15}$/, "Enter a valid phone"),
   customerEmail: z.string().email().trim().optional().nullable(),
+  ...buyerGstFields,
 
   fulfillment: z.enum(["DELIVERY", "PICKUP"]),
   deliveryAddress: addressSchema.optional().nullable(),
@@ -363,7 +373,11 @@ export async function placeOrderFromLink(
         orderBy: { sortOrder: "asc" },
         include: {
           product: {
-            select: { gstRate: true, priceIsGstInclusive: true },
+            select: {
+              gstRate: true,
+              hsnCode: true,
+              priceIsGstInclusive: true,
+            },
           },
         },
       },
@@ -409,6 +423,7 @@ export async function placeOrderFromLink(
 
   // Delivery fee lookup
   let deliveryFee = 0;
+  let isLocalZone = false;
   if (input.fulfillment === "DELIVERY" && input.deliveryAddress) {
     const info = await checkPincode(input.deliveryAddress.pincode);
     if (!info.serviceable) {
@@ -417,46 +432,50 @@ export async function placeOrderFromLink(
       );
     }
     deliveryFee = Number(info.deliveryFee);
+    isLocalZone = true;
   }
 
-  const BUSINESS_STATE_CODE = "19";
-  const isIntraState =
-    input.fulfillment === "PICKUP" ||
-    input.deliveryAddress?.stateCode === BUSINESS_STATE_CODE;
+  const sellerStateCode = await getSellerStateCode();
+  const placeOfSupply = resolvePlaceOfSupply({
+    fulfillment: input.fulfillment,
+    deliveryAddress: input.deliveryAddress,
+    sellerStateCode,
+    localZoneStateCode: isLocalZone ? sellerStateCode : null,
+  });
+  const isIntraState = placeOfSupply === sellerStateCode;
 
-  // Per-item GST computation (mirrors placeOfflineOrder) — each item may be
-  // its own catalog product with its own GST rate.
-  let subtotal = 0;
-  let taxableAmount = 0;
-  let cgstAmount = 0;
-  let sgstAmount = 0;
-  let igstAmount = 0;
-  const itemCreates = link.items.map((item) => {
-    const gstRate =
-      item.product?.gstRate != null
-        ? Number(item.product.gstRate)
-        : CUSTOM_GST_RATE;
-    const inclusive =
-      item.product?.priceIsGstInclusive != null
-        ? item.product.priceIsGstInclusive
-        : CUSTOM_GST_INCLUSIVE;
+  // Tax per line (mirrors placeOfflineOrder) — each item may be its own
+  // catalog product with its own GST rate. The manual discount is allocated
+  // across lines first so every line is taxed on what was actually charged.
+  const lineTotals = link.items.map(
+    (item) => Number(item.unitPrice) * item.qty,
+  );
+  const subtotal = roundMoney(lineTotals.reduce((s, v) => s + v, 0));
 
-    const unitPrice = Number(item.unitPrice);
-    const lineIncl = unitPrice * item.qty;
-    const lineTaxable = inclusive ? lineIncl / (1 + gstRate / 100) : lineIncl;
-    const lineGst = inclusive
-      ? lineIncl - lineTaxable
-      : lineIncl * (gstRate / 100);
+  const discount = manualDiscountRupees(
+    subtotal,
+    link.discountType,
+    link.discountValue != null ? Number(link.discountValue) : null,
+  );
+  const chargedLines = allocateCartDiscount(lineTotals, discount);
 
-    subtotal += lineIncl;
-    taxableAmount += lineTaxable;
-    if (isIntraState) {
-      cgstAmount += lineGst / 2;
-      sgstAmount += lineGst / 2;
-    } else {
-      igstAmount += lineGst;
-    }
+  const lineTaxes = link.items.map((item, idx) =>
+    computeLineTax({
+      lineInclusive: chargedLines[idx] ?? 0,
+      gstRate:
+        item.product?.gstRate != null
+          ? Number(item.product.gstRate)
+          : CUSTOM_GST_RATE,
+      priceIsGstInclusive:
+        item.product?.priceIsGstInclusive ?? CUSTOM_GST_INCLUSIVE,
+      isIntraState,
+    }),
+  );
+  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } =
+    sumLineTax(lineTaxes);
 
+  const itemCreates = link.items.map((item, idx) => {
+    const tax = lineTaxes[idx]!;
     return {
       productId: item.productId,
       productName: item.productName,
@@ -472,29 +491,20 @@ export async function placeOrderFromLink(
       deliveryDate: dt,
       deliverySlotKey: input.deliverySlotKey,
       deliverySlotLabel: input.deliverySlotLabel,
-      unitPrice,
+      unitPrice: Number(item.unitPrice),
       qty: item.qty,
-      lineTotal: lineIncl,
+      lineTotal: lineTotals[idx] ?? 0,
+      hsnCode: item.product?.hsnCode ?? CUSTOM_HSN_CODE,
+      gstRate:
+        item.product?.gstRate != null
+          ? Number(item.product.gstRate)
+          : CUSTOM_GST_RATE,
+      taxableValue: tax.taxableValue,
+      cgstAmount: tax.cgstAmount,
+      sgstAmount: tax.sgstAmount,
+      igstAmount: tax.igstAmount,
     };
   });
-
-  const discount = manualDiscountRupees(
-    subtotal,
-    link.discountType,
-    link.discountValue != null ? Number(link.discountValue) : null,
-  );
-  const gst = scaleGstForCartDiscount(
-    taxableAmount,
-    cgstAmount,
-    sgstAmount,
-    igstAmount,
-    subtotal,
-    discount,
-  );
-  taxableAmount = gst.taxableAmount;
-  cgstAmount = gst.cgstAmount;
-  sgstAmount = gst.sgstAmount;
-  igstAmount = gst.igstAmount;
 
   const total = subtotal - discount + deliveryFee;
 
@@ -528,6 +538,8 @@ export async function placeOrderFromLink(
         customerName: input.customerName,
         customerPhone: input.customerPhone,
         customerEmail: input.customerEmail ?? null,
+        customerCompanyName: input.customerCompanyName ?? null,
+        customerGstin: input.customerGstin ?? null,
         fulfillment: input.fulfillment,
         deliveryAddress:
           input.fulfillment === "DELIVERY" && input.deliveryAddress
@@ -541,6 +553,7 @@ export async function placeOrderFromLink(
         cgstAmount,
         sgstAmount,
         igstAmount,
+        placeOfSupply,
         paymentMethod,
         paymentStatus,
         paymentMode: input.paymentMode,
@@ -729,6 +742,7 @@ export const placeOfflineOrderSchema = z.object({
     .trim()
     .regex(/^[0-9+\-\s]{7,15}$/, "Enter a valid phone"),
   customerEmail: z.string().email().trim().optional().nullable(),
+  ...buyerGstFields,
 
   fulfillment: z.enum(["DELIVERY", "PICKUP"]),
   deliveryAddress: addressSchema.optional().nullable(),
@@ -767,6 +781,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   }
 
   let deliveryFee = 0;
+  let isLocalZone = false;
   if (input.fulfillment === "DELIVERY" && input.deliveryAddress) {
     const info = await checkPincode(input.deliveryAddress.pincode);
     if (!info.serviceable) {
@@ -775,6 +790,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       );
     }
     deliveryFee = Number(info.deliveryFee);
+    isLocalZone = true;
   }
 
   // Snapshot every catalog product upfront so all validation fails fast.
@@ -792,6 +808,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       slug: string;
       images: string[];
       gstRate: number;
+      hsnCode: string;
       priceIsGstInclusive: boolean;
     }
   >();
@@ -805,6 +822,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
         images: true,
         isActive: true,
         gstRate: true,
+        hsnCode: true,
         priceIsGstInclusive: true,
       },
     });
@@ -816,6 +834,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
         slug: p.slug,
         images: p.images,
         gstRate: Number(p.gstRate),
+        hsnCode: p.hsnCode,
         priceIsGstInclusive: p.priceIsGstInclusive,
       });
     }
@@ -824,57 +843,73 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     }
   }
 
-  const BUSINESS_STATE_CODE = "19";
-  const isIntraState =
-    input.fulfillment === "PICKUP" ||
-    input.deliveryAddress?.stateCode === BUSINESS_STATE_CODE;
+  const sellerStateCode = await getSellerStateCode();
+  const placeOfSupply = resolvePlaceOfSupply({
+    fulfillment: input.fulfillment,
+    deliveryAddress: input.deliveryAddress,
+    sellerStateCode,
+    // Offline addresses are typed against DeliveryPincode, which has no state
+    // column, so a serviceable pincode is what establishes the state here.
+    localZoneStateCode: isLocalZone ? sellerStateCode : null,
+  });
+  const isIntraState = placeOfSupply === sellerStateCode;
 
   // Per-item computation — GST rate depends on the item's own kind/product.
-  let subtotal = 0;
-  let taxableAmount = 0;
-  let cgstAmount = 0;
-  let sgstAmount = 0;
-  let igstAmount = 0;
-  const itemCreates = input.items.map((item) => {
+  const resolvedItems = input.items.map((item) => {
     const catalog =
       item.kind === "CATALOG" && item.productId
         ? catalogMap.get(item.productId)
         : undefined;
+    return {
+      item,
+      catalog,
+      gstRate: catalog ? catalog.gstRate : CUSTOM_GST_RATE,
+      hsnCode: catalog ? catalog.hsnCode : CUSTOM_HSN_CODE,
+      inclusive: catalog ? catalog.priceIsGstInclusive : CUSTOM_GST_INCLUSIVE,
+      lineTotal: Number(item.unitPrice) * item.qty,
+    };
+  });
+
+  const subtotal = roundMoney(
+    resolvedItems.reduce((s, r) => s + r.lineTotal, 0),
+  );
+
+  const spec = parsedManualDiscount(input.discountType, input.discountValue);
+  const discount = manualDiscountRupees(
+    subtotal,
+    spec.discountType,
+    spec.discountValue,
+  );
+  const chargedLines = allocateCartDiscount(
+    resolvedItems.map((r) => r.lineTotal),
+    discount,
+  );
+
+  const lineTaxes = resolvedItems.map((r, idx) =>
+    computeLineTax({
+      lineInclusive: chargedLines[idx] ?? 0,
+      gstRate: r.gstRate,
+      priceIsGstInclusive: r.inclusive,
+      isIntraState,
+    }),
+  );
+  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } =
+    sumLineTax(lineTaxes);
+
+  const itemCreates = resolvedItems.map((r, idx) => {
+    const { item, catalog } = r;
+    const tax = lineTaxes[idx]!;
 
     const productName =
       catalog && (!item.productName || item.productName === catalog.name)
         ? catalog.name
         : item.productName;
-    const productSlug = catalog?.slug ?? null;
-    const catalogImage = catalog?.images[0] ?? null;
-    const productImage = item.referenceImageUrl ?? catalogImage;
-    const gstRate = catalog ? catalog.gstRate : CUSTOM_GST_RATE;
-    const inclusive = catalog
-      ? catalog.priceIsGstInclusive
-      : CUSTOM_GST_INCLUSIVE;
-
-    const unitPrice = Number(item.unitPrice);
-    const qty = item.qty;
-    const lineIncl = unitPrice * qty;
-    const lineTaxable = inclusive ? lineIncl / (1 + gstRate / 100) : lineIncl;
-    const lineGst = inclusive
-      ? lineIncl - lineTaxable
-      : lineIncl * (gstRate / 100);
-
-    subtotal += lineIncl;
-    taxableAmount += lineTaxable;
-    if (isIntraState) {
-      cgstAmount += lineGst / 2;
-      sgstAmount += lineGst / 2;
-    } else {
-      igstAmount += lineGst;
-    }
 
     return {
       productId: item.productId ?? null,
       productName,
-      productSlug,
-      productImage,
+      productSlug: catalog?.slug ?? null,
+      productImage: item.referenceImageUrl ?? catalog?.images[0] ?? null,
       sizeGrams: item.sizeGrams ?? null,
       sizeLabel: item.sizeLabel ?? null,
       flavourId: item.flavourId ?? null,
@@ -886,30 +921,17 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       deliveryDate: dt,
       deliverySlotKey: input.deliverySlotKey,
       deliverySlotLabel: input.deliverySlotLabel,
-      unitPrice,
-      qty,
-      lineTotal: lineIncl,
+      unitPrice: Number(item.unitPrice),
+      qty: item.qty,
+      lineTotal: r.lineTotal,
+      hsnCode: r.hsnCode,
+      gstRate: r.gstRate,
+      taxableValue: tax.taxableValue,
+      cgstAmount: tax.cgstAmount,
+      sgstAmount: tax.sgstAmount,
+      igstAmount: tax.igstAmount,
     };
   });
-
-  const spec = parsedManualDiscount(input.discountType, input.discountValue);
-  const discount = manualDiscountRupees(
-    subtotal,
-    spec.discountType,
-    spec.discountValue,
-  );
-  const gst = scaleGstForCartDiscount(
-    taxableAmount,
-    cgstAmount,
-    sgstAmount,
-    igstAmount,
-    subtotal,
-    discount,
-  );
-  taxableAmount = gst.taxableAmount;
-  cgstAmount = gst.cgstAmount;
-  sgstAmount = gst.sgstAmount;
-  igstAmount = gst.igstAmount;
 
   const total = subtotal - discount + deliveryFee;
   const orderNumber = buildOrderNumber();
@@ -935,6 +957,8 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       customerEmail: input.customerEmail ?? null,
+      customerCompanyName: input.customerCompanyName ?? null,
+      customerGstin: input.customerGstin ?? null,
       fulfillment: input.fulfillment,
       deliveryAddress:
         input.fulfillment === "DELIVERY" && input.deliveryAddress
@@ -948,6 +972,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       cgstAmount,
       sgstAmount,
       igstAmount,
+      placeOfSupply,
       paymentMethod,
       paymentStatus,
       paymentMode: input.paymentMode,

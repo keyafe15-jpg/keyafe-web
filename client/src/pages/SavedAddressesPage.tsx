@@ -256,7 +256,9 @@ export function SavedAddressesPage() {
                     mapSearchQuery: place.mapSearchQuery,
                     line1: place.line1 || prev.line1,
                     city: place.city || prev.city,
-                    state: place.state || prev.state,
+                    // Name and code must stay a matched pair — the code drives
+                    // the GST split, so never adopt one without the other.
+                    state: place.stateCode ? place.state : prev.state,
                     stateCode: place.stateCode || prev.stateCode,
                     pincode: place.pincode || prev.pincode,
                   }));

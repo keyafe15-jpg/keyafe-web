@@ -9,6 +9,7 @@ import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
 import { TIME_SLOTS } from "@/content/slots";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/uploads";
+import { gstinIssue, normalizeGstin } from "@/lib/gstin";
 import {
   Field,
   inputClass,
@@ -59,6 +60,9 @@ export function OfflineOrderDirectFormPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
+  const [isBusinessOrder, setIsBusinessOrder] = useState(false);
+  const [customerCompanyName, setCustomerCompanyName] = useState("");
+  const [customerGstin, setCustomerGstin] = useState("");
 
   const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">(
     "DELIVERY",
@@ -170,6 +174,12 @@ export function OfflineOrderDirectFormPage() {
 
   const itemsValid = validateOrderItems(items);
 
+  // Only checked when the GST block is open, so ordinary orders are unaffected.
+  const gstinError = isBusinessOrder ? gstinIssue(customerGstin) : null;
+  const businessValid =
+    !isBusinessOrder ||
+    (customerCompanyName.trim().length >= 2 && gstinError === null);
+
   const canSubmit =
     itemsValid &&
     customerName.trim().length >= 2 &&
@@ -177,6 +187,7 @@ export function OfflineOrderDirectFormPage() {
     !!deliveryDate &&
     addressValid &&
     advanceValid &&
+    businessValid &&
     !uploading &&
     !pincodeChecking;
 
@@ -218,6 +229,10 @@ export function OfflineOrderDirectFormPage() {
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerEmail: customerEmail.trim() || null,
+        customerCompanyName: isBusinessOrder
+          ? customerCompanyName.trim()
+          : null,
+        customerGstin: isBusinessOrder ? customerGstin : null,
 
         fulfillment,
         deliveryAddress:
@@ -312,6 +327,50 @@ export function OfflineOrderDirectFormPage() {
                   className={inputClass}
                 />
               </Field>
+
+              <div className="sm:col-span-2">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isBusinessOrder}
+                    onChange={(e) => setIsBusinessOrder(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
+                  />
+                  <span className="text-sm font-medium text-slate-700">
+                    Business order — needs a GST invoice
+                  </span>
+                </label>
+              </div>
+
+              {isBusinessOrder && (
+                <>
+                  <Field label="Company name" required>
+                    <input
+                      value={customerCompanyName}
+                      onChange={(e) => setCustomerCompanyName(e.target.value)}
+                      placeholder="Registered business name"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field
+                    label="GSTIN"
+                    required
+                    hint={gstinError ?? "15 characters, e.g. 27AAACR5055K1Z7"}
+                  >
+                    <input
+                      value={customerGstin}
+                      onChange={(e) =>
+                        setCustomerGstin(
+                          normalizeGstin(e.target.value).slice(0, 15),
+                        )
+                      }
+                      placeholder="27AAACR5055K1Z7"
+                      spellCheck={false}
+                      className={`${inputClass} font-mono tracking-wide`}
+                    />
+                  </Field>
+                </>
+              )}
             </div>
           </Section>
 
