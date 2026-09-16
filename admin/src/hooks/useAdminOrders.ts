@@ -104,6 +104,9 @@ export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
   /** Null until an invoice is first downloaded or emailed. */
   invoiceNumber: string | null;
   invoiceDate: string | null;
+  /** Null until a delivery challan is first downloaded. Its own series. */
+  challanNumber: string | null;
+  challanDate: string | null;
   deliveryAddress: {
     line1: string;
     line2?: string | null;
@@ -274,6 +277,41 @@ export function useEmailInvoice() {
       api.post<InvoiceEmailResult>(`/admin/orders/${order.id}/invoice/email`),
     onSuccess: (_data, order) => {
       void qc.invalidateQueries({ queryKey: ["admin", "order", order.id] });
+    },
+  });
+}
+
+/**
+ * Downloads the delivery challan. Mirrors useDownloadInvoice, including
+ * reading the issued number off the response header — the number is minted
+ * server-side on this very request, so it isn't on the cached order yet.
+ */
+export function useDownloadChallan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (order: { id: string; orderNumber: string }) => {
+      const { blob, filename, headers } = await api.getBlob(
+        `/admin/orders/${order.id}/challan`,
+      );
+      const name = filename ?? `challan-${order.orderNumber}.pdf`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // Revoking immediately can cancel the download in some browsers.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+
+      return { challanNumber: headers.get("X-Challan-Number"), filename: name };
+    },
+    onSuccess: (_data, order) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "order", order.id] });
+      void qc.invalidateQueries({
+        queryKey: ["admin", "order", order.orderNumber],
+      });
     },
   });
 }

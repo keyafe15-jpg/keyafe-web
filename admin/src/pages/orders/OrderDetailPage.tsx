@@ -10,9 +10,11 @@ import {
   ImageOff,
   FileText,
   Download,
+  ClipboardList,
 } from "lucide-react";
 import {
   useAdminOrder,
+  useDownloadChallan,
   useDownloadInvoice,
   useEmailInvoice,
   useUpdateOrder,
@@ -35,6 +37,7 @@ export function OrderDetailPage() {
   const update = useUpdateOrder();
   const canUpdate = useStaffPermission("orders.update");
   const canReadInvoices = useStaffPermission("invoices.read");
+  const canReadChallans = useStaffPermission("challans.read");
   const scheduleLocked =
     order?.status === "DELIVERED" || order?.status === "CANCELLED";
 
@@ -301,6 +304,12 @@ export function OrderDetailPage() {
           </Card>
 
           {canReadInvoices && <InvoiceCard order={order} />}
+
+          {/* Corporate orders need both documents: the tax invoice for the
+              books and the challan to hand over with the goods. */}
+          {canReadChallans && isCorporateOrder(order) && (
+            <ChallanCard order={order} />
+          )}
 
           {order.customerNotes && (
             <Card title="Customer notes">
@@ -705,6 +714,116 @@ function ItemScheduleEditor({
       </button>
       {error && <p className="w-full text-xs text-brand-600">{error}</p>}
     </div>
+  );
+}
+
+/**
+ * A challan is only worth printing when someone is taking delivery on a
+ * business's behalf, which is exactly the orders carrying a company name or a
+ * GSTIN. Ordinary B2C orders never show the card.
+ */
+function isCorporateOrder(order: AdminOrder): boolean {
+  return Boolean(order.customerCompanyName || order.customerGstin);
+}
+
+function ChallanCard({ order }: { order: AdminOrder }) {
+  const download = useDownloadChallan();
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const issued = Boolean(order.challanNumber);
+  // The server refuses to number a cancelled order, so say so up front rather
+  // than letting the click fail.
+  const blocked =
+    order.status === "CANCELLED" && !issued
+      ? "This order was cancelled, so nothing was handed over and no challan can be raised."
+      : null;
+
+  return (
+    <Card
+      title="Delivery challan"
+      subtitle={
+        issued
+          ? "Already issued — downloading again reprints the same number"
+          : "A permanent challan number is assigned the first time you download"
+      }
+      icon={<ClipboardList className="h-4 w-4 text-slate-400" />}
+    >
+      <dl className="space-y-1.5 text-sm">
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-xs text-slate-500">Challan number</dt>
+          <dd
+            className={cn(
+              "text-right",
+              issued ? "font-mono text-slate-900" : "text-xs text-slate-400",
+            )}
+          >
+            {order.challanNumber ?? "Not issued yet"}
+          </dd>
+        </div>
+        {order.challanDate && (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-xs text-slate-500">Challan date</dt>
+            <dd className="text-right text-slate-700">
+              {new Date(order.challanDate).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </dd>
+          </div>
+        )}
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-xs text-slate-500">Quantity to hand over</dt>
+          <dd className="text-right text-slate-700">
+            {order.items.reduce((sum, i) => sum + i.qty, 0)} Nos
+          </dd>
+        </div>
+      </dl>
+
+      <p className="mt-3 text-xs text-slate-500">
+        Carries quantities and HSN codes only — no prices or GST. Print it,
+        hand it over with the goods and have the receiver sign it.
+      </p>
+
+      {blocked ? (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          {blocked}
+        </p>
+      ) : (
+        <div className="mt-4">
+          <button
+            type="button"
+            disabled={download.isPending}
+            onClick={() => {
+              setNote(null);
+              setError(null);
+              download
+                .mutateAsync({ id: order.id, orderNumber: order.orderNumber })
+                .then((r) =>
+                  setNote(
+                    r.challanNumber
+                      ? `Downloaded ${r.challanNumber}`
+                      : "Downloaded",
+                  ),
+                )
+                .catch((err: unknown) =>
+                  setError(
+                    err instanceof Error ? err.message : "Something went wrong",
+                  ),
+                );
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {download.isPending ? "Preparing…" : "Download challan"}
+          </button>
+        </div>
+      )}
+
+      {note && <p className="mt-2 text-xs text-emerald-700">{note}</p>}
+      {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
+    </Card>
   );
 }
 

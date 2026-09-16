@@ -12,6 +12,8 @@ model BusinessSettings {
   registeredAddress Json // { line1, line2, city, state, stateCode, pincode }
   invoicePrefix     String    @default("KEY")
   fyStartMonth      Int       @default(4) // April = Indian FY start
+  // Printed in the terms box on delivery challans; the box is omitted when blank.
+  challanTerms      String?
   supportEmail      String
   supportPhone      String
   // Where the new-order notification email is sent. Falls back to supportEmail if null.
@@ -53,10 +55,11 @@ model BusinessSettings {
   updatedAt DateTime @updatedAt
 }
 
-// One row per financial-year invoice series, e.g. "KEY/26-27". GST requires
-// invoice numbers to be sequential with no gaps and never reused, so
-// `lastNumber` is incremented atomically inside a transaction rather than
-// derived from a count of existing orders.
+// One row per financial-year document series, e.g. "KEY/26-27" for tax
+// invoices and "KEY/DC/26-27" for delivery challans. GST requires these numbers
+// to be sequential with no gaps and never reused, so `lastNumber` is
+// incremented atomically inside a transaction rather than derived from a count
+// of existing orders.
 model InvoiceCounter {
   series     String   @id
   lastNumber Int      @default(0)

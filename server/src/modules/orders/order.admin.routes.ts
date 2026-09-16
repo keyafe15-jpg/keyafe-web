@@ -6,6 +6,7 @@ import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
 import { buildInvoicePdf, sendInvoiceEmail } from "./invoice.service.js";
+import { buildChallanPdf } from "./challan.service.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
 import {
@@ -476,6 +477,27 @@ adminOrderRouter.post(
     if (!id) throw HttpError.badRequest("Missing order id");
     const result = await sendInvoiceEmail(id);
     res.json(result);
+  },
+);
+
+// Delivery challan. Separate permission from invoices: this is the goods
+// handover note, not a tax document, and it draws from its own number series.
+// Deliberately not gated on payment — the challan travels with the goods
+// whether or not the money has arrived.
+adminOrderRouter.get(
+  "/:id/challan",
+  requirePermission("challans.read"),
+  async (req, res) => {
+    const id = req.params.id ?? "";
+    if (!id) throw HttpError.badRequest("Missing order id");
+    const { data, pdf, filename } = await buildChallanPdf(id);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdf.length);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    // Lets the admin UI show the issued number without parsing the PDF.
+    res.setHeader("X-Challan-Number", data.challanNumber);
+    res.end(pdf);
   },
 );
 

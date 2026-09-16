@@ -82,6 +82,11 @@ model Order {
   invoiceNumber String?   @unique
   invoiceDate   DateTime?
 
+  // Delivery challan snapshot. A challan accompanies the goods rather than the
+  // sale, so it gets its own series and is assigned lazily on first download.
+  challanNumber String?   @unique
+  challanDate   DateTime?
+
   // Payment (simple stub until Razorpay lands)
   paymentMethod String        @default("cod") // "cod" | "upi" | "razorpay"
   paymentStatus PaymentStatus @default(PENDING)

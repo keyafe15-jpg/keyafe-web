@@ -130,6 +130,8 @@ async function main() {
       },
       invoicePrefix: "key",
       fyStartMonth: 4,
+      challanTerms:
+        "Goods once delivered will not be taken back. Please check quantity before signing.",
     };
 
     // Confirm the GSTIN used above is genuinely valid before relying on it.
@@ -141,6 +143,20 @@ async function main() {
     check("PATCH valid payload succeeds", saved.status, 200);
     check("gstin saved", saved.body.gstin, "19AAACR5055K1Z4");
     check("invoicePrefix upper-cased", saved.body.invoicePrefix, "KEY");
+    check(
+      "challan terms saved",
+      saved.body.challanTerms,
+      goodPayload.challanTerms,
+    );
+
+    // Blank terms must collapse to null, so the challan omits the box rather
+    // than printing an empty heading.
+    const blankTerms = await call("PATCH", {
+      ...goodPayload,
+      challanTerms: "   ",
+    });
+    check("blank terms accepted", blankTerms.status, 200);
+    check("blank terms stored as null", blankTerms.body.challanTerms, null);
 
     // 4. A GSTIN whose state disagrees with the registered address is refused.
     const mismatch = await call("PATCH", {

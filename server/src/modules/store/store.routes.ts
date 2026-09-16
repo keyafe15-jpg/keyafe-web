@@ -119,6 +119,7 @@ const gstSelect = {
   registeredAddress: true,
   invoicePrefix: true,
   fyStartMonth: true,
+  challanTerms: true,
 } as const;
 
 // Every field here prints on the invoice, so the whole address is required
@@ -155,6 +156,15 @@ const businessGstSchema = z.object({
     .regex(/^[A-Za-z0-9]+$/, "Letters and numbers only")
     .transform((v) => v.toUpperCase()),
   fyStartMonth: z.coerce.number().int().min(1).max(12),
+  // Free text printed in the terms box on delivery challans. Blank collapses
+  // to null so the box is omitted rather than printed empty.
+  challanTerms: z
+    .string()
+    .trim()
+    .max(600)
+    .optional()
+    .nullable()
+    .transform((v) => v || null),
 });
 
 const EMPTY_REGISTERED_ADDRESS = {

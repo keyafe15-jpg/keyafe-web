@@ -10,6 +10,7 @@ import {
 } from "../../lib/indiaStates.js";
 import { FALLBACK_SELLER_STATE_CODE } from "./order.tax.js";
 import { renderInvoicePdf } from "./invoice.pdf.js";
+import type { DocumentParty } from "./pdf.theme.js";
 import { renderInvoiceEmail } from "../email/templates.js";
 import {
   sendEmail,
@@ -18,7 +19,7 @@ import {
 
 const IST = "Asia/Kolkata";
 
-type OrderWithItems = Order & { items: OrderItem[] };
+export type OrderWithItems = Order & { items: OrderItem[] };
 
 /**
  * Financial-year label for an invoice date, e.g. "26-27" for 16 Sep 2026 when
@@ -49,9 +50,11 @@ export interface SellerSettings {
   fyStartMonth: number;
   supportEmail: string;
   supportPhone: string;
+  /** Printed on delivery challans only; the invoice has its own declaration. */
+  challanTerms: string | null;
 }
 
-async function getSellerSettings(): Promise<SellerSettings> {
+export async function getSellerSettings(): Promise<SellerSettings> {
   const settings = await prisma.businessSettings.findFirst({
     select: {
       legalName: true,
@@ -63,6 +66,7 @@ async function getSellerSettings(): Promise<SellerSettings> {
       fyStartMonth: true,
       supportEmail: true,
       supportPhone: true,
+      challanTerms: true,
     },
   });
   if (!settings) throw HttpError.notFound("Business settings not found");
@@ -148,16 +152,8 @@ export async function ensureInvoiceNumber(
 // Invoice view model
 // ---------------------------------------------------------------------------
 
-export interface InvoiceParty {
-  name: string;
-  legalName?: string;
-  gstin?: string | null;
-  addressLines: string[];
-  stateName?: string | null;
-  stateCode?: string | null;
-  phone?: string | null;
-  email?: string | null;
-}
+// Same shape the challan uses, so the two documents render parties identically.
+export type InvoiceParty = DocumentParty;
 
 export interface InvoiceLine {
   description: string;
@@ -223,7 +219,7 @@ export interface InvoiceData {
   isLegacyOrder: boolean;
 }
 
-interface AddressShape {
+export interface AddressShape {
   line1?: string | null;
   line2?: string | null;
   landmark?: string | null;
@@ -234,13 +230,13 @@ interface AddressShape {
   pincode?: string | null;
 }
 
-function asAddress(value: unknown): AddressShape {
+export function asAddress(value: unknown): AddressShape {
   return value && typeof value === "object" ? (value as AddressShape) : {};
 }
 
 // State is deliberately left out: a GST invoice has to state the name *and*
 // code, so it gets its own line rather than being buried in the address.
-function addressLines(addr: AddressShape): string[] {
+export function addressLines(addr: AddressShape): string[] {
   const cityLine = [addr.area, addr.city].filter(Boolean).join(", ");
   const lastLine = [cityLine, addr.pincode]
     .filter((p) => p && String(p).trim())

@@ -11,6 +11,7 @@ import {
   inputClass,
   selectClass,
   submitClass,
+  textareaClass,
 } from "@/components/form/Field";
 import { gstinIssue, gstinStateCode, normalizeGstin } from "@/lib/gstin";
 import { SELECTABLE_STATES, stateNameFromCode } from "@/lib/indiaStates";
@@ -353,6 +354,20 @@ function BusinessGstSection() {
               </select>
             </Field>
           </div>
+
+          <Field
+            label="Delivery challan terms"
+            hint="Printed in the terms box on every challan. Leave blank to omit the box."
+          >
+            <textarea
+              value={form.challanTerms ?? ""}
+              onChange={(e) => setField("challanTerms", e.target.value)}
+              rows={3}
+              maxLength={600}
+              placeholder="Goods once delivered will not be taken back. Please check the goods and quantity before signing."
+              className={textareaClass}
+            />
+          </Field>
 
           {stateMismatch && (
             <p className="text-xs text-red-700">{stateMismatch}</p>

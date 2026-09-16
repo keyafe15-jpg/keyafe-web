@@ -19,6 +19,8 @@ export interface BusinessGst {
   registeredAddress: RegisteredAddress;
   invoicePrefix: string;
   fyStartMonth: number;
+  /** Terms printed on delivery challans. Null hides the box entirely. */
+  challanTerms: string | null;
 }
 
 export function useBusinessGst() {

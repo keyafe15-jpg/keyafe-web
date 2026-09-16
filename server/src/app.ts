@@ -78,9 +78,14 @@ export function createApp() {
     cors({
       origin: [env.CLIENT_ORIGIN, env.ADMIN_ORIGIN],
       credentials: true,
-      // Without this the browser hides both headers from cross-origin fetches,
-      // so the admin couldn't name a downloaded invoice or show its number.
-      exposedHeaders: ["Content-Disposition", "X-Invoice-Number"],
+      // Without this the browser hides these headers from cross-origin
+      // fetches, so the admin couldn't name a downloaded document or show the
+      // number that was issued for it.
+      exposedHeaders: [
+        "Content-Disposition",
+        "X-Invoice-Number",
+        "X-Challan-Number",
+      ],
     }),
   );
   app.use(
