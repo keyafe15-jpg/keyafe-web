@@ -131,7 +131,7 @@ async function main() {
     check("invoice number header is set", Boolean(invoiceNumber), true);
     const disposition = dl.headers.get("content-disposition") ?? "";
     check("is sent as an attachment", disposition.startsWith("attachment;"), true);
-    check("filename has no slashes", /filename="[A-Za-z0-9.\-]+"/.test(disposition), true);
+    check("filename has no slashes", /filename="[A-Za-z0-9.-]+"/.test(disposition), true);
     check(
       "both headers are exposed to the browser",
       (dl.headers.get("access-control-expose-headers") ?? "").toLowerCase(),

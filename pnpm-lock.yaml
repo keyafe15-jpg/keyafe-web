@@ -251,6 +251,9 @@ importers:
       '@types/web-push':
         specifier: ^3.6.4
         version: 3.6.4
+      oxlint:
+        specifier: ^1.79.0
+        version: 1.79.0
       pino-pretty:
         specifier: ^13.0.0
         version: 13.1.3
