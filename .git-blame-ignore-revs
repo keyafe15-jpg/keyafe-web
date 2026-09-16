@@ -1,0 +1,8 @@
+# Commits that only reformat code. Blame skips these so it points at the
+# commit that actually wrote a line.
+#
+# GitHub applies this file automatically. Locally, run once:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: apply prettier across the repo
+1b35f2c8d1f368609088e0730b7fdeb14b0774c8
