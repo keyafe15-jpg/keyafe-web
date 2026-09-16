@@ -78,15 +78,32 @@ export interface AdminOrderItem {
   unitPrice: string;
   qty: number;
   lineTotal: string;
+  // Per-line GST snapshot. Null on orders placed before invoicing existed.
+  hsnCode: string | null;
+  gstRate: string | null;
+  taxableValue: string | null;
+  cgstAmount: string;
+  sgstAmount: string;
+  igstAmount: string;
 }
 
-export interface AdminOrder extends AdminOrderListItem {
+// `items` is omitted because the detail endpoint returns the full
+// AdminOrderItem shape, not the trimmed one the list endpoint sends.
+export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
   discount: string;
   couponCode: string | null;
   taxableAmount: string;
   cgstAmount: string;
   sgstAmount: string;
   igstAmount: string;
+  // GST / invoicing
+  customerCompanyName: string | null;
+  customerGstin: string | null;
+  /** Two-digit state code the CGST+SGST vs IGST split was decided against. */
+  placeOfSupply: string | null;
+  /** Null until an invoice is first downloaded or emailed. */
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
   deliveryAddress: {
     line1: string;
     line2?: string | null;
@@ -206,6 +223,57 @@ export function useUpdateOrder() {
       void qc.invalidateQueries({
         queryKey: ["admin", "order", data.orderNumber],
       });
+    },
+  });
+}
+
+/**
+ * Downloads the invoice PDF. The first download assigns the order its
+ * permanent invoice number, so the order is refetched afterwards to pick it up.
+ */
+export function useDownloadInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (order: { id: string; orderNumber: string }) => {
+      const { blob, filename, headers } = await api.getBlob(
+        `/admin/orders/${order.id}/invoice`,
+      );
+      const name = filename ?? `invoice-${order.orderNumber}.pdf`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // Revoking immediately can cancel the download in some browsers.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+
+      return { invoiceNumber: headers.get("X-Invoice-Number"), filename: name };
+    },
+    onSuccess: (_data, order) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "order", order.id] });
+      void qc.invalidateQueries({
+        queryKey: ["admin", "order", order.orderNumber],
+      });
+    },
+  });
+}
+
+export interface InvoiceEmailResult {
+  sent: boolean;
+  to: string | null;
+  invoiceNumber: string;
+}
+
+export function useEmailInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (order: { id: string }) =>
+      api.post<InvoiceEmailResult>(`/admin/orders/${order.id}/invoice/email`),
+    onSuccess: (_data, order) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "order", order.id] });
     },
   });
 }

@@ -290,6 +290,72 @@ export function renderAdminCancelled(
   };
 }
 
+export function renderInvoiceEmail(args: {
+  order: OrderWithItems;
+  title: string;
+  invoiceNumber: string;
+  tradeName: string;
+  supportPhone: string;
+}) {
+  const { order, title, invoiceNumber, tradeName, supportPhone } = args;
+  const forBusiness = Boolean(order.customerGstin);
+  const html = shell(
+    `${title} ${invoiceNumber} — ${tradeName}`,
+    `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="display:inline-block;padding:4px 10px;background:#faf6ec;color:#2c3540;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.4px;">${escapeHtml(title.toUpperCase())}</span>
+      <span style="font-family:monospace;color:#7d8590;font-size:13px;">${escapeHtml(invoiceNumber)}</span>
+    </div>
+    <h1 style="margin:6px 0 4px;font-size:22px;color:#2c3540;">Your ${escapeHtml(title.toLowerCase())} is attached</h1>
+    <p style="margin:0 0 20px;color:#7d8590;">
+      Hi ${escapeHtml(order.customerName.split(" ")[0] ?? order.customerName)}, here's the
+      ${escapeHtml(title.toLowerCase())} for order ${escapeHtml(order.orderNumber)}, attached as a PDF.
+      ${
+        forBusiness
+          ? "It carries your GSTIN, so you can use it to claim input tax credit."
+          : ""
+      }
+    </p>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#faf6ec;border-radius:8px;">
+      <tr><td style="padding:14px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            <td style="font-size:13px;color:#7d8590;padding:2px 0;">Invoice number</td>
+            <td style="font-size:13px;color:#2c3540;text-align:right;font-family:monospace;">${escapeHtml(invoiceNumber)}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#7d8590;padding:2px 0;">Order</td>
+            <td style="font-size:13px;color:#2c3540;text-align:right;font-family:monospace;">${escapeHtml(order.orderNumber)}</td>
+          </tr>
+          ${
+            order.customerGstin
+              ? `<tr>
+                   <td style="font-size:13px;color:#7d8590;padding:2px 0;">Your GSTIN</td>
+                   <td style="font-size:13px;color:#2c3540;text-align:right;font-family:monospace;">${escapeHtml(order.customerGstin)}</td>
+                 </tr>`
+              : ""
+          }
+          <tr>
+            <td style="font-size:14px;color:#2c3540;font-weight:600;padding:8px 0 0;">Total</td>
+            <td style="font-size:16px;color:#2c3540;font-weight:700;text-align:right;padding:8px 0 0;">${money(order.total)}</td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <p style="margin-top:24px;color:#7d8590;font-size:13px;">
+      Something look wrong on the invoice? Reply to this email or call us at
+      <a href="tel:${escapeHtml(supportPhone.replace(/\s/g, ""))}" style="color:#e31c79;text-decoration:none;">${escapeHtml(supportPhone)}</a>
+      and we'll sort it out.
+    </p>`,
+  );
+  return {
+    subject: `${title} ${invoiceNumber} — order ${order.orderNumber}`,
+    html,
+  };
+}
+
 export function renderCouponShare(coupon: {
   code: string;
   type: "PERCENT" | "FLAT";

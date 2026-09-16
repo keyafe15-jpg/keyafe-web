@@ -4,6 +4,9 @@ export const PERMISSION_CATALOG = [
   { key: "orders.read", label: "View orders", category: "orders", sortOrder: 0 },
   { key: "orders.update", label: "Update order status", category: "orders", sortOrder: 1 },
   { key: "orders.cancel", label: "Cancel orders", category: "orders", sortOrder: 2 },
+  // Separate from orders.read: issuing an invoice assigns a permanent number
+  // out of the GST series, so it isn't something every order viewer should do.
+  { key: "invoices.read", label: "Download & email tax invoices", category: "orders", sortOrder: 3 },
 
   { key: "offline-orders.read", label: "View offline orders", category: "offline", sortOrder: 0 },
   { key: "offline-orders.write", label: "Create & edit offline orders", category: "offline", sortOrder: 1 },

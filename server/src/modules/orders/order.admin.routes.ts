@@ -5,6 +5,7 @@ import { HttpError } from "../../utils/httpError.js";
 import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
+import { buildInvoicePdf, sendInvoiceEmail } from "./invoice.service.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
 import {
@@ -444,6 +445,39 @@ adminOrderRouter.get("/:idOrNumber", requirePermission("orders.read"), async (re
     : await getOrderById(key);
   res.json(order);
 });
+
+// Both invoice routes assign a permanent number on first use, which is why
+// they sit behind invoices.read rather than orders.read.
+adminOrderRouter.get(
+  "/:id/invoice",
+  requirePermission("invoices.read"),
+  async (req, res) => {
+    const id = req.params.id ?? "";
+    if (!id) throw HttpError.badRequest("Missing order id");
+    const { data, pdf, filename } = await buildInvoicePdf(id);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdf.length);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename}"`,
+    );
+    // Lets the admin UI show the issued number without parsing the PDF.
+    res.setHeader("X-Invoice-Number", data.invoiceNumber);
+    res.end(pdf);
+  },
+);
+
+adminOrderRouter.post(
+  "/:id/invoice/email",
+  requirePermission("invoices.read"),
+  async (req, res) => {
+    const id = req.params.id ?? "";
+    if (!id) throw HttpError.badRequest("Missing order id");
+    const result = await sendInvoiceEmail(id);
+    res.json(result);
+  },
+);
 
 const updateSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional(),

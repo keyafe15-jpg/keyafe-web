@@ -8,13 +8,20 @@ import {
   Store,
   Save,
   ImageOff,
+  FileText,
+  Download,
 } from "lucide-react";
 import {
   useAdminOrder,
+  useDownloadInvoice,
+  useEmailInvoice,
   useUpdateOrder,
+  type AdminOrder,
+  type InvoiceEmailResult,
   type OrderStatus,
   type PaymentStatus,
 } from "@/hooks/useAdminOrders";
+import { stateNameFromCode } from "@/lib/indiaStates";
 import { StatusPill, STATUS_FLOW } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
 import { textareaClass, inputClass, selectClass } from "@/components/form/Field";
@@ -27,6 +34,7 @@ export function OrderDetailPage() {
   const { data: order, isLoading, isError } = useAdminOrder(idOrNumber);
   const update = useUpdateOrder();
   const canUpdate = useStaffPermission("orders.update");
+  const canReadInvoices = useStaffPermission("invoices.read");
   const scheduleLocked =
     order?.status === "DELIVERED" || order?.status === "CANCELLED";
 
@@ -209,6 +217,12 @@ export function OrderDetailPage() {
                     <p className="font-medium tabular-nums text-slate-900">
                       ₹{Number(it.lineTotal).toFixed(2)}
                     </p>
+                    {it.gstRate !== null && (
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        {it.hsnCode ? `HSN ${it.hsnCode} · ` : ""}
+                        GST {Number(it.gstRate)}%
+                      </p>
+                    )}
                   </div>
                 </li>
               ))}
@@ -285,6 +299,8 @@ export function OrderDetailPage() {
               )}
             </div>
           </Card>
+
+          {canReadInvoices && <InvoiceCard order={order} />}
 
           {order.customerNotes && (
             <Card title="Customer notes">
@@ -689,6 +705,165 @@ function ItemScheduleEditor({
       </button>
       {error && <p className="w-full text-xs text-brand-600">{error}</p>}
     </div>
+  );
+}
+
+function InvoiceCard({ order }: { order: AdminOrder }) {
+  const download = useDownloadInvoice();
+  const email = useEmailInvoice();
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Which tax applied is derived from the amounts actually charged, rather
+  // than re-deriving the seller's state on the client.
+  const isIntraState = Number(order.cgstAmount) > 0;
+  const isInterState = Number(order.igstAmount) > 0;
+  const placeName = stateNameFromCode(order.placeOfSupply);
+
+  const issued = Boolean(order.invoiceNumber);
+  // The server refuses to number a cancelled order, so say so up front rather
+  // than letting the click fail.
+  const blocked =
+    order.status === "CANCELLED" && !issued
+      ? "This order was cancelled, so it can't be invoiced. Issue a credit note instead."
+      : null;
+  const busy = download.isPending || email.isPending;
+
+  const run = async (fn: () => Promise<unknown>, done: (r: unknown) => string) => {
+    setNote(null);
+    setError(null);
+    try {
+      const result = await fn();
+      setNote(done(result));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    }
+  };
+
+  return (
+    <Card
+      title="Tax invoice"
+      subtitle={
+        issued
+          ? "Already issued — downloading again reuses the same number"
+          : "A permanent invoice number is assigned the first time you download or email"
+      }
+      icon={<FileText className="h-4 w-4 text-slate-400" />}
+    >
+      <dl className="space-y-1.5 text-sm">
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-xs text-slate-500">Invoice number</dt>
+          <dd
+            className={cn(
+              "text-right",
+              issued ? "font-mono text-slate-900" : "text-xs text-slate-400",
+            )}
+          >
+            {order.invoiceNumber ?? "Not issued yet"}
+          </dd>
+        </div>
+        {order.invoiceDate && (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-xs text-slate-500">Invoice date</dt>
+            <dd className="text-right text-slate-700">
+              {new Date(order.invoiceDate).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </dd>
+          </div>
+        )}
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-xs text-slate-500">Place of supply</dt>
+          <dd className="text-right text-slate-700">
+            {order.placeOfSupply
+              ? `${placeName ?? "Unknown"} (${order.placeOfSupply})`
+              : "—"}
+            {(isIntraState || isInterState) && (
+              <span className="ml-1.5 text-xs text-slate-400">
+                {isIntraState ? "CGST + SGST" : "IGST"}
+              </span>
+            )}
+          </dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-xs text-slate-500">Billed to</dt>
+          <dd className="text-right">
+            {order.customerGstin ? (
+              <>
+                <span className="text-slate-900">
+                  {order.customerCompanyName}
+                </span>
+                <span className="ml-1.5 rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-[11px] text-emerald-800">
+                  {order.customerGstin}
+                </span>
+              </>
+            ) : (
+              <span className="text-xs text-slate-400">
+                Individual — no GSTIN on this order
+              </span>
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      {blocked ? (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          {blocked}
+        </p>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void run(
+                () =>
+                  download.mutateAsync({
+                    id: order.id,
+                    orderNumber: order.orderNumber,
+                  }),
+                () => "Downloaded",
+              )
+            }
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {download.isPending ? "Preparing…" : "Download PDF"}
+          </button>
+
+          <button
+            type="button"
+            disabled={busy || !order.customerEmail}
+            onClick={() =>
+              void run(
+                () => email.mutateAsync({ id: order.id }),
+                (r) => {
+                  const result = r as InvoiceEmailResult;
+                  return result.sent
+                    ? `Emailed to ${result.to}`
+                    : "Email is not configured on the server, so nothing was sent";
+                },
+              )
+            }
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            {email.isPending ? "Sending…" : "Email to customer"}
+          </button>
+
+          {!order.customerEmail && (
+            <span className="text-xs text-slate-400">
+              No email on this order
+            </span>
+          )}
+        </div>
+      )}
+
+      {note && <p className="mt-2 text-xs text-emerald-700">{note}</p>}
+      {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
+    </Card>
   );
 }
 

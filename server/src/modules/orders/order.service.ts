@@ -25,6 +25,7 @@ import {
   sumLineTax,
 } from "./order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
+import { invoiceAttachmentIfPaid } from "./invoice.service.js";
 
 const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
 
@@ -340,11 +341,15 @@ async function sendOrderEmails(order: Awaited<ReturnType<typeof createOrder>>) {
 
   if (order.customerEmail) {
     const { subject, html } = renderCustomerConfirmation(order);
+    // Paid orders get the tax invoice attached straight away, the way other
+    // stores do. Unpaid ones are invoiced later from the admin order page.
+    const invoice = await invoiceAttachmentIfPaid(order);
     void sendEmail({
       to: order.customerEmail,
       subject,
       html,
       replyTo: adminRecipient ?? undefined,
+      ...(invoice ? { attachments: [invoice] } : {}),
     });
   }
 

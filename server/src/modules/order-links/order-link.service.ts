@@ -11,6 +11,7 @@ import {
 import { logger } from "../../utils/logger.js";
 import { emitNewOrder } from "../../lib/events.js";
 import { buildOrderNumber } from "../orders/order.service.js";
+import { invoiceAttachmentIfPaid } from "../orders/invoice.service.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import {
   manualDiscountRupees,
@@ -604,11 +605,16 @@ async function sendOrderLinkEmails(
 
   if (order.customerEmail) {
     const { subject, html } = renderCustomerConfirmation(order);
+    // Offline and link orders are often collected in full upfront, so the
+    // invoice rides along with the confirmation the same way it does on the
+    // storefront.
+    const invoice = await invoiceAttachmentIfPaid(order);
     void sendEmail({
       to: order.customerEmail,
       subject,
       html,
       replyTo: adminRecipient ?? undefined,
+      ...(invoice ? { attachments: [invoice] } : {}),
     });
   }
   if (adminRecipient) {
