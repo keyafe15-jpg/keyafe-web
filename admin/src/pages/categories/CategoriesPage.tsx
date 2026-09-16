@@ -28,7 +28,7 @@ export function CategoriesPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Categories</h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -38,7 +38,10 @@ export function CategoriesPage() {
         </div>
         <button
           onClick={() => setCreating({ parentId: null })}
-          className={cn(submitClass, "inline-flex items-center gap-1.5")}
+          className={cn(
+            submitClass,
+            "inline-flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap",
+          )}
         >
           <Plus className="h-4 w-4" /> New top-level
         </button>
@@ -200,8 +203,8 @@ function CategoryRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-4 py-3 transition",
-        isTop ? "bg-slate-50/40" : "pl-12",
+        "flex flex-wrap items-center gap-3 px-4 py-3 transition",
+        isTop ? "bg-slate-50/40" : "pl-8 sm:pl-12",
         isEditing && "bg-brand-100/30",
       )}
     >
@@ -224,7 +227,7 @@ function CategoryRow({
         <p className={cn("truncate font-medium text-slate-900", isTop ? "text-base" : "text-sm")}>
           {category.name}
         </p>
-        <p className="truncate text-xs text-slate-500">
+        <p className="text-xs text-slate-500 sm:truncate">
           /{category.slug}
           {category.department && (
             <span className="ml-2">
@@ -246,59 +249,62 @@ function CategoryRow({
         </p>
       </div>
 
-      <label className="hidden items-center gap-1.5 text-xs text-slate-500 sm:flex" title="Active">
+      {/* Drops to its own line on phones so the name above keeps the full width. */}
+      <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
+        <label className="flex items-center gap-1.5 text-xs text-slate-500" title="Active">
+          <input
+            type="checkbox"
+            checked={category.isActive}
+            onChange={(e) => update.mutate({ id: category.id, isActive: e.target.checked })}
+            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+          />
+          Active
+        </label>
+
         <input
-          type="checkbox"
-          checked={category.isActive}
-          onChange={(e) => update.mutate({ id: category.id, isActive: e.target.checked })}
-          className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+          type="number"
+          defaultValue={category.sortOrder}
+          onBlur={(e) => {
+            const n = Number(e.target.value);
+            if (Number.isFinite(n) && n !== category.sortOrder) {
+              update.mutate({ id: category.id, sortOrder: n });
+            }
+          }}
+          className={cn(inputClass, "w-16 py-1.5 text-center text-xs")}
+          title="Sort order"
         />
-        Active
-      </label>
 
-      <input
-        type="number"
-        defaultValue={category.sortOrder}
-        onBlur={(e) => {
-          const n = Number(e.target.value);
-          if (Number.isFinite(n) && n !== category.sortOrder) {
-            update.mutate({ id: category.id, sortOrder: n });
-          }
-        }}
-        className={cn(inputClass, "w-16 py-1.5 text-center text-xs")}
-        title="Sort order"
-      />
+        <button
+          onClick={onEdit}
+          className={cn(
+            "rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-brand-500 hover:text-brand-500",
+            isEditing && "border-brand-500 text-brand-500",
+          )}
+          title="Edit"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
 
-      <button
-        onClick={onEdit}
-        className={cn(
-          "rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-brand-500 hover:text-brand-500",
-          isEditing && "border-brand-500 text-brand-500",
-        )}
-        title="Edit"
-      >
-        <Pencil className="h-4 w-4" />
-      </button>
-
-      <button
-        onClick={() => {
-          if (
-            confirm(
-              category.productCount + category.childCount > 0
-                ? `"${category.name}" has ${category.productCount} product(s) and ${category.childCount} sub(s). Delete anyway?`
-                : `Delete "${category.name}"?`,
-            )
-          ) {
-            del.mutate(category.id, {
-              onError: (err) => alert(err instanceof Error ? err.message : "Delete failed"),
-            });
-          }
-        }}
-        className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-brand-500 hover:text-brand-500"
-        title="Delete"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+        <button
+          onClick={() => {
+            if (
+              confirm(
+                category.productCount + category.childCount > 0
+                  ? `"${category.name}" has ${category.productCount} product(s) and ${category.childCount} sub(s). Delete anyway?`
+                  : `Delete "${category.name}"?`,
+              )
+            ) {
+              del.mutate(category.id, {
+                onError: (err) => alert(err instanceof Error ? err.message : "Delete failed"),
+              });
+            }
+          }}
+          className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-brand-500 hover:text-brand-500"
+          title="Delete"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
