@@ -57,6 +57,72 @@ async function main() {
   }
 }
 
+/**
+ * B2B orders and how their tax was split. The buyer's GSTIN state is shown
+ * beside the place of supply and the delivery state, which is what makes an
+ * order taxed under the old delivery-address rule obvious at a glance.
+ */
+async function b2bReport() {
+  const orders = await prisma.order.findMany({
+    where: { customerGstin: { not: null } },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: {
+      orderNumber: true,
+      createdAt: true,
+      source: true,
+      fulfillment: true,
+      customerGstin: true,
+      customerCompanyName: true,
+      placeOfSupply: true,
+      deliveryAddress: true,
+      cgstAmount: true,
+      sgstAmount: true,
+      igstAmount: true,
+      items: { select: { productName: true } },
+    },
+  });
+
+  if (orders.length === 0) {
+    console.log("\nNo orders with a buyer GSTIN yet.");
+    return;
+  }
+
+  console.log("\n=== Orders billed to a GSTIN ===");
+  for (const o of orders) {
+    const addr = o.deliveryAddress as {
+      state?: string;
+      stateCode?: string;
+      pincode?: string;
+      city?: string;
+    } | null;
+    const gstinState = o.customerGstin?.slice(0, 2);
+    const tax =
+      Number(o.igstAmount) > 0
+        ? "IGST"
+        : Number(o.cgstAmount) > 0
+          ? "CGST+SGST"
+          : "no GST";
+
+    console.log(`\n${o.orderNumber}  ${o.createdAt.toISOString().slice(0, 16)}  (${o.source})`);
+    console.log(`  buyer GSTIN state : ${gstinState}  [${o.customerGstin}]`);
+    console.log(`  place of supply   : ${o.placeOfSupply ?? "(not set)"}`);
+    console.log(
+      `  delivery address  : state=${addr?.state ?? "-"} stateCode=${addr?.stateCode ?? "-"} pin=${addr?.pincode ?? "-"}`,
+    );
+    console.log(`  fulfillment       : ${o.fulfillment}`);
+    console.log(`  tax charged       : ${tax}`);
+    // Place of supply now follows the buyer's GSTIN, so a mismatch means the
+    // order predates that rule and was taxed off its delivery address.
+    if (gstinState && o.placeOfSupply && gstinState !== o.placeOfSupply) {
+      console.log(
+        `  NOTE: placed before place-of-supply followed the GSTIN —` +
+          ` billed to ${o.placeOfSupply} as ${tax}, would be IGST (${gstinState}) today`,
+      );
+    }
+  }
+}
+
 /** Full detail for one order, to see exactly which fields an invoice can use. */
 async function detail(orderNumber: string) {
   const o = await prisma.order.findFirst({
@@ -104,7 +170,8 @@ async function detail(orderNumber: string) {
 }
 
 main()
-  .then(() => detail(process.argv[2] ?? "KEY-260914-PBCSHY"))
+  .then(() => b2bReport())
+  .then(() => (process.argv[2] ? detail(process.argv[2]) : undefined))
   .catch((err) => {
     console.error(err);
     process.exitCode = 1;

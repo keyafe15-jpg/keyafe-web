@@ -2,6 +2,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/store/auth";
 import { useUserOrders } from "@/hooks/useOrders";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
+import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
 
 export function MyOrdersPage() {
   const user = useAuth((s) => s.user);
@@ -111,7 +112,10 @@ export function MyOrdersPage() {
                     ₹{Number(order.total).toFixed(2)}
                   </span>
                 </div>
-                <CancelOrderButton order={order} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <DownloadInvoiceButton order={order} />
+                  <CancelOrderButton order={order} />
+                </div>
               </div>
             </div>
           ))}

@@ -2,6 +2,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { roundMoney } from "../coupons/coupon.service.js";
 import { normalizeStateCode, stateCodeFromName } from "../../lib/indiaStates.js";
+import { gstinStateCode } from "../../lib/gstin.js";
 
 // Used only if BusinessSettings has no usable registered-address state code.
 // Keyafe is registered in West Bengal.
@@ -29,9 +30,19 @@ export interface AddressLike {
 }
 
 /**
- * Place of supply for goods is the state the goods are delivered to; for a
- * counter pickup it is the seller's own state. Resolution never falls back to
- * "assume intra-state", because that would silently under-charge IGST.
+ * Place of supply, which decides CGST+SGST vs IGST.
+ *
+ * A registered buyer's GSTIN wins over the delivery address. These orders are
+ * bill-to/ship-to supplies under section 10(1)(b) of the IGST Act: the goods
+ * are delivered on the direction of the registered business, so that business
+ * is deemed to have received them and its own state is the place of supply.
+ * Charging IGST is also what lets the buyer claim input tax credit, which a
+ * West Bengal CGST+SGST invoice would not.
+ *
+ * Without a GSTIN it falls back to section 10(1)(a) — the state the goods are
+ * delivered to, or the seller's own state for a counter pickup. Resolution
+ * never defaults to "assume intra-state", because that would silently
+ * under-charge IGST.
  *
  * `localZoneStateCode` covers admin/offline orders: DeliveryPincode has no
  * state column, so a serviceable local pincode implies the seller's state.
@@ -41,7 +52,14 @@ export function resolvePlaceOfSupply(args: {
   deliveryAddress: AddressLike | null | undefined;
   sellerStateCode: string;
   localZoneStateCode?: string | null;
+  buyerGstin?: string | null;
 }): string {
+  // Schema validation already rejects a GSTIN with an unknown state code, but
+  // an order-link or legacy row could still carry one, so this stays a
+  // fallback rather than a throw.
+  const fromGstin = args.buyerGstin ? gstinStateCode(args.buyerGstin) : null;
+  if (fromGstin) return fromGstin;
+
   if (args.fulfillment === "PICKUP") return args.sellerStateCode;
 
   const fromAddress =

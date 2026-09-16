@@ -2,6 +2,7 @@
 import {
   allocateCartDiscount,
   computeLineTax,
+  resolvePlaceOfSupply,
   sumLineTax,
 } from "../src/modules/orders/order.tax.js";
 import {
@@ -113,6 +114,103 @@ check("alias NCT of Delhi", stateCodeFromName("NCT of Delhi"), "07");
 check("ampersand form", stateCodeFromName("Jammu & Kashmir"), "01");
 check("Telangana", stateCodeFromName("Telangana"), "36");
 check("unknown name", stateCodeFromName("Atlantis"), null);
+
+// --- place of supply. A registered buyer's GSTIN outranks the delivery
+// address; without one it falls back to where the goods actually go.
+const WB = "19";
+const kolkata = { state: "West Bengal", stateCode: "19" };
+check(
+  "gstin state wins over delivery address",
+  resolvePlaceOfSupply({
+    fulfillment: "DELIVERY",
+    deliveryAddress: kolkata,
+    sellerStateCode: WB,
+    buyerGstin: "27AAACR5055K1Z7",
+  }),
+  "27",
+);
+check(
+  "gstin state wins on pickup too",
+  resolvePlaceOfSupply({
+    fulfillment: "PICKUP",
+    deliveryAddress: null,
+    sellerStateCode: WB,
+    buyerGstin: "27AAACR5055K1Z7",
+  }),
+  "27",
+);
+check(
+  "same-state gstin stays intra-state",
+  resolvePlaceOfSupply({
+    fulfillment: "DELIVERY",
+    deliveryAddress: kolkata,
+    sellerStateCode: WB,
+    buyerGstin: "19AAACR5055K1ZV",
+  }),
+  WB,
+);
+check(
+  "no gstin falls back to delivery address",
+  resolvePlaceOfSupply({
+    fulfillment: "DELIVERY",
+    deliveryAddress: { state: "Maharashtra", stateCode: "27" },
+    sellerStateCode: WB,
+  }),
+  "27",
+);
+check(
+  "null gstin falls back to delivery address",
+  resolvePlaceOfSupply({
+    fulfillment: "DELIVERY",
+    deliveryAddress: kolkata,
+    sellerStateCode: WB,
+    buyerGstin: null,
+  }),
+  WB,
+);
+check(
+  "pickup without gstin is the seller's state",
+  resolvePlaceOfSupply({
+    fulfillment: "PICKUP",
+    deliveryAddress: null,
+    sellerStateCode: WB,
+  }),
+  WB,
+);
+// A GSTIN carrying an impossible state code must not silently become the place
+// of supply; the address still decides.
+check(
+  "unusable gstin state falls back to address",
+  resolvePlaceOfSupply({
+    fulfillment: "DELIVERY",
+    deliveryAddress: kolkata,
+    sellerStateCode: WB,
+    buyerGstin: "47AAACI1681G1ZN",
+  }),
+  WB,
+);
+// Local offline orders have no state on the address, only a serviceable pincode.
+check(
+  "local zone stands in for a stateless address",
+  resolvePlaceOfSupply({
+    fulfillment: "DELIVERY",
+    deliveryAddress: { state: null, stateCode: null },
+    sellerStateCode: WB,
+    localZoneStateCode: WB,
+  }),
+  WB,
+);
+let threw = false;
+try {
+  resolvePlaceOfSupply({
+    fulfillment: "DELIVERY",
+    deliveryAddress: { state: null, stateCode: null },
+    sellerStateCode: WB,
+  });
+} catch {
+  threw = true;
+}
+check("unknown delivery state throws rather than assuming", threw, true);
 
 // --- GSTIN validation. These four are documented-valid numbers.
 for (const valid of [

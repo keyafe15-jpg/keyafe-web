@@ -208,14 +208,15 @@ export async function createOrder(input: CreateOrderInput) {
   const total = subtotal - discount + deliveryFee;
 
   // GST breakup — computed per line so the tax invoice can rebuild an HSN
-  // rate-wise summary, then aggregated. Delivery inside the seller's state
-  // (and every pickup) is CGST + SGST; anywhere else is IGST.
+  // rate-wise summary, then aggregated. Supply inside the seller's state is
+  // CGST + SGST; anywhere else is IGST.
   const sellerStateCode = await getSellerStateCode();
   const placeOfSupply = resolvePlaceOfSupply({
     fulfillment: input.fulfillment,
     deliveryAddress: input.deliveryAddress,
     sellerStateCode,
     localZoneStateCode: isLocalZone ? sellerStateCode : null,
+    buyerGstin: input.customerGstin,
   });
   const isIntraState = placeOfSupply === sellerStateCode;
 

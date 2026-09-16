@@ -200,6 +200,36 @@ async function main() {
         : `        not sent (SMTP_USER/SMTP_PASS not configured), which is the expected dev state`,
     );
 
+    console.log("\n-- storefront self-serve download");
+    const shopBase = `http://127.0.0.1:${port}/api/orders/${order.orderNumber}`;
+
+    // The order is still COD/PENDING at this point.
+    const unpaid = await fetch(`${shopBase}/invoice`);
+    check("unpaid order is refused", unpaid.status, 400);
+    const unpaidBody = (await unpaid.json()) as { error?: string };
+    console.log(`        ${unpaidBody.error}`);
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentStatus: "PAID" },
+    });
+    const paid = await fetch(`${shopBase}/invoice`);
+    check("paid order is served", paid.status, 200);
+    check("served as pdf", paid.headers.get("content-type"), "application/pdf");
+    check(
+      "same number as the admin download",
+      paid.headers.get("x-invoice-number"),
+      invoiceNumber,
+    );
+    const paidBody = Buffer.from(await paid.arrayBuffer());
+    check("storefront body is a PDF", paidBody.subarray(0, 5).toString(), "%PDF-");
+
+    // Also reachable by order id, which is what the confirmation link uses.
+    const byId = await fetch(
+      `http://127.0.0.1:${port}/api/orders/${order.id}/invoice`,
+    );
+    check("reachable by order id too", byId.status, 200);
+
     console.log("\n-- cancelled orders");
     await prisma.order.update({
       where: { id: order.id },
@@ -211,6 +241,11 @@ async function main() {
     check("cancelled order is refused", cancelled.status, 400);
     const cancelledBody = (await cancelled.json()) as { error?: string };
     console.log(`        ${cancelledBody.error}`);
+
+    const shopCancelled = await fetch(`${shopBase}/invoice`);
+    check("storefront refuses cancelled too", shopCancelled.status, 400);
+    const shopCancelledBody = (await shopCancelled.json()) as { error?: string };
+    console.log(`        ${shopCancelledBody.error}`);
   } finally {
     server.close();
   }

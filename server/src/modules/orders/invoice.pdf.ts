@@ -1,9 +1,12 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import PDFDocument from "pdfkit";
 import type { InvoiceData, InvoiceParty } from "./invoice.service.js";
-import path from "path";
+import { logger } from "../../utils/logger.js";
 
 // A4 at 72dpi, with a margin that leaves room for the footer declaration.
 const PAGE = { size: "A4" as const, margin: 40 };
+const LOGO_BOX = 64;
 const INK = "#2c3540";
 const MUTED = "#7d8590";
 const RULE = "#d8d2c4";
@@ -27,6 +30,34 @@ function formatDate(d: Date): string {
 }
 
 type Doc = PDFKit.PDFDocument;
+
+// The logo lives outside src/ because `tsc` doesn't copy assets into dist/.
+// src/modules/orders and dist/modules/orders sit at the same depth under the
+// package root, so one relative path resolves correctly in dev and in prod.
+export const LOGO_PATH = path.resolve(
+  import.meta.dirname,
+  "../../../assets/invoice-logo.png",
+);
+
+// `undefined` means "not looked up yet", `null` means "looked up and absent".
+let logoCache: Buffer | null | undefined;
+
+/** Reads the masthead logo once. Returns null rather than throwing, so a
+ *  missing or unreadable file degrades to the text masthead instead of
+ *  failing every invoice download. */
+function invoiceLogo(): Buffer | null {
+  if (logoCache !== undefined) return logoCache;
+  try {
+    logoCache = readFileSync(LOGO_PATH);
+  } catch (err) {
+    logoCache = null;
+    logger.warn(
+      { err, path: LOGO_PATH },
+      "invoice logo not found — falling back to the trade name in the masthead",
+    );
+  }
+  return logoCache;
+}
 
 function partyBlock(doc: Doc, party: InvoiceParty, x: number, width: number) {
   doc.fillColor(INK).fontSize(9.5).font("Helvetica-Bold");
@@ -67,13 +98,16 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
     };
 
     // --- Header -----------------------------------------------------------
-    // Masthead carries the trade name; the registered legal name belongs in
-    // the "Sold by" block below, so it isn't printed twice.
-    doc.fillColor(INK).font("Helvetica-Bold").fontSize(18);
-    const imagePath = path.join(import.meta.dirname, 'images', 'logo.png');
-    doc.image( imagePath, 30,30,{
-      fit: [70, 70],
-    });
+    // Masthead carries the logo (or the trade name if it's missing); the
+    // registered legal name belongs in the "Sold by" block below, so it isn't
+    // printed twice.
+    const logo = invoiceLogo();
+    if (logo) {
+      doc.image(logo, left, PAGE.margin, { fit: [LOGO_BOX, LOGO_BOX] });
+    } else {
+      doc.fillColor(INK).font("Helvetica-Bold").fontSize(18);
+      doc.text(data.seller.name, left, PAGE.margin, { width: 300 });
+    }
 
     doc.font("Helvetica-Bold").fontSize(15).fillColor(ACCENT);
     doc.text(data.title.toUpperCase(), left, PAGE.margin + 2, {
@@ -96,7 +130,8 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
       { width: fullWidth, align: "right" },
     );
 
-    doc.y = Math.max(doc.y, PAGE.margin + 62);
+    // Clear whichever masthead is taller — the logo box or the invoice meta.
+    doc.y = Math.max(doc.y, PAGE.margin + (logo ? LOGO_BOX : 62));
     hr(doc.y + 6);
     doc.y += 14;
 
@@ -123,11 +158,32 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
     doc.y = partyTop + 12;
     partyBlock(doc, data.buyer, buyerX, colWidth);
 
+    // Bill-to/ship-to orders carry a second address, since the goods went to a
+    // different state from the one being billed.
+    if (data.shipTo) {
+      doc.y += 6;
+      doc.fontSize(7.5).fillColor(MUTED).font("Helvetica-Bold");
+      doc.text("SHIPPED TO", buyerX, doc.y, { width: colWidth });
+      doc.font("Helvetica").fontSize(8.5);
+      for (const line of data.shipTo.addressLines) {
+        doc.text(line, buyerX, doc.y, { width: colWidth });
+      }
+      if (data.shipTo.stateName) {
+        doc.text(
+          `${data.shipTo.stateName} (${data.shipTo.stateCode})`,
+          buyerX,
+          doc.y,
+          { width: colWidth },
+        );
+      }
+    }
+
     doc.y = Math.max(sellerBottom, doc.y) + 10;
 
     doc.fontSize(8.5).font("Helvetica").fillColor(MUTED);
     doc.text(
       `Place of supply: ${data.placeOfSupply.name} (${data.placeOfSupply.code})` +
+        (data.shipTo ? " — buyer's registered state" : "") +
         `   ·   ${data.isIntraState ? "Intra-state — CGST + SGST" : "Inter-state — IGST"}` +
         `   ·   Reverse charge: No`,
       left,

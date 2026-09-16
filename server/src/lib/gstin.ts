@@ -51,7 +51,10 @@ export function isValidGstin(raw: string): boolean {
   return gstinIssue(raw) === null;
 }
 
-/** State the buyer is registered in. Not the place of supply. */
+/**
+ * State the buyer is registered in. For a GST-registered buyer this is also
+ * the place of supply — see resolvePlaceOfSupply.
+ */
 export function gstinStateCode(raw: string): string | null {
   const gstin = normalizeGstin(raw);
   return GST_STATE_NAMES[gstin.slice(0, 2)] ? gstin.slice(0, 2) : null;

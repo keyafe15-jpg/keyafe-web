@@ -442,6 +442,7 @@ export async function placeOrderFromLink(
     deliveryAddress: input.deliveryAddress,
     sellerStateCode,
     localZoneStateCode: isLocalZone ? sellerStateCode : null,
+    buyerGstin: input.customerGstin,
   });
   const isIntraState = placeOfSupply === sellerStateCode;
 
@@ -857,6 +858,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     // Offline addresses are typed against DeliveryPincode, which has no state
     // column, so a serviceable pincode is what establishes the state here.
     localZoneStateCode: isLocalZone ? sellerStateCode : null,
+    buyerGstin: input.customerGstin,
   });
   const isIntraState = placeOfSupply === sellerStateCode;
 

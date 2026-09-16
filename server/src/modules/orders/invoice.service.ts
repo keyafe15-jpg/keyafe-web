@@ -191,6 +191,12 @@ export interface InvoiceData {
   orderDate: Date;
   seller: InvoiceParty;
   buyer: InvoiceParty;
+  /** Set only on bill-to/ship-to orders, where the goods left the billed state. */
+  shipTo: {
+    addressLines: string[];
+    stateName?: string;
+    stateCode: string;
+  } | null;
   placeOfSupply: { code: string; name: string };
   isIntraState: boolean;
   isReverseCharge: false;
@@ -353,6 +359,18 @@ export async function buildInvoiceData(
         stateCodeFromName(buyerAddr.state) ??
         sellerStateCode);
 
+  const deliveryStateCode =
+    normalizeStateCode(buyerAddr.stateCode) ?? stateCodeFromName(buyerAddr.state);
+
+  // For a GST-registered buyer the place of supply follows their GSTIN, so the
+  // goods can land in a different state from the one being billed. GST expects
+  // both parties on the face of the invoice in that case, and printing the
+  // delivery address under a "Maharashtra" heading would be plainly wrong.
+  const shipToDiffers =
+    order.fulfillment === "DELIVERY" &&
+    !!deliveryStateCode &&
+    deliveryStateCode !== placeCode;
+
   const orderTaxable = Number(order.taxableAmount);
   const orderCgst = Number(order.cgstAmount);
   const orderSgst = Number(order.sgstAmount);
@@ -458,12 +476,23 @@ export async function buildInvoiceData(
       addressLines:
         order.fulfillment === "PICKUP"
           ? ["Collected at the bakery counter"]
-          : addressLines(buyerAddr),
+          : // The delivery address belongs under "shipped to" once the two
+            // diverge; we never capture the buyer's registered address.
+            shipToDiffers
+            ? []
+            : addressLines(buyerAddr),
       stateName: stateNameFromCode(placeCode),
       stateCode: placeCode,
       phone: order.customerPhone,
       email: order.customerEmail,
     },
+    shipTo: shipToDiffers
+      ? {
+          addressLines: addressLines(buyerAddr),
+          stateName: stateNameFromCode(deliveryStateCode!) ?? undefined,
+          stateCode: deliveryStateCode!,
+        }
+      : null,
     placeOfSupply: {
       code: placeCode,
       name: stateNameFromCode(placeCode) ?? placeCode,

@@ -6,7 +6,7 @@
 // BusinessSettings up front and restores both at the end.
 //
 // Run: ./node_modules/.bin/tsx scripts/check-invoice.ts
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { prisma } from "../src/config/db.js";
@@ -20,7 +20,7 @@ import {
   invoiceFileName,
   type InvoiceLine,
 } from "../src/modules/orders/invoice.service.js";
-import { renderInvoicePdf } from "../src/modules/orders/invoice.pdf.js";
+import { LOGO_PATH, renderInvoicePdf } from "../src/modules/orders/invoice.pdf.js";
 
 const PROBE_PHONE = "9999000002";
 const PROBE_NAME_PREFIX = "Invoice Probe";
@@ -322,6 +322,60 @@ async function main() {
   check("buyer state is Maharashtra", mhInvoice.buyer.stateName, "Maharashtra");
   check("invoice balances to the order total", balance(mhInvoice), 0);
 
+  // The user-facing case that motivated the GSTIN-wins rule: a Maharashtra
+  // business ordering a cake delivered here in West Bengal. The goods never
+  // leave the state, but the buyer is billed inter-state so they can claim
+  // input tax credit, and the invoice has to show both addresses.
+  section("bill-to / ship-to (registered buyer, local delivery)");
+  const billTo = await placeOrder("BILLTO", {
+    stateCode: "19",
+    state: "West Bengal",
+    pincode: pin.pincode,
+    productId: local.id,
+    gst: { companyName: "Acme Foods Pvt Ltd", gstin: "27AAACR5055K1Z7" },
+  });
+  const billToInvoice = await getInvoiceForOrder(billTo.id);
+  check(
+    "place of supply follows the buyer's gstin",
+    billToInvoice.placeOfSupply.code,
+    "27",
+  );
+  check("charged igst despite a local delivery", billToInvoice.igstTotal > 0, true);
+  check("no cgst on a bill-to/ship-to order", billToInvoice.cgstTotal, 0);
+  check("ship-to block present", billToInvoice.shipTo !== null, true);
+  check("ship-to keeps the real delivery state", billToInvoice.shipTo?.stateCode, "19");
+  check(
+    "ship-to carries the delivery address",
+    (billToInvoice.shipTo?.addressLines.length ?? 0) > 0,
+    true,
+  );
+  // The delivery address is not the buyer's registered address, so it must not
+  // be printed under their Maharashtra heading.
+  check("billed-to drops the delivery address", billToInvoice.buyer.addressLines, []);
+  check("invoice balances to the order total", balance(billToInvoice), 0);
+  const billToPdf = await renderInvoicePdf(billToInvoice);
+  check("bill-to/ship-to pdf renders", billToPdf.subarray(0, 5).toString(), "%PDF-");
+  const billToPath = join(tmpdir(), invoiceFileName(billToInvoice.invoiceNumber));
+  writeFileSync(billToPath, billToPdf);
+  console.log(`        wrote ${billToPath} — bill-to/ship-to layout`);
+
+  // A same-state GSTIN must not trip the ship-to block.
+  const localGst = await placeOrder("LOCALGST", {
+    stateCode: "19",
+    state: "West Bengal",
+    pincode: pin.pincode,
+    productId: local.id,
+    gst: { companyName: "Howrah Sweets LLP", gstin: "19AAACR5055K1Z4" },
+  });
+  const localGstInvoice = await getInvoiceForOrder(localGst.id);
+  check("same-state gstin stays intra-state", localGstInvoice.isIntraState, true);
+  check("same-state gstin needs no ship-to block", localGstInvoice.shipTo, null);
+  check(
+    "same-state gstin keeps the address on billed-to",
+    localGstInvoice.buyer.addressLines.length > 0,
+    true,
+  );
+
   section("legacy orders (no per-line tax captured)");
   const legacy = await placeOrder("LEGACY", {
     stateCode: "19",
@@ -395,6 +449,10 @@ async function main() {
   });
 
   section("pdf rendering");
+  // Lives outside src/ on purpose: `tsc` doesn't copy assets, so an asset
+  // under src/ would vanish from dist/ and every invoice would lose its logo.
+  check("masthead logo asset is present", existsSync(LOGO_PATH), true);
+
   const pdf = await renderInvoicePdf(wbInvoice);
   check("is a PDF", pdf.subarray(0, 5).toString(), "%PDF-");
   check("has real content", pdf.length > 2000, true);

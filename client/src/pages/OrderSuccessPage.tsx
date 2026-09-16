@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/useOrders";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
+import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
 
 export function OrderSuccessPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -234,6 +235,9 @@ export function OrderSuccessPage() {
       <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <div className="w-full max-w-sm text-center sm:w-auto">
           <CancelOrderButton order={order} />
+        </div>
+        <div className="w-full max-w-sm text-center sm:w-auto">
+          <DownloadInvoiceButton order={order} />
         </div>
       </div>
 

@@ -145,6 +145,33 @@ export function useUserOrders() {
   });
 }
 
+/**
+ * Downloads the customer's own tax invoice. Only available on fully paid
+ * orders — the server refuses otherwise and says why.
+ */
+export function useDownloadMyInvoice() {
+  return useMutation({
+    mutationFn: async (order: { idOrNumber: string }) => {
+      const { blob, filename } = await api.getBlob(
+        `/orders/${order.idOrNumber}/invoice`,
+      );
+      const name = filename ?? `invoice-${order.idOrNumber}.pdf`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // Revoking immediately can cancel the download in some browsers.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+
+      return { filename: name };
+    },
+  });
+}
+
 export function useCancelOrder() {
   const qc = useQueryClient();
   return useMutation({
