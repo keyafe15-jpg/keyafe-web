@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useProductsByTag } from "@/hooks/useProducts";
 import { CatalogProductCard, ProductGridSkeleton } from "@/components/product/CatalogProductCard";
+import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { ProductTagBadge } from "@/components/product/ProductTagBadge";
 import { Reveal } from "@/components/motion/Reveal";
 import { PaginationControls } from "@/components/ClientPagination";
@@ -18,7 +19,7 @@ export function TagPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <Reveal>
-        <div className="mx-auto mb-8 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-5 text-center shadow-sm backdrop-blur-md">
+        <div className="mx-auto mb-6 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-5 text-center shadow-sm backdrop-blur-md">
           {data && (
             <div className="mb-3 flex justify-center">
               <ProductTagBadge tag={{ id: data.tag.slug, ...data.tag }} size="md" />
@@ -34,6 +35,10 @@ export function TagPage() {
           )}
         </div>
       </Reveal>
+
+      <div className="mb-8 flex justify-center">
+        <CatalogSearchBar className="w-full max-w-md" />
+      </div>
 
       {isLoading && <ProductGridSkeleton />}
 

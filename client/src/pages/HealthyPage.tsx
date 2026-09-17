@@ -11,6 +11,7 @@ import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { HEALTHY_COPY } from "@/content/healthy";
 import { cn } from "@/lib/cn";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
+import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 
 const PAGE_SIZE = 12;
 
@@ -40,12 +41,15 @@ export function HealthyPage() {
 
   return (
     <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">
-      <div className="mb-8">
-        <p className="mb-2 flex items-center gap-2 text-sm tracking-widest text-brand-500 uppercase">
-          <LeafIcon /> {HEALTHY_COPY.eyebrow}
-        </p>
-        <h1 className="font-display text-3xl text-ink-900 md:text-4xl">{HEALTHY_COPY.title}</h1>
-        <p className="mt-2 max-w-xl text-sm text-ink-500">{HEALTHY_COPY.sub}</p>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="mb-2 flex items-center gap-2 text-sm tracking-widest text-brand-500 uppercase">
+            <LeafIcon /> {HEALTHY_COPY.eyebrow}
+          </p>
+          <h1 className="font-display text-3xl text-ink-900 md:text-4xl">{HEALTHY_COPY.title}</h1>
+          <p className="mt-2 max-w-xl text-sm text-ink-500">{HEALTHY_COPY.sub}</p>
+        </div>
+        <CatalogSearchBar className="w-full max-w-md shrink-0 sm:w-80" />
       </div>
 
       {!isLoading && categories.length > 0 && (

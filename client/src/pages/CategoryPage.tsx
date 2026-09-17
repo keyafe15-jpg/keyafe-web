@@ -7,6 +7,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { cn } from "@/lib/cn";
 import { PaginationControls } from "@/components/ClientPagination";
 import { CatalogProductCard, ProductGridSkeleton } from "@/components/product/CatalogProductCard";
+import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 
 const PAGE_SIZE = 12;
 
@@ -67,11 +68,14 @@ export function CategoryPage() {
         )}
       </nav>
 
-      <header className="mb-8">
-        <h1 className="text-3xl text-ink-900">{current?.name ?? "Loading…"}</h1>
-        {current?.description && (
-          <p className="mt-2 max-w-2xl text-ink-500">{current.description}</p>
-        )}
+      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-3xl text-ink-900">{current?.name ?? "Loading…"}</h1>
+          {current?.description && (
+            <p className="mt-2 max-w-2xl text-ink-500">{current.description}</p>
+          )}
+        </div>
+        <CatalogSearchBar className="w-full max-w-md shrink-0 sm:w-80" />
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[220px_1fr]">

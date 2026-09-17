@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useCart } from "@/store/cart";
 import { useAuth } from "@/store/auth";
 import { cn } from "@/lib/cn";
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { CategoriesMenu } from "@/components/categories/CategoriesMenu";
-import { HeaderSearch } from "@/components/layout/HeaderSearch";
+import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { BRAND } from "@/content/brand";
 import { SAMEDAY_NAV, HEALTHY_NAV, PANINDIA_NAV, CORPORATE_NAV, storeNavItem } from "@/content/nav";
 import { AUTH_COPY } from "@/content/auth";
@@ -16,7 +16,7 @@ import {
   useCategories,
   useDepartments,
 } from "@/hooks/useCategories";
-import { Menu, Search, ShoppingCart, X } from "lucide-react";
+import { Menu, ShoppingCart, X } from "lucide-react";
 
 type Accent = "brand" | "emerald" | "amber" | "indigo";
 
@@ -88,7 +88,6 @@ export function Header() {
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const isHome = pathname === "/";
   const { data: categories = [] } = useCategories();
   const { data: departments = [] } = useDepartments();
@@ -288,7 +287,7 @@ export function Header() {
               </div>
             )}
 
-            <HeaderSearch overlay={overlay} />
+            <CatalogSearchBar variant="icon" overlay={overlay} />
 
             <Link
               to="/cart"
@@ -344,28 +343,11 @@ export function Header() {
             </div>
 
             <div className="flex-1 space-y-6 px-5 py-5">
-              <form
-                role="search"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget;
-                  const input = form.elements.namedItem("q") as HTMLInputElement;
-                  const q = input.value.trim();
-                  if (q.length < 2) return;
-                  navigate(`/search?q=${encodeURIComponent(q)}`);
-                  closeMobileMenu();
-                }}
-                className="flex items-center gap-2 rounded-2xl border border-cream-200 bg-cream-50 px-3 py-2"
-              >
-                <Search className="h-4 w-4 shrink-0 text-ink-500" aria-hidden="true" />
-                <input
-                  name="q"
-                  type="search"
-                  placeholder="Search cakes, cookies…"
-                  aria-label="Search products"
-                  className="min-w-0 flex-1 bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-500"
-                />
-              </form>
+              <CatalogSearchBar
+                placeholder="Search cakes, cookies…"
+                onNavigate={closeMobileMenu}
+                className="rounded-2xl border-cream-200 bg-cream-50"
+              />
 
               {user ? (
                 <div className="rounded-2xl bg-gradient-to-r from-cream-50 to-cream-100 p-4">

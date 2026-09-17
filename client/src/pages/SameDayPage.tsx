@@ -9,6 +9,7 @@ import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { Reveal } from "@/components/motion/Reveal";
 import { SAMEDAY_COPY } from "@/content/sameday";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
+import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 
 const SAME_DAY_PAGE_SIZE = 12;
 
@@ -79,26 +80,29 @@ export function SameDayPage() {
     <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">
       {/* Header + hours banner */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="mb-2 flex items-center gap-2 text-sm tracking-widest text-brand-500 uppercase">
             <BoltIcon /> {SAMEDAY_COPY.eyebrow}
           </p>
           <h1 className="font-display text-3xl text-ink-900 md:text-4xl">{SAMEDAY_COPY.title}</h1>
           <p className="mt-2 max-w-xl text-sm text-ink-500">{SAMEDAY_COPY.sub}</p>
         </div>
-        {!statusLoading && (
-          <span
-            className={cn(
-              "inline-flex shrink-0 items-center gap-2 self-start rounded-full border px-3 py-1.5 text-xs font-medium",
-              isOpen
-                ? "border-brand-300 bg-brand-100 text-brand-700"
-                : "border-cream-200 bg-cream-100 text-ink-500",
-            )}
-          >
-            <span className={cn("h-2 w-2 rounded-full", isOpen ? "bg-brand-500" : "bg-ink-500")} />
-            {statusMessage}
-          </span>
-        )}
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+          {!statusLoading && (
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center gap-2 self-start rounded-full border px-3 py-1.5 text-xs font-medium sm:self-end",
+                isOpen
+                  ? "border-brand-300 bg-brand-100 text-brand-700"
+                  : "border-cream-200 bg-cream-100 text-ink-500",
+              )}
+            >
+              <span className={cn("h-2 w-2 rounded-full", isOpen ? "bg-brand-500" : "bg-ink-500")} />
+              {statusMessage}
+            </span>
+          )}
+          <CatalogSearchBar className="w-full max-w-md sm:w-80" />
+        </div>
       </div>
 
       {!statusLoading && !isOpen && (

@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useCategories, useDepartments, type CategoryNode } from "@/hooks/useCategories";
 import { STORE_COPY } from "@/content/store";
 import { Reveal } from "@/components/motion/Reveal";
+import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 
 export function StorePage() {
   const { slug = "" } = useParams<{ slug: string }>();
@@ -44,12 +45,15 @@ export function StorePage() {
         <span className="text-ink-700">{title}</span>
       </nav>
 
-      <header className="mb-8">
-        <p className="mb-2 text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
-          {eyebrow}
-        </p>
-        <h1 className="text-3xl text-ink-900">{title}</h1>
-        <p className="mt-2 max-w-2xl text-ink-500">{sub}</p>
+      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="mb-2 text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
+            {eyebrow}
+          </p>
+          <h1 className="text-3xl text-ink-900">{title}</h1>
+          <p className="mt-2 max-w-2xl text-ink-500">{sub}</p>
+        </div>
+        <CatalogSearchBar className="w-full max-w-md shrink-0 sm:w-80" />
       </header>
 
       {catsLoading ? (

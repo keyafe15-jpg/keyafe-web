@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { useProductSearch } from "@/hooks/useProducts";
 import { CatalogProductCard, ProductGridSkeleton } from "@/components/product/CatalogProductCard";
@@ -11,6 +11,8 @@ const PAGE_SIZE = 12;
 const MIN_QUERY = 2;
 
 export function SearchPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const urlQ = params.get("q") ?? "";
   const [input, setInput] = useState(urlQ);
@@ -25,23 +27,37 @@ export function SearchPage() {
     setPage(1);
   }
 
+  function leaveSearch() {
+    if (location.key !== "default") navigate(-1);
+    else navigate("/");
+  }
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const next = input.trim();
+
+      // Cleared the field after a query — return to the previous page.
+      if (!next) {
+        if (urlQ.trim()) {
+          if (location.key !== "default") navigate(-1);
+          else navigate("/");
+        }
+        return;
+      }
+
       if (next === urlQ.trim()) return;
       setPage(1);
       setParams(
         (prev) => {
           const nextParams = new URLSearchParams(prev);
-          if (next) nextParams.set("q", next);
-          else nextParams.delete("q");
+          nextParams.set("q", next);
           return nextParams;
         },
         { replace: true },
       );
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [input, setParams, urlQ]);
+  }, [input, setParams, urlQ, location.key, navigate]);
 
   // URL is the source of truth for the fetch (updated after the debounce above).
   const debouncedQ = urlQ.trim();
@@ -85,7 +101,7 @@ export function SearchPage() {
             {input && (
               <button
                 type="button"
-                onClick={() => setInput("")}
+                onClick={leaveSearch}
                 className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-1 text-ink-500 hover:bg-cream-100 hover:text-ink-700"
                 aria-label="Clear search"
               >
