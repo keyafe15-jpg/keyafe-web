@@ -36,6 +36,9 @@ export const PERMISSION_CATALOG = [
   { key: "quotes.read", label: "View quote requests", category: "quotes", sortOrder: 0 },
   { key: "quotes.update", label: "Update quote requests", category: "quotes", sortOrder: 1 },
 
+  { key: "reviews.read", label: "View product reviews", category: "catalog", sortOrder: 8 },
+  { key: "reviews.update", label: "Approve or hide product reviews", category: "catalog", sortOrder: 9 },
+
   { key: "customers.read", label: "View customers", category: "customers", sortOrder: 0 },
 
   { key: "coupons.write", label: "Manage coupons", category: "marketing", sortOrder: 0 },

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { PRODUCT_COPY } from "@/content/product";
 import { ProductGallery } from "@/components/product/ProductGallery";
+import { ProductReviews } from "@/components/product/ProductReviews";
 import { PincodeChecker } from "@/components/product/PincodeChecker";
 import { SameDayDeliveryPicker } from "@/components/product/SameDayDeliveryPicker";
 import { ProductTagBadge } from "@/components/product/ProductTagBadge";
@@ -555,6 +556,8 @@ function PdpContent({ product }: { product: ProductDetail }) {
           )}
         </section>
       )}
+
+      <ProductReviews slug={product.slug} />
     </section>
   );
 }
@@ -1097,6 +1100,8 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
           )}
         </section>
       )}
+
+      <ProductReviews slug={product.slug} />
     </section>
   );
 }

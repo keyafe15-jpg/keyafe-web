@@ -11,8 +11,11 @@ import {
   listPublicProductsByTagSlug,
   listPublicProductsBySearch,
 } from "./product.service.js";
+import { registerPublicReviewRoutes } from "../reviews/review.routes.js";
 
 export const publicProductRouter = Router();
+
+registerPublicReviewRoutes(publicProductRouter);
 
 // Fixed paths — must be declared BEFORE the /:slug route so Express doesn't
 // treat them as a slug.

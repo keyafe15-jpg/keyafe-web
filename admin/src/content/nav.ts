@@ -18,6 +18,7 @@ import {
   Settings,
   FileText,
   Megaphone,
+  MessageSquareQuote,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +56,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Quote Requests",
         icon: FileText,
         requiresPermission: "quotes.read",
+      },
+      {
+        to: "/reviews",
+        label: "Reviews",
+        icon: MessageSquareQuote,
+        requiresPermission: "reviews.read",
       },
     ],
   },

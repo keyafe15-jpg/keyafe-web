@@ -28,6 +28,7 @@ import { flavorRouter, adminFlavorRouter } from "./modules/flavors/flavor.routes
 import { adminTagRouter, tagRouter } from "./modules/tags/tag.routes.js";
 import { adminProductRouter } from "./modules/products/product.routes.js";
 import { publicProductRouter } from "./modules/products/product.public.routes.js";
+import { adminReviewRouter } from "./modules/reviews/review.routes.js";
 import { cakeSizeRouter, adminCakeSizeRouter } from "./modules/cake-sizes/cake-size.routes.js";
 import { adminToppingRouter, toppingRouter } from "./modules/toppings/topping.routes.js";
 import { addonRouter, adminAddonRouter } from "./modules/addons/addon.routes.js";
@@ -173,6 +174,7 @@ export function createApp() {
   );
   app.use("/api/admin/store", requireStaff, requirePermission("store.write"), adminStoreRouter);
   app.use("/api/admin/quotes", requireStaff, adminQuoteRouter);
+  app.use("/api/admin/reviews", requireStaff, adminReviewRouter);
   app.use(
     "/api/admin/coupons",
     requireStaff,

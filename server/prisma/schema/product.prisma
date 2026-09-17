@@ -88,11 +88,46 @@ model Product {
   tags         Tag[]            @relation("ProductTags")
   festivals    Festival[]       @relation("FestivalProducts")
   orderLinkItems OrderLinkItem[]
+  reviews      ProductReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([isFeatured, isActive])
+}
+
+enum ProductReviewStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+}
+
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Null for guest reviews. Logged-in customers are linked when present.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  rating      Int // 1–5
+  title       String?
+  body        String?
+  // Public name — required for guests; for signed-in users we still store a snapshot.
+  displayName String
+  email       String?
+
+  status             ProductReviewStatus @default(PENDING)
+  verifiedPurchase   Boolean             @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Only one review per signed-in user per product. Guests (userId null) can
+  // submit more than once — Postgres unique treats nulls as distinct.
+  @@unique([productId, userId])
+  @@index([productId, status, createdAt])
+  @@index([status, createdAt])
 }
 
 model ProductCategory {

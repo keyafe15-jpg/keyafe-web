@@ -70,6 +70,7 @@ model User {
   assignedQuotes QuoteRequest[] @relation("QuoteAssignee")
   orders         Order[]
   pushSubscriptions PushSubscription[]
+  productReviews ProductReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

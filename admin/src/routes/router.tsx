@@ -4,6 +4,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { StubPage } from "@/pages/StubPage";
 import { QuotesListPage } from "@/pages/quotes/QuotesListPage";
+import { ReviewsListPage } from "@/pages/reviews/ReviewsListPage";
 import { ProductsListPage } from "@/pages/products/ProductsListPage";
 import { ProductFormPage } from "@/pages/products/ProductFormPage";
 import { FlavoursPage } from "@/pages/flavours/FlavoursPage";
@@ -64,6 +65,10 @@ export const router = createBrowserRouter([
           {
             path: "quotes",
             element: <QuotesListPage />,
+          },
+          {
+            path: "reviews",
+            element: <ReviewsListPage />,
           },
           {
             path: "products",
