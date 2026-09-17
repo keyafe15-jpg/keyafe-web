@@ -4,6 +4,7 @@ import { HeroSlider, type CollectionSlide } from "@/components/hero/HeroSlider";
 import { HomePromoBanner } from "@/components/home/HomePromoBanner";
 import { TagShowcase } from "@/components/home/TagShowcase";
 import { HomeFilm } from "@/components/home/HomeFilm";
+import { GoogleReviewsSection } from "@/components/home/GoogleReviewsSection";
 import { StoreDoor } from "@/components/home/StoreDoor";
 import { PageMotifs } from "@/components/decor/PageMotifs";
 import { Reveal } from "@/components/motion/Reveal";
@@ -198,6 +199,8 @@ export function HomePage() {
       </section>
 
       <TagShowcase />
+
+      <GoogleReviewsSection />
 
       <section className="relative z-10 mx-auto max-w-6xl px-4 py-12">
         <Reveal>

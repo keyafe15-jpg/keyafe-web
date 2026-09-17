@@ -123,6 +123,12 @@ export const HOME_COPY = {
     placeholder: "Search cakes, cookies, pizzas…",
     submitLabel: "Search",
   },
+  googleReviews: {
+    eyebrow: "Google love",
+    heading: "What guests say on Google",
+    writeCta: "Leave a Google review",
+    seeAllCta: "See all on Google",
+  },
   corporate: {
     eyebrow: "Corporate & party orders",
     title: "Office celebrations, client gifting and house parties",
