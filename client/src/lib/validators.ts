@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { gstinIssue } from "@/lib/gstin";
 
 export const normalizePhone = (value: string) => value.trim().replace(/[\s().-]/g, "");
 
@@ -71,36 +72,90 @@ export const registerSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 
 // Get-a-quote request: for custom designs not in the catalogue.
-export const getQuoteSchema = z.object({
-  name: z.string().trim().min(2, "Please enter your name"),
-  phone: phoneSchema,
-  email: z
-    .string()
-    .trim()
-    .email("Enter a valid email")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-  address: z.string().trim().min(10, "Please share a full delivery address"),
-  deliveryDate: z
-    .string()
-    .min(1, "Pick a delivery date")
-    .refine((v) => {
-      const d = new Date(v);
-      if (Number.isNaN(d.getTime())) return false;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return d >= today;
-    }, "Delivery date can't be in the past"),
-  description: z
-    .string()
-    .trim()
-    .min(20, "Please describe what you're looking for (min 20 chars)")
-    .max(1000, "Too long — please keep it under 1000 characters"),
-  notes: z
-    .string()
-    .trim()
-    .max(500)
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-});
+export const getQuoteSchema = z
+  .object({
+    name: z.string().trim().min(2, "Please enter your name"),
+    phone: phoneSchema,
+    email: z
+      .string()
+      .trim()
+      .email("Enter a valid email")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    address: z.string().trim().min(10, "Please share a full delivery address"),
+    deliveryDate: z
+      .string()
+      .min(1, "Pick a delivery date")
+      .refine((v) => {
+        const d = new Date(v);
+        if (Number.isNaN(d.getTime())) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return d >= today;
+      }, "Delivery date can't be in the past"),
+    description: z
+      .string()
+      .trim()
+      .min(20, "Please describe what you're looking for (min 20 chars)")
+      .max(1000, "Too long — please keep it under 1000 characters"),
+    notes: z
+      .string()
+      .trim()
+      .max(500)
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+
+    // Corporate / party extras. The server treats all of these as optional; the
+    // only rule we add here is that ticking the business box means we need a
+    // company name to put on the invoice.
+    isBusiness: z.boolean().optional(),
+    companyName: z
+      .string()
+      .trim()
+      .max(160)
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    gstin: z
+      .string()
+      .trim()
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    headcount: z
+      .string()
+      .trim()
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    // Values come from a select built off QUOTE_EVENT_TYPES; the server
+    // validates the enum strictly.
+    eventType: z
+      .string()
+      .trim()
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+  })
+  .superRefine((values, ctx) => {
+    if (values.isBusiness && !values.companyName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["companyName"],
+        message: "Company name is needed for a GST invoice",
+      });
+    }
+    // GSTIN is optional even for a business — at enquiry stage they may not
+    // have it to hand — but a wrong one is worth catching now.
+    if (values.gstin && gstinIssue(values.gstin)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["gstin"],
+        message: gstinIssue(values.gstin)!,
+      });
+    }
+    if (values.headcount && !/^\d{1,6}$/.test(values.headcount)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["headcount"],
+        message: "Enter a number",
+      });
+    }
+  });
 export type GetQuoteInput = z.infer<typeof getQuoteSchema>;

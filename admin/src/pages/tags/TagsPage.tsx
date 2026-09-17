@@ -22,7 +22,9 @@ export function TagsPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Product tags</h1>
         <p className="mt-1 text-sm text-slate-500">
           Labels like &ldquo;New launch&rdquo; and &ldquo;Best seller&rdquo;. Assign them on each
-          product; they show as badges on the storefront.
+          product; they show as badges on the storefront. Tick{" "}
+          <span className="font-medium">On homepage</span> to give a tag its own product row on the
+          landing page — lower <span className="font-medium">Order</span> appears first.
         </p>
       </div>
 
@@ -36,22 +38,22 @@ export function TagsPage() {
           </div>
         )}
         {!isLoading && tags.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Tag</th>
-                  <th className="w-36 px-4 py-2 font-medium">Color</th>
-                  <th className="w-28 px-4 py-2 text-right font-medium">Products</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {tags.map((tag) => (
-                  <TagRow key={tag.id} tag={tag} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <table className="w-full text-left text-sm">
+            <thead className="hidden border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase md:table-header-group">
+              <tr>
+                <th className="px-4 py-2 font-medium">Tag</th>
+                <th className="w-36 px-4 py-2 font-medium">Color</th>
+                <th className="w-32 px-4 py-2 text-center font-medium">On homepage</th>
+                <th className="w-20 px-4 py-2 text-center font-medium">Order</th>
+                <th className="w-28 px-4 py-2 text-right font-medium">Products</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {tags.map((tag) => (
+                <TagRow key={tag.id} tag={tag} />
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
@@ -140,8 +142,8 @@ function TagRow({ tag }: { tag: AdminTag }) {
   };
 
   return (
-    <tr className="hover:bg-slate-50">
-      <td className="px-4 py-3">
+    <tr className="block p-4 hover:bg-slate-50 md:table-row md:p-0">
+      <td className="block md:table-cell md:px-4 md:py-3">
         <input
           value={name}
           onChange={(e) => {
@@ -159,7 +161,7 @@ function TagRow({ tag }: { tag: AdminTag }) {
         />
         <p className="text-xs text-slate-500">/{tag.slug}</p>
       </td>
-      <td className="px-4 py-3">
+      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-3">
         <div className="flex items-center gap-2">
           <input
             type="color"
@@ -182,7 +184,42 @@ function TagRow({ tag }: { tag: AdminTag }) {
           </span>
         </div>
       </td>
-      <td className="px-4 py-3 text-right text-slate-600 tabular-nums">{tag.productCount}</td>
+      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
+        <label className="flex cursor-pointer items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">On homepage</span>
+          <input
+            type="checkbox"
+            checked={tag.showOnHome}
+            onChange={(e) => update.mutate({ id: tag.id, showOnHome: e.target.checked })}
+            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+            title="Show this tag as a section on the storefront landing page"
+          />
+        </label>
+      </td>
+      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
+        <div className="flex items-center justify-between gap-2 md:justify-center">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Order</span>
+          <input
+            type="number"
+            min={0}
+            defaultValue={tag.sortOrder}
+            onBlur={(e) => {
+              const n = Number(e.target.value);
+              if (Number.isFinite(n) && n !== tag.sortOrder) {
+                update.mutate({ id: tag.id, sortOrder: n });
+              }
+            }}
+            className={cn(inputClass, "w-16 py-1 text-center text-xs")}
+            title="Lower numbers appear higher on the landing page"
+          />
+        </div>
+      </td>
+      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
+        <div className="flex items-center justify-between gap-2 md:justify-end">
+          <span className="text-xs font-medium text-slate-500 md:hidden">Products</span>
+          <span className="text-slate-600 tabular-nums">{tag.productCount}</span>
+        </div>
+      </td>
     </tr>
   );
 }

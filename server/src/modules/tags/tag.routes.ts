@@ -23,12 +23,14 @@ export const adminTagRouter = Router();
 
 adminTagRouter.get("/", async (_req, res) => {
   const tags = await prisma.tag.findMany({
-    orderBy: [{ name: "asc" }],
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: {
       id: true,
       slug: true,
       name: true,
       colorHex: true,
+      showOnHome: true,
+      sortOrder: true,
       _count: { select: { products: true } },
     },
   });
@@ -54,6 +56,8 @@ const createTagSchema = z.object({
     .trim()
     .regex(/^[a-z0-9-]+$/, "Lowercase letters, digits, hyphens only"),
   colorHex: colorHexSchema,
+  showOnHome: z.boolean().optional(),
+  sortOrder: z.coerce.number().int().min(0).max(999).optional(),
 });
 
 adminTagRouter.post("/", async (req, res) => {
@@ -71,6 +75,8 @@ adminTagRouter.post("/", async (req, res) => {
       name: parsed.data.name,
       slug: parsed.data.slug,
       colorHex: parsed.data.colorHex ?? null,
+      showOnHome: parsed.data.showOnHome ?? false,
+      sortOrder: parsed.data.sortOrder ?? 0,
     },
   });
   res.status(201).json({ ...created, productCount: 0 });

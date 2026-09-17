@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { BRAND } from "@/content/brand";
 import { FOOTER_COPY } from "@/content/footer";
-import { HEALTHY_NAV, PANINDIA_NAV, SAMEDAY_NAV, storeNavItem } from "@/content/nav";
+import { CORPORATE_NAV, HEALTHY_NAV, PANINDIA_NAV, SAMEDAY_NAV, storeNavItem } from "@/content/nav";
 import { groupCategoriesByDepartment, useCategories, useDepartments } from "@/hooks/useCategories";
 import { cn } from "@/lib/cn";
 import {
@@ -24,6 +24,7 @@ const ORDER_LINKS = [
   SAMEDAY_NAV,
   HEALTHY_NAV,
   PANINDIA_NAV,
+  { to: CORPORATE_NAV.to, label: "Corporate & party orders" },
   { to: "/about", label: "About us" },
 ] as const;
 

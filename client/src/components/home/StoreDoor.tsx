@@ -84,7 +84,7 @@ export function StoreDoor({
                 {imageUrl ? (
                   <img
                     src={imageUrl}
-                    alt=""
+                    alt={`${name} store`}
                     className="h-full w-full object-cover object-center opacity-90"
                   />
                 ) : (

@@ -10,6 +10,9 @@ export interface Tag {
 
 export interface AdminTag extends Tag {
   productCount: number;
+  /** Tags flagged here become product sections on the storefront landing page. */
+  showOnHome: boolean;
+  sortOrder: number;
 }
 
 export function useTags() {
@@ -32,6 +35,8 @@ export interface CreateTagPayload {
   name: string;
   slug: string;
   colorHex?: string | null;
+  showOnHome?: boolean;
+  sortOrder?: number;
 }
 
 export function useCreateTag() {
@@ -49,6 +54,8 @@ export interface UpdateTagPayload {
   name?: string;
   slug?: string;
   colorHex?: string | null;
+  showOnHome?: boolean;
+  sortOrder?: number;
 }
 
 export function useUpdateTag() {

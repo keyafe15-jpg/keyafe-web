@@ -13,6 +13,11 @@ export interface QuoteRequest {
   description: string;
   referenceImages: string[];
   notes: string | null;
+  // Corporate / party intake, all null on an ordinary enquiry.
+  companyName: string | null;
+  gstin: string | null;
+  headcount: number | null;
+  eventType: string | null;
   status: QuoteStatus;
   adminNotes: string | null;
   quotedAmount: string | null;

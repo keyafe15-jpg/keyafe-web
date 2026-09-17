@@ -94,6 +94,41 @@ export function useHealthyTreatProducts() {
   });
 }
 
+export interface TagShowcaseSection {
+  tag: { slug: string; name: string; colorHex: string | null };
+  products: ProductCard[];
+}
+
+// One row per tag the admin flagged "show on homepage". Empty tags are already
+// filtered out server-side, so anything returned here is safe to render.
+// Three per tag: one feature tile plus the two stacked beside it.
+export function useTagShowcase(limitPerTag = 3) {
+  return useQuery<TagShowcaseSection[]>({
+    queryKey: ["products", "showcase", limitPerTag],
+    queryFn: () => api.get<TagShowcaseSection[]>(`/products/showcase?limit=${limitPerTag}`),
+    staleTime: 30_000,
+  });
+}
+
+export interface TagProductsPage {
+  tag: { slug: string; name: string; colorHex: string | null };
+  items: ProductCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export function useProductsByTag(slug: string | undefined, page = 1, pageSize = 12) {
+  return useQuery<TagProductsPage>({
+    queryKey: ["products", "tag", slug, page, pageSize],
+    queryFn: () =>
+      api.get<TagProductsPage>(`/products/tag/${slug}?page=${page}&pageSize=${pageSize}`),
+    enabled: !!slug,
+    staleTime: 30_000,
+  });
+}
+
 export interface ProductFlavour {
   id: string;
   slug: string;

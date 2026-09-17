@@ -44,12 +44,18 @@ model Category {
 
 // Cross-cutting labels: "2-Tier", "Fondant", "Eggless", "Same-Day", "Bestseller"
 model Tag {
-  id        String    @id @default(cuid())
-  slug      String    @unique
-  name      String
-  colorHex  String?
-  products  Product[] @relation("ProductTags")
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  slug       String    @unique
+  name       String
+  colorHex   String?
+  // Tags flagged here become product sections on the storefront landing page,
+  // ordered by sortOrder. Admins curate this from the Tags page.
+  showOnHome Boolean   @default(false)
+  sortOrder  Int       @default(0)
+  products   Product[] @relation("ProductTags")
+  createdAt  DateTime  @default(now())
+
+  @@index([showOnHome, sortOrder])
 }
 
 // Shared master list of flavours. A product references the flavours it offers.

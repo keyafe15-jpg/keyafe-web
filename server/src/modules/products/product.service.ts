@@ -422,6 +422,73 @@ export async function listHealthyTreatProducts() {
   return products.map((p) => decorateCard(p as unknown as PublicCardRow));
 }
 
+// Tags flagged showOnHome drive the landing page's product sections, in
+// sortOrder. Each tag gets its own query so a section's limit stays independent,
+// and empty sections are dropped so the page never renders a bare heading.
+export async function listHomeTagShowcase(limitPerTag = 8) {
+  const tags = await prisma.tag.findMany({
+    where: { showOnHome: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, slug: true, name: true, colorHex: true },
+  });
+
+  const safeLimit = Math.min(24, Math.max(1, Number(limitPerTag) || 8));
+
+  const sections = await Promise.all(
+    tags.map(async (tag) => {
+      const products = await prisma.product.findMany({
+        where: {
+          ...PUBLIC_LIST_WHERE,
+          tags: { some: { id: tag.id } },
+        },
+        orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+        take: safeLimit,
+        select: PUBLIC_CARD_SELECT,
+      });
+
+      return {
+        tag: { slug: tag.slug, name: tag.name, colorHex: tag.colorHex },
+        products: products.map((p) => decorateCard(p as unknown as PublicCardRow)),
+      };
+    }),
+  );
+
+  return sections.filter((section) => section.products.length > 0);
+}
+
+// Paginated listing for a single tag, backing the section "view all" links.
+export async function listPublicProductsByTagSlug(slug: string, page = 1, pageSize = 12) {
+  const tag = await prisma.tag.findUnique({
+    where: { slug },
+    select: { id: true, slug: true, name: true, colorHex: true },
+  });
+  if (!tag) throw HttpError.notFound("Tag not found");
+
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
+  const where = { ...PUBLIC_LIST_WHERE, tags: { some: { id: tag.id } } };
+
+  const [total, products] = await Promise.all([
+    prisma.product.count({ where }),
+    prisma.product.findMany({
+      where,
+      orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+      skip: (safePage - 1) * safePageSize,
+      take: safePageSize,
+      select: PUBLIC_CARD_SELECT,
+    }),
+  ]);
+
+  return {
+    tag: { slug: tag.slug, name: tag.name, colorHex: tag.colorHex },
+    items: products.map((p) => decorateCard(p as unknown as PublicCardRow)),
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+  };
+}
+
 // Full product detail for the PDP. Inactive or out-of-stock products 404.
 export async function getPublicProductBySlug(slug: string) {
   const product = await prisma.product.findUnique({

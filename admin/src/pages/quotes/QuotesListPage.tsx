@@ -25,6 +25,22 @@ const STATUS_TONE: Record<QuoteStatus, string> = {
   CLOSED: "bg-slate-100 text-slate-600",
 };
 
+// Mirrors QUOTE_EVENT_TYPES on the storefront and server. Unknown values fall
+// back to the raw slug so an added option still shows something sensible.
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  "corporate-gifting": "Corporate gifting",
+  "office-party": "Office party or celebration",
+  "house-party": "House party or small gathering",
+  birthday: "Birthday",
+  wedding: "Wedding",
+  festival: "Festival order",
+  other: "Something else",
+};
+
+function eventTypeLabel(value: string) {
+  return EVENT_TYPE_LABELS[value] ?? value;
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString("en-IN", {
@@ -168,6 +184,11 @@ function QuoteRow({ quote }: { quote: QuoteRequest }) {
                 ₹{Number(quote.quotedAmount).toFixed(0)}
               </span>
             )}
+            {quote.companyName && (
+              <span className="truncate rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
+                {quote.companyName}
+              </span>
+            )}
           </div>
           <p className="mt-0.5 text-xs text-slate-500">
             {quote.phone} · wants {formatDate(quote.deliveryDate)} · received{" "}
@@ -220,6 +241,40 @@ function QuoteRow({ quote }: { quote: QuoteRequest }) {
               <p className="mt-1 text-sm whitespace-pre-wrap text-slate-600">{quote.address}</p>
             </div>
           </div>
+
+          {(quote.companyName || quote.gstin || quote.headcount || quote.eventType) && (
+            <div>
+              <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                Corporate & occasion
+              </p>
+              <dl className="mt-1 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+                {quote.companyName && (
+                  <div className="flex gap-2">
+                    <dt className="text-slate-500">Company</dt>
+                    <dd className="text-slate-900">{quote.companyName}</dd>
+                  </div>
+                )}
+                {quote.gstin && (
+                  <div className="flex gap-2">
+                    <dt className="text-slate-500">GSTIN</dt>
+                    <dd className="font-mono text-slate-900">{quote.gstin}</dd>
+                  </div>
+                )}
+                {quote.eventType && (
+                  <div className="flex gap-2">
+                    <dt className="text-slate-500">Occasion</dt>
+                    <dd className="text-slate-900">{eventTypeLabel(quote.eventType)}</dd>
+                  </div>
+                )}
+                {quote.headcount != null && (
+                  <div className="flex gap-2">
+                    <dt className="text-slate-500">People</dt>
+                    <dd className="text-slate-900">{quote.headcount}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
 
           <div>
             <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">

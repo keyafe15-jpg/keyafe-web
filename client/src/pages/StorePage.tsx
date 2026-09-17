@@ -1,35 +1,17 @@
 import { Link, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useCategories, useDepartments, type CategoryNode } from "@/hooks/useCategories";
-import { useProductsByDepartment } from "@/hooks/useProducts";
 import { STORE_COPY } from "@/content/store";
-import { CATEGORY_PLACEHOLDER_COPY } from "@/content/misc";
 import { Reveal } from "@/components/motion/Reveal";
-import { PaginationControls } from "@/components/ClientPagination";
-import { CatalogProductCard, ProductGridSkeleton } from "@/components/product/CatalogProductCard";
-
-const PAGE_SIZE = 12;
 
 export function StorePage() {
   const { slug = "" } = useParams<{ slug: string }>();
-  const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    setPage(1);
-  }, [slug]);
 
   const { data: stores = [], isLoading: storesLoading } = useDepartments();
   const { data: tree = [], isLoading: catsLoading } = useCategories();
-  const { data: listing, isLoading: prodsLoading } = useProductsByDepartment(
-    slug || undefined,
-    page,
-    PAGE_SIZE,
-  );
 
   const store = stores.find((s) => s.slug === slug) ?? null;
   const groups = useMemo(() => tree.filter((c) => c.department?.slug === slug), [tree, slug]);
-  const products = listing?.items ?? [];
-  const totalPages = listing?.totalPages ?? 1;
 
   const copy =
     slug in STORE_COPY.bySlug ? STORE_COPY.bySlug[slug as keyof typeof STORE_COPY.bySlug] : null;

@@ -7,7 +7,7 @@ import { AuthDialog } from "@/components/auth/AuthDialog";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { CategoriesMenu } from "@/components/categories/CategoriesMenu";
 import { BRAND } from "@/content/brand";
-import { SAMEDAY_NAV, HEALTHY_NAV, PANINDIA_NAV, storeNavItem } from "@/content/nav";
+import { SAMEDAY_NAV, HEALTHY_NAV, PANINDIA_NAV, CORPORATE_NAV, storeNavItem } from "@/content/nav";
 import { AUTH_COPY } from "@/content/auth";
 import {
   groupCategoriesByDepartment,
@@ -17,7 +17,7 @@ import {
 } from "@/hooks/useCategories";
 import { Menu, ShoppingCart, X } from "lucide-react";
 
-type Accent = "brand" | "emerald" | "amber";
+type Accent = "brand" | "emerald" | "amber" | "indigo";
 
 const ACCENT_STYLES: Record<Accent, { badge: string; hover: string; active: string }> = {
   brand: {
@@ -34,6 +34,11 @@ const ACCENT_STYLES: Record<Accent, { badge: string; hover: string; active: stri
     badge: "bg-amber-100 text-amber-600",
     hover: "hover:bg-amber-50 hover:text-amber-700",
     active: "bg-amber-500 text-white shadow-[0_6px_14px_rgba(217,119,6,0.3)]",
+  },
+  indigo: {
+    badge: "bg-indigo-100 text-indigo-600",
+    hover: "hover:bg-indigo-50 hover:text-indigo-700",
+    active: "bg-indigo-600 text-white shadow-[0_6px_14px_rgba(79,70,229,0.3)]",
   },
 };
 
@@ -217,6 +222,28 @@ export function Header() {
                   <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1" />
                   <circle cx="7.5" cy="17.5" r="2.5" />
                   <circle cx="17.5" cy="17.5" r="2.5" />
+                </svg>
+              }
+            />
+            <FeaturePill
+              to={CORPORATE_NAV.to}
+              label={CORPORATE_NAV.label}
+              accent="indigo"
+              icon={
+                <svg
+                  width={13}
+                  height={13}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 21h18" />
+                  <path d="M5 21V7l7-4 7 4v14" />
+                  <path d="M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01" />
                 </svg>
               }
             />
@@ -449,6 +476,23 @@ export function Header() {
                     </span>
                     <span className="text-xs leading-tight font-semibold text-amber-700">
                       {PANINDIA_NAV.label}
+                    </span>
+                  </NavLink>
+                  <NavLink
+                    to={CORPORATE_NAV.to}
+                    onClick={closeMobileMenu}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex flex-col items-center gap-1.5 rounded-2xl border border-indigo-200 bg-indigo-50 px-2 py-3 text-center transition active:scale-95",
+                        isActive && "ring-2 ring-indigo-300",
+                      )
+                    }
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-base shadow-sm">
+                      🏢
+                    </span>
+                    <span className="text-xs leading-tight font-semibold text-indigo-700">
+                      Corporate
                     </span>
                   </NavLink>
                   <NavLink

@@ -21,6 +21,14 @@ model QuoteRequest {
   referenceImages String[] // Cloudinary URLs; API enforces max = 4
   notes           String? // customer's extra notes (allergies, delivery instructions)
 
+  // Corporate / party intake. All nullable: an ordinary custom-cake enquiry
+  // fills none of these. companyName + gstin mirror the fields captured at
+  // checkout, so a converted quote already has what the GST invoice needs.
+  companyName String?
+  gstin       String?
+  headcount   Int? // rough number of people to serve
+  eventType   String? // e.g. corporate-gifting, office-party, birthday
+
   status       QuoteStatus @default(NEW)
   adminNotes   String? // internal note added while triaging
   quotedAmount Decimal?    @db.Decimal(10, 2) // filled when admin responds with a price

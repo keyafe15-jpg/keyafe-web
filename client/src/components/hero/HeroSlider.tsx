@@ -191,7 +191,7 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                           )}
                           <img
                             src={slide.imageUrl ?? slide.imageUrlMobile ?? ""}
-                            alt=""
+                            alt={slide.title}
                             className={cn(
                               "h-full w-full object-cover object-center",
                               active && !reduceMotion && "collection-ken",
@@ -211,9 +211,9 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                                   {HOME_COPY.collections.badge}
                                 </span>
                               </div>
-                              <p className="font-display text-lg leading-snug text-white drop-shadow-sm sm:text-3xl sm:leading-tight">
+                              <h2 className="font-display text-lg leading-snug text-white drop-shadow-sm sm:text-3xl sm:leading-tight">
                                 {slide.title}
-                              </p>
+                              </h2>
                               <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-white/90 drop-shadow-sm sm:mt-1 sm:line-clamp-none sm:text-sm sm:leading-5">
                                 {slide.line}
                               </p>

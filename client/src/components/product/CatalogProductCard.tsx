@@ -1,19 +1,34 @@
 import { Link } from "react-router-dom";
 import { categoryNames, type ProductCard } from "@/hooks/useProducts";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
+import { cn } from "@/lib/cn";
 
-export function CatalogProductCard({ product }: { product: ProductCard }) {
+interface CatalogProductCardProps {
+  product: ProductCard;
+  className?: string;
+  /**
+   * Hide this tag's badge. Used by tag-led sections, where repeating the
+   * section's own tag on every card is just noise.
+   */
+  omitTagSlug?: string;
+}
+
+export function CatalogProductCard({ product, className, omitTagSlug }: CatalogProductCardProps) {
   const priceValue = `₹${Number(product.startingPrice).toFixed(0)}`;
   const showsRange = product.template !== "CAKE";
+  const tags = omitTagSlug ? product.tags.filter((t) => t.slug !== omitTagSlug) : product.tags;
   return (
     <Link
       to={`/product/${product.slug}`}
-      className="group block overflow-hidden rounded-card border border-cream-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+      className={cn(
+        "group flex flex-col overflow-hidden rounded-card border border-cream-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md",
+        className,
+      )}
     >
       <div className="relative aspect-square overflow-hidden bg-cream-100">
-        {product.tags.length > 0 && (
+        {tags.length > 0 && (
           <ProductCardTags
-            tags={product.tags}
+            tags={tags}
             className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
           />
         )}
@@ -30,7 +45,7 @@ export function CatalogProductCard({ product }: { product: ProductCard }) {
           </div>
         )}
       </div>
-      <div className="p-2.5 sm:p-4">
+      <div className="flex flex-1 flex-col p-2.5 sm:p-4">
         <p className="text-ink-400 text-[10px] tracking-wide uppercase sm:text-xs">
           {categoryNames(product)}
         </p>
@@ -42,7 +57,7 @@ export function CatalogProductCard({ product }: { product: ProductCard }) {
             {product.shortDescription}
           </p>
         )}
-        <div className="mt-2 flex items-center justify-between gap-1 sm:mt-3">
+        <div className="mt-auto flex items-center justify-between gap-1 pt-2 sm:pt-3">
           <span className="text-sm font-semibold text-ink-900 sm:text-lg">
             {showsRange && (
               <span className="mr-1 hidden text-xs font-normal text-ink-500 sm:inline">

@@ -147,6 +147,15 @@
   animation: hero-word-reveal 0.7s ease forwards;
 }
 
+/* The "what we make" line inside the h1. Sized well below the display lines so
+   it reads as supporting text, and never animated — see HomePage.tsx. */
+.hero-offering {
+  font-size: clamp(0.95rem, 2.1vw, 1.15rem);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
 .hero-word-1 {
   animation-delay: 0.12s;
 }
@@ -422,13 +431,17 @@ gmp-place-autocomplete:focus-within {
   .home-rise,
   .home-pill,
   .home-list-item,
-  .home-cta-glow {
+  .home-cta-glow,
+  .hero-word {
     animation: none !important;
   }
 
+  /* .hero-word starts at opacity 0, so killing its animation without this
+     would hide the headline outright. */
   .home-rise,
   .home-pill,
-  .home-list-item {
+  .home-list-item,
+  .hero-word {
     opacity: 1;
     transform: none;
   }

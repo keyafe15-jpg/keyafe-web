@@ -10,6 +10,7 @@ import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { healthRouter } from "./modules/health/health.routes.js";
+import { sitemapRouter } from "./modules/seo/sitemap.routes.js";
 import { uploadRouter } from "./modules/uploads/upload.routes.js";
 import {
   storeRouter,
@@ -93,6 +94,10 @@ export function createApp() {
       }),
     );
   }
+
+  // Served at the root, not under /api, since a sitemap must live at the site
+  // root. In production the storefront's web server should proxy it here.
+  app.use(sitemapRouter);
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);

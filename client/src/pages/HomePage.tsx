@@ -2,24 +2,19 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { HeroSlider, type CollectionSlide } from "@/components/hero/HeroSlider";
 import { HomePromoBanner } from "@/components/home/HomePromoBanner";
+import { TagShowcase } from "@/components/home/TagShowcase";
 import { HomeFilm } from "@/components/home/HomeFilm";
 import { StoreDoor } from "@/components/home/StoreDoor";
 import { PageMotifs } from "@/components/decor/PageMotifs";
 import { Reveal } from "@/components/motion/Reveal";
-import { HOME_COLLECTIONS, HOME_COPY } from "@/content/home";
+import { BakeryJsonLd, Seo } from "@/components/seo/Seo";
+import { HOME_COLLECTIONS, HOME_COPY, HOME_SEO, KEYAFE_OFFERINGS } from "@/content/home";
 import {
   groupCategoriesByDepartment,
   useCategories,
   useDepartments,
   type CategoryNode,
 } from "@/hooks/useCategories";
-
-const valuePills = [
-  "All over Kolkata",
-  "Eggless cakes",
-  "Custom occasions",
-  "Good quality ingredients",
-];
 
 const promiseCards = [
   {
@@ -70,6 +65,8 @@ export function HomePage() {
 
   return (
     <div className="relative isolate overflow-x-clip">
+      <Seo title={HOME_SEO.title} description={HOME_SEO.description} />
+      <BakeryJsonLd offerings={KEYAFE_OFFERINGS} />
       <PageMotifs />
 
       <div
@@ -96,8 +93,13 @@ export function HomePage() {
           </div>
 
           <h1 className="hero-headline mx-auto font-bold text-ink-900">
-            <span className="hero-word hero-word-1 block">Baked fresh,</span>
-            <span className="hero-word hero-word-4 block text-brand-500">Made just for you!</span>
+            <span className="hero-word hero-word-1 block">{HOME_COPY.hero.heading[0]}</span>
+            <span className="hero-word hero-word-4 block text-brand-500">
+              {HOME_COPY.hero.heading[1]}
+            </span>
+            {/* Deliberately outside .hero-word: this line states what we sell,
+                so it must never depend on an animation to become visible. */}
+            <span className="hero-offering mt-2 block text-ink-700">{HOME_COPY.hero.offering}</span>
           </h1>
 
           <p
@@ -139,14 +141,15 @@ export function HomePage() {
           </div>
 
           <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {valuePills.map((item, index) => (
-              <span
-                key={item}
-                className="home-pill rounded-md border border-white/60 bg-white/45 px-3 py-1.5 text-xs font-medium text-ink-700 shadow-sm backdrop-blur-sm"
+            {HOME_COPY.shopChips.map((chip, index) => (
+              <Link
+                key={chip.to}
+                to={chip.to}
+                className="home-pill rounded-md border border-white/60 bg-white/45 px-3 py-1.5 text-xs font-medium text-ink-700 shadow-sm backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:text-brand-700"
                 style={{ animationDelay: `${0.95 + index * 0.08}s` }}
               >
-                {item}
-              </span>
+                {chip.label}
+              </Link>
             ))}
           </div>
         </div>
@@ -182,6 +185,8 @@ export function HomePage() {
           ))}
         </div>
       </section>
+
+      <TagShowcase />
 
       <section className="relative z-10 mx-auto max-w-6xl px-4 py-12">
         <Reveal>
@@ -229,22 +234,33 @@ export function HomePage() {
             >
               &ldquo;
             </span>
-            <div className="relative flex flex-col items-center gap-6 text-center md:flex-row md:justify-between md:text-left">
-              <div className="max-w-xl md:pr-6">
-                <p className="mb-2 text-sm tracking-widest text-brand-500 uppercase">
-                  {HOME_COPY.quoteBanner.eyebrow}
-                </p>
-                <h2 className="mb-2 font-display text-2xl text-ink-900 md:text-3xl">
-                  {HOME_COPY.quoteBanner.title}
-                </h2>
-                <p className="text-ink-500">{HOME_COPY.quoteBanner.body}</p>
+            <div className="relative">
+              <div className="flex flex-col items-center gap-6 text-center md:flex-row md:justify-between md:text-left">
+                <div className="max-w-xl md:pr-6">
+                  <p className="mb-2 text-sm tracking-widest text-brand-500 uppercase">
+                    {HOME_COPY.corporate.eyebrow}
+                  </p>
+                  <h2 className="mb-2 font-display text-2xl text-ink-900 md:text-3xl">
+                    {HOME_COPY.corporate.title}
+                  </h2>
+                  <p className="text-ink-500">{HOME_COPY.corporate.body}</p>
+                </div>
+                <Link
+                  to={HOME_COPY.corporate.cta.to}
+                  className="shrink-0 rounded-full bg-brand-500 px-6 py-3 text-sm font-medium text-white shadow-[0_12px_24px_rgba(227,28,121,0.25)] transition hover:-translate-y-0.5 hover:bg-brand-700"
+                >
+                  {HOME_COPY.corporate.cta.label}
+                </Link>
               </div>
-              <Link
-                to={HOME_COPY.quoteBanner.cta.to}
-                className="shrink-0 rounded-full bg-brand-500 px-6 py-3 text-sm font-medium text-white shadow-[0_12px_24px_rgba(227,28,121,0.25)] transition hover:-translate-y-0.5 hover:bg-brand-700"
-              >
-                {HOME_COPY.quoteBanner.cta.label}
-              </Link>
+
+              <dl className="mt-8 grid gap-4 border-t border-cream-200 pt-6 text-left sm:grid-cols-3">
+                {HOME_COPY.corporate.points.map((point, index) => (
+                  <Reveal key={point.title} delay={index * 90}>
+                    <dt className="font-display text-base text-ink-900">{point.title}</dt>
+                    <dd className="mt-1 text-sm leading-6 text-ink-500">{point.body}</dd>
+                  </Reveal>
+                ))}
+              </dl>
             </div>
           </div>
         </Reveal>

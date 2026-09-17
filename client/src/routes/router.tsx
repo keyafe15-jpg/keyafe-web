@@ -11,6 +11,7 @@ import { GetQuotePage } from "@/pages/GetQuotePage";
 import { SameDayPage } from "@/pages/SameDayPage";
 import { HealthyPage } from "@/pages/HealthyPage";
 import { PanIndiaPage } from "@/pages/PanIndiaPage";
+import { TagPage } from "@/pages/TagPage";
 import { SavedAddressesPage } from "@/pages/SavedAddressesPage";
 import { MyOrdersPage } from "@/pages/MyOrdersPage";
 import { AboutPage } from "@/pages/AboutPage";
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
       { path: "same-day", element: <SameDayPage /> },
       { path: "healthy", element: <HealthyPage /> },
       { path: "pan-india", element: <PanIndiaPage /> },
+      { path: "tag/:slug", element: <TagPage /> },
       { path: "about", element: <AboutPage /> },
       { path: "saved-addresses", element: <SavedAddressesPage /> },
       { path: "my-orders", element: <MyOrdersPage /> },

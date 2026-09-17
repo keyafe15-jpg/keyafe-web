@@ -7,6 +7,8 @@ import {
   listPanIndiaProducts,
   listSameDayProducts,
   listHealthyTreatProducts,
+  listHomeTagShowcase,
+  listPublicProductsByTagSlug,
 } from "./product.service.js";
 
 export const publicProductRouter = Router();
@@ -29,6 +31,26 @@ publicProductRouter.get("/healthy", async (_req, res) => {
   const products = await listHealthyTreatProducts();
   res.setHeader("Cache-Control", "public, max-age=30");
   res.json(products);
+});
+
+// Every homepage tag section in one round trip, so the landing page doesn't
+// fan out a request per section.
+publicProductRouter.get("/showcase", async (req, res) => {
+  const { limit } = req.query;
+  const sections = await listHomeTagShowcase(limit ? Number(limit) : undefined);
+  res.setHeader("Cache-Control", "public, max-age=30");
+  res.json(sections);
+});
+
+publicProductRouter.get("/tag/:slug", async (req, res) => {
+  const { page, pageSize } = req.query;
+  const result = await listPublicProductsByTagSlug(
+    req.params.slug,
+    Number(page ?? 1),
+    Number(pageSize ?? 12),
+  );
+  res.setHeader("Cache-Control", "public, max-age=30");
+  res.json(result);
 });
 
 publicProductRouter.get("/", async (req, res) => {

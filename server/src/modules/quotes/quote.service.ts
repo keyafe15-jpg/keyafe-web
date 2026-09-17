@@ -2,7 +2,19 @@ import { z } from "zod";
 import type { QuoteStatus } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
+import { gstinIssue, normalizeGstin } from "../../lib/gstin.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
+
+/** Occasions we ask about on /get-quote. Stored as a plain string column. */
+export const QUOTE_EVENT_TYPES = [
+  "corporate-gifting",
+  "office-party",
+  "house-party",
+  "birthday",
+  "wedding",
+  "festival",
+  "other",
+] as const;
 
 const PHONE_RE = /^(?:\+?[1-9]\d{7,14}|[6-9]\d{9})$/;
 
@@ -51,6 +63,42 @@ export const createQuoteSchema = z.object({
     .nullable()
     .transform((v) => (v ? v : null)),
   referenceImages: z.array(z.string().min(1).max(2048)).max(4).default([]),
+
+  // Corporate / party extras. All optional — a plain custom-cake enquiry sends
+  // none of them. GSTIN reuses the same checksum validation as checkout so a
+  // quote that converts already holds an invoice-ready number.
+  companyName: z
+    .string()
+    .trim()
+    .max(160)
+    .optional()
+    .nullable()
+    .transform((v) => v || null),
+  gstin: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v ? normalizeGstin(v) : null))
+    .refine((v) => v === null || gstinIssue(v) === null, {
+      message: "Enter a valid 15-character GSTIN",
+    }),
+  headcount: z
+    .union([z.number(), z.string(), z.null()])
+    .optional()
+    .transform((v) => {
+      if (v == null || v === "") return null;
+      return typeof v === "number" ? v : Number(v);
+    })
+    .refine(
+      (v) => v == null || (Number.isInteger(v) && v > 0 && v <= 100000),
+      "Enter a valid number of people",
+    ),
+  eventType: z
+    .enum(QUOTE_EVENT_TYPES)
+    .optional()
+    .nullable()
+    .transform((v) => v ?? null),
 });
 
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
@@ -89,6 +137,10 @@ const quoteSelect = {
   description: true,
   referenceImages: true,
   notes: true,
+  companyName: true,
+  gstin: true,
+  headcount: true,
+  eventType: true,
   status: true,
   adminNotes: true,
   quotedAmount: true,
@@ -127,6 +179,10 @@ export async function createQuoteRequest(input: CreateQuoteInput) {
       description: input.description,
       notes: input.notes ?? null,
       referenceImages: input.referenceImages,
+      companyName: input.companyName ?? null,
+      gstin: input.gstin ?? null,
+      headcount: input.headcount ?? null,
+      eventType: input.eventType ?? null,
     },
     select: { id: true },
   });

@@ -42,11 +42,40 @@ export const HOME_COLLECTIONS: HomeCollection[] = [
   },
 ];
 
+/**
+ * Everything we make, including the made-to-order items that never appear as
+ * catalogue products. Declared in the homepage structured data so search
+ * engines know we offer them even though there is no page per item.
+ */
+export const KEYAFE_OFFERINGS = [
+  "Custom celebration cakes",
+  "Birthday and anniversary cakes",
+  "Wedding cakes",
+  "Cookies",
+  "Brownies",
+  "Cake and cookie tubs",
+  "Gift hampers",
+  "Pizzas",
+  "Panuozzo and focaccia sandwiches",
+  "Party trays and house snacks",
+  "Corporate gifting and bulk orders",
+] as const;
+
+export const HOME_SEO = {
+  title: "Custom Cakes, Cookies, Brownies & Hampers in Kolkata",
+  description:
+    "Keyafe bakes custom celebration cakes, cookies, brownies, hampers, pizzas and party trays in Kolkata. Small party and corporate orders welcome, with GST invoices for businesses.",
+};
+
 export const HOME_COPY = {
   hero: {
     eyebrow: "Handcrafted daily",
-    heading: ["Baked with love,", "delivered fresh."] as const,
-    sub: "Cakes, tubs, pizzas and house snacks — pick a store and order.",
+    heading: ["Baked fresh,", "Made just for you!"] as const,
+    // The plain-language line: what we make and where. Kept deliberately
+    // literal so both first-time visitors and search engines can tell at a
+    // glance what this bakery actually sells.
+    offering: "Custom cakes, cookies, brownies, hampers & pizzas in Kolkata",
+    sub: "Celebration and custom cakes, cookies, cake tubs, brownies, hampers, pizzas and house snacks — for homes, small parties and corporate orders across Kolkata.",
     primaryCta: { to: "/store/dessert", label: "Dessert store" },
     secondaryCta: { to: "/store/savory", label: "Savoury store" },
     coverage: {
@@ -80,10 +109,48 @@ export const HOME_COPY = {
       savory: "Pizzas, panuozzo, focaccia and house snacks.",
     },
   },
-  quoteBanner: {
-    eyebrow: "Something custom?",
-    title: "Can't find what you're looking for?",
-    body: "Share a reference or describe your dream bake — we'll get back within a few hours with a quote.",
-    cta: { to: "/get-quote", label: "Get a quote" },
+  // Shoppable shortcuts under the hero. Every one of these points at a real
+  // category, so the labels double as the page's internal link text.
+  shopChips: [
+    { to: "/category/celebration-cakes", label: "Celebration cakes" },
+    { to: "/category/custom-cakes", label: "Custom design cakes" },
+    { to: "/category/cookies", label: "Cookies" },
+    { to: "/category/tubs", label: "Cake & cookie tubs" },
+    { to: "/category/pizzas", label: "Pizzas" },
+    { to: "/category/house-special-snacks", label: "House snacks" },
+  ],
+  corporate: {
+    eyebrow: "Corporate & party orders",
+    title: "Office celebrations, client gifting and house parties",
+    body: "Festival hampers, bulk boxes and party trays for teams and gatherings across Kolkata — plus brownies, hampers and custom trays we bake to order.",
+    // Only claims the documents we genuinely issue. Nothing here about
+    // corporate rates, credit terms or purchase orders, none of which exist.
+    points: [
+      {
+        title: "GST invoice in your company name",
+        body: "Share your company name and GSTIN and your invoice carries both, so you can claim input tax credit.",
+      },
+      {
+        title: "Delivery challan with the goods",
+        body: "Every corporate delivery travels with a signed challan on its own number series, cross-referenced to the invoice.",
+      },
+      {
+        title: "Built around your date",
+        body: "Tell us the occasion, headcount and delivery date, and we'll come back with a quote.",
+      },
+    ],
+    cta: { to: "/get-quote", label: "Enquire about a corporate order" },
+    secondaryCta: { to: "/get-quote", label: "Planning a party? Get a quote" },
+  },
+  tagSections: {
+    seeAll: "See all",
+    // Headline per tag slug. Tags an admin flags later fall back to their own
+    // name, so a new section never renders without a heading.
+    headingBySlug: {
+      "best-seller": "The ones everyone keeps coming back for",
+      "new-launch": "Fresh off the bench",
+      "same-day": "Order today, enjoy today",
+      eggless: "Every bit as good, entirely eggless",
+    } as Record<string, string>,
   },
 } as const;

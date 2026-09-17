@@ -944,16 +944,30 @@ async function seedSampleOrders() {
 
 async function seedTags() {
   const tags = [
-    { slug: "new-launch", name: "New launch", colorHex: "#E31C79" },
-    { slug: "best-seller", name: "Best seller", colorHex: "#F59E0B" },
-    { slug: "same-day", name: "Same-day", colorHex: "#10B981" },
-    { slug: "eggless", name: "Eggless", colorHex: "#3B82F6" },
+    {
+      slug: "best-seller",
+      name: "Best seller",
+      colorHex: "#F59E0B",
+      showOnHome: true,
+      sortOrder: 10,
+    },
+    {
+      slug: "new-launch",
+      name: "New launch",
+      colorHex: "#E31C79",
+      showOnHome: true,
+      sortOrder: 20,
+    },
+    { slug: "same-day", name: "Same-day", colorHex: "#10B981", showOnHome: false, sortOrder: 30 },
+    { slug: "eggless", name: "Eggless", colorHex: "#3B82F6", showOnHome: false, sortOrder: 40 },
   ];
 
   for (const tag of tags) {
     await prisma.tag.upsert({
       where: { slug: tag.slug },
       create: tag,
+      // showOnHome / sortOrder are left out so re-seeding never overwrites
+      // whatever the admin has curated on the Tags page.
       update: { name: tag.name, colorHex: tag.colorHex },
     });
   }

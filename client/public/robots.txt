@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Private and transactional pages. Order links are tokenised, so keeping them
+# out of the index is a privacy matter, not just an SEO one.
+Disallow: /o/
+Disallow: /checkout
+Disallow: /cart
+Disallow: /my-orders
+Disallow: /saved-addresses
+Disallow: /order/
+
+Sitemap: https://keyafe.com/sitemap.xml
