@@ -155,10 +155,7 @@ export function HomePage() {
             ))}
           </div>
 
-          <div
-            className="home-rise mx-auto mt-4 max-w-md"
-            style={{ animationDelay: "1.15s" }}
-          >
+          <div className="home-rise mx-auto mt-4 max-w-md" style={{ animationDelay: "1.15s" }}>
             <CatalogSearchBar
               placeholder={HOME_COPY.search.placeholder}
               className="border-white/60 bg-white/55 backdrop-blur-sm"
@@ -170,8 +167,6 @@ export function HomePage() {
       <Reveal>
         <HomePromoBanner />
       </Reveal>
-
-      <HomeFilm />
 
       <section className="relative z-10 mx-auto max-w-6xl px-4 pt-2 pb-4 md:pt-4">
         <Reveal>
@@ -199,7 +194,7 @@ export function HomePage() {
       </section>
 
       <TagShowcase />
-
+      <HomeFilm />
       <GoogleReviewsSection />
 
       <section className="relative z-10 mx-auto max-w-6xl px-4 py-12">

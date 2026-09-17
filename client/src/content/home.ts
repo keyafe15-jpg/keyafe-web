@@ -124,8 +124,9 @@ export const HOME_COPY = {
     submitLabel: "Search",
   },
   googleReviews: {
-    eyebrow: "Google love",
-    heading: "What guests say on Google",
+    eyebrow: "Loved on the apps",
+    heading: "Ratings that travel with every order",
+    sub: "Guests rate us on Zomato, Swiggy and Google — here’s the latest snapshot.",
     writeCta: "Leave a Google review",
     seeAllCta: "See all on Google",
   },

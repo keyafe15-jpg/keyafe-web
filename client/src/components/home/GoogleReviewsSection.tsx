@@ -1,10 +1,8 @@
 import { Star } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
+import { BRAND } from "@/content/brand";
 import { HOME_COPY } from "@/content/home";
-import {
-  googleReviewsConfigured,
-  useGooglePlaceReviews,
-} from "@/hooks/useGooglePlaceReviews";
+import { googleReviewsConfigured, useGooglePlaceReviews } from "@/hooks/useGooglePlaceReviews";
 import { cn } from "@/lib/cn";
 
 function Stars({ value, size = "md" }: { value: number; size?: "sm" | "md" }) {
@@ -25,17 +23,49 @@ function Stars({ value, size = "md" }: { value: number; size?: "sm" | "md" }) {
   );
 }
 
+function PlatformBadge({
+  name,
+  rating,
+  count,
+  href,
+  accent,
+}: {
+  name: string;
+  rating: number;
+  count: number;
+  href: string;
+  accent: string;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex min-w-[9.5rem] flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/70 px-4 py-3 shadow-sm backdrop-blur-md transition hover:-translate-y-0.5 hover:border-brand-300"
+    >
+      <span className={cn("text-[11px] font-semibold tracking-[0.18em] uppercase", accent)}>
+        {name}
+      </span>
+      <span className="flex items-center gap-1.5">
+        <Stars value={rating} size="sm" />
+        <span className="text-lg font-semibold text-ink-900">{rating.toFixed(1)}</span>
+      </span>
+      <span className="text-xs text-ink-500">
+        {count.toLocaleString("en-IN")} rating{count === 1 ? "" : "s"}
+      </span>
+    </a>
+  );
+}
+
 /**
- * Pulls live Google Business reviews via Places API (New).
- * Renders nothing when Place ID / Maps key are missing or the fetch fails.
+ * Home social proof: manual Zomato/Swiggy badges + live Google reviews when configured.
  */
 export function GoogleReviewsSection() {
   const configured = googleReviewsConfigured();
   const { data, isLoading, isError } = useGooglePlaceReviews();
-
-  if (!configured || isError || (!isLoading && !data)) return null;
-
+  const showGoogle = configured && !isError && (isLoading || Boolean(data));
   const copy = HOME_COPY.googleReviews;
+  const { zomato, swiggy } = BRAND.platformRatings;
 
   return (
     <section className="relative z-10 mx-auto max-w-6xl px-4 py-12">
@@ -45,21 +75,40 @@ export function GoogleReviewsSection() {
             {copy.eyebrow}
           </p>
           <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">{copy.heading}</h2>
-          {data && (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-ink-700">
-              <Stars value={data.rating} />
-              <span className="font-semibold text-ink-900">{data.rating.toFixed(1)}</span>
-              <span className="text-ink-500">
-                · {data.reviewCount.toLocaleString("en-IN")} Google review
-                {data.reviewCount === 1 ? "" : "s"}
-              </span>
-            </div>
-          )}
+          <p className="mt-2 text-sm text-ink-500">{copy.sub}</p>
         </div>
       </Reveal>
 
-      {isLoading && (
-        <p className="text-center text-sm text-ink-500">Loading Google reviews…</p>
+      <Reveal>
+        <div className="mb-8 flex flex-wrap items-stretch justify-center gap-3 sm:gap-4">
+          {data && (
+            <PlatformBadge
+              name="Google"
+              rating={data.rating}
+              count={data.reviewCount}
+              href={data.mapsUri ?? data.writeReviewUri}
+              accent="text-[#4285F4]"
+            />
+          )}
+          <PlatformBadge
+            name="Zomato"
+            rating={zomato.rating}
+            count={zomato.count}
+            href={BRAND.socials.zomato}
+            accent="text-[#E23744]"
+          />
+          <PlatformBadge
+            name="Swiggy"
+            rating={swiggy.rating}
+            count={swiggy.count}
+            href={BRAND.socials.swiggy}
+            accent="text-[#FC8019]"
+          />
+        </div>
+      </Reveal>
+
+      {showGoogle && isLoading && (
+        <p className="mb-6 text-center text-sm text-ink-500">Loading Google reviews…</p>
       )}
 
       {data && data.reviews.length > 0 && (
@@ -69,7 +118,8 @@ export function GoogleReviewsSection() {
               <blockquote className="flex h-full flex-col rounded-2xl border border-cream-200 bg-white/70 p-5 shadow-sm backdrop-blur-md">
                 <Stars value={review.rating} size="sm" />
                 <p className="mt-3 flex-1 text-sm leading-6 text-ink-700">
-                  “{review.text.length > 220 ? `${review.text.slice(0, 220).trim()}…` : review.text}”
+                  “{review.text.length > 220 ? `${review.text.slice(0, 220).trim()}…` : review.text}
+                  ”
                 </p>
                 <footer className="mt-4 flex items-center gap-3 border-t border-cream-100 pt-3">
                   {review.photoUri ? (
@@ -96,7 +146,9 @@ export function GoogleReviewsSection() {
                         {review.authorName}
                       </a>
                     ) : (
-                      <p className="truncate text-sm font-medium text-ink-900">{review.authorName}</p>
+                      <p className="truncate text-sm font-medium text-ink-900">
+                        {review.authorName}
+                      </p>
                     )}
                     {review.relativeTime && (
                       <p className="text-xs text-ink-500">{review.relativeTime}</p>
@@ -132,9 +184,13 @@ export function GoogleReviewsSection() {
         </div>
       )}
 
-      <p className="mt-4 text-center text-[11px] text-ink-500">
-        Reviews from Google ·{" "}
-        <span className="text-ink-700">{data?.placeName ?? "Keyafe"}</span>
+      {data && (
+        <p className="mt-4 text-center text-[11px] text-ink-500">
+          Review quotes from Google · <span className="text-ink-700">{data.placeName}</span>
+        </p>
+      )}
+      <p className="mt-2 text-center text-[11px] text-ink-500">
+        Zomato &amp; Swiggy ratings are updated periodically from our listings.
       </p>
     </section>
   );

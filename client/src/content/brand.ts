@@ -11,6 +11,17 @@ export const BRAND = {
     instagram: "https://instagram.com/keyafe",
     facebook: "https://facebook.com/keyafe",
     whatsapp: "https://wa.me/919330048665",
+    // Update these when the listing URLs change.
+    zomato: "https://www.zomato.com/",
+    swiggy: "https://www.swiggy.com/",
+  },
+  /**
+   * Delivery-app ratings — maintained by hand (no public API).
+   * Update when Zomato / Swiggy numbers move.
+   */
+  platformRatings: {
+    zomato: { rating: 4.2, count: 1198 },
+    swiggy: { rating: 4.4, count: 224 },
   },
   /**
    * Name, address and phone as published to search engines. Keep this in step
