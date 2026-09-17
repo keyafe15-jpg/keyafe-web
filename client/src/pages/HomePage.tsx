@@ -1,5 +1,6 @@
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import { HeroSlider, type CollectionSlide } from "@/components/hero/HeroSlider";
 import { HomePromoBanner } from "@/components/home/HomePromoBanner";
 import { TagShowcase } from "@/components/home/TagShowcase";
@@ -38,6 +39,8 @@ const promiseCards = [
 ];
 
 export function HomePage() {
+  const navigate = useNavigate();
+  const [heroSearch, setHeroSearch] = useState("");
   const { data: categories = [] } = useCategories();
   const { data: departments = [] } = useDepartments();
 
@@ -152,6 +155,37 @@ export function HomePage() {
               </Link>
             ))}
           </div>
+
+          <form
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = heroSearch.trim();
+              if (q.length < 2) return;
+              navigate(`/search?q=${encodeURIComponent(q)}`);
+            }}
+            className="home-rise mx-auto mt-4 flex max-w-md items-center gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-sm backdrop-blur-sm"
+            style={{ animationDelay: "1.15s" }}
+          >
+            <Search className="h-4 w-4 shrink-0 text-ink-500" aria-hidden="true" />
+            <label className="sr-only" htmlFor="home-product-search">
+              {HOME_COPY.search.submitLabel}
+            </label>
+            <input
+              id="home-product-search"
+              type="search"
+              value={heroSearch}
+              onChange={(e) => setHeroSearch(e.target.value)}
+              placeholder={HOME_COPY.search.placeholder}
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-500"
+            />
+            <button
+              type="submit"
+              className="shrink-0 rounded-full bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700"
+            >
+              {HOME_COPY.search.submitLabel}
+            </button>
+          </form>
         </div>
       </section>
 

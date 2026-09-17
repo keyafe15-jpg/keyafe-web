@@ -129,6 +129,29 @@ export function useProductsByTag(slug: string | undefined, page = 1, pageSize = 
   });
 }
 
+export interface ProductSearchPage {
+  query: string;
+  items: ProductCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/** Free-text catalogue search. Queries shorter than 2 chars are not fetched. */
+export function useProductSearch(q: string, page = 1, pageSize = 12) {
+  const trimmed = q.trim();
+  return useQuery<ProductSearchPage>({
+    queryKey: ["products", "search", trimmed, page, pageSize],
+    queryFn: () =>
+      api.get<ProductSearchPage>(
+        `/products/search?q=${encodeURIComponent(trimmed)}&page=${page}&pageSize=${pageSize}`,
+      ),
+    enabled: trimmed.length >= 2,
+    staleTime: 30_000,
+  });
+}
+
 export interface ProductFlavour {
   id: string;
   slug: string;

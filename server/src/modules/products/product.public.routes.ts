@@ -9,6 +9,7 @@ import {
   listHealthyTreatProducts,
   listHomeTagShowcase,
   listPublicProductsByTagSlug,
+  listPublicProductsBySearch,
 } from "./product.service.js";
 
 export const publicProductRouter = Router();
@@ -49,6 +50,14 @@ publicProductRouter.get("/tag/:slug", async (req, res) => {
     Number(page ?? 1),
     Number(pageSize ?? 12),
   );
+  res.setHeader("Cache-Control", "public, max-age=30");
+  res.json(result);
+});
+
+publicProductRouter.get("/search", async (req, res) => {
+  const { q, page, pageSize } = req.query;
+  const query = typeof q === "string" ? q : "";
+  const result = await listPublicProductsBySearch(query, Number(page ?? 1), Number(pageSize ?? 12));
   res.setHeader("Cache-Control", "public, max-age=30");
   res.json(result);
 });

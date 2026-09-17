@@ -119,6 +119,10 @@ export const HOME_COPY = {
     { to: "/category/pizzas", label: "Pizzas" },
     { to: "/category/house-special-snacks", label: "House snacks" },
   ],
+  search: {
+    placeholder: "Search cakes, cookies, pizzas…",
+    submitLabel: "Search",
+  },
   corporate: {
     eyebrow: "Corporate & party orders",
     title: "Office celebrations, client gifting and house parties",

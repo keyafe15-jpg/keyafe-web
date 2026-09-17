@@ -456,6 +456,67 @@ export async function listHomeTagShowcase(limitPerTag = 8) {
   return sections.filter((section) => section.products.length > 0);
 }
 
+const MIN_PUBLIC_SEARCH_LENGTH = 2;
+
+function buildPublicProductSearchWhere(search: string) {
+  const q = search.trim();
+  if (q.length < MIN_PUBLIC_SEARCH_LENGTH) return null;
+  return {
+    ...PUBLIC_LIST_WHERE,
+    OR: [
+      { name: { contains: q, mode: "insensitive" as const } },
+      { slug: { contains: q, mode: "insensitive" as const } },
+      { shortDescription: { contains: q, mode: "insensitive" as const } },
+      { tags: { some: { name: { contains: q, mode: "insensitive" as const } } } },
+      {
+        categoryLinks: {
+          some: {
+            category: { name: { contains: q, mode: "insensitive" as const } },
+          },
+        },
+      },
+    ],
+  };
+}
+
+/** Storefront free-text search. Short/empty queries return an empty page, not an error. */
+export async function listPublicProductsBySearch(search: string, page = 1, pageSize = 12) {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
+  const where = buildPublicProductSearchWhere(search);
+
+  if (!where) {
+    return {
+      query: search.trim(),
+      items: [] as ReturnType<typeof decorateCard>[],
+      total: 0,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages: 1,
+    };
+  }
+
+  const [total, products] = await Promise.all([
+    prisma.product.count({ where }),
+    prisma.product.findMany({
+      where,
+      orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+      skip: (safePage - 1) * safePageSize,
+      take: safePageSize,
+      select: PUBLIC_CARD_SELECT,
+    }),
+  ]);
+
+  return {
+    query: search.trim(),
+    items: products.map((p) => decorateCard(p as unknown as PublicCardRow)),
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+  };
+}
+
 // Paginated listing for a single tag, backing the section "view all" links.
 export async function listPublicProductsByTagSlug(slug: string, page = 1, pageSize = 12) {
   const tag = await prisma.tag.findUnique({
