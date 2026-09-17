@@ -96,7 +96,7 @@ export function SearchPage() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Search cakes, cookies, pizzas…"
               autoFocus
-              className="w-full rounded-full border border-cream-200 bg-white py-3 pr-10 pl-10 text-sm text-ink-900 shadow-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/20"
+              className="w-full rounded-full border border-cream-200 bg-white py-3 pr-10 pl-10 text-sm text-ink-900 shadow-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/20 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
             />
             {input && (
               <button
