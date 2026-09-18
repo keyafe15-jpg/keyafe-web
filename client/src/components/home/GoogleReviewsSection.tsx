@@ -1,8 +1,13 @@
 import { Star } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
+import { MobileSlideCarousel } from "@/components/ui/SlideCarousel";
 import { BRAND } from "@/content/brand";
 import { HOME_COPY } from "@/content/home";
-import { googleReviewsConfigured, useGooglePlaceReviews } from "@/hooks/useGooglePlaceReviews";
+import {
+  googleReviewsConfigured,
+  useGooglePlaceReviews,
+  type GooglePlaceReview,
+} from "@/hooks/useGooglePlaceReviews";
 import { cn } from "@/lib/cn";
 
 function Stars({ value, size = "md" }: { value: number; size?: "sm" | "md" }) {
@@ -54,6 +59,47 @@ function PlatformBadge({
         {count.toLocaleString("en-IN")} rating{count === 1 ? "" : "s"}
       </span>
     </a>
+  );
+}
+
+function ReviewCard({ review }: { review: GooglePlaceReview }) {
+  return (
+    <blockquote className="flex h-full flex-col rounded-2xl border border-cream-200 bg-white/70 p-5 shadow-sm backdrop-blur-md">
+      <Stars value={review.rating} size="sm" />
+      <p className="mt-3 flex-1 text-sm leading-6 text-ink-700">
+        “{review.text.length > 220 ? `${review.text.slice(0, 220).trim()}…` : review.text}”
+      </p>
+      <footer className="mt-4 flex items-center gap-3 border-t border-cream-100 pt-3">
+        {review.photoUri ? (
+          <img
+            src={review.photoUri}
+            alt=""
+            className="h-9 w-9 rounded-full object-cover"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
+            {review.authorName.charAt(0).toUpperCase()}
+          </span>
+        )}
+        <div className="min-w-0">
+          {review.authorUri ? (
+            <a
+              href={review.authorUri}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block truncate text-sm font-medium text-ink-900 hover:text-brand-500"
+            >
+              {review.authorName}
+            </a>
+          ) : (
+            <p className="truncate text-sm font-medium text-ink-900">{review.authorName}</p>
+          )}
+          {review.relativeTime && <p className="text-xs text-ink-500">{review.relativeTime}</p>}
+        </div>
+      </footer>
+    </blockquote>
   );
 }
 
@@ -112,53 +158,21 @@ export function GoogleReviewsSection() {
       )}
 
       {data && data.reviews.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {data.reviews.map((review, index) => (
-            <Reveal key={`${review.authorName}-${index}`} delay={index * 80}>
-              <blockquote className="flex h-full flex-col rounded-2xl border border-cream-200 bg-white/70 p-5 shadow-sm backdrop-blur-md">
-                <Stars value={review.rating} size="sm" />
-                <p className="mt-3 flex-1 text-sm leading-6 text-ink-700">
-                  “{review.text.length > 220 ? `${review.text.slice(0, 220).trim()}…` : review.text}
-                  ”
-                </p>
-                <footer className="mt-4 flex items-center gap-3 border-t border-cream-100 pt-3">
-                  {review.photoUri ? (
-                    <img
-                      src={review.photoUri}
-                      alt=""
-                      className="h-9 w-9 rounded-full object-cover"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
-                      {review.authorName.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                  <div className="min-w-0">
-                    {review.authorUri ? (
-                      <a
-                        href={review.authorUri}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block truncate text-sm font-medium text-ink-900 hover:text-brand-500"
-                      >
-                        {review.authorName}
-                      </a>
-                    ) : (
-                      <p className="truncate text-sm font-medium text-ink-900">
-                        {review.authorName}
-                      </p>
-                    )}
-                    {review.relativeTime && (
-                      <p className="text-xs text-ink-500">{review.relativeTime}</p>
-                    )}
-                  </div>
-                </footer>
-              </blockquote>
-            </Reveal>
-          ))}
-        </div>
+        <>
+          <MobileSlideCarousel ariaLabel="Guest reviews" hideFrom="md">
+            {data.reviews.map((review, index) => (
+              <ReviewCard key={`${review.authorName}-${index}`} review={review} />
+            ))}
+          </MobileSlideCarousel>
+
+          <div className="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-3">
+            {data.reviews.map((review, index) => (
+              <Reveal key={`${review.authorName}-${index}`} delay={index * 80}>
+                <ReviewCard review={review} />
+              </Reveal>
+            ))}
+          </div>
+        </>
       )}
 
       {data && (

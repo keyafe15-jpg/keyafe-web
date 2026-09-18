@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { HeroSlider, type CollectionSlide } from "@/components/hero/HeroSlider";
 import { HomePromoBanner } from "@/components/home/HomePromoBanner";
@@ -10,11 +10,14 @@ import { PageMotifs } from "@/components/decor/PageMotifs";
 import { Reveal } from "@/components/motion/Reveal";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { BakeryJsonLd, Seo } from "@/components/seo/Seo";
+import { SlideCarousel } from "@/components/ui/SlideCarousel";
 import { HOME_COLLECTIONS, HOME_COPY, HOME_SEO, KEYAFE_OFFERINGS } from "@/content/home";
+import { cn } from "@/lib/cn";
 import {
   groupCategoriesByDepartment,
   useCategories,
   useDepartments,
+  type CategoryDepartmentGroup,
   type CategoryNode,
 } from "@/hooks/useCategories";
 
@@ -38,6 +41,42 @@ const promiseCards = [
     tint: "bg-amber-100 text-amber-600",
   },
 ];
+
+function PromiseCard({
+  card,
+  layout = "mobile",
+}: {
+  card: (typeof promiseCards)[number];
+  layout?: "mobile" | "desktop";
+}) {
+  if (layout === "desktop") {
+    return (
+      <div className="group hover:border-brand-200 relative flex flex-col items-start rounded-2xl border border-cream-200 bg-white/70 p-5 shadow-sm backdrop-blur-md transition hover:-translate-y-1 hover:shadow-lg">
+        <span
+          className={`relative z-10 mb-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-xl ring-4 ring-white transition group-hover:scale-110 ${card.tint}`}
+        >
+          {card.icon}
+        </span>
+        <h3 className="text-xl font-semibold text-ink-900">{card.title}</h3>
+        <p className="mt-3 text-sm leading-7 text-ink-700">{card.body}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full items-center gap-3 rounded-2xl border border-cream-200 bg-white/70 p-4 shadow-sm backdrop-blur-md">
+      <span
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl ring-4 ring-white ${card.tint}`}
+      >
+        {card.icon}
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-base font-semibold text-ink-900">{card.title}</h3>
+        <p className="mt-0.5 text-xs leading-5 text-ink-700">{card.body}</p>
+      </div>
+    </div>
+  );
+}
 
 export function HomePage() {
   const { data: categories = [] } = useCategories();
@@ -179,7 +218,8 @@ export function HomePage() {
             </h2>
           </div>
         </Reveal>
-        <div className="flex flex-wrap justify-center gap-8 sm:gap-12">
+        <StoreDoorsMobileTabs groups={storeGroups} />
+        <div className="hidden flex-wrap justify-center gap-8 sm:flex sm:gap-12">
           {storeGroups.map((group, index) => (
             <Reveal key={group.department!.id} delay={index * 100} from="scale">
               <StoreDoor
@@ -209,26 +249,20 @@ export function HomePage() {
           </div>
         </Reveal>
 
-        <div className="relative mb-2 grid gap-3 sm:grid-cols-3 sm:gap-6">
+        <SlideCarousel ariaLabel="Why Keyafe" hideFrom="sm" slideClassName="w-full">
+          {promiseCards.map((card) => (
+            <PromiseCard key={card.title} card={card} layout="mobile" />
+          ))}
+        </SlideCarousel>
+
+        <div className="relative mb-2 hidden gap-6 sm:grid sm:grid-cols-3">
           <div
-            className="border-brand-200 pointer-events-none absolute top-6 right-[16.6%] left-[16.6%] hidden border-t border-dashed sm:block"
+            className="border-brand-200 pointer-events-none absolute top-6 right-[16.6%] left-[16.6%] border-t border-dashed"
             aria-hidden="true"
           />
           {promiseCards.map((card, index) => (
             <Reveal key={card.title} delay={index * 110}>
-              <div className="group hover:border-brand-200 relative flex items-center gap-3 rounded-2xl border border-cream-200 bg-white/70 p-4 shadow-sm backdrop-blur-md transition hover:-translate-y-1 hover:shadow-lg sm:flex-col sm:items-start sm:gap-0 sm:p-5">
-                <span
-                  className={`relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl ring-4 ring-white transition group-hover:scale-110 sm:mb-3 sm:h-12 sm:w-12 ${card.tint}`}
-                >
-                  {card.icon}
-                </span>
-                <div className="min-w-0">
-                  <h3 className="text-base font-semibold text-ink-900 sm:text-xl">{card.title}</h3>
-                  <p className="mt-0.5 text-xs leading-5 text-ink-700 sm:mt-3 sm:text-sm sm:leading-7">
-                    {card.body}
-                  </p>
-                </div>
-              </div>
+              <PromiseCard card={card} layout="desktop" />
             </Reveal>
           ))}
         </div>
@@ -262,18 +296,69 @@ export function HomePage() {
                 </Link>
               </div>
 
-              <dl className="mt-8 grid gap-4 border-t border-cream-200 pt-6 text-left sm:grid-cols-3">
-                {HOME_COPY.corporate.points.map((point, index) => (
-                  <Reveal key={point.title} delay={index * 90}>
-                    <dt className="font-display text-base text-ink-900">{point.title}</dt>
-                    <dd className="mt-1 text-sm leading-6 text-ink-500">{point.body}</dd>
-                  </Reveal>
+              <SlideCarousel
+                ariaLabel="Corporate order benefits"
+                slideClassName="w-full"
+                className="mt-8 border-t border-cream-200 pt-6 text-left"
+              >
+                {HOME_COPY.corporate.points.map((point) => (
+                  <div key={point.title} className="min-h-[5.5rem]">
+                    <p className="font-display text-base text-ink-900">{point.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-ink-500">{point.body}</p>
+                  </div>
                 ))}
-              </dl>
+              </SlideCarousel>
             </div>
           </div>
         </Reveal>
       </section>
+    </div>
+  );
+}
+
+function StoreDoorsMobileTabs({ groups }: { groups: CategoryDepartmentGroup[] }) {
+  const [active, setActive] = useState(0);
+  const safeActive = Math.min(active, Math.max(0, groups.length - 1));
+  const current = groups[safeActive];
+
+  if (groups.length === 0 || !current?.department) return null;
+
+  return (
+    <div className="sm:hidden">
+      <div
+        role="tablist"
+        aria-label="Stores"
+        className="mx-auto mb-5 flex max-w-sm rounded-full border border-cream-200 bg-white/70 p-1 shadow-sm backdrop-blur-md"
+      >
+        {groups.map((group, index) => {
+          const dept = group.department!;
+          const selected = index === safeActive;
+          return (
+            <button
+              key={dept.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setActive(index)}
+              className={cn(
+                "flex-1 rounded-full px-3 py-2 text-xs font-semibold tracking-wide transition",
+                selected
+                  ? "bg-brand-500 text-white shadow-sm"
+                  : "text-ink-600 hover:text-brand-700",
+              )}
+            >
+              {dept.name} store
+            </button>
+          );
+        })}
+      </div>
+
+      <StoreDoor
+        name={current.department.name}
+        slug={current.department.slug}
+        categories={current.categories}
+        palette={current.department}
+      />
     </div>
   );
 }
