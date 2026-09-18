@@ -86,6 +86,16 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
   const [name, setName] = useState(link.customerName ?? "");
   const [phone, setPhone] = useState(link.customerPhone ?? "");
   const [email, setEmail] = useState("");
+  const [recipientName, setRecipientName] = useState(link.customerName ?? "");
+  const [deliveryPhone, setDeliveryPhone] = useState(link.customerPhone ?? "");
+  const [deliveryPhoneTouched, setDeliveryPhoneTouched] = useState(false);
+  const [isSurpriseGift, setIsSurpriseGift] = useState(false);
+  const [billingSameAsDelivery, setBillingSameAsDelivery] = useState(true);
+  const [billLine1, setBillLine1] = useState("");
+  const [billLine2, setBillLine2] = useState("");
+  const [billLandmark, setBillLandmark] = useState("");
+  const [billMapSearchQuery, setBillMapSearchQuery] = useState("");
+  const [billPincode, setBillPincode] = useState("");
   const [isBusinessOrder, setIsBusinessOrder] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [gstin, setGstin] = useState("");
@@ -141,6 +151,14 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
   }, [screenshotFile]);
 
   useEffect(() => {
+    if (!deliveryPhoneTouched) setDeliveryPhone(phone);
+  }, [phone, deliveryPhoneTouched]);
+
+  useEffect(() => {
+    if (fulfillment === "PICKUP") setIsSurpriseGift(false);
+  }, [fulfillment]);
+
+  useEffect(() => {
     if (fulfillment !== "DELIVERY") {
       setPincodeResult(null);
       return;
@@ -173,6 +191,13 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         e.pincode = "We may still deliver here, please call or WhatsApp us to confirm";
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
+      if (!PHONE_RE.test(deliveryPhone.trim())) e.deliveryPhone = "Enter a valid delivery phone";
+      if (!billingSameAsDelivery) {
+        if (billLine1.trim().length < 3) e.billLine1 = "Billing street address is required";
+        if (!PINCODE_RE.test(billPincode)) e.billPincode = "6-digit pincode";
+        if (billMapSearchQuery.trim().length < 3)
+          e.billMapSearchQuery = "Tell us what to search on Uber / Rapido";
+      }
     }
     if (payChoice !== "COD" && !screenshotFile)
       e.screenshot = "Upload a screenshot of your payment";
@@ -195,6 +220,11 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
     pincode,
     pincodeResult,
     mapSearchQuery,
+    deliveryPhone,
+    billingSameAsDelivery,
+    billLine1,
+    billPincode,
+    billMapSearchQuery,
     screenshotFile,
     payChoice,
     advanceAmount,
@@ -215,6 +245,38 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         setScreenshotUploading(false);
       }
 
+      const deliveryAddress =
+        fulfillment === "DELIVERY"
+          ? {
+              line1: line1.trim(),
+              line2: line2.trim() || null,
+              landmark: landmark.trim() || null,
+              mapSearchQuery: mapSearchQuery.trim(),
+              pincode,
+              city: pincodeResult?.serviceable ? pincodeResult.city : null,
+              area: pincodeResult?.serviceable ? pincodeResult.area : null,
+              // Order links are local-delivery only, so the place of supply
+              // is always the seller's own state.
+              state: stateNameFromCode(WEST_BENGAL_CODE),
+              stateCode: WEST_BENGAL_CODE,
+            }
+          : null;
+
+      const billingAddress =
+        fulfillment === "DELIVERY" && !billingSameAsDelivery
+          ? {
+              line1: billLine1.trim(),
+              line2: billLine2.trim() || null,
+              landmark: billLandmark.trim() || null,
+              mapSearchQuery: billMapSearchQuery.trim(),
+              pincode: billPincode,
+              city: null,
+              area: null,
+              state: stateNameFromCode(WEST_BENGAL_CODE),
+              stateCode: WEST_BENGAL_CODE,
+            }
+          : null;
+
       const order = await place.mutateAsync({
         customerName: name.trim(),
         customerPhone: phone.trim(),
@@ -222,22 +284,13 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         customerCompanyName: isBusinessOrder ? companyName.trim() : null,
         customerGstin: isBusinessOrder ? gstin : null,
         fulfillment,
-        deliveryAddress:
-          fulfillment === "DELIVERY"
-            ? {
-                line1: line1.trim(),
-                line2: line2.trim() || null,
-                landmark: landmark.trim() || null,
-                mapSearchQuery: mapSearchQuery.trim(),
-                pincode,
-                city: pincodeResult?.serviceable ? pincodeResult.city : null,
-                area: pincodeResult?.serviceable ? pincodeResult.area : null,
-                // Order links are local-delivery only, so the place of supply
-                // is always the seller's own state.
-                state: stateNameFromCode(WEST_BENGAL_CODE),
-                stateCode: WEST_BENGAL_CODE,
-              }
-            : null,
+        deliveryAddress,
+        recipientName:
+          fulfillment === "DELIVERY" ? recipientName.trim() || name.trim() : null,
+        deliveryPhone: fulfillment === "DELIVERY" ? deliveryPhone.trim() || phone.trim() : null,
+        billingAddress,
+        billingSameAsDelivery: fulfillment === "DELIVERY" ? billingSameAsDelivery : undefined,
+        isSurpriseGift: fulfillment === "DELIVERY" ? isSurpriseGift : false,
         deliveryDate: date,
         deliverySlotKey: slotKey,
         deliverySlotLabel: slot.label,
@@ -337,12 +390,12 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
       </div>
 
       <div className="space-y-5">
-        <Section title="Contact">
+        <Section title="Your details">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Full name" required error={errors.name}>
+            <Field label="Your name" required error={errors.name}>
               <Input value={name} onChange={setName} placeholder="Aarav Sharma" />
             </Field>
-            <Field label="Phone" required error={errors.phone}>
+            <Field label="Your phone" required error={errors.phone}>
               <Input value={phone} onChange={setPhone} placeholder="9876543210" />
             </Field>
             <Field
@@ -382,8 +435,39 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         </Section>
 
         {fulfillment === "DELIVERY" && (
-          <Section title="Delivery address">
+          <Section title="Delivery details">
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Recipient name" hint="Leave blank if it’s you">
+                <Input
+                  value={recipientName}
+                  onChange={setRecipientName}
+                  placeholder={name.trim() || "Recipient name"}
+                />
+              </Field>
+              <Field label="Delivery phone" required error={errors.deliveryPhone}>
+                <Input
+                  value={deliveryPhone}
+                  onChange={(v) => {
+                    setDeliveryPhoneTouched(true);
+                    setDeliveryPhone(v);
+                  }}
+                  placeholder={phone.trim() || "9876543210"}
+                />
+              </Field>
+              <label className="flex cursor-pointer items-start gap-2.5 sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={isSurpriseGift}
+                  onChange={(e) => setIsSurpriseGift(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-cream-300 text-brand-600 focus:ring-brand-500/20"
+                />
+                <span>
+                  <span className="text-sm font-medium text-ink-900">Surprise gift</span>
+                  <span className="mt-0.5 block text-xs text-ink-500">
+                    We’ll confirm with you only — we won’t message the recipient
+                  </span>
+                </span>
+              </label>
               <Field label="Pincode" required error={errors.pincode} className="sm:col-span-2">
                 <div className="flex items-center gap-3">
                   <Input
@@ -440,6 +524,79 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                 />
               </Field>
             </div>
+          </Section>
+        )}
+
+        {fulfillment === "DELIVERY" && (
+          <Section title="Billing address">
+            <label className="mb-4 flex cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={billingSameAsDelivery}
+                onChange={(e) => setBillingSameAsDelivery(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-cream-300 text-brand-600 focus:ring-brand-500/20"
+              />
+              <span>
+                <span className="text-sm font-medium text-ink-900">Same as delivery address</span>
+                <span className="mt-0.5 block text-xs text-ink-500">
+                  Uncheck if the invoice should go elsewhere
+                </span>
+              </span>
+            </label>
+            {!billingSameAsDelivery && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Pincode" required error={errors.billPincode} className="sm:col-span-2">
+                  <Input
+                    value={billPincode}
+                    onChange={(v) => setBillPincode(v.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="711202"
+                    className="w-32"
+                    inputMode="numeric"
+                  />
+                </Field>
+                <Field
+                  label="Address line 1"
+                  required
+                  error={errors.billLine1}
+                  className="sm:col-span-2"
+                >
+                  <Input
+                    value={billLine1}
+                    onChange={setBillLine1}
+                    placeholder="Flat / building / street"
+                  />
+                </Field>
+                <Field label="Address line 2" className="sm:col-span-2">
+                  <Input
+                    value={billLine2}
+                    onChange={setBillLine2}
+                    placeholder="Area / locality (optional)"
+                  />
+                </Field>
+                <Field label="Landmark">
+                  <Input
+                    value={billLandmark}
+                    onChange={setBillLandmark}
+                    placeholder="Near the metro station"
+                  />
+                </Field>
+                <Field
+                  label="Find billing address"
+                  required
+                  error={errors.billMapSearchQuery}
+                  className="sm:col-span-2"
+                >
+                  <AddressPlacesSearch
+                    value={billMapSearchQuery}
+                    onChange={setBillMapSearchQuery}
+                    onPlaceSelect={(place) => {
+                      if (place.line1) setBillLine1(place.line1);
+                      if (place.pincode) setBillPincode(place.pincode);
+                    }}
+                  />
+                </Field>
+              </div>
+            )}
           </Section>
         )}
 

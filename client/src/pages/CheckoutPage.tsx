@@ -41,6 +41,16 @@ export function CheckoutPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [deliveryPhone, setDeliveryPhone] = useState("");
+  const [isSurpriseGift, setIsSurpriseGift] = useState(false);
+  const [billingSameAsDelivery, setBillingSameAsDelivery] = useState(true);
+  const [billLine1, setBillLine1] = useState("");
+  const [billLine2, setBillLine2] = useState("");
+  const [billLandmark, setBillLandmark] = useState("");
+  const [billMapSearchQuery, setBillMapSearchQuery] = useState("");
+  const [billPincode, setBillPincode] = useState("");
+  const [billStateCode, setBillStateCode] = useState("");
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
   const [landmark, setLandmark] = useState("");
@@ -72,10 +82,25 @@ export function CheckoutPage() {
     if (user) {
       setName((current) => current || user.name);
       setPhone((current) => current || user.phone);
+      setDeliveryPhone((current) => current || user.phone);
       setEmail((current) => current || user.email || "");
       void fetchSavedAddresses();
     }
   }, [fetchSavedAddresses, user]);
+
+  // Keep delivery phone in sync with buyer phone until the customer edits it.
+  const [deliveryPhoneTouched, setDeliveryPhoneTouched] = useState(false);
+  useEffect(() => {
+    if (!deliveryPhoneTouched) {
+      setDeliveryPhone(phone);
+    }
+  }, [phone, deliveryPhoneTouched]);
+
+  useEffect(() => {
+    if (fulfillment === "PICKUP") {
+      setIsSurpriseGift(false);
+    }
+  }, [fulfillment]);
 
   useEffect(() => {
     if (!user || savedAddresses.length === 0) {
@@ -99,6 +124,9 @@ export function CheckoutPage() {
     setPincode(address.pincode);
     setStateCode(address.stateCode ?? "");
     setMapSearchQuery(`${address.line1}, ${address.city}, ${address.pincode}`);
+    setRecipientName(address.recipientName ?? "");
+    setDeliveryPhone(address.phone || phone);
+    setDeliveryPhoneTouched(Boolean(address.phone));
   };
 
   // Every line already carries its own delivery date + slot (set on the PDP).
@@ -182,6 +210,14 @@ export function CheckoutPage() {
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
       if (hasOnlyPanIndiaItems && !stateCode) e.stateCode = "Select the delivery state";
+      if (!PHONE_RE.test(deliveryPhone.trim())) e.deliveryPhone = "Enter a valid delivery phone";
+      if (!billingSameAsDelivery) {
+        if (billLine1.trim().length < 3) e.billLine1 = "Billing street address is required";
+        if (!PINCODE_RE.test(billPincode)) e.billPincode = "6-digit pincode";
+        if (billMapSearchQuery.trim().length < 3)
+          e.billMapSearchQuery = "Tell us what to search on Uber / Rapido";
+        if (hasOnlyPanIndiaItems && !billStateCode) e.billStateCode = "Select the billing state";
+      }
     }
     return e;
   }, [
@@ -202,6 +238,12 @@ export function CheckoutPage() {
     isBusinessOrder,
     companyName,
     gstin,
+    deliveryPhone,
+    billingSameAsDelivery,
+    billLine1,
+    billPincode,
+    billMapSearchQuery,
+    billStateCode,
   ]);
   const isValid = Object.keys(errors).length === 0 && lines.length > 0;
 
@@ -229,8 +271,8 @@ export function CheckoutPage() {
 
     const created = await addSavedAddress({
       label: "Home",
-      recipientName: name.trim() || user.name,
-      phone: phone.trim() || user.phone,
+      recipientName: recipientName.trim() || name.trim() || user.name,
+      phone: deliveryPhone.trim() || phone.trim() || user.phone,
       line1: line1.trim(),
       line2: line2.trim() || undefined,
       landmark: landmark.trim() || undefined,
@@ -256,6 +298,37 @@ export function CheckoutPage() {
     if (!isValid) return;
     setSubmitError(null);
     try {
+      const deliveryAddress =
+        fulfillment === "DELIVERY"
+          ? {
+              line1: line1.trim(),
+              line2: line2.trim() || null,
+              landmark: landmark.trim() || null,
+              mapSearchQuery: mapSearchQuery.trim() || null,
+              pincode,
+              city: pincodeResult?.serviceable ? pincodeResult.city : null,
+              area: pincodeResult?.serviceable ? pincodeResult.area : null,
+              state: effectiveStateName,
+              stateCode: effectiveStateCode,
+            }
+          : null;
+
+      const billStateName = stateNameFromCode(billStateCode);
+      const billingAddress =
+        fulfillment === "DELIVERY" && !billingSameAsDelivery
+          ? {
+              line1: billLine1.trim(),
+              line2: billLine2.trim() || null,
+              landmark: billLandmark.trim() || null,
+              mapSearchQuery: billMapSearchQuery.trim() || null,
+              pincode: billPincode,
+              city: null,
+              area: null,
+              state: billStateName ?? effectiveStateName,
+              stateCode: billStateCode || effectiveStateCode,
+            }
+          : null;
+
       const order = await createOrder.mutateAsync({
         userId: user?.id,
         customerName: name.trim(),
@@ -264,20 +337,13 @@ export function CheckoutPage() {
         customerCompanyName: isBusinessOrder ? companyName.trim() : null,
         customerGstin: isBusinessOrder ? gstin : null,
         fulfillment,
-        deliveryAddress:
-          fulfillment === "DELIVERY"
-            ? {
-                line1: line1.trim(),
-                line2: line2.trim() || null,
-                landmark: landmark.trim() || null,
-                mapSearchQuery: mapSearchQuery.trim() || null,
-                pincode,
-                city: pincodeResult?.serviceable ? pincodeResult.city : null,
-                area: pincodeResult?.serviceable ? pincodeResult.area : null,
-                state: effectiveStateName,
-                stateCode: effectiveStateCode,
-              }
-            : null,
+        deliveryAddress,
+        recipientName:
+          fulfillment === "DELIVERY" ? recipientName.trim() || name.trim() : null,
+        deliveryPhone: fulfillment === "DELIVERY" ? deliveryPhone.trim() || phone.trim() : null,
+        billingAddress,
+        billingSameAsDelivery: fulfillment === "DELIVERY" ? billingSameAsDelivery : undefined,
+        isSurpriseGift: fulfillment === "DELIVERY" ? isSurpriseGift : false,
         customerNotes: notes.trim() || null,
         paymentMethod: "cod",
         couponCode: appliedCoupon?.code ?? null,
@@ -311,7 +377,8 @@ export function CheckoutPage() {
         </Link>
         <h1 className="mt-2 font-display text-3xl text-ink-900">Checkout</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Continue as a guest — no account needed. We'll text you order updates.
+          Continue as a guest — no account needed. We’ll confirm with you on your phone
+          {isSurpriseGift ? " (we won’t message the recipient)" : ""}.
         </p>
       </div>
 
@@ -334,12 +401,12 @@ export function CheckoutPage() {
             </div>
           </FormCard>
 
-          <FormCard title="2 · Contact details">
+          <FormCard title="2 · Your details">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Full name" required error={errors.name}>
+              <Field label="Your name" required error={errors.name}>
                 <Input value={name} onChange={setName} placeholder="Aarav Sharma" />
               </Field>
-              <Field label="Phone" required error={errors.phone}>
+              <Field label="Your phone" required error={errors.phone} hint="We’ll confirm the order with you">
                 <Input value={phone} onChange={setPhone} placeholder="9330048665" />
               </Field>
               <Field
@@ -364,7 +431,44 @@ export function CheckoutPage() {
           </FormCard>
 
           {fulfillment === "DELIVERY" && (
-            <FormCard title="3 · Delivery address">
+            <FormCard title="3 · Delivery details">
+              <div className="mb-5 grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Recipient name"
+                  hint="Who receives the cake — leave blank if it’s you"
+                >
+                  <Input
+                    value={recipientName}
+                    onChange={setRecipientName}
+                    placeholder={name.trim() || "Recipient name"}
+                  />
+                </Field>
+                <Field label="Delivery phone" required error={errors.deliveryPhone}>
+                  <Input
+                    value={deliveryPhone}
+                    onChange={(v) => {
+                      setDeliveryPhoneTouched(true);
+                      setDeliveryPhone(v);
+                    }}
+                    placeholder={phone.trim() || "9330048665"}
+                  />
+                </Field>
+                <label className="flex cursor-pointer items-start gap-2.5 sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={isSurpriseGift}
+                    onChange={(e) => setIsSurpriseGift(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-cream-300 text-brand-600 focus:ring-brand-500/20"
+                  />
+                  <span>
+                    <span className="text-sm font-medium text-ink-900">Surprise gift</span>
+                    <span className="mt-0.5 block text-xs text-ink-500">
+                      We’ll confirm with you only — we won’t message the recipient
+                    </span>
+                  </span>
+                </label>
+              </div>
+
               {user && savedAddresses.length > 0 && !showNewAddressForm && (
                 <div className="mb-5 space-y-3">
                   <p className="text-xs font-medium tracking-wide text-ink-500 uppercase">
@@ -670,6 +774,91 @@ export function CheckoutPage() {
                   </Dialog.Content>
                 </Dialog.Portal>
               </Dialog.Root>
+            </FormCard>
+          )}
+
+          {fulfillment === "DELIVERY" && (
+            <FormCard title="4 · Billing address">
+              <label className="mb-4 flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={billingSameAsDelivery}
+                  onChange={(e) => setBillingSameAsDelivery(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-cream-300 text-brand-600 focus:ring-brand-500/20"
+                />
+                <span>
+                  <span className="text-sm font-medium text-ink-900">Same as delivery address</span>
+                  <span className="mt-0.5 block text-xs text-ink-500">
+                    Uncheck if the invoice should go to a different address
+                  </span>
+                </span>
+              </label>
+
+              {!billingSameAsDelivery && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    label="Pincode"
+                    required
+                    error={errors.billPincode}
+                    className="sm:col-span-2"
+                  >
+                    <Input
+                      value={billPincode}
+                      onChange={(v) => setBillPincode(v.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="711202"
+                      className="w-32"
+                      inputMode="numeric"
+                    />
+                  </Field>
+                  <Field
+                    label="Find billing address"
+                    required
+                    error={errors.billMapSearchQuery}
+                    className="sm:col-span-2"
+                  >
+                    <AddressPlacesSearch
+                      value={billMapSearchQuery}
+                      onChange={setBillMapSearchQuery}
+                      onPlaceSelect={(place) => {
+                        if (place.line1) setBillLine1(place.line1);
+                        if (place.pincode) setBillPincode(place.pincode);
+                        if (place.stateCode) setBillStateCode(place.stateCode);
+                      }}
+                    />
+                  </Field>
+                  <Field
+                    label="Address line 1"
+                    required
+                    error={errors.billLine1}
+                    className="sm:col-span-2"
+                  >
+                    <Input
+                      value={billLine1}
+                      onChange={setBillLine1}
+                      placeholder="Flat / building / street"
+                    />
+                  </Field>
+                  <Field label="Address line 2" className="sm:col-span-2">
+                    <Input
+                      value={billLine2}
+                      onChange={setBillLine2}
+                      placeholder="Area / locality (optional)"
+                    />
+                  </Field>
+                  <Field label="Landmark">
+                    <Input
+                      value={billLandmark}
+                      onChange={setBillLandmark}
+                      placeholder="Near the metro station"
+                    />
+                  </Field>
+                  {hasOnlyPanIndiaItems && (
+                    <Field label="State" required error={errors.billStateCode}>
+                      <StateSelect value={billStateCode} onChange={setBillStateCode} />
+                    </Field>
+                  )}
+                </div>
+              )}
             </FormCard>
           )}
 

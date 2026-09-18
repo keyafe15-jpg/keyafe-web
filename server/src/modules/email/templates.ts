@@ -52,7 +52,7 @@ function itemRow(item: OrderItem): string {
     </tr>`;
 }
 
-function addressBlock(order: OrderWithItems): string {
+function addressBlock(order: OrderWithItems, opts: { forAdmin?: boolean } = {}): string {
   const addr = order.deliveryAddress as null | {
     line1: string;
     line2?: string | null;
@@ -65,14 +65,34 @@ function addressBlock(order: OrderWithItems): string {
   if (order.fulfillment === "PICKUP" || !addr) {
     return `<p style="margin:0;color:#2c3540;">Pickup at the bakery — Howrah 711202</p>`;
   }
+
+  const showDeliveryPhone =
+    opts.forAdmin || !order.isSurpriseGift
+      ? order.deliveryPhone || order.customerPhone
+      : order.customerPhone;
+  const recipient =
+    order.recipientName?.trim() && order.recipientName !== order.customerName
+      ? order.recipientName
+      : order.customerName;
+
   return `
     <div style="color:#2c3540;">
-      <div style="font-weight:600;">${escapeHtml(order.customerName)}</div>
+      ${
+        order.isSurpriseGift
+          ? `<div style="display:inline-block;margin-bottom:8px;padding:3px 8px;background:#f5f3ff;color:#5b21b6;border-radius:6px;font-size:11px;font-weight:600;">SURPRISE GIFT${opts.forAdmin ? " — contact buyer only" : " — we only message you"}</div>`
+          : ""
+      }
+      <div style="font-weight:600;">${escapeHtml(recipient)}</div>
       <div>${escapeHtml(addr.line1)}</div>
       ${addr.line2 ? `<div>${escapeHtml(addr.line2)}</div>` : ""}
       ${addr.landmark ? `<div style="color:#7d8590;">Near ${escapeHtml(addr.landmark)}</div>` : ""}
       <div>${escapeHtml([addr.area, addr.city].filter(Boolean).join(", "))} ${escapeHtml(addr.pincode)}</div>
-      <div style="color:#7d8590;margin-top:4px;">${escapeHtml(order.customerPhone)}</div>
+      <div style="color:#7d8590;margin-top:4px;">${escapeHtml(showDeliveryPhone)}</div>
+      ${
+        opts.forAdmin && order.isSurpriseGift
+          ? `<div style="color:#7d8590;margin-top:4px;font-size:12px;">Buyer: ${escapeHtml(order.customerName)} · ${escapeHtml(order.customerPhone)}</div>`
+          : ""
+      }
       ${
         addr.mapSearchQuery
           ? `<div style="margin-top:10px;padding:8px 12px;background:#fdeaf3;border-left:3px solid #e31c79;border-radius:4px;">
@@ -217,7 +237,7 @@ export function renderAdminNotification(order: OrderWithItems) {
     <h3 style="margin:20px 0 6px;font-size:13px;color:#7d8590;text-transform:uppercase;letter-spacing:0.5px;">
       ${order.fulfillment === "DELIVERY" ? "Delivery to" : "Pickup"}
     </h3>
-    ${addressBlock(order)}
+    ${addressBlock(order, { forAdmin: true })}
 
     <h3 style="margin:24px 0 6px;font-size:13px;color:#7d8590;text-transform:uppercase;letter-spacing:0.5px;">Items</h3>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Truck, Store, Phone, ImageOff, Building2 } from "lucide-react";
 import { useUpdateOrder, type AdminOrderListItem } from "@/hooks/useAdminOrders";
-import { nextStatus, nextStatusLabel, SourceBadge, StatusPill } from "@/pages/orders/order-ui";
+import { nextStatus, nextStatusLabel, orderContactPhone, SourceBadge, StatusPill, SurpriseGiftBadge } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
 
 interface OrderBoardCardProps {
@@ -23,6 +23,7 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
 
   const destination = [order.city, order.pincode].filter(Boolean).join(" · ");
   const isCourier = flow === "courier" || order.isPanIndia;
+  const contactPhone = orderContactPhone(order);
 
   return (
     <article className="hover:border-brand-200 flex flex-col rounded-card border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
@@ -39,6 +40,7 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
                 {order.orderNumber}
               </span>
               <StatusPill status={order.status} />
+              {order.isSurpriseGift && <SurpriseGiftBadge compact />}
             </div>
             {order.earliestDelivery ? (
               <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -111,11 +113,11 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
             <span className="truncate">{order.customerCompanyName ?? order.customerName}</span>
             <span className="text-slate-300">·</span>
             <a
-              href={`tel:${order.customerPhone}`}
+              href={`tel:${contactPhone}`}
               onClick={(e) => e.stopPropagation()}
               className="shrink-0 hover:text-brand-600"
             >
-              {order.customerPhone}
+              {contactPhone}
             </a>
           </div>
           <span className="shrink-0 tabular-nums">

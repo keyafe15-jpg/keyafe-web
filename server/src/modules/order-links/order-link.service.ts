@@ -24,6 +24,12 @@ import {
   sumLineTax,
 } from "../orders/order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
+import {
+  giftBillingFieldsSchema,
+  orderAddressSchema,
+  resolveGiftBilling,
+  type ResolvedGiftBilling,
+} from "../orders/order.gift.js";
 
 // 31-char lower-safe alphabet (drops i, l, o, 1, 0 to avoid ambiguity).
 const tokenGen = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
@@ -292,17 +298,28 @@ export async function getOrderLinkByToken(token: string) {
   return link;
 }
 
-const addressSchema = z.object({
-  line1: z.string().trim().min(3),
-  line2: z.string().trim().optional().nullable(),
-  landmark: z.string().trim().optional().nullable(),
-  mapSearchQuery: z.string().trim().min(3).max(200),
-  pincode: z.string().regex(/^\d{6}$/),
-  city: z.string().trim().optional().nullable(),
-  area: z.string().trim().optional().nullable(),
-  state: z.string().trim().optional().nullable(),
-  stateCode: z.string().trim().optional().nullable(),
-});
+function resolveGiftBillingOrThrow(input: {
+  fulfillment: "DELIVERY" | "PICKUP";
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress?: z.infer<typeof orderAddressSchema> | null;
+  recipientName?: string | null;
+  deliveryPhone?: string | null;
+  billingAddress?: z.infer<typeof orderAddressSchema> | null;
+  billingSameAsDelivery?: boolean;
+  isSurpriseGift?: boolean;
+}): ResolvedGiftBilling {
+  try {
+    return resolveGiftBilling(input);
+  } catch (err) {
+    if (err instanceof Error && err.message === "BILLING_ADDRESS_REQUIRED") {
+      throw HttpError.badRequest("Billing address is required");
+    }
+    throw err;
+  }
+}
+
+const addressSchema = orderAddressSchema;
 
 export const placeOrderLinkSchema = z.object({
   customerName: z.string().trim().min(2),
@@ -315,6 +332,7 @@ export const placeOrderLinkSchema = z.object({
 
   fulfillment: z.enum(["DELIVERY", "PICKUP"]),
   deliveryAddress: addressSchema.optional().nullable(),
+  ...giftBillingFieldsSchema.shape,
 
   deliveryDate: z.string().min(1),
   deliverySlotKey: z.string().min(1),
@@ -381,6 +399,18 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
     throw HttpError.badRequest("Delivery address is required for delivery orders");
   }
+
+  const giftBilling = resolveGiftBillingOrThrow({
+    fulfillment: input.fulfillment,
+    customerName: input.customerName,
+    customerPhone: input.customerPhone,
+    deliveryAddress: input.deliveryAddress,
+    recipientName: input.recipientName,
+    deliveryPhone: input.deliveryPhone,
+    billingAddress: input.billingAddress,
+    billingSameAsDelivery: input.billingSameAsDelivery,
+    isSurpriseGift: input.isSurpriseGift,
+  });
 
   // Delivery fee lookup
   let deliveryFee = 0;
@@ -489,11 +519,15 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
         customerEmail: input.customerEmail ?? null,
         customerCompanyName: input.customerCompanyName ?? null,
         customerGstin: input.customerGstin ?? null,
+        recipientName: giftBilling.recipientName,
+        deliveryPhone: giftBilling.deliveryPhone,
         fulfillment: input.fulfillment,
         deliveryAddress:
           input.fulfillment === "DELIVERY" && input.deliveryAddress
             ? input.deliveryAddress
             : undefined,
+        billingAddress: giftBilling.billingAddress ?? undefined,
+        isSurpriseGift: giftBilling.isSurpriseGift,
         subtotal,
         deliveryFee,
         discount,
@@ -681,6 +715,7 @@ export const placeOfflineOrderSchema = z.object({
 
   fulfillment: z.enum(["DELIVERY", "PICKUP"]),
   deliveryAddress: addressSchema.optional().nullable(),
+  ...giftBillingFieldsSchema.shape,
   deliveryDate: z.string().min(1),
   deliverySlotKey: z.string().min(1),
   deliverySlotLabel: z.string().min(1),
@@ -710,6 +745,18 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
     throw HttpError.badRequest("Delivery address is required for delivery orders");
   }
+
+  const giftBilling = resolveGiftBillingOrThrow({
+    fulfillment: input.fulfillment,
+    customerName: input.customerName,
+    customerPhone: input.customerPhone,
+    deliveryAddress: input.deliveryAddress,
+    recipientName: input.recipientName,
+    deliveryPhone: input.deliveryPhone,
+    billingAddress: input.billingAddress,
+    billingSameAsDelivery: input.billingSameAsDelivery,
+    isSurpriseGift: input.isSurpriseGift,
+  });
 
   let deliveryFee = 0;
   let isLocalZone = false;
@@ -880,11 +927,15 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       customerEmail: input.customerEmail ?? null,
       customerCompanyName: input.customerCompanyName ?? null,
       customerGstin: input.customerGstin ?? null,
+      recipientName: giftBilling.recipientName,
+      deliveryPhone: giftBilling.deliveryPhone,
       fulfillment: input.fulfillment,
       deliveryAddress:
         input.fulfillment === "DELIVERY" && input.deliveryAddress
           ? input.deliveryAddress
           : undefined,
+      billingAddress: giftBilling.billingAddress ?? undefined,
+      isSurpriseGift: giftBilling.isSurpriseGift,
       subtotal,
       deliveryFee,
       discount,

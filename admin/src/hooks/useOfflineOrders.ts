@@ -41,6 +41,11 @@ export interface PlaceOfflineOrderPayload {
 
   fulfillment: "DELIVERY" | "PICKUP";
   deliveryAddress?: OfflineOrderAddress | null;
+  recipientName?: string | null;
+  deliveryPhone?: string | null;
+  billingAddress?: OfflineOrderAddress | null;
+  billingSameAsDelivery?: boolean;
+  isSurpriseGift?: boolean;
   deliveryDate: string;
   deliverySlotKey: string;
   deliverySlotLabel: string;

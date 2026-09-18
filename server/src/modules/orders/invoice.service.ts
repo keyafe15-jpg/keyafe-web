@@ -338,6 +338,18 @@ export function buildHsnSummary(lines: InvoiceLine[]): HsnSummaryRow[] {
   );
 }
 
+function addressKey(addr: {
+  line1?: string | null;
+  line2?: string | null;
+  pincode?: string | null;
+  stateCode?: string | null;
+} | null): string {
+  if (!addr) return "";
+  return [addr.line1, addr.line2, addr.pincode, addr.stateCode]
+    .map((v) => (v ?? "").trim().toLowerCase())
+    .join("|");
+}
+
 /**
  * Assembles everything the PDF prints. Reads only stored snapshots, never
  * live product data, so a reprint years later is identical to the original.
@@ -350,7 +362,9 @@ export async function buildInvoiceData(
   const sellerAddr = asAddress(settings.registeredAddress);
   const sellerStateCode = sellerAddr.stateCode?.trim() || FALLBACK_SELLER_STATE_CODE;
 
-  const buyerAddr = asAddress(order.deliveryAddress);
+  const deliveryAddr = asAddress(order.deliveryAddress);
+  // Prefer snapshotted billing; legacy rows fall back to delivery.
+  const billingAddr = asAddress(order.billingAddress) ?? deliveryAddr;
 
   // `placeOfSupply` was added with invoicing, so older orders fall back to the
   // snapshotted delivery address. Unlike resolvePlaceOfSupply this must never
@@ -360,19 +374,24 @@ export async function buildInvoiceData(
     order.placeOfSupply?.trim() ||
     (order.fulfillment === "PICKUP"
       ? sellerStateCode
-      : (normalizeStateCode(buyerAddr.stateCode) ??
-        stateCodeFromName(buyerAddr.state) ??
+      : (normalizeStateCode(billingAddr.stateCode) ??
+        stateCodeFromName(billingAddr.state) ??
+        normalizeStateCode(deliveryAddr.stateCode) ??
+        stateCodeFromName(deliveryAddr.state) ??
         sellerStateCode));
 
   const deliveryStateCode =
-    normalizeStateCode(buyerAddr.stateCode) ?? stateCodeFromName(buyerAddr.state);
+    normalizeStateCode(deliveryAddr.stateCode) ?? stateCodeFromName(deliveryAddr.state);
 
   // For a GST-registered buyer the place of supply follows their GSTIN, so the
-  // goods can land in a different state from the one being billed. GST expects
-  // both parties on the face of the invoice in that case, and printing the
-  // delivery address under a "Maharashtra" heading would be plainly wrong.
+  // goods can land in a different state from the one being billed. Also show
+  // ship-to when billing and delivery addresses diverge (gift / dual address).
   const shipToDiffers =
-    order.fulfillment === "DELIVERY" && !!deliveryStateCode && deliveryStateCode !== placeCode;
+    order.fulfillment === "DELIVERY" &&
+    !!deliveryAddr &&
+    ((!!deliveryStateCode && deliveryStateCode !== placeCode) ||
+      addressKey(billingAddr) !== addressKey(deliveryAddr) ||
+      Boolean(order.recipientName && order.recipientName !== order.customerName));
 
   const orderTaxable = Number(order.taxableAmount);
   const orderCgst = Number(order.cgstAmount);
@@ -469,11 +488,7 @@ export async function buildInvoiceData(
       addressLines:
         order.fulfillment === "PICKUP"
           ? ["Collected at the bakery counter"]
-          : // The delivery address belongs under "shipped to" once the two
-            // diverge; we never capture the buyer's registered address.
-            shipToDiffers
-            ? []
-            : addressLines(buyerAddr),
+          : addressLines(billingAddr),
       stateName: stateNameFromCode(placeCode),
       stateCode: placeCode,
       phone: order.customerPhone,
@@ -481,7 +496,12 @@ export async function buildInvoiceData(
     },
     shipTo: shipToDiffers
       ? {
-          addressLines: addressLines(buyerAddr),
+          addressLines: [
+            ...(order.recipientName && order.recipientName !== order.customerName
+              ? [order.recipientName]
+              : []),
+            ...addressLines(deliveryAddr),
+          ],
           stateName: stateNameFromCode(deliveryStateCode!) ?? undefined,
           stateCode: deliveryStateCode!,
         }

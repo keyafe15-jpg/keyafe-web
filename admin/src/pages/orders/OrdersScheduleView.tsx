@@ -14,7 +14,7 @@ import {
 import { useOrderSchedule, type ScheduleEntry } from "@/hooks/useOrderSchedule";
 import type { OrderStatus } from "@/hooks/useAdminOrders";
 import { slotRank } from "@/content/slots";
-import { StatusPill, SourceBadge } from "@/pages/orders/order-ui";
+import { StatusPill, SourceBadge, SurpriseGiftBadge } from "@/pages/orders/order-ui";
 import { PaginationControls } from "@/components/ClientPagination";
 import { inputClass } from "@/components/form/Field";
 import { cn } from "@/lib/cn";
@@ -82,6 +82,7 @@ function ScheduleCard({ entry }: { entry: ScheduleEntry }) {
               {order.orderNumber}
             </span>
             <StatusPill status={order.status} />
+            {order.isSurpriseGift && <SurpriseGiftBadge compact />}
           </div>
           <p className="mt-1 text-sm font-semibold text-slate-900">
             {entry.deliverySlotLabel ?? "Slot not set"}

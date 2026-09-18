@@ -30,6 +30,7 @@ export interface ScheduleOrder {
   paymentStatus: PaymentStatus;
   fulfillment: OrderFulfillment;
   source: OrderSource;
+  isSurpriseGift?: boolean;
   /**
    * The whole order's total, not this event's. An order split across two
    * dates appears twice, so never sum this across entries.

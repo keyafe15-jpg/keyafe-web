@@ -25,7 +25,7 @@ import {
   type PaymentStatus,
 } from "@/hooks/useAdminOrders";
 import { stateNameFromCode } from "@/lib/indiaStates";
-import { StatusPill, STATUS_FLOW } from "@/pages/orders/order-ui";
+import { StatusPill, STATUS_FLOW, SurpriseGiftBadge } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
 import { textareaClass, inputClass, selectClass } from "@/components/form/Field";
 import { uploadImage } from "@/lib/uploads";
@@ -95,9 +95,10 @@ export function OrderDetailPage() {
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-mono text-2xl font-semibold text-slate-900">{order.orderNumber}</h1>
             <StatusPill status={order.status} />
+            {order.isSurpriseGift && <SurpriseGiftBadge />}
           </div>
           <p className="mt-1 text-sm text-slate-500">
             {isDelivery ? "Delivery" : "Pickup"} · placed{" "}
@@ -316,6 +317,11 @@ export function OrderDetailPage() {
               className="mt-1 flex items-center gap-1.5 text-sm text-brand-700 hover:underline"
             >
               <Phone className="h-3.5 w-3.5" /> {order.customerPhone}
+              {order.isSurpriseGift && (
+                <span className="text-[10px] font-medium tracking-wide text-violet-700 uppercase">
+                  buyer
+                </span>
+              )}
             </a>
             {order.customerEmail && (
               <a
@@ -325,6 +331,11 @@ export function OrderDetailPage() {
                 <Mail className="h-3.5 w-3.5" /> {order.customerEmail}
               </a>
             )}
+            {order.isSurpriseGift && (
+              <p className="mt-2 text-xs text-violet-700">
+                Surprise gift — use this number for all customer contact.
+              </p>
+            )}
           </Card>
 
           <Card
@@ -333,6 +344,32 @@ export function OrderDetailPage() {
           >
             {isDelivery && order.deliveryAddress ? (
               <>
+                {(order.recipientName || order.deliveryPhone) && (
+                  <div className="mb-2 text-sm text-slate-800">
+                    {order.recipientName && (
+                      <p className="font-medium">{order.recipientName}</p>
+                    )}
+                    {order.deliveryPhone && (
+                      <p className="text-slate-600">
+                        {order.isSurpriseGift ? (
+                          <span>
+                            Delivery phone: {order.deliveryPhone}{" "}
+                            <span className="text-[10px] font-semibold tracking-wide text-violet-700 uppercase">
+                              do not call
+                            </span>
+                          </span>
+                        ) : (
+                          <a
+                            href={`tel:${order.deliveryPhone}`}
+                            className="text-brand-700 hover:underline"
+                          >
+                            {order.deliveryPhone}
+                          </a>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <address className="text-sm text-slate-700 not-italic">
                   <p>{order.deliveryAddress.line1}</p>
                   {order.deliveryAddress.line2 && <p>{order.deliveryAddress.line2}</p>}
@@ -370,6 +407,24 @@ export function OrderDetailPage() {
               <p className="text-sm text-slate-700">Bakery HQ · Howrah 711202</p>
             )}
           </Card>
+
+          {order.billingAddress && (
+            <Card title="Billing address">
+              <address className="text-sm text-slate-700 not-italic">
+                <p>{order.billingAddress.line1}</p>
+                {order.billingAddress.line2 && <p>{order.billingAddress.line2}</p>}
+                {order.billingAddress.landmark && (
+                  <p className="text-slate-500">Near {order.billingAddress.landmark}</p>
+                )}
+                <p>
+                  {[order.billingAddress.area, order.billingAddress.city]
+                    .filter(Boolean)
+                    .join(", ")}{" "}
+                  {order.billingAddress.pincode}
+                </p>
+              </address>
+            </Card>
+          )}
 
           <Card title="Payment">
             <p className="text-sm text-slate-900">

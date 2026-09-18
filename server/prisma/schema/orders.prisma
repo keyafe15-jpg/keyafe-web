@@ -47,6 +47,10 @@ model Order {
   customerPhone String
   customerEmail String?
 
+  // Delivery recipient — may differ from buyer for gifts. Null on pickup.
+  recipientName String?
+  deliveryPhone String?
+
   // Buyer GST details, captured when the customer bills to a business so they
   // can claim input tax credit. Both null on ordinary B2C orders.
   customerCompanyName String?
@@ -56,6 +60,10 @@ model Order {
   fulfillment       OrderFulfillment
   // Snapshotted delivery address; null for pickup. Shape: { line1, line2?, landmark?, pincode, city, area?, state, stateCode }
   deliveryAddress   Json?
+  // Bill-to address for invoices. Often same as delivery; may differ for gifts/B2B.
+  billingAddress    Json?
+  // When true, do not SMS/WhatsApp the delivery phone — confirm with the buyer only.
+  isSurpriseGift    Boolean @default(false)
   // Individual delivery dates/slots live on OrderItem (per-line).
 
   // Pricing snapshots

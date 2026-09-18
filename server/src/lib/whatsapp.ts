@@ -26,6 +26,10 @@ export function staffWhatsAppFromEnv(): string[] {
  * No-ops (with a log) until WHATSAPP_ACCESS_TOKEN + PHONE_NUMBER_ID are set.
  * Production Meta apps usually need an approved template; this uses session
  * text so local/dev works once a number has messaged the business first.
+ *
+ * Future customer SMS/WhatsApp (MSG91 / Meta templates): never message
+ * `order.deliveryPhone` when `order.isSurpriseGift` is true — notify the
+ * buyer (`customerPhone` / `customerEmail`) only.
  */
 export async function sendStaffWhatsApp(body: string, extraPhones: string[] = []): Promise<void> {
   const to = [...new Set([...staffWhatsAppFromEnv(), ...extraPhones.map(digits)])].filter(Boolean);

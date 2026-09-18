@@ -3,6 +3,7 @@ import { useAuth } from "@/store/auth";
 import { useUserOrders } from "@/hooks/useOrders";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
+import { SurpriseGiftBadge } from "@/components/order/SurpriseGiftBadge";
 
 export function MyOrdersPage() {
   const user = useAuth((s) => s.user);
@@ -52,7 +53,8 @@ export function MyOrdersPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  {order.isSurpriseGift && <SurpriseGiftBadge compact />}
                   <span
                     className={`rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide uppercase ${
                       order.status === "CANCELLED"

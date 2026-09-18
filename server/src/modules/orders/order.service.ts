@@ -23,20 +23,13 @@ import {
 } from "./order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
 import { invoiceAttachmentIfPaid } from "./invoice.service.js";
+import {
+  giftBillingFieldsSchema,
+  orderAddressSchema,
+  resolveGiftBilling,
+} from "./order.gift.js";
 
 const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
-
-const addressSchema = z.object({
-  line1: z.string().trim().min(3),
-  line2: z.string().trim().optional().nullable(),
-  landmark: z.string().trim().optional().nullable(),
-  mapSearchQuery: z.string().trim().min(3, "Tell us what to search on Uber / Rapido").max(200),
-  pincode: z.string().regex(/^\d{6}$/),
-  city: z.string().trim().optional().nullable(),
-  area: z.string().trim().optional().nullable(),
-  state: z.string().trim().optional().nullable(),
-  stateCode: z.string().trim().optional().nullable(),
-});
 
 const itemSchema = z.object({
   productId: z.string().min(1),
@@ -64,7 +57,8 @@ export const createOrderSchema = z.object({
   ...buyerGstFields,
 
   fulfillment: z.enum(["DELIVERY", "PICKUP"]),
-  deliveryAddress: addressSchema.optional().nullable(),
+  deliveryAddress: orderAddressSchema.optional().nullable(),
+  ...giftBillingFieldsSchema.shape,
 
   customerNotes: z.string().trim().max(500).optional().nullable(),
   paymentMethod: z.enum(["cod", "upi", "razorpay"]).default("cod"),
@@ -87,6 +81,27 @@ export async function createOrder(input: CreateOrderInput) {
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
     throw HttpError.badRequest("Delivery address is required for delivery orders");
   }
+
+  let giftBilling;
+  try {
+    giftBilling = resolveGiftBilling({
+      fulfillment: input.fulfillment,
+      customerName: input.customerName,
+      customerPhone: input.customerPhone,
+      deliveryAddress: input.deliveryAddress,
+      recipientName: input.recipientName,
+      deliveryPhone: input.deliveryPhone,
+      billingAddress: input.billingAddress,
+      billingSameAsDelivery: input.billingSameAsDelivery,
+      isSurpriseGift: input.isSurpriseGift,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "BILLING_ADDRESS_REQUIRED") {
+      throw HttpError.badRequest("Billing address is required");
+    }
+    throw err;
+  }
+
   // Reject items whose delivery date is in the past. Compares against
   // midnight local (day-level check); slot-level expiry is enforced client-side.
   const todayStart = new Date();
@@ -238,8 +253,12 @@ export async function createOrder(input: CreateOrderInput) {
         customerEmail: input.customerEmail ?? null,
         customerCompanyName: input.customerCompanyName ?? null,
         customerGstin: input.customerGstin ?? null,
+        recipientName: giftBilling.recipientName,
+        deliveryPhone: giftBilling.deliveryPhone,
         fulfillment: input.fulfillment,
         deliveryAddress: input.deliveryAddress ?? undefined,
+        billingAddress: giftBilling.billingAddress ?? undefined,
+        isSurpriseGift: giftBilling.isSurpriseGift,
         subtotal,
         deliveryFee,
         discount,

@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/useOrders";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
+import { SurpriseGiftBadge } from "@/components/order/SurpriseGiftBadge";
 
 export function OrderSuccessPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -20,7 +21,7 @@ export function OrderSuccessPage() {
       <section className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="mb-3 font-display text-3xl text-ink-900">Order not found</h1>
         <p className="mb-6 text-ink-500">
-          We couldn't find this order. Try opening the link from your confirmation SMS.
+          We couldn't find this order. Try opening the link from your confirmation message.
         </p>
         <Link
           to="/"
@@ -34,6 +35,11 @@ export function OrderSuccessPage() {
 
   const isDelivery = order.fulfillment === "DELIVERY";
   const cancelled = order.status === "CANCELLED";
+  const deliverToName = order.recipientName?.trim() || order.customerName;
+  const deliverToPhone =
+    order.isSurpriseGift
+      ? order.customerPhone
+      : order.deliveryPhone?.trim() || order.customerPhone;
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-12">
@@ -76,6 +82,11 @@ export function OrderSuccessPage() {
         >
           {order.orderNumber}
         </p>
+        {order.isSurpriseGift && (
+          <div className="mt-3 flex justify-center">
+            <SurpriseGiftBadge />
+          </div>
+        )}
       </div>
 
       <div className="mt-8">
@@ -83,7 +94,7 @@ export function OrderSuccessPage() {
           {isDelivery && order.deliveryAddress ? (
             <>
               <address className="text-sm text-ink-700 not-italic">
-                <p className="font-medium">{order.customerName}</p>
+                <p className="font-medium">{deliverToName}</p>
                 <p>{order.deliveryAddress.line1}</p>
                 {order.deliveryAddress.line2 && <p>{order.deliveryAddress.line2}</p>}
                 {order.deliveryAddress.landmark && (
@@ -95,7 +106,7 @@ export function OrderSuccessPage() {
                     .join(", ")}{" "}
                   {order.deliveryAddress.pincode}
                 </p>
-                <p className="mt-2 text-ink-500">{order.customerPhone}</p>
+                <p className="mt-2 text-ink-500">{deliverToPhone}</p>
               </address>
               {order.deliveryAddress.mapSearchQuery && (
                 <div className="mt-3 rounded-lg border border-brand-500/20 bg-brand-100/40 px-3 py-2">

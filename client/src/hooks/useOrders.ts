@@ -40,8 +40,12 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   customerEmail: string | null;
+  recipientName: string | null;
+  deliveryPhone: string | null;
   fulfillment: "DELIVERY" | "PICKUP";
   deliveryAddress: OrderAddress | null;
+  billingAddress: OrderAddress | null;
+  isSurpriseGift: boolean;
   subtotal: string;
   deliveryFee: string;
   discount: string;
@@ -99,6 +103,11 @@ export interface CreateOrderPayload {
   customerGstin?: string | null;
   fulfillment: "DELIVERY" | "PICKUP";
   deliveryAddress?: OrderAddress | null;
+  recipientName?: string | null;
+  deliveryPhone?: string | null;
+  billingAddress?: OrderAddress | null;
+  billingSameAsDelivery?: boolean;
+  isSurpriseGift?: boolean;
   customerNotes?: string | null;
   paymentMethod: "cod" | "upi" | "razorpay";
   items: CreateOrderItem[];

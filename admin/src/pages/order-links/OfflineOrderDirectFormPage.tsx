@@ -55,6 +55,16 @@ export function OfflineOrderDirectFormPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [deliveryPhone, setDeliveryPhone] = useState("");
+  const [deliveryPhoneTouched, setDeliveryPhoneTouched] = useState(false);
+  const [isSurpriseGift, setIsSurpriseGift] = useState(false);
+  const [billingSameAsDelivery, setBillingSameAsDelivery] = useState(true);
+  const [billLine1, setBillLine1] = useState("");
+  const [billLine2, setBillLine2] = useState("");
+  const [billLandmark, setBillLandmark] = useState("");
+  const [billMapSearchQuery, setBillMapSearchQuery] = useState("");
+  const [billPincode, setBillPincode] = useState("");
   const [isBusinessOrder, setIsBusinessOrder] = useState(false);
   const [customerCompanyName, setCustomerCompanyName] = useState("");
   const [customerGstin, setCustomerGstin] = useState("");
@@ -98,6 +108,14 @@ export function OfflineOrderDirectFormPage() {
     setPincodeInfo(null);
     setPincodeError(null);
   }, [pincode]);
+
+  useEffect(() => {
+    if (!deliveryPhoneTouched) setDeliveryPhone(customerPhone);
+  }, [customerPhone, deliveryPhoneTouched]);
+
+  useEffect(() => {
+    if (fulfillment === "PICKUP") setIsSurpriseGift(false);
+  }, [fulfillment]);
 
   useEffect(() => {
     if (fulfillment !== "DELIVERY") return;
@@ -153,7 +171,12 @@ export function OfflineOrderDirectFormPage() {
     (line1.trim().length >= 3 &&
       mapSearchQuery.trim().length >= 3 &&
       /^\d{6}$/.test(pincode) &&
-      pincodeInfo?.serviceable === true);
+      pincodeInfo?.serviceable === true &&
+      /^[0-9+\-\s]{7,15}$/.test(deliveryPhone.trim()) &&
+      (billingSameAsDelivery ||
+        (billLine1.trim().length >= 3 &&
+          billMapSearchQuery.trim().length >= 3 &&
+          /^\d{6}$/.test(billPincode))));
 
   const itemsValid = validateOrderItems(items);
 
@@ -220,6 +243,30 @@ export function OfflineOrderDirectFormPage() {
                 stateCode: pincodeInfo?.stateCode ?? null,
               }
             : null,
+        recipientName:
+          fulfillment === "DELIVERY"
+            ? recipientName.trim() || customerName.trim()
+            : null,
+        deliveryPhone:
+          fulfillment === "DELIVERY"
+            ? deliveryPhone.trim() || customerPhone.trim()
+            : null,
+        billingAddress:
+          fulfillment === "DELIVERY" && !billingSameAsDelivery
+            ? {
+                line1: billLine1.trim(),
+                line2: billLine2.trim() || null,
+                landmark: billLandmark.trim() || null,
+                mapSearchQuery: billMapSearchQuery.trim(),
+                pincode: billPincode,
+                city: null,
+                area: null,
+                state: null,
+                stateCode: null,
+              }
+            : null,
+        billingSameAsDelivery: fulfillment === "DELIVERY" ? billingSameAsDelivery : undefined,
+        isSurpriseGift: fulfillment === "DELIVERY" ? isSurpriseGift : false,
         deliveryDate,
         deliverySlotKey: slot.key,
         deliverySlotLabel: slot.label,
@@ -266,7 +313,7 @@ export function OfflineOrderDirectFormPage() {
             addItem={addItem}
           />
 
-          <Section title="Customer">
+          <Section title="Customer (buyer)">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Name" required>
                 <input
@@ -276,7 +323,7 @@ export function OfflineOrderDirectFormPage() {
                   className={inputClass}
                 />
               </Field>
-              <Field label="Phone" required hint="WhatsApp preferred">
+              <Field label="Phone" required hint="Buyer contact — WhatsApp preferred">
                 <input
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
@@ -362,6 +409,39 @@ export function OfflineOrderDirectFormPage() {
 
             {fulfillment === "DELIVERY" && (
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field label="Recipient name" hint="Who receives the cake">
+                  <input
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    placeholder={customerName.trim() || "Recipient"}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Delivery phone" required>
+                  <input
+                    value={deliveryPhone}
+                    onChange={(e) => {
+                      setDeliveryPhoneTouched(true);
+                      setDeliveryPhone(e.target.value);
+                    }}
+                    placeholder={customerPhone.trim() || "9876543210"}
+                    className={inputClass}
+                  />
+                </Field>
+                <label className="flex cursor-pointer items-start gap-2 sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={isSurpriseGift}
+                    onChange={(e) => setIsSurpriseGift(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
+                  />
+                  <span>
+                    <span className="text-sm font-medium text-slate-800">Surprise gift</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">
+                      Do not SMS/WhatsApp the recipient — contact the buyer only
+                    </span>
+                  </span>
+                </label>
                 <Field label="Pincode" required className="sm:col-span-1">
                   <input
                     inputMode="numeric"
@@ -418,6 +498,69 @@ export function OfflineOrderDirectFormPage() {
                     className={inputClass}
                   />
                 </Field>
+
+                <label className="flex cursor-pointer items-start gap-2 sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={billingSameAsDelivery}
+                    onChange={(e) => setBillingSameAsDelivery(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
+                  />
+                  <span>
+                    <span className="text-sm font-medium text-slate-800">
+                      Billing same as delivery
+                    </span>
+                    <span className="mt-0.5 block text-xs text-slate-500">
+                      Uncheck to enter a separate billing address for the invoice
+                    </span>
+                  </span>
+                </label>
+
+                {!billingSameAsDelivery && (
+                  <>
+                    <Field label="Billing pincode" required>
+                      <input
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={billPincode}
+                        onChange={(e) =>
+                          setBillPincode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                        }
+                        placeholder="700001"
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Billing address line 1" required>
+                      <input
+                        value={billLine1}
+                        onChange={(e) => setBillLine1(e.target.value)}
+                        placeholder="Registered / billing street"
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Billing address line 2">
+                      <input
+                        value={billLine2}
+                        onChange={(e) => setBillLine2(e.target.value)}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Billing landmark">
+                      <input
+                        value={billLandmark}
+                        onChange={(e) => setBillLandmark(e.target.value)}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Billing map search" required className="sm:col-span-2">
+                      <input
+                        value={billMapSearchQuery}
+                        onChange={(e) => setBillMapSearchQuery(e.target.value)}
+                        className={inputClass}
+                      />
+                    </Field>
+                  </>
+                )}
               </div>
             )}
           </Section>

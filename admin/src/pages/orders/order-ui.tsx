@@ -1,4 +1,4 @@
-import { Globe, Link2, PhoneCall } from "lucide-react";
+import { Gift, Globe, Link2, PhoneCall } from "lucide-react";
 import type { OrderSource, OrderStatus } from "@/hooks/useAdminOrders";
 import { cn } from "@/lib/cn";
 
@@ -102,6 +102,37 @@ export function SourceBadge({ source }: { source: OrderSource }) {
     >
       <Icon className="h-3 w-3" />
       {cfg.label}
+    </span>
+  );
+}
+
+/** Ops contact for call/WhatsApp — buyer phone when surprise gift is on. */
+export function orderContactPhone(order: {
+  customerPhone: string;
+  deliveryPhone?: string | null;
+  isSurpriseGift?: boolean;
+}): string {
+  if (order.isSurpriseGift) return order.customerPhone;
+  return order.deliveryPhone?.trim() || order.customerPhone;
+}
+
+export function SurpriseGiftBadge({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md bg-violet-50 px-1.5 py-0.5 text-[11px] font-medium text-violet-800 ring-1 ring-violet-200/80",
+        className,
+      )}
+      title="Surprise gift — contact buyer only; do not call or text the recipient"
+    >
+      <Gift className="h-3 w-3 shrink-0" aria-hidden />
+      {compact ? "Surprise" : "Surprise gift — contact buyer only"}
     </span>
   );
 }

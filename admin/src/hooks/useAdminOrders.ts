@@ -17,6 +17,9 @@ export interface AdminOrderListItem {
   customerCompanyName: string | null;
   customerPhone: string;
   customerEmail: string | null;
+  recipientName?: string | null;
+  deliveryPhone?: string | null;
+  isSurpriseGift?: boolean;
   fulfillment: OrderFulfillment;
   subtotal: string;
   deliveryFee: string;
@@ -98,6 +101,17 @@ export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
   challanNumber: string | null;
   challanDate: string | null;
   deliveryAddress: {
+    line1: string;
+    line2?: string | null;
+    landmark?: string | null;
+    mapSearchQuery?: string | null;
+    pincode: string;
+    city?: string | null;
+    area?: string | null;
+    state?: string | null;
+    stateCode?: string | null;
+  } | null;
+  billingAddress: {
     line1: string;
     line2?: string | null;
     landmark?: string | null;

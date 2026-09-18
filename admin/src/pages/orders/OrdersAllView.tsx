@@ -4,7 +4,7 @@ import { Truck, Store, Phone, ChevronRight, Search, X, Building2 } from "lucide-
 import { useAdminOrders, useAdminOrderCounts, type OrderStatus } from "@/hooks/useAdminOrders";
 import { PaginationControls } from "@/components/ClientPagination";
 import { inputClass } from "@/components/form/Field";
-import { SourceBadge, StatusPill } from "@/pages/orders/order-ui";
+import { SourceBadge, StatusPill, SurpriseGiftBadge } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 20;
@@ -287,7 +287,10 @@ export function OrdersAllView() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <SourceBadge source={o.source} />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <SourceBadge source={o.source} />
+                        {o.isSurpriseGift && <SurpriseGiftBadge compact />}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       {o.earliestDelivery ? (
@@ -375,6 +378,7 @@ export function OrdersAllView() {
 
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                       <SourceBadge source={o.source} />
+                      {o.isSurpriseGift && <SurpriseGiftBadge compact />}
                       {o.earliestDelivery && (
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700">
                           {new Date(o.earliestDelivery).toLocaleDateString("en-IN", {

@@ -64,6 +64,11 @@ export interface PlaceOrderLinkPayload {
     state?: string | null;
     stateCode?: string | null;
   } | null;
+  recipientName?: string | null;
+  deliveryPhone?: string | null;
+  billingAddress?: PlaceOrderLinkPayload["deliveryAddress"];
+  billingSameAsDelivery?: boolean;
+  isSurpriseGift?: boolean;
   deliveryDate: string;
   deliverySlotKey: string;
   deliverySlotLabel: string;
