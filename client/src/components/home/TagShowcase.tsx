@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { Reveal } from "@/components/motion/Reveal";
+import { SlideCarousel } from "@/components/ui/SlideCarousel";
 import {
   categoryNames,
   useTagShowcase,
@@ -8,13 +9,13 @@ import {
   type TagShowcaseSection,
 } from "@/hooks/useProducts";
 import { HOME_COPY } from "@/content/home";
+import { cn } from "@/lib/cn";
 
 function priceLabel(product: ProductCard) {
   const value = `₹${Number(product.startingPrice).toFixed(0)}`;
   return product.template === "CAKE" ? value : `from ${value}`;
 }
 
-/** Sweeps a soft highlight across the image on hover. Skipped when motion is reduced. */
 function Sheen() {
   return (
     <span
@@ -50,7 +51,6 @@ function TileImage({ product }: { product: ProductCard }) {
   );
 }
 
-/** Image-led tile. Text sits over the photo so the tile stays short. */
 function PhotoTile({
   product,
   omitTagSlug,
@@ -71,8 +71,8 @@ function PhotoTile({
       <div
         className={
           large
-            ? "aspect-square sm:aspect-[16/10] lg:aspect-auto lg:h-full"
-            : "aspect-square sm:aspect-[4/3] lg:aspect-auto lg:h-full"
+            ? "aspect-[16/10] sm:aspect-auto sm:h-full"
+            : "aspect-[4/3] sm:aspect-auto sm:h-full"
         }
       >
         <TileImage product={product} />
@@ -83,22 +83,22 @@ function PhotoTile({
         <ProductCardTags
           tags={tags}
           max={1}
-          className="absolute top-1.5 left-1.5 z-10 flex flex-wrap gap-1"
+          className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
         />
       )}
       {!product.isAvailable && <SoldOut />}
 
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 pt-8 sm:p-2.5 sm:pt-10">
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-8 sm:pt-10">
         {large && (
-          <p className="hidden text-[10px] tracking-wide text-white/70 uppercase sm:block">
+          <p className="text-[10px] tracking-wide text-white/70 uppercase">
             {categoryNames(product)}
           </p>
         )}
         <h3
           className={
             large
-              ? "line-clamp-2 font-display text-sm leading-snug text-white sm:line-clamp-1 sm:text-base"
-              : "line-clamp-2 text-[11px] leading-snug font-medium text-white sm:line-clamp-1 sm:text-sm"
+              ? "line-clamp-1 font-display text-base leading-snug text-white"
+              : "line-clamp-1 text-xs font-medium text-white sm:text-sm"
           }
         >
           {product.name}
@@ -106,8 +106,8 @@ function PhotoTile({
         <p
           className={
             large
-              ? "text-xs font-semibold text-white sm:text-sm"
-              : "text-[10px] font-semibold text-white/90 sm:text-xs"
+              ? "text-sm font-semibold text-white"
+              : "text-[11px] font-semibold text-white/90 sm:text-xs"
           }
         >
           {priceLabel(product)}
@@ -117,41 +117,60 @@ function PhotoTile({
   );
 }
 
-/**
- * A tag with a single product — portrait photo card on narrow twin columns,
- * banner row once there is room.
- */
-function SoloTile({ product, accent }: { product: ProductCard; accent: string }) {
+/** Portrait card for the mobile rail. */
+function RailCard({ product, omitTagSlug }: { product: ProductCard; omitTagSlug?: string }) {
+  const tags = omitTagSlug ? product.tags.filter((t) => t.slug !== omitTagSlug) : [];
+
   return (
     <Link
       to={`/product/${product.slug}`}
-      className="group flex flex-col overflow-hidden rounded-card border border-cream-200 bg-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:gap-4 sm:p-3"
+      className="group relative block overflow-hidden rounded-2xl border border-cream-200 bg-cream-100 shadow-sm"
     >
-      <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-cream-100 sm:aspect-auto sm:h-24 sm:w-24 sm:rounded-xl">
+      <div className="aspect-[3/4]">
+        <TileImage product={product} />
+      </div>
+      <Sheen />
+      {tags.length > 0 && (
+        <ProductCardTags
+          tags={tags}
+          max={1}
+          className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
+        />
+      )}
+      {!product.isAvailable && <SoldOut />}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-3 pt-12">
+        <h3 className="line-clamp-2 font-display text-sm leading-snug text-white">{product.name}</h3>
+        <p className="mt-0.5 text-xs font-semibold text-white">{priceLabel(product)}</p>
+      </div>
+    </Link>
+  );
+}
+
+function SoloBanner({ product, accent }: { product: ProductCard; accent: string }) {
+  return (
+    <Link
+      to={`/product/${product.slug}`}
+      className="group flex items-center gap-3 rounded-card border border-cream-200 bg-white p-2 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md sm:gap-4 sm:p-3"
+    >
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-cream-100 sm:h-24 sm:w-24">
         <TileImage product={product} />
         <Sheen />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-2 pt-8 sm:hidden">
-          <h3 className="line-clamp-2 font-display text-sm leading-snug text-white">
-            {product.name}
-          </h3>
-          <p className="text-xs font-semibold text-white">{priceLabel(product)}</p>
-        </div>
       </div>
-
-      <div className="hidden min-w-0 flex-1 sm:block">
+      <div className="min-w-0 flex-1">
         <p className="text-[10px] tracking-wide text-ink-500 uppercase">{categoryNames(product)}</p>
-        <h3 className="line-clamp-1 font-display text-lg text-ink-900 transition-colors group-hover:text-brand-500">
+        <h3 className="line-clamp-1 font-display text-base text-ink-900 transition-colors group-hover:text-brand-500 sm:text-lg">
           {product.name}
         </h3>
         {product.shortDescription && (
-          <p className="line-clamp-1 text-sm text-ink-500">{product.shortDescription}</p>
+          <p className="line-clamp-1 hidden text-sm text-ink-500 sm:block">
+            {product.shortDescription}
+          </p>
         )}
         <p className="mt-0.5 text-sm font-semibold text-ink-900">{priceLabel(product)}</p>
       </div>
-
       <span
         aria-hidden="true"
-        className="hidden shrink-0 pr-1 text-lg transition-transform duration-300 group-hover:translate-x-1 sm:inline"
+        className="shrink-0 pr-1 text-lg transition-transform duration-300 group-hover:translate-x-1"
         style={{ color: accent }}
       >
         →
@@ -160,61 +179,46 @@ function SoloTile({ product, accent }: { product: ProductCard; accent: string })
   );
 }
 
-function TagTiles({ section, accent }: { section: TagShowcaseSection; accent: string }) {
+function DesktopTiles({ section, accent }: { section: TagShowcaseSection; accent: string }) {
   const [first, second, third] = section.products;
   const slug = section.tag.slug;
 
   if (!first) return null;
 
   if (!second) {
-    return (
-      <Reveal from="scale">
-        <SoloTile product={first} accent={accent} />
-      </Reveal>
-    );
+    return <SoloBanner product={first} accent={accent} />;
   }
 
   if (!third) {
     return (
-      <div className="grid grid-cols-1 gap-2 sm:h-44 sm:grid-cols-2 sm:gap-3">
-        <Reveal from="left" className="h-full">
-          <PhotoTile product={first} omitTagSlug={slug} />
-        </Reveal>
-        <Reveal from="right" delay={120} className="h-full">
-          <PhotoTile product={second} omitTagSlug={slug} />
-        </Reveal>
+      <div className="grid h-44 grid-cols-2 gap-3">
+        <PhotoTile product={first} omitTagSlug={slug} />
+        <PhotoTile product={second} omitTagSlug={slug} />
       </div>
     );
   }
 
-  // Twin-column mobile: stacked feature + pair. Wider screens keep the mosaic.
   return (
-    <div className="grid grid-cols-2 gap-2 sm:h-56 sm:gap-3 sm:grid-cols-5 sm:grid-rows-2">
-      <Reveal from="left" className="col-span-2 h-full sm:col-span-3 sm:row-span-2">
+    <div className="grid h-56 grid-cols-5 grid-rows-2 gap-3">
+      <div className="col-span-3 row-span-2 h-full">
         <PhotoTile product={first} omitTagSlug={slug} />
-      </Reveal>
-      {[second, third].map((product, index) => (
-        <Reveal
-          key={product.id}
-          from="right"
-          delay={120 + index * 110}
-          className="h-full sm:col-span-2"
-        >
+      </div>
+      {[second, third].map((product) => (
+        <div key={product.id} className="col-span-2 h-full">
           <PhotoTile product={product} size="sm" />
-        </Reveal>
+        </div>
       ))}
     </div>
   );
 }
 
-/** Live-looking accent chip, tinted with the tag's own colour. */
 function TagChip({ name, accent }: { name: string; accent: string }) {
   return (
     <span
-      className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2 py-0.5 text-[9px] font-semibold tracking-[0.14em] uppercase sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-[0.18em]"
+      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] uppercase"
       style={{ borderColor: `${accent}33`, backgroundColor: `${accent}14`, color: accent }}
     >
-      <span className="relative flex h-1.5 w-1.5 shrink-0">
+      <span className="relative flex h-1.5 w-1.5">
         <span
           aria-hidden="true"
           className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 motion-reduce:hidden"
@@ -225,52 +229,79 @@ function TagChip({ name, accent }: { name: string; accent: string }) {
           style={{ backgroundColor: accent }}
         />
       </span>
-      <span className="truncate">{name}</span>
+      {name}
     </span>
+  );
+}
+
+function SectionHeader({ section, accent }: { section: TagShowcaseSection; accent: string }) {
+  const seeAll = `/tag/${section.tag.slug}`;
+  const heading = HOME_COPY.tagSections.headingBySlug[section.tag.slug] ?? section.tag.name;
+
+  return (
+    <Reveal>
+      <div className="flex items-center justify-between gap-3">
+        <TagChip name={section.tag.name} accent={accent} />
+        <Link
+          to={seeAll}
+          aria-label={`${HOME_COPY.tagSections.seeAll} ${section.tag.name}`}
+          className="group/see inline-flex shrink-0 items-center gap-1.5 rounded-full border py-1 pr-1 pl-2.5 text-xs font-semibold transition duration-300 hover:shadow-sm"
+          style={{ borderColor: `${accent}33`, color: accent }}
+        >
+          {HOME_COPY.tagSections.seeAll}
+          <span
+            aria-hidden="true"
+            className="grid h-5 w-5 place-items-center rounded-full text-[11px] transition-transform duration-300 group-hover/see:translate-x-0.5"
+            style={{ backgroundColor: `${accent}1f` }}
+          >
+            →
+          </span>
+        </Link>
+      </div>
+
+      <h2 className="mt-2.5 font-display text-lg leading-tight tracking-tight text-ink-900 sm:text-xl">
+        {heading}
+      </h2>
+
+      <div
+        className="mt-2.5 mb-3 h-px origin-left scale-x-0 transition-transform duration-700 ease-out motion-reduce:scale-x-100 motion-reduce:transition-none [.reveal-visible_&]:scale-x-100"
+        style={{ backgroundImage: `linear-gradient(to right, ${accent}66, transparent)` }}
+        aria-hidden="true"
+      />
+    </Reveal>
   );
 }
 
 function TagColumn({ section }: { section: TagShowcaseSection }) {
   const accent = section.tag.colorHex ?? "#E31C79";
-  const seeAll = `/tag/${section.tag.slug}`;
 
   if (section.products.length === 0) return null;
 
   return (
     <div className="min-w-0">
-      <Reveal>
-        <TagChip name={section.tag.name} accent={accent} />
+      <SectionHeader section={section} accent={accent} />
 
-        <div className="mt-2 flex items-start justify-between gap-2 sm:mt-2.5">
-          <h2 className="min-w-0 font-display text-sm leading-snug tracking-tight text-ink-900 sm:text-lg lg:text-xl">
-            {HOME_COPY.tagSections.headingBySlug[section.tag.slug] ?? section.tag.name}
-          </h2>
+      {/* Mobile: one short horizontal rail of portrait cards */}
+      <div className="sm:hidden">
+        <SlideCarousel
+          ariaLabel={section.tag.name}
+          slideClassName="w-[72%]"
+          autoPlayMs={0}
+        >
+          {section.products.map((product) => (
+            <RailCard
+              key={product.id}
+              product={product}
+              omitTagSlug={section.tag.slug}
+            />
+          ))}
+        </SlideCarousel>
+      </div>
 
-          <Link
-            to={seeAll}
-            aria-label={`${HOME_COPY.tagSections.seeAll} ${section.tag.name}`}
-            className="group/see inline-flex shrink-0 items-center gap-1 rounded-full border py-0.5 pr-0.5 pl-2 text-[10px] font-semibold whitespace-nowrap transition duration-300 hover:shadow-sm sm:gap-1.5 sm:py-1 sm:pr-1 sm:pl-2.5 sm:text-xs"
-            style={{ borderColor: `${accent}33`, color: accent }}
-          >
-            {HOME_COPY.tagSections.seeAll}
-            <span
-              aria-hidden="true"
-              className="grid h-5 w-5 place-items-center rounded-full text-[11px] transition-transform duration-300 group-hover/see:translate-x-0.5"
-              style={{ backgroundColor: `${accent}1f` }}
-            >
-              →
-            </span>
-          </Link>
-        </div>
-
-        <div
-          className="mt-2 mb-2.5 h-px origin-left scale-x-0 transition-transform duration-700 ease-out motion-reduce:scale-x-100 motion-reduce:transition-none sm:mt-2.5 sm:mb-3 [.reveal-visible_&]:scale-x-100"
-          style={{ backgroundImage: `linear-gradient(to right, ${accent}66, transparent)` }}
-          aria-hidden="true"
-        />
-      </Reveal>
-
-      <TagTiles section={section} accent={accent} />
+      {/* sm+: mosaic / banner */}
+      <div className="hidden sm:block">
+        <DesktopTiles section={section} accent={accent} />
+      </div>
     </div>
   );
 }
@@ -282,12 +313,7 @@ export function TagShowcase() {
 
   return (
     <section className="relative z-10 mx-auto max-w-6xl px-4 py-8">
-      <div className="relative grid grid-cols-2 gap-3 sm:gap-6 lg:gap-8">
-        {/* Twin-rail seam — reads as two shop windows side by side on mobile. */}
-        <div
-          className="pointer-events-none absolute top-6 bottom-2 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-cream-200 to-transparent lg:hidden"
-          aria-hidden="true"
-        />
+      <div className={cn("grid gap-8", sections.length > 1 && "lg:grid-cols-2 lg:gap-8")}>
         {sections.map((section) => (
           <TagColumn key={section.tag.slug} section={section} />
         ))}
