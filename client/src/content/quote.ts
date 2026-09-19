@@ -1,41 +1,97 @@
 export const QUOTE_SEO = {
-  title: "Corporate & Party Orders in Kolkata — Bulk Cakes, Hampers & Gifting",
+  title: "Get a Quote — Custom Cakes & Corporate Orders in Kolkata",
   description:
-    "Corporate gifting, office parties and house celebrations in Kolkata. Bulk cakes, brownies, cookies, hampers and party trays, with a GST invoice in your company name and a signed delivery challan.",
+    "Request a quote for a custom cake or a corporate / party order in Kolkata. GST invoices for businesses, signed delivery challans, and made-to-order bakes.",
+  corporate: {
+    title: "Corporate Order Quote — GST Invoice & Delivery Challan",
+    description:
+      "Enquire about corporate gifting, office parties and bulk orders in Kolkata. GST invoice in your company name and a signed delivery challan with every delivery.",
+  },
+  custom: {
+    title: "Custom Order Quote — Cakes, Designs & Celebrations",
+    description:
+      "Tell us about a custom cake, theme design or celebration order in Kolkata. Share references and we'll come back with a quote.",
+  },
 };
 
+export type QuoteKind = "corporate" | "custom";
+
 export const QUOTE_COPY = {
-  eyebrow: "Corporate, party & custom orders",
-  title: "Corporate and party orders in Kolkata",
-  intro:
-    "Office celebrations, client gifting, house parties and custom bakes — tell us the occasion and we'll come back with a quote.",
-  // What we take on. Some of these are made to order and never appear in the
-  // online catalogue, which is exactly why this page exists.
-  offerings: [
-    "Custom and celebration cakes",
-    "Cookies and cake tubs",
-    "Brownies and dessert boxes",
-    "Festival and gifting hampers",
-    "Pizzas, panuozzo and focaccia",
-    "Party trays and house snacks",
-  ],
-  // Only documents we genuinely issue. Nothing here about corporate rates,
-  // credit terms or purchase orders — none of that exists.
-  trust: [
-    {
-      title: "GST invoice in your company name",
-      body: "Add your company name and GSTIN and the invoice carries both, so your finance team can claim input tax credit.",
+  // Landing chooser when /get-quote has no ?type=
+  chooser: {
+    eyebrow: "Get a quote",
+    title: "What kind of order is this?",
+    intro: "Pick the path that matches your enquiry — the form asks only what’s relevant.",
+    corporate: {
+      title: "Corporate / business",
+      body: "Office celebrations, client gifting, bulk boxes and festival hampers — with a GST invoice in your company name.",
+      cta: "Corporate enquiry",
     },
-    {
-      title: "Signed delivery challan",
-      body: "Corporate deliveries travel with a challan on its own number series that cross-references the invoice.",
+    custom: {
+      title: "Custom order",
+      body: "Celebration cakes, theme designs, house parties and made-to-order bakes that aren’t in the online catalogue.",
+      cta: "Custom enquiry",
     },
-    {
-      title: "Delivered across Kolkata",
-      body: "We run our own deliveries across the city, and ship selected shelf-stable treats pan-India.",
-    },
-  ],
-  formHeading: "Tell us about your order",
+  },
+
+  corporate: {
+    eyebrow: "Corporate",
+    title: "Corporate enquiry",
+    intro: "Occasion, headcount and date — we’ll quote back. GST invoice available.",
+    formHeading: "Your details",
+    offerings: [
+      "Client & festival gifting",
+      "Office parties",
+      "Bulk dessert boxes",
+      "Hampers & trays",
+      "GST invoice",
+      "Delivery challan",
+    ],
+    trust: [
+      {
+        title: "GST invoice in your company name",
+        body: "Company name and GSTIN go on the invoice for input tax credit.",
+      },
+      {
+        title: "Signed delivery challan",
+        body: "Each delivery carries a challan cross-referenced to the invoice.",
+      },
+      {
+        title: "Delivered across Kolkata",
+        body: "We deliver to offices and venues across the city.",
+      },
+    ],
+  },
+
+  custom: {
+    eyebrow: "Custom order",
+    title: "Custom enquiry",
+    intro: "Design, size and date — add a reference photo if you have one.",
+    formHeading: "Your details",
+    offerings: [
+      "Celebration cakes",
+      "Theme designs",
+      "Cookies & tubs",
+      "Brownies",
+      "House parties",
+      "Made-to-order trays",
+    ],
+    trust: [
+      {
+        title: "Made around your date",
+        body: "We plan the bake around when you need it.",
+      },
+      {
+        title: "Design references welcome",
+        body: "Upload inspiration photos for colour, theme and finish.",
+      },
+      {
+        title: "Delivered across Kolkata",
+        body: "City delivery, plus pan-India for selected shelf-stable treats.",
+      },
+    ],
+  },
+
   submitCta: "Send request",
   submittingCta: "Sending…",
   successTitle: "Thanks — we'll be in touch!",
@@ -43,6 +99,7 @@ export const QUOTE_COPY = {
     "Our team will review your request and reach out with a quote. If it's urgent, feel free to call us directly at 9330048665 / 9883186892.",
   backToHome: "Back to home",
   submitAnother: "Submit another",
+  switchKind: "Wrong type? Switch enquiry",
   fields: {
     name: { label: "Your name" },
     phone: { label: "Phone", placeholder: "10-digit mobile" },
@@ -53,10 +110,17 @@ export const QUOTE_COPY = {
     },
     deliveryDate: { label: "Delivery date" },
     description: {
-      label: "What are you looking for?",
-      hint: "Items, flavours, quantities, theme or design — tell us as much as you can.",
-      placeholder:
-        "e.g., 40 brownie boxes for a Diwali client gifting, or a 2-tier unicorn birthday cake, roughly 2kg…",
+      corporate: {
+        label: "What do you need?",
+        hint: "Items, quantities, packaging, branding — as much as you can share.",
+        placeholder:
+          "e.g., 40 brownie boxes for Diwali client gifting, delivered to our Salt Lake office…",
+      },
+      custom: {
+        label: "Describe your cake or order",
+        hint: "Size, flavours, theme, colours, message on cake — tell us as much as you can.",
+        placeholder: "e.g., 2-tier unicorn birthday cake, roughly 2kg, pastel purple and white…",
+      },
     },
     image: {
       label: "Reference image",
@@ -66,12 +130,8 @@ export const QUOTE_COPY = {
       label: "Anything else?",
       hint: "Allergies, dietary notes, delivery instructions.",
     },
-    isBusiness: {
-      label: "This is a corporate or business order",
-      hint: "We'll raise a GST invoice in your company name.",
-    },
     companyName: { label: "Company name", placeholder: "Registered business name" },
-    gstin: { label: "GSTIN", placeholder: "15-character GSTIN", hint: "Optional." },
+    gstin: { label: "GSTIN", placeholder: "15-character GSTIN", hint: "Optional at enquiry stage." },
     headcount: {
       label: "Roughly how many people?",
       placeholder: "e.g., 40",
@@ -81,13 +141,27 @@ export const QUOTE_COPY = {
   },
 } as const;
 
-/** Must stay in sync with QUOTE_EVENT_TYPES on the server. */
-export const QUOTE_EVENT_TYPES = [
+/** Corporate-facing occasions. */
+export const CORPORATE_EVENT_TYPES = [
   { value: "corporate-gifting", label: "Corporate gifting" },
   { value: "office-party", label: "Office party or celebration" },
-  { value: "house-party", label: "House party or small gathering" },
-  { value: "birthday", label: "Birthday" },
-  { value: "wedding", label: "Wedding" },
   { value: "festival", label: "Festival order" },
   { value: "other", label: "Something else" },
 ] as const;
+
+/** Personal / custom-order occasions. */
+export const CUSTOM_EVENT_TYPES = [
+  { value: "birthday", label: "Birthday" },
+  { value: "wedding", label: "Wedding" },
+  { value: "house-party", label: "House party or small gathering" },
+  { value: "festival", label: "Festival order" },
+  { value: "other", label: "Something else" },
+] as const;
+
+/** Full list — keep in sync with the server enum. */
+export const QUOTE_EVENT_TYPES = [
+  ...CORPORATE_EVENT_TYPES.filter((o) => o.value !== "other" && o.value !== "festival"),
+  ...CUSTOM_EVENT_TYPES,
+].filter(
+  (option, index, all) => all.findIndex((o) => o.value === option.value) === index,
+);

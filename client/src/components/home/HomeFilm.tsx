@@ -118,16 +118,18 @@ export function HomeFilm() {
     >
       <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 md:grid-cols-2 md:gap-12 lg:gap-16">
         <Reveal from="left">
-          <video
-            ref={videoRef}
-            src={HOME_COPY.film.src}
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            aria-hidden="true"
-            className="h-auto w-auto max-w-full justify-self-start"
-          />
+          <div className="relative justify-self-start overflow-hidden rounded-[1.25rem] border border-white/60 shadow-[0_22px_50px_-24px_rgba(28,25,23,0.45)] ring-1 ring-ink-900/5">
+            <video
+              ref={videoRef}
+              src={HOME_COPY.film.src}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              aria-hidden="true"
+              className="film-ken h-auto w-auto max-w-full"
+            />
+          </div>
         </Reveal>
 
         <Reveal from="right" delay={120}>

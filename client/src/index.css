@@ -331,6 +331,88 @@
   animation: home-cta-glow 2.8s ease-in-out infinite;
 }
 
+@keyframes delivery-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(-0.5deg);
+  }
+}
+
+.delivery-float {
+  animation: delivery-float 7s ease-in-out infinite;
+}
+
+@keyframes delivery-ken {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+.delivery-ken,
+.film-ken {
+  animation: delivery-ken 18s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes promise-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.promise-bob {
+  animation: promise-bob 3.6s ease-in-out infinite;
+}
+
+.delivery-route {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(4, 120, 87, 0.18) 18%,
+    rgba(4, 120, 87, 0.18) 82%,
+    transparent
+  );
+}
+
+.delivery-route::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 12%;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: rgb(4 120 87 / 0.55);
+  box-shadow: 0 0 0 6px rgb(167 243 208 / 0.35);
+  animation: delivery-dot 9s ease-in-out infinite;
+}
+
+@keyframes delivery-dot {
+  0% {
+    left: 12%;
+    opacity: 0.35;
+  }
+  40%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    left: 86%;
+    opacity: 0.35;
+  }
+}
+
 @media (max-width: 767px) {
   .hero-carousel-track {
     width: 100%;
@@ -432,8 +514,17 @@ gmp-place-autocomplete:focus-within {
   .home-pill,
   .home-list-item,
   .home-cta-glow,
-  .hero-word {
+  .hero-word,
+  .delivery-float,
+  .delivery-ken,
+  .film-ken,
+  .promise-bob,
+  .delivery-route::after {
     animation: none !important;
+  }
+
+  .delivery-float {
+    transform: none;
   }
 
   /* .hero-word starts at opacity 0, so killing its animation without this

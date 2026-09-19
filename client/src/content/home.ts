@@ -99,6 +99,18 @@ export const HOME_COPY = {
       "Baked fresh for Kolkata, one order at a time",
     ],
   },
+  delivery: {
+    src: "/hero/deliveryvideo.mp4",
+    eyebrow: "Our own riders",
+    title: "From Belur to your door",
+    body: "We don’t hand your cake to a stranger’s bag. Keyafe rides deliver across Kolkata so everything arrives the way it left the kitchen — fresh, upright and on time.",
+    points: [
+      "Same-day slots across Kolkata",
+      "Handled by our team, not a marketplace bag",
+      "Packed to travel — boxes stay upright",
+    ],
+    cta: { to: "/same-day", label: "Shop same-day" },
+  },
   storeDoors: {
     eyebrow: "Browse",
     heading: "Two stores, one kitchen",
@@ -130,12 +142,37 @@ export const HOME_COPY = {
     writeCta: "Leave a Google review",
     seeAllCta: "See all on Google",
   },
+  enquiries: {
+    eyebrow: "Need something special?",
+    heading: "Two ways to request a quote",
+    corporate: {
+      eyebrow: "Corporate",
+      title: "Office celebrations & client gifting",
+      body: "Bulk boxes, festival hampers and party trays for teams across Kolkata — with a GST invoice in your company name.",
+      points: [
+        "GST invoice in your company name",
+        "Signed delivery challan with the goods",
+        "Sized around your headcount and date",
+      ],
+      cta: { to: "/get-quote?type=corporate", label: "Corporate enquiry" },
+    },
+    custom: {
+      eyebrow: "Custom order",
+      title: "Can't find it on the site?",
+      body: "Theme cakes, one-off designs and made-to-order bakes that aren’t in our catalogue — send a reference and we’ll quote what’s possible.",
+      points: [
+        "Celebration and theme cakes",
+        "Reference photos welcome",
+        "Planned around your date",
+      ],
+      cta: { to: "/get-quote?type=custom", label: "Custom order enquiry" },
+    },
+  },
+  // Kept for any older references; prefer `enquiries` above.
   corporate: {
     eyebrow: "Corporate & party orders",
     title: "Office celebrations, client gifting and house parties",
     body: "Festival hampers, bulk boxes and party trays for teams and gatherings across Kolkata — plus brownies, hampers and custom trays we bake to order.",
-    // Only claims the documents we genuinely issue. Nothing here about
-    // corporate rates, credit terms or purchase orders, none of which exist.
     points: [
       {
         title: "GST invoice in your company name",
@@ -150,8 +187,8 @@ export const HOME_COPY = {
         body: "Tell us the occasion, headcount and delivery date, and we'll come back with a quote.",
       },
     ],
-    cta: { to: "/get-quote", label: "Enquire about a corporate order" },
-    secondaryCta: { to: "/get-quote", label: "Planning a party? Get a quote" },
+    cta: { to: "/get-quote?type=corporate", label: "Corporate enquiry" },
+    secondaryCta: { to: "/get-quote?type=custom", label: "Custom order enquiry" },
   },
   tagSections: {
     seeAll: "See all",

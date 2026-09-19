@@ -71,9 +71,10 @@ export const registerSchema = z.object({
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
-// Get-a-quote request: for custom designs not in the catalogue.
+// Get-a-quote request: custom designs or corporate / party orders.
 export const getQuoteSchema = z
   .object({
+    kind: z.enum(["corporate", "custom"]),
     name: z.string().trim().min(2, "Please enter your name"),
     phone: phoneSchema,
     email: z
@@ -105,10 +106,6 @@ export const getQuoteSchema = z
       .optional()
       .or(z.literal("").transform(() => undefined)),
 
-    // Corporate / party extras. The server treats all of these as optional; the
-    // only rule we add here is that ticking the business box means we need a
-    // company name to put on the invoice.
-    isBusiness: z.boolean().optional(),
     companyName: z
       .string()
       .trim()
@@ -125,8 +122,6 @@ export const getQuoteSchema = z
       .trim()
       .optional()
       .or(z.literal("").transform(() => undefined)),
-    // Values come from a select built off QUOTE_EVENT_TYPES; the server
-    // validates the enum strictly.
     eventType: z
       .string()
       .trim()
@@ -134,15 +129,13 @@ export const getQuoteSchema = z
       .or(z.literal("").transform(() => undefined)),
   })
   .superRefine((values, ctx) => {
-    if (values.isBusiness && !values.companyName) {
+    if (values.kind === "corporate" && !values.companyName) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["companyName"],
         message: "Company name is needed for a GST invoice",
       });
     }
-    // GSTIN is optional even for a business — at enquiry stage they may not
-    // have it to hand — but a wrong one is worth catching now.
     if (values.gstin && gstinIssue(values.gstin)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

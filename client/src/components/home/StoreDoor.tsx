@@ -20,11 +20,14 @@ export function StoreDoor({
   slug,
   categories,
   palette,
+  compact = false,
 }: {
   name: string;
   slug: string;
   categories: CategoryNode[];
   palette?: StoreDoorPalette | null;
+  /** Smaller door for the home intro + stores row. */
+  compact?: boolean;
 }) {
   const colors = palette ?? FALLBACK_PALETTE;
   const imageUrl = categories.find((c) => c.imageUrl)?.imageUrl ?? null;
@@ -40,10 +43,18 @@ export function StoreDoor({
   } as CSSProperties;
 
   return (
-    <article className="mx-auto w-full max-w-[360px] sm:max-w-[400px]">
+    <article
+      className={
+        compact
+          ? "mx-auto w-full max-w-[220px] sm:max-w-[240px] lg:max-w-[250px]"
+          : "mx-auto w-full max-w-[360px] sm:max-w-[400px]"
+      }
+    >
       <Link to={href} className="storefront group block rounded-[1.5rem] outline-offset-4">
         <div
-          className="relative overflow-hidden rounded-[1.5rem] border-2 shadow-[0_18px_36px_rgba(26,33,42,0.12)]"
+          className={`relative overflow-hidden border-2 shadow-[0_18px_36px_rgba(26,33,42,0.12)] ${
+            compact ? "rounded-[1.15rem]" : "rounded-[1.5rem]"
+          }`}
           style={{
             ...doorStyle,
             borderColor: "color-mix(in srgb, var(--door-deep) 35%, white)",
@@ -51,27 +62,41 @@ export function StoreDoor({
           }}
         >
           <div className="relative aspect-[3/4]">
-            <Awning accent={colors.accentHex} soft={colors.softHex} deep={colors.deepHex} />
-            <div className="absolute top-[12%] left-1/2 z-20 w-[82%] -translate-x-1/2">
+            <Awning accent={colors.accentHex} soft={colors.softHex} deep={colors.deepHex} compact={compact} />
+            <div
+              className={`absolute left-1/2 z-20 w-[82%] -translate-x-1/2 ${
+                compact ? "top-[11%]" : "top-[12%]"
+              }`}
+            >
               <span className="mx-auto mb-0 block h-2.5 w-[2px] bg-ink-700/35" aria-hidden="true" />
               <div
-                className="-rotate-1 rounded-[0.65rem] border-[3px] bg-white px-3 py-2 text-center shadow-[0_8px_0_rgba(26,33,42,0.14)] transition duration-500 group-hover:rotate-1"
+                className={`-rotate-1 border-[3px] bg-white text-center shadow-[0_8px_0_rgba(26,33,42,0.14)] transition duration-500 group-hover:rotate-1 ${
+                  compact ? "rounded-[0.5rem] px-2 py-1.5" : "rounded-[0.65rem] px-3 py-2"
+                }`}
                 style={{ borderColor: "var(--door-deep)" }}
               >
-                <p className="text-[10px] font-semibold tracking-[0.32em] text-ink-500 uppercase">
+                <p
+                  className={`font-semibold tracking-[0.32em] text-ink-500 uppercase ${
+                    compact ? "text-[8px]" : "text-[10px]"
+                  }`}
+                >
                   Welcome to
                 </p>
                 <p
                   className="brand-wordmark mt-0.5 block leading-none"
                   style={{
-                    fontSize: "clamp(1.35rem, 5vw, 1.75rem)",
+                    fontSize: compact
+                      ? "clamp(1.05rem, 3.5vw, 1.35rem)"
+                      : "clamp(1.35rem, 5vw, 1.75rem)",
                     color: "var(--door-deep)",
                   }}
                 >
                   {name}
                 </p>
                 <p
-                  className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold tracking-[0.28em] text-white uppercase"
+                  className={`mt-1 inline-block rounded-full font-bold tracking-[0.28em] text-white uppercase ${
+                    compact ? "px-1.5 py-0.5 text-[8px]" : "px-2 py-0.5 text-[10px]"
+                  }`}
                   style={{ backgroundColor: "var(--door-accent)" }}
                 >
                   Store
@@ -79,7 +104,11 @@ export function StoreDoor({
               </div>
             </div>
 
-            <div className="absolute inset-x-[8%] top-[26%] bottom-[8%] [perspective:900px]">
+            <div
+              className={`absolute inset-x-[8%] bottom-[8%] [perspective:900px] ${
+                compact ? "top-[28%]" : "top-[26%]"
+              }`}
+            >
               <div className="absolute inset-0 overflow-hidden rounded-t-[0.4rem] bg-[#2a1c14] shadow-inner">
                 {imageUrl ? (
                   <img
@@ -115,24 +144,36 @@ export function StoreDoor({
             />
           </div>
         </div>
-        <p className="mt-3 text-center text-sm leading-6 text-ink-700">{line}</p>
-        <span className="text-brand-600 mt-1 flex items-center justify-center gap-1 text-sm font-semibold">
+        <p
+          className={`mt-2 text-center text-ink-700 ${
+            compact ? "text-xs leading-5" : "mt-3 text-sm leading-6"
+          }`}
+        >
+          {line}
+        </p>
+        <span
+          className={`text-brand-600 flex items-center justify-center gap-1 font-semibold ${
+            compact ? "mt-0.5 text-xs" : "mt-1 text-sm"
+          }`}
+        >
           {HOME_COPY.storeDoors.enter}
           <span aria-hidden="true">→</span>
         </span>
       </Link>
 
-      <div className="mt-3 flex flex-wrap justify-center gap-2">
-        {categories.map((category) => (
-          <Link
-            key={category.id}
-            to={`/category/${category.slug}`}
-            className="hover:text-brand-600 rounded-full border border-cream-200 bg-white px-3 py-1.5 text-sm text-ink-700 transition hover:border-brand-300"
-          >
-            {category.name}
-          </Link>
-        ))}
-      </div>
+      {!compact ? (
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {categories.map((category) => (
+            <Link
+              key={category.id}
+              to={`/category/${category.slug}`}
+              className="hover:text-brand-600 rounded-full border border-cream-200 bg-white px-3 py-1.5 text-sm text-ink-700 transition hover:border-brand-300"
+            >
+              {category.name}
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -167,12 +208,24 @@ function DoorLeaf({ side }: { side: "left" | "right" }) {
   );
 }
 
-function Awning({ accent, soft, deep }: { accent: string; soft: string; deep: string }) {
+function Awning({
+  accent,
+  soft,
+  deep,
+  compact = false,
+}: {
+  accent: string;
+  soft: string;
+  deep: string;
+  compact?: boolean;
+}) {
   const stripes = [accent, soft, deep, soft, accent, soft, deep];
 
   return (
-    <div className="absolute inset-x-0 top-0 z-10 h-[18%]">
-      <div className="flex h-full overflow-hidden rounded-t-[1.35rem]">
+    <div className={`absolute inset-x-0 top-0 z-10 ${compact ? "h-[16%]" : "h-[18%]"}`}>
+      <div
+        className={`flex h-full overflow-hidden ${compact ? "rounded-t-[1rem]" : "rounded-t-[1.35rem]"}`}
+      >
         {stripes.map((color, i) => (
           <span key={i} className="h-full flex-1" style={{ backgroundColor: color }} />
         ))}
