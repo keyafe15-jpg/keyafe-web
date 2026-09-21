@@ -7,9 +7,11 @@ import { prisma } from "../../config/db.js";
 import { env } from "../../config/env.js";
 import { HttpError } from "../../utils/httpError.js";
 import { normalizeCustomerPhone, phoneLookupVariants, phonesMatch } from "../../lib/phone.js";
+import { isIndianMobile, isMsg91Configured, sendOtpSms } from "../../lib/msg91.js";
 import { ensureCustomerRole } from "../customers/customer.service.js";
 import { isStaffRole } from "../../middleware/auth.js";
 import { CUSTOMER_ROLE_SLUG } from "../staff/rbac.catalog.js";
+import { logger } from "../../utils/logger.js";
 
 export const authRouter = Router();
 
@@ -43,6 +45,39 @@ const verifyOtpSchema = z.object({
 });
 
 const otpStore = new Map<string, { code: string; expiresAt: number }>();
+
+const OTP_COOLDOWN_MS = 45_000;
+const OTP_DAILY_CAP = 15;
+const otpRateStore = new Map<string, { lastSentAt: number; dayKey: string; count: number }>();
+
+function assertOtpRateLimit(phone: string) {
+  const key = normalizePhone(phone);
+  const now = Date.now();
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const current = otpRateStore.get(key);
+
+  if (current && now - current.lastSentAt < OTP_COOLDOWN_MS) {
+    const waitSec = Math.ceil((OTP_COOLDOWN_MS - (now - current.lastSentAt)) / 1000);
+    throw HttpError.tooManyRequests(`Please wait ${waitSec}s before requesting another OTP`);
+  }
+
+  const count = current && current.dayKey === dayKey ? current.count : 0;
+  if (count >= OTP_DAILY_CAP) {
+    throw HttpError.tooManyRequests("Daily OTP limit reached for this number. Try again tomorrow.");
+  }
+}
+
+function recordOtpSend(phone: string) {
+  const key = normalizePhone(phone);
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const current = otpRateStore.get(key);
+  const count = current && current.dayKey === dayKey ? current.count : 0;
+  otpRateStore.set(key, { lastSentAt: Date.now(), dayKey, count: count + 1 });
+}
+
+function clearIssuedOtp(phone: string) {
+  otpStore.delete(normalizePhone(phone));
+}
 
 const userInclude = {
   role: {
@@ -153,12 +188,37 @@ authRouter.post("/send-otp", async (req, res) => {
   }
 
   const { phone } = parsed.data;
+  const configured = isMsg91Configured();
+  const isProd = env.NODE_ENV === "production";
+
+  if (configured && !isIndianMobile(phone)) {
+    throw HttpError.badRequest("OTP SMS is only available for Indian mobile numbers right now");
+  }
+
+  if (isProd && !configured) {
+    throw HttpError.serviceUnavailable("OTP service is temporarily unavailable");
+  }
+
+  assertOtpRateLimit(phone);
+
   const otp = issueOtp(phone);
+  const delivery = await sendOtpSms(phone, otp);
+
+  if (!delivery.ok) {
+    clearIssuedOtp(phone);
+    throw HttpError.serviceUnavailable(delivery.error);
+  }
+
+  recordOtpSend(phone);
+
+  if (delivery.skipped) {
+    logger.info({ phone }, "OTP issued without SMS (MSG91 not configured)");
+  }
 
   res.json({
     message: "OTP sent successfully",
     expiresInSeconds: 300,
-    otp: env.NODE_ENV !== "production" ? otp : undefined,
+    otp: isProd ? undefined : otp,
   });
 });
 

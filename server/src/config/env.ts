@@ -48,6 +48,12 @@ const envSchema = z.object({
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_STAFF_TO: z.string().optional(),
 
+  // MSG91 SMS OTP — all three required for real delivery. If any are missing,
+  // send-otp falls back to the dev stub (OTP in API response / logs only).
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_SENDER_ID: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+
   JWT_SECRET: z
     .string()
     .min(32, "JWT_SECRET must be at least 32 chars")
