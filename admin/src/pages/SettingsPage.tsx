@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Pencil, X } from "lucide-react";
 import { useBusinessUpi, useUpdateBusinessUpi } from "@/hooks/useBusinessUpi";
 import {
   useBusinessGst,
@@ -15,85 +16,162 @@ import {
 } from "@/components/form/Field";
 import { gstinIssue, gstinStateCode, normalizeGstin } from "@/lib/gstin";
 import { SELECTABLE_STATES, stateNameFromCode } from "@/lib/indiaStates";
+import { cn } from "@/lib/cn";
 
 export function SettingsPage() {
-  const { data, isLoading } = useBusinessUpi();
-  const update = useUpdateBusinessUpi();
-
-  const [upiId, setUpiId] = useState("");
-  const [upiPayeeName, setUpiPayeeName] = useState("");
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    if (data) {
-      setUpiId(data.upiId ?? "");
-      setUpiPayeeName(data.upiPayeeName ?? "");
-    }
-  }, [data]);
-
-  const submit = async () => {
-    setSaved(false);
-    await update.mutateAsync({
-      upiId: upiId.trim() || null,
-      upiPayeeName: upiPayeeName.trim() || null,
-    });
-    setSaved(true);
-  };
-
   return (
     <div className="max-w-xl">
       <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
       <p className="mt-1 text-sm text-slate-500">Business, GST, invoicing.</p>
 
-      <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-900">UPI payment collection</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Shown to customers on order links so they can pay you directly — no gateway, no fees.
-        </p>
-
-        {isLoading ? (
-          <p className="mt-4 text-sm text-slate-500">Loading…</p>
-        ) : (
-          <div className="mt-4 space-y-4">
-            <Field label="UPI ID (VPA)" hint="e.g. yourshop@okhdfcbank">
-              <input
-                value={upiId}
-                onChange={(e) => setUpiId(e.target.value)}
-                placeholder="yourshop@upi"
-                className={inputClass}
-              />
-            </Field>
-            <Field
-              label="Payee name"
-              hint="Shown to the customer's UPI app. Defaults to your trade name."
-            >
-              <input
-                value={upiPayeeName}
-                onChange={(e) => setUpiPayeeName(e.target.value)}
-                placeholder="Keyafe Bakery"
-                className={inputClass}
-              />
-            </Field>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={submit}
-                disabled={update.isPending}
-                className={submitClass}
-              >
-                {update.isPending ? "Saving…" : "Save"}
-              </button>
-              {saved && !update.isPending && (
-                <span className="text-xs text-emerald-700">Saved</span>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
+      <UpiSettingsSection />
       <BusinessGstSection />
     </div>
+  );
+}
+
+function SectionHeader({
+  title,
+  description,
+  editing,
+  onEdit,
+  onCancel,
+}: {
+  title: string;
+  description: string;
+  editing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+        <p className="mt-1 text-xs text-slate-500">{description}</p>
+      </div>
+      {editing ? (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+        >
+          <X className="h-3.5 w-3.5" /> Cancel
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-brand-300 hover:text-brand-700"
+        >
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </button>
+      )}
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="grid gap-0.5 sm:grid-cols-[9rem_1fr] sm:gap-3">
+      <dt className="text-xs font-medium text-slate-500">{label}</dt>
+      <dd className="text-sm text-slate-900">{value || <span className="text-slate-400">Not set</span>}</dd>
+    </div>
+  );
+}
+
+function UpiSettingsSection() {
+  const { data, isLoading } = useBusinessUpi();
+  const update = useUpdateBusinessUpi();
+
+  const [editing, setEditing] = useState(false);
+  const [upiId, setUpiId] = useState("");
+  const [upiPayeeName, setUpiPayeeName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (data) {
+      setUpiId(data.upiId ?? "");
+      setUpiPayeeName(data.upiPayeeName ?? "");
+      // First visit with nothing configured → open the form.
+      if (!data.upiId && !data.upiPayeeName) setEditing(true);
+    }
+  }, [data]);
+
+  const resetFromServer = () => {
+    setUpiId(data?.upiId ?? "");
+    setUpiPayeeName(data?.upiPayeeName ?? "");
+    setError(null);
+  };
+
+  const submit = async () => {
+    setError(null);
+    try {
+      await update.mutateAsync({
+        upiId: upiId.trim() || null,
+        upiPayeeName: upiPayeeName.trim() || null,
+      });
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save");
+    }
+  };
+
+  return (
+    <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
+      <SectionHeader
+        title="UPI payment collection"
+        description="Shown to customers on order links so they can pay you directly — no gateway, no fees."
+        editing={editing}
+        onEdit={() => {
+          resetFromServer();
+          setEditing(true);
+        }}
+        onCancel={() => {
+          resetFromServer();
+          setEditing(false);
+        }}
+      />
+
+      {isLoading ? (
+        <p className="mt-4 text-sm text-slate-500">Loading…</p>
+      ) : editing ? (
+        <div className="mt-4 space-y-4">
+          <Field label="UPI ID (VPA)" hint="e.g. yourshop@okhdfcbank">
+            <input
+              value={upiId}
+              onChange={(e) => setUpiId(e.target.value)}
+              placeholder="yourshop@upi"
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            label="Payee name"
+            hint="Shown to the customer's UPI app. Defaults to your trade name."
+          >
+            <input
+              value={upiPayeeName}
+              onChange={(e) => setUpiPayeeName(e.target.value)}
+              placeholder="Keyafe Bakery"
+              className={inputClass}
+            />
+          </Field>
+          {error && <p className="text-xs text-red-700">{error}</p>}
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={update.isPending}
+            className={submitClass}
+          >
+            {update.isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      ) : (
+        <dl className="mt-4 space-y-3 rounded-lg border border-slate-100 bg-slate-50/70 p-4">
+          <InfoRow label="UPI ID" value={data?.upiId} />
+          <InfoRow label="Payee name" value={data?.upiPayeeName} />
+        </dl>
+      )}
+    </section>
   );
 }
 
@@ -101,22 +179,29 @@ function BusinessGstSection() {
   const { data, isLoading } = useBusinessGst();
   const update = useUpdateBusinessGst();
 
+  const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<BusinessGst | null>(null);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (data) setForm(data);
+    if (data) {
+      setForm(data);
+      // Open form only when the business profile has never been filled in.
+      if (!data.legalName.trim() || !data.tradeName.trim()) setEditing(true);
+    }
   }, [data]);
 
+  const resetFromServer = () => {
+    if (data) setForm(data);
+    setError(null);
+  };
+
   const setField = <K extends keyof BusinessGst>(key: K, value: BusinessGst[K]) => {
-    setSaved(false);
     setError(null);
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
   const setAddress = (key: keyof RegisteredAddress, value: string) => {
-    setSaved(false);
     setError(null);
     setForm((prev) =>
       prev ? { ...prev, registeredAddress: { ...prev.registeredAddress, [key]: value } } : prev,
@@ -125,9 +210,6 @@ function BusinessGstSection() {
 
   const gstinError = form?.gstin && form.gstin.trim() ? gstinIssue(form.gstin) : null;
 
-  // The GSTIN's first two characters are the state it was issued in. A
-  // mismatch with the registered address means one of them is mistyped, and
-  // every invoice would carry the error.
   const gstinState = form?.gstin ? gstinStateCode(form.gstin) : null;
   const stateMismatch =
     gstinState && gstinState !== form?.registeredAddress.stateCode
@@ -148,30 +230,44 @@ function BusinessGstSection() {
 
   const submit = async () => {
     if (!form) return;
-    setSaved(false);
     setError(null);
     try {
       await update.mutateAsync({
         ...form,
         gstin: form.gstin?.trim() ? form.gstin.trim() : null,
       });
-      setSaved(true);
+      setEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save");
     }
   };
 
+  const addr = data?.registeredAddress;
+  const addressLines = addr
+    ? [addr.line1, addr.line2, [addr.city, addr.pincode].filter(Boolean).join(" — "), addr.state]
+        .filter(Boolean)
+        .join(", ")
+    : null;
+
   return (
     <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
-      <h2 className="text-sm font-semibold text-slate-900">Business & GST</h2>
-      <p className="mt-1 text-xs text-slate-500">
-        Printed on every tax invoice. Until a GSTIN is saved here, invoices are issued as a plain
-        "Invoice" rather than a "Tax Invoice".
-      </p>
+      <SectionHeader
+        title="Business & GST"
+        description='Printed on every tax invoice. Until a GSTIN is saved here, invoices are issued as a plain "Invoice" rather than a "Tax Invoice".'
+        editing={editing}
+        onEdit={() => {
+          resetFromServer();
+          setEditing(true);
+        }}
+        onCancel={() => {
+          resetFromServer();
+          setEditing(false);
+        }}
+      />
 
-      {isLoading || !form ? (
+      {isLoading || !form || !data ? (
         <p className="mt-4 text-sm text-slate-500">Loading…</p>
-      ) : (
+      ) : editing ? (
         <div className="mt-4 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Legal name" hint="As registered with GST">
@@ -204,7 +300,7 @@ function BusinessGstSection() {
               onChange={(e) => setField("gstin", normalizeGstin(e.target.value).slice(0, 15))}
               placeholder="19AAACR5055K1Z7"
               spellCheck={false}
-              className={`${inputClass} font-mono tracking-wide`}
+              className={cn(inputClass, "font-mono tracking-wide")}
             />
           </Field>
 
@@ -279,7 +375,6 @@ function BusinessGstSection() {
                           }
                         : prev,
                     );
-                    setSaved(false);
                     setError(null);
                   }}
                   className={selectClass}
@@ -340,13 +435,41 @@ function BusinessGstSection() {
           {stateMismatch && <p className="text-xs text-red-700">{stateMismatch}</p>}
           {error && <p className="text-xs text-red-700">{error}</p>}
 
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={submit} disabled={!canSave} className={submitClass}>
-              {update.isPending ? "Saving…" : "Save"}
-            </button>
-            {saved && !update.isPending && <span className="text-xs text-emerald-700">Saved</span>}
-          </div>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={!canSave}
+            className={submitClass}
+          >
+            {update.isPending ? "Saving…" : "Save"}
+          </button>
         </div>
+      ) : (
+        <dl className="mt-4 space-y-3 rounded-lg border border-slate-100 bg-slate-50/70 p-4">
+          <InfoRow label="Legal name" value={data.legalName} />
+          <InfoRow label="Trade name" value={data.tradeName} />
+          <InfoRow
+            label="GSTIN"
+            value={
+              data.gstin ? (
+                <span className="font-mono tracking-wide">{data.gstin}</span>
+              ) : (
+                "Not registered"
+              )
+            }
+          />
+          <InfoRow
+            label="GST scheme"
+            value={data.gstScheme === "COMPOSITE" ? "Composition" : "Regular"}
+          />
+          <InfoRow label="Address" value={addressLines} />
+          <InfoRow label="Invoice prefix" value={data.invoicePrefix} />
+          <InfoRow
+            label="FY starts"
+            value={MONTHS[data.fyStartMonth - 1] ?? `Month ${data.fyStartMonth}`}
+          />
+          <InfoRow label="Challan terms" value={data.challanTerms} />
+        </dl>
       )}
     </section>
   );
