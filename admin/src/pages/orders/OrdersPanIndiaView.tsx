@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useAdminOrders, type AdminOrderListItem } from "@/hooks/useAdminOrders";
 import { OrderBoardCard } from "@/pages/orders/OrderBoardCard";
+import { useListSearch } from "@/store/listSearch";
 
 const PAGE_SIZE = 100;
 const EXCLUDE: ("DELIVERED" | "CANCELLED")[] = ["DELIVERED", "CANCELLED"];
@@ -48,8 +49,12 @@ function TileSection({
 }
 
 export function OrdersPanIndiaView() {
+  const search = useListSearch((s) => s.query);
+  const searching = search.trim().length > 0;
+
   const query = useAdminOrders({
     panIndia: true,
+    search: search || null,
     excludeStatuses: EXCLUDE,
     pageSize: PAGE_SIZE,
   });
@@ -67,21 +72,33 @@ export function OrdersPanIndiaView() {
         </div>
       )}
 
-      <TileSection
-        title="To pack & dispatch"
-        subtitle={`${toDispatch.length} received order${toDispatch.length === 1 ? "" : "s"} · pack and hand to courier`}
-        orders={toDispatch}
-        isLoading={query.isLoading}
-        emptyMessage="No pan-India orders waiting to be packed."
-      />
+      {searching ? (
+        <TileSection
+          title="Search results"
+          subtitle={`${orders.length} pan-India order${orders.length === 1 ? "" : "s"} matching “${search.trim()}”`}
+          orders={orders}
+          isLoading={query.isLoading}
+          emptyMessage={`No pan-India orders match “${search.trim()}”.`}
+        />
+      ) : (
+        <>
+          <TileSection
+            title="To pack & dispatch"
+            subtitle={`${toDispatch.length} received order${toDispatch.length === 1 ? "" : "s"} · pack and hand to courier`}
+            orders={toDispatch}
+            isLoading={query.isLoading}
+            emptyMessage="No pan-India orders waiting to be packed."
+          />
 
-      <TileSection
-        title="With courier"
-        subtitle={`${withCourier.length} already handed over`}
-        orders={withCourier}
-        isLoading={query.isLoading}
-        emptyMessage="Nothing currently with the courier."
-      />
+          <TileSection
+            title="With courier"
+            subtitle={`${withCourier.length} already handed over`}
+            orders={withCourier}
+            isLoading={query.isLoading}
+            emptyMessage="Nothing currently with the courier."
+          />
+        </>
+      )}
     </div>
   );
 }

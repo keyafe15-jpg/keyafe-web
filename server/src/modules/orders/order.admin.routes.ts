@@ -307,9 +307,13 @@ adminOrderRouter.get("/schedule", requirePermission("orders.read"), async (req, 
     parsed.data;
 
   // Without an explicit lower bound the tab opens as a forward-looking prep
-  // queue rather than replaying the whole delivery history.
-  const from = deliveryFrom ?? startOfToday();
-  const deliveryDate: Prisma.DateTimeNullableFilter = { not: null, gte: from };
+  // queue rather than replaying the whole delivery history. Free-text search
+  // skips that default so matches outside "today onward" still appear.
+  const from = deliveryFrom ?? (search ? null : startOfToday());
+  const deliveryDate: Prisma.DateTimeNullableFilter = { not: null };
+  if (from) {
+    deliveryDate.gte = from;
+  }
   if (deliveryTo) {
     const next = new Date(deliveryTo);
     next.setDate(next.getDate() + 1);

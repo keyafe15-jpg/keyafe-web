@@ -154,8 +154,9 @@ export function OrdersScheduleView() {
   }, [search]);
 
   const { data, isLoading, isFetching } = useOrderSchedule({
-    deliveryFrom: deliveryFrom || null,
-    deliveryTo: deliveryTo || null,
+    // While searching, drop the default "from today" window so matches aren't hidden.
+    deliveryFrom: search.trim() ? null : deliveryFrom || null,
+    deliveryTo: search.trim() ? null : deliveryTo || null,
     search: search || null,
     excludeStatuses: includeDone ? [] : EXCLUDE,
     dir,

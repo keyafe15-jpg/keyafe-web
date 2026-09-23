@@ -137,6 +137,8 @@ export interface AdminOrdersFilter {
   panIndia?: boolean;
   page?: number;
   pageSize?: number;
+  /** When false, the query is idle (e.g. kitchen board while searching). Default true. */
+  enabled?: boolean;
 }
 
 export interface AdminOrdersPage {
@@ -156,6 +158,7 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
   const panIndia = Boolean(filter?.panIndia);
   const page = filter?.page ?? 1;
   const pageSize = filter?.pageSize ?? 20;
+  const enabled = filter?.enabled !== false;
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (deliveryFrom) params.set("deliveryFrom", deliveryFrom);
@@ -183,6 +186,7 @@ export function useAdminOrders(filter?: AdminOrdersFilter) {
     ],
     queryFn: () => api.get<AdminOrdersPage>(`/admin/orders?${qs}`),
     staleTime: 15_000,
+    enabled,
   });
 }
 

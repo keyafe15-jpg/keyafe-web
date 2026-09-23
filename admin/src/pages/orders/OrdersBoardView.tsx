@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useAdminOrders, type AdminOrderListItem } from "@/hooks/useAdminOrders";
 import { OrderBoardCard } from "@/pages/orders/OrderBoardCard";
 import { deliveryIso } from "@/pages/orders/order-ui";
+import { useListSearch } from "@/store/listSearch";
 
 const BOARD_PAGE_SIZE = 100;
 const EXCLUDE: ("DELIVERED" | "CANCELLED")[] = ["DELIVERED", "CANCELLED"];
@@ -52,22 +53,38 @@ function BoardSection({
 }
 
 export function OrdersBoardView() {
+  const search = useListSearch((s) => s.query);
+  const searching = search.trim().length > 0;
   const today = deliveryIso(0);
   const tomorrow = deliveryIso(1);
 
+  const searchQuery = useAdminOrders({
+    search: search || null,
+    excludeStatuses: EXCLUDE,
+    pageSize: BOARD_PAGE_SIZE,
+    enabled: searching,
+  });
   const todayQuery = useAdminOrders({
     deliveryFrom: today,
     deliveryTo: today,
+    search: search || null,
     excludeStatuses: EXCLUDE,
     pageSize: BOARD_PAGE_SIZE,
+    enabled: !searching,
   });
   const tomorrowQuery = useAdminOrders({
     deliveryFrom: tomorrow,
     deliveryTo: tomorrow,
+    search: search || null,
     excludeStatuses: EXCLUDE,
     pageSize: BOARD_PAGE_SIZE,
+    enabled: !searching,
   });
 
+  const searchOrders = useMemo(
+    () => sortBoardOrders(searchQuery.data?.items ?? []),
+    [searchQuery.data?.items],
+  );
   const todayOrders = useMemo(
     () => sortBoardOrders(todayQuery.data?.items ?? []),
     [todayQuery.data?.items],
@@ -76,6 +93,25 @@ export function OrdersBoardView() {
     () => sortBoardOrders(tomorrowQuery.data?.items ?? []),
     [tomorrowQuery.data?.items],
   );
+
+  if (searching) {
+    return (
+      <div>
+        {searchQuery.isFetching && !searchQuery.isLoading && (
+          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+            Updating results…
+          </div>
+        )}
+        <BoardSection
+          title="Search results"
+          subtitle={`${searchOrders.length} active order${searchOrders.length === 1 ? "" : "s"} matching “${search.trim()}”`}
+          orders={searchOrders}
+          isLoading={searchQuery.isLoading}
+          emptyMessage={`No active orders match “${search.trim()}”. Try All orders for full history.`}
+        />
+      </div>
+    );
+  }
 
   const isFetching = todayQuery.isFetching || tomorrowQuery.isFetching;
   const isLoading = todayQuery.isLoading || tomorrowQuery.isLoading;
