@@ -51,10 +51,13 @@ export interface AdminProduct {
   isActive: boolean;
   isAvailable: boolean;
   isFeatured: boolean;
+  archivedAt: string | null;
   images: string[];
   createdAt: string;
   categories: { id: string; name: string; slug: string }[];
 }
+
+export type AdminProductListScope = "catalog" | "archived" | "all";
 
 export interface AdminProductsPage {
   items: AdminProduct[];
@@ -62,16 +65,23 @@ export interface AdminProductsPage {
   pageSize: number;
   total: number;
   totalPages: number;
+  scope: AdminProductListScope;
 }
 
-export function useAdminProducts(page = 1, pageSize = 20, search = "") {
+export function useAdminProducts(
+  page = 1,
+  pageSize = 20,
+  search = "",
+  scope: AdminProductListScope = "catalog",
+) {
   const q = search.trim();
   return useQuery<AdminProductsPage>({
-    queryKey: ["admin", "products", page, pageSize, q],
+    queryKey: ["admin", "products", page, pageSize, q, scope],
     queryFn: () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
+        scope,
       });
       if (q) params.set("search", q);
       return api.get<AdminProductsPage>(`/admin/products?${params}`);
@@ -139,6 +149,7 @@ export function useCreateProduct() {
 export interface AdminProductDetail extends CreateProductPayload {
   id: string;
   updatedAt: string;
+  archivedAt: string | null;
   categories: { id: string; name: string; slug: string }[];
   /** From OptionGroup rows (size, crust, tier, …). */
   optionGroups: AdminOptionGroup[];
@@ -163,6 +174,51 @@ export function useUpdateProduct() {
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({ queryKey: ["admin", "products"] });
       void qc.invalidateQueries({ queryKey: ["admin", "product", vars.id] });
+    },
+  });
+}
+
+export function useDuplicateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<AdminProduct>(`/admin/products/${id}/duplicate`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+    },
+  });
+}
+
+export function useArchiveProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ id: string; archivedAt: string | null }>(`/admin/products/${id}/archive`),
+    onSuccess: (_data, id) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "product", id] });
+    },
+  });
+}
+
+export function useUnarchiveProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ id: string; archivedAt: string | null }>(`/admin/products/${id}/unarchive`),
+    onSuccess: (_data, id) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "product", id] });
+    },
+  });
+}
+
+export function useDeleteProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ id: string; name: string }>(`/admin/products/${id}`),
+    onSuccess: (_data, id) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      void qc.removeQueries({ queryKey: ["admin", "product", id] });
     },
   });
 }

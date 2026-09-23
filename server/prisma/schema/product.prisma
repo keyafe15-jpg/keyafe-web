@@ -77,6 +77,9 @@ model Product {
   isAvailable Boolean @default(true) // can be ordered right now (soft "sold out" toggle)
   isFeatured  Boolean @default(false)
   sortOrder   Int     @default(0)
+  // Soft-retire from the day-to-day catalogue. Null = not archived.
+  // Archived products stay in admin for history; storefront never shows them.
+  archivedAt  DateTime?
 
   // Relations
   optionGroups OptionGroup[]
@@ -94,6 +97,7 @@ model Product {
   updatedAt DateTime @updatedAt
 
   @@index([isFeatured, isActive])
+  @@index([archivedAt])
 }
 
 enum ProductReviewStatus {

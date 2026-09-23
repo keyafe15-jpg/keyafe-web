@@ -86,6 +86,7 @@ const ADMIN_LIST_SELECT = {
   isActive: true,
   isAvailable: true,
   isFeatured: true,
+  archivedAt: true,
   images: true,
   createdAt: true,
   categoryLinks: {
@@ -149,11 +150,25 @@ function buildAdminProductSearchWhere(search?: string) {
   };
 }
 
-export async function listProducts(page = 1, pageSize = 20, search?: string) {
+export type AdminProductListScope = "catalog" | "archived" | "all";
+
+export async function listProducts(
+  page = 1,
+  pageSize = 20,
+  search?: string,
+  scope: AdminProductListScope = "catalog",
+) {
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
   const skip = (safePage - 1) * safePageSize;
-  const where = buildAdminProductSearchWhere(search);
+  const searchWhere = buildAdminProductSearchWhere(search);
+  const scopeWhere =
+    scope === "archived"
+      ? { archivedAt: { not: null } }
+      : scope === "all"
+        ? {}
+        : { archivedAt: null };
+  const where = { AND: [scopeWhere, searchWhere] };
 
   const [total, products] = await Promise.all([
     prisma.product.count({ where }),
@@ -175,6 +190,7 @@ export async function listProducts(page = 1, pageSize = 20, search?: string) {
     pageSize: safePageSize,
     total,
     totalPages,
+    scope,
   };
 }
 
@@ -782,6 +798,106 @@ export async function createProduct(input: CreateProductInput) {
   return product;
 }
 
+function slugifyProductName(name: string) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
+
+async function allocateUniqueSlug(base: string) {
+  const root = slugifyProductName(base) || "product";
+  for (let n = 0; n < 50; n++) {
+    const candidate = n === 0 ? root : `${root}-${n + 1}`;
+    const taken = await prisma.product.findUnique({
+      where: { slug: candidate },
+      select: { id: true },
+    });
+    if (!taken) return candidate;
+  }
+  throw HttpError.conflict("Could not allocate a unique slug");
+}
+
+function stripOptionIds(
+  options: Array<{
+    key: string;
+    label: string;
+    price: number;
+    weightGrams?: number | null;
+    diameterMm?: number | null;
+    isDefault: boolean;
+    isActive: boolean;
+    sortOrder: number;
+  }>,
+) {
+  return options.map(({ key, label, price, weightGrams, diameterMm, isDefault, isActive, sortOrder }) => ({
+    key,
+    label,
+    price,
+    weightGrams: weightGrams ?? null,
+    diameterMm: diameterMm ?? null,
+    isDefault,
+    isActive,
+    sortOrder,
+  }));
+}
+
+/** Clone a product as a Draft with a unique slug. Reuses createProduct. */
+export async function duplicateProduct(id: string) {
+  const source = await getAdminProductById(id);
+  const copyName = `${source.name} (copy)`;
+  const slug = await allocateUniqueSlug(`${source.slug}-copy`);
+
+  const input = createProductSchema.parse({
+    name: copyName,
+    slug,
+    shortDescription: source.shortDescription,
+    description: source.description,
+    categoryIds: source.categoryIds,
+    images: source.images,
+    basePrice: Number(source.basePrice),
+    productType: source.productType,
+    template: source.template,
+    isCustomizable: source.isCustomizable,
+    isEggless: source.isEggless,
+    sellByPound: source.sellByPound,
+    minGrams: source.minGrams,
+    maxGrams: source.maxGrams,
+    allowCustomSize: source.allowCustomSize,
+    supportsMessageOnCake: source.supportsMessageOnCake,
+    messageMaxLength: source.messageMaxLength,
+    supportsSameDayDelivery: source.supportsSameDayDelivery,
+    leadTimeHours: source.leadTimeHours,
+    canBeDeliveredPanIndia: source.canBeDeliveredPanIndia,
+    isHealthyTreat: source.isHealthyTreat,
+    gstRate: Number(source.gstRate),
+    hsnCode: source.hsnCode,
+    priceIsGstInclusive: source.priceIsGstInclusive,
+    allergens: source.allergens,
+    metaTitle: source.metaTitle,
+    metaDescription: source.metaDescription,
+    adminNotes: source.adminNotes,
+    kitchenNotes: source.kitchenNotes,
+    // Start as draft so staff can review before publishing.
+    isActive: false,
+    isAvailable: true,
+    isFeatured: false,
+    sortOrder: source.sortOrder,
+    flavorIds: source.flavorIds,
+    tagIds: source.tagIds,
+    toppingIds: source.toppingIds,
+    addonIds: source.addonIds,
+    sizeOptions:
+      source.template !== "CAKE" ? stripOptionIds(source.sizeOptions) : undefined,
+    crustOptions:
+      source.template === "PIZZA" ? stripOptionIds(source.crustOptions) : undefined,
+  });
+
+  return createProduct(input);
+}
+
 // Replaces the full OptionGroup for a given key. Passing undefined leaves it alone;
 // passing [] removes the group entirely.
 async function syncOptionGroup(
@@ -943,7 +1059,7 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
 
   const existing = await prisma.product.findUnique({
     where: { id },
-    select: { id: true },
+    select: { id: true, archivedAt: true },
   });
   if (!existing) throw HttpError.notFound("Product not found");
 
@@ -960,10 +1076,14 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
     uniqueCategoryIds = await assertCategoryIds(categoryIds);
   }
 
+  // Reactivating from the form clears archive so the product can go live again.
+  const clearArchive = rest.isActive === true && existing.archivedAt != null;
+
   const updated = await prisma.product.update({
     where: { id },
     data: {
       ...rest,
+      ...(clearArchive ? { archivedAt: null } : {}),
       ...(slug ? { slug } : {}),
       ...(uniqueCategoryIds
         ? {
@@ -999,4 +1119,85 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
   await syncOptionGroup(id, "crust", "Crust", "DELTA", crustOptions);
 
   return updated;
+}
+
+export async function archiveProduct(id: string) {
+  const existing = await prisma.product.findUnique({
+    where: { id },
+    select: { id: true, archivedAt: true },
+  });
+  if (!existing) throw HttpError.notFound("Product not found");
+  if (existing.archivedAt) {
+    return prisma.product.findUniqueOrThrow({
+      where: { id },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        isActive: true,
+        archivedAt: true,
+      },
+    });
+  }
+
+  return prisma.product.update({
+    where: { id },
+    data: {
+      archivedAt: new Date(),
+      isActive: false,
+      isFeatured: false,
+    },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      isActive: true,
+      archivedAt: true,
+    },
+  });
+}
+
+export async function unarchiveProduct(id: string) {
+  const existing = await prisma.product.findUnique({
+    where: { id },
+    select: { id: true, archivedAt: true },
+  });
+  if (!existing) throw HttpError.notFound("Product not found");
+  if (!existing.archivedAt) {
+    return prisma.product.findUniqueOrThrow({
+      where: { id },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        isActive: true,
+        archivedAt: true,
+      },
+    });
+  }
+
+  // Restores to draft — staff turn Active back on when ready.
+  return prisma.product.update({
+    where: { id },
+    data: { archivedAt: null },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      isActive: true,
+      archivedAt: true,
+    },
+  });
+}
+
+export async function deleteProduct(id: string) {
+  const existing = await prisma.product.findUnique({
+    where: { id },
+    select: { id: true, name: true },
+  });
+  if (!existing) throw HttpError.notFound("Product not found");
+
+  // Order items snapshot product fields and have no FK; order-link items SetNull.
+  await prisma.product.delete({ where: { id } });
+  return { id: existing.id, name: existing.name };
 }

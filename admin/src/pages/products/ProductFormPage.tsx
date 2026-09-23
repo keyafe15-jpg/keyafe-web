@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Cake, Pizza, Sparkles, Save, Trash2, X } from "lucide-react";
+import { Cake, Pizza, Sparkles, Save, Trash2, X, Copy, Archive, ArchiveRestore } from "lucide-react";
 import {
   Field,
   inputClass,
@@ -19,7 +19,11 @@ import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
 import {
   useAdminProduct,
+  useArchiveProduct,
   useCreateProduct,
+  useDeleteProduct,
+  useDuplicateProduct,
+  useUnarchiveProduct,
   useUpdateProduct,
   type ProductOptionInput,
 } from "@/hooks/useAdminProducts";
@@ -75,8 +79,11 @@ const slugify = (s: string) =>
 
 export function ProductFormPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
+  const openedFromDuplicate =
+    isEdit && Boolean((location.state as { fromDuplicate?: boolean } | null)?.fromDuplicate);
 
   const { data: categories = [] } = useFlatCategories();
   const { data: flavours = [] } = useFlavours();
@@ -85,7 +92,12 @@ export function ProductFormPage() {
   const { data: addonsAll = [] } = useAdminAddons();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const duplicateProduct = useDuplicateProduct();
+  const archiveProduct = useArchiveProduct();
+  const unarchiveProduct = useUnarchiveProduct();
+  const deleteProduct = useDeleteProduct();
   const { data: existing, isLoading: loadingExisting } = useAdminProduct(id);
+  const isArchived = Boolean(existing?.archivedAt);
 
   const [newImages, setNewImages] = useState<File[]>([]);
   const [keptImages, setKeptImages] = useState<string[]>([]);
@@ -297,12 +309,69 @@ export function ProductFormPage() {
     }
   });
 
-  const busy = isSubmitting || isUploading;
+  const busy =
+    isSubmitting ||
+    isUploading ||
+    duplicateProduct.isPending ||
+    archiveProduct.isPending ||
+    unarchiveProduct.isPending ||
+    deleteProduct.isPending;
+
+  const onDuplicate = async () => {
+    if (!id || duplicateProduct.isPending) return;
+    setSubmitError(null);
+    try {
+      const created = await duplicateProduct.mutateAsync(id);
+      navigate(`/products/${created.id}`, { replace: true, state: { fromDuplicate: true } });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to duplicate product");
+    }
+  };
+
+  const onArchive = async () => {
+    if (!id || !existing) return;
+    if (!confirm(`Archive “${existing.name}”? It will leave the storefront catalogue.`)) return;
+    setSubmitError(null);
+    try {
+      await archiveProduct.mutateAsync(id);
+      navigate("/products", { replace: true });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to archive product");
+    }
+  };
+
+  const onUnarchive = async () => {
+    if (!id) return;
+    setSubmitError(null);
+    try {
+      await unarchiveProduct.mutateAsync(id);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to unarchive product");
+    }
+  };
+
+  const onDelete = async () => {
+    if (!id || !existing) return;
+    if (
+      !confirm(
+        `Permanently delete “${existing.name}”? Past orders keep their snapshots; this cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setSubmitError(null);
+    try {
+      await deleteProduct.mutateAsync(id);
+      navigate("/products", { replace: true });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to delete product");
+    }
+  };
 
   return (
     <form onSubmit={onSubmit} className="pb-24">
       {/* Sticky action bar */}
-      <div className="sticky top-14 z-10 -mx-4 mb-6 flex items-center justify-between border-b border-slate-200 bg-slate-50/85 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="sticky top-14 z-10 -mx-4 mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/85 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">
             {isEdit ? "Edit product" : "New product"}
@@ -311,11 +380,13 @@ export function ProductFormPage() {
             {isEdit
               ? loadingExisting
                 ? "Loading…"
-                : `Editing “${existing?.name ?? "…"}”`
+                : isArchived
+                  ? `Archived — “${existing?.name ?? "…"}”`
+                  : `Editing “${existing?.name ?? "…"}”`
               : "Fill in the details and save."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => navigate("/products")}
@@ -323,6 +394,51 @@ export function ProductFormPage() {
           >
             <X className="h-4 w-4" /> Cancel
           </button>
+          {isEdit && !openedFromDuplicate && !isArchived && (
+            <button
+              type="button"
+              onClick={() => void onDuplicate()}
+              disabled={busy || loadingExisting}
+              title="Create a draft copy of this product"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-60"
+            >
+              <Copy className="h-4 w-4" />
+              {duplicateProduct.isPending ? "Duplicating…" : "Duplicate"}
+            </button>
+          )}
+          {isEdit && !isArchived && (
+            <button
+              type="button"
+              onClick={() => void onArchive()}
+              disabled={busy || loadingExisting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-60"
+            >
+              <Archive className="h-4 w-4" />
+              {archiveProduct.isPending ? "Archiving…" : "Archive"}
+            </button>
+          )}
+          {isEdit && isArchived && (
+            <button
+              type="button"
+              onClick={() => void onUnarchive()}
+              disabled={busy || loadingExisting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-60"
+            >
+              <ArchiveRestore className="h-4 w-4" />
+              {unarchiveProduct.isPending ? "Restoring…" : "Unarchive"}
+            </button>
+          )}
+          {isEdit && (
+            <button
+              type="button"
+              onClick={() => void onDelete()}
+              disabled={busy || loadingExisting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleteProduct.isPending ? "Deleting…" : "Delete"}
+            </button>
+          )}
           <button
             type="submit"
             disabled={busy}
@@ -339,6 +455,13 @@ export function ProductFormPage() {
           </button>
         </div>
       </div>
+
+      {isEdit && isArchived && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          This product is archived and hidden from the storefront. Unarchive to restore it as a
+          draft, then turn Active on when ready.
+        </div>
+      )}
 
       {submitError && (
         <div className="mb-6 rounded-lg border border-brand-500/40 bg-brand-100/50 px-4 py-3 text-sm text-brand-700">

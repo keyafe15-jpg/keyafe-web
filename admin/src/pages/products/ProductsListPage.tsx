@@ -1,18 +1,33 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, ImageOff, Search, X } from "lucide-react";
-import { useAdminProducts, useUpdateProduct } from "@/hooks/useAdminProducts";
+import { Plus, ImageOff, Search, X, Copy, Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import {
+  useAdminProducts,
+  useArchiveProduct,
+  useDeleteProduct,
+  useDuplicateProduct,
+  useUnarchiveProduct,
+  useUpdateProduct,
+  type AdminProductListScope,
+} from "@/hooks/useAdminProducts";
 import { PaginationControls } from "@/components/ClientPagination";
 import { inputClass } from "@/components/form/Field";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 20;
 
+const SCOPES: { id: AdminProductListScope; label: string }[] = [
+  { id: "catalog", label: "Catalogue" },
+  { id: "archived", label: "Archived" },
+  { id: "all", label: "All" },
+];
+
 export function ProductsListPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const { data, isLoading, isFetching } = useAdminProducts(page, PAGE_SIZE, search);
+  const [scope, setScope] = useState<AdminProductListScope>("catalog");
+  const { data, isLoading, isFetching } = useAdminProducts(page, PAGE_SIZE, search, scope);
   const products = data?.items ?? [];
   const total = data?.total ?? 0;
   const navigate = useNavigate();
@@ -35,7 +50,11 @@ export function ProductsListPage() {
           <p className="mt-1 text-sm text-slate-500">
             {searching
               ? `${total} match${total === 1 ? "" : "es"} for “${search}”`
-              : `Full catalogue — ${total} product${total === 1 ? "" : "s"}.`}
+              : scope === "archived"
+                ? `${total} archived product${total === 1 ? "" : "s"}.`
+                : scope === "all"
+                  ? `${total} product${total === 1 ? "" : "s"} total.`
+                  : `Catalogue — ${total} product${total === 1 ? "" : "s"}.`}
           </p>
         </div>
         <Link
@@ -46,8 +65,28 @@ export function ProductsListPage() {
         </Link>
       </div>
 
-      <div className="mb-4">
-        <div className="relative max-w-md">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+          {SCOPES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => {
+                setScope(s.id);
+                setPage(1);
+              }}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition",
+                scope === s.id
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div className="relative max-w-md flex-1 sm:max-w-sm sm:flex-none">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
@@ -75,6 +114,8 @@ export function ProductsListPage() {
           <div className="p-8 text-center text-sm text-slate-500">
             {searching ? (
               <>No products match “{search}”.</>
+            ) : scope === "archived" ? (
+              <>No archived products.</>
             ) : (
               <>
                 No products yet.{" "}
@@ -101,6 +142,7 @@ export function ProductsListPage() {
                   <th className="px-4 py-2 text-right font-medium">Price</th>
                   <th className="px-4 py-2 font-medium">Type</th>
                   <th className="px-4 py-2 font-medium">Status</th>
+                  <th className="px-4 py-2 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -144,6 +186,14 @@ export function ProductsListPage() {
                         isActive={p.isActive}
                         isAvailable={p.isAvailable}
                         isFeatured={p.isFeatured}
+                        isArchived={Boolean(p.archivedAt)}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <ProductRowActions
+                        productId={p.id}
+                        productName={p.name}
+                        isArchived={Boolean(p.archivedAt)}
                       />
                     </td>
                   </tr>
@@ -157,8 +207,6 @@ export function ProductsListPage() {
                   key={p.id}
                   className="relative px-4 py-3 transition focus-within:bg-slate-50 hover:bg-slate-50"
                 >
-                  {/* Covers the whole row so tapping anywhere opens the product,
-                      while the stock toggle re-enables its own pointer events. */}
                   <Link
                     to={`/products/${p.id}`}
                     className="absolute inset-0"
@@ -193,10 +241,16 @@ export function ProductsListPage() {
                           isActive={p.isActive}
                           isAvailable={p.isAvailable}
                           isFeatured={p.isFeatured}
+                          isArchived={Boolean(p.archivedAt)}
                         />
                         <span className="text-[10px] text-slate-400">
                           {p.productType === "CONFIGURABLE" ? "Configurable" : "Variants"}
                         </span>
+                        <ProductRowActions
+                          productId={p.id}
+                          productName={p.name}
+                          isArchived={Boolean(p.archivedAt)}
+                        />
                       </div>
                     </div>
                   </div>
@@ -232,23 +286,144 @@ function PriceCell({ priceMin, priceMax }: { priceMin: number; priceMax: number 
   return <span>₹{priceMin.toFixed(2)}</span>;
 }
 
+const actionBtnClass =
+  "inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60";
+
+function ProductRowActions({
+  productId,
+  productName,
+  isArchived,
+}: {
+  productId: string;
+  productName: string;
+  isArchived: boolean;
+}) {
+  const navigate = useNavigate();
+  const duplicate = useDuplicateProduct();
+  const archive = useArchiveProduct();
+  const unarchive = useUnarchiveProduct();
+  const del = useDeleteProduct();
+  const [error, setError] = useState<string | null>(null);
+  const pending =
+    duplicate.isPending || archive.isPending || unarchive.isPending || del.isPending;
+
+  const run = async (fn: () => Promise<void>) => {
+    setError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Action failed");
+    }
+  };
+
+  return (
+    <span className="inline-flex flex-col items-end gap-0.5">
+      <span className="inline-flex flex-wrap justify-end gap-1">
+        {!isArchived && (
+          <button
+            type="button"
+            disabled={pending}
+            title={`Duplicate “${productName}” as a draft`}
+            className={actionBtnClass}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void run(async () => {
+                const created = await duplicate.mutateAsync(productId);
+                navigate(`/products/${created.id}`, { state: { fromDuplicate: true } });
+              });
+            }}
+          >
+            <Copy className="h-3 w-3" />
+            {duplicate.isPending ? "…" : "Duplicate"}
+          </button>
+        )}
+        {isArchived ? (
+          <button
+            type="button"
+            disabled={pending}
+            title="Restore to catalogue as a draft"
+            className={actionBtnClass}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void run(async () => {
+                await unarchive.mutateAsync(productId);
+              });
+            }}
+          >
+            <ArchiveRestore className="h-3 w-3" />
+            {unarchive.isPending ? "…" : "Unarchive"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={pending}
+            title="Hide from catalogue (can restore later)"
+            className={actionBtnClass}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!confirm(`Archive “${productName}”? It will leave the storefront catalogue.`)) {
+                return;
+              }
+              void run(async () => {
+                await archive.mutateAsync(productId);
+              });
+            }}
+          >
+            <Archive className="h-3 w-3" />
+            {archive.isPending ? "…" : "Archive"}
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={pending}
+          title="Permanently delete"
+          className={cn(actionBtnClass, "border-red-200 text-red-700 hover:bg-red-50")}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (
+              !confirm(
+                `Permanently delete “${productName}”? Past orders keep their snapshots; this cannot be undone.`,
+              )
+            ) {
+              return;
+            }
+            void run(async () => {
+              await del.mutateAsync(productId);
+            });
+          }}
+        >
+          <Trash2 className="h-3 w-3" />
+          {del.isPending ? "…" : "Delete"}
+        </button>
+      </span>
+      {error && <span className="max-w-[12rem] text-right text-[10px] text-brand-700">{error}</span>}
+    </span>
+  );
+}
+
 function StatusBadges({
   productId,
   isActive,
   isAvailable,
   isFeatured,
+  isArchived,
 }: {
   productId: string;
   isActive: boolean;
   isAvailable: boolean;
   isFeatured: boolean;
+  isArchived: boolean;
 }) {
   const update = useUpdateProduct();
   const [pending, setPending] = useState(false);
 
   const toggleStock = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (pending || !isActive) return;
+    if (pending || !isActive || isArchived) return;
     setPending(true);
     try {
       await update.mutateAsync({
@@ -259,6 +434,14 @@ function StatusBadges({
       setPending(false);
     }
   };
+
+  if (isArchived) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        <Chip active label="Archived" tone="amber" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap gap-1">
