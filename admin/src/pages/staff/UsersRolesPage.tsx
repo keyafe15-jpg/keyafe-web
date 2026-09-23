@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { inputClass, selectClass, submitClass } from "@/components/form/Field";
 import { PaginationControls } from "@/components/ClientPagination";
 import { useStaffPermission } from "@/lib/permissions";
+import { useAdminAuth } from "@/store/adminAuth";
 import {
   useCreateStaffRole,
   useCreateStaffUser,
+  useDeleteStaffUser,
   useStaffPermissions,
   useStaffRoles,
   useStaffUsers,
@@ -30,7 +32,7 @@ export function UsersRolesPage() {
           <h1 className="text-2xl font-semibold text-slate-900">Users & Roles</h1>
           <p className="mt-1 text-sm text-slate-500">
             {tab === "staff"
-              ? "Create kitchen and office staff. They sign in with OTP on this admin app."
+              ? "Create kitchen and office staff. They sign in with OTP on this admin app. You can delete other staff accounts, but not your own."
               : "Choose what each role can do. Super-admin always has full access."}
           </p>
         </div>
@@ -107,6 +109,9 @@ function StaffTab() {
                 <th className="px-4 py-2 font-medium">Role</th>
                 <th className="px-4 py-2 font-medium">Last login</th>
                 <th className="w-28 px-4 py-2 text-center font-medium">Active</th>
+                <th className="w-14 px-4 py-2 text-right font-medium">
+                  <span className="sr-only">Delete</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -219,12 +224,38 @@ function NewStaffForm({ roles }: { roles: StaffRole[] }) {
 
 function StaffRow({ user, roles }: { user: StaffUser; roles: StaffRole[] }) {
   const update = useUpdateStaffUser();
+  const del = useDeleteStaffUser();
+  const currentUserId = useAdminAuth((s) => s.user?.id);
+  const isSelf = user.id === currentUserId;
+  const [error, setError] = useState<string | null>(null);
+
+  const onDelete = async () => {
+    setError(null);
+    if (isSelf) {
+      setError("You cannot delete your own account.");
+      return;
+    }
+    if (!confirm(`Delete staff user “${user.name}”? This cannot be undone.`)) return;
+    try {
+      await del.mutateAsync(user.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete");
+    }
+  };
 
   return (
     <tr className="block p-4 hover:bg-slate-50 md:table-row md:p-0">
       <td className="block md:table-cell md:px-4 md:py-3">
-        <p className="font-medium text-slate-900">{user.name}</p>
+        <p className="font-medium text-slate-900">
+          {user.name}
+          {isSelf && (
+            <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium tracking-wide text-slate-500 uppercase">
+              You
+            </span>
+          )}
+        </p>
         {user.email && <p className="text-xs text-slate-500">{user.email}</p>}
+        {error && <p className="mt-1 text-xs text-brand-700">{error}</p>}
       </td>
       <td className="mt-2 block text-slate-700 tabular-nums md:mt-0 md:table-cell md:px-4 md:py-3">
         <div className="flex items-center justify-between gap-2 md:justify-start">
@@ -268,10 +299,28 @@ function StaffRow({ user, roles }: { user: StaffUser; roles: StaffRole[] }) {
           <input
             type="checkbox"
             checked={user.isActive}
+            disabled={isSelf}
             onChange={(e) => update.mutate({ id: user.id, isActive: e.target.checked })}
-            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500 disabled:opacity-50"
+            title={isSelf ? "You cannot disable your own account" : undefined}
           />
         </label>
+      </td>
+      <td className="mt-3 block text-right md:mt-0 md:table-cell md:px-4 md:py-3">
+        <button
+          type="button"
+          onClick={() => void onDelete()}
+          disabled={del.isPending || isSelf}
+          title={isSelf ? "You cannot delete your own account" : `Delete “${user.name}”`}
+          className={cn(
+            "inline-flex h-8 w-8 items-center justify-center rounded-md transition disabled:opacity-50",
+            isSelf
+              ? "cursor-not-allowed text-slate-300"
+              : "text-red-500 hover:bg-red-50 hover:text-red-700",
+          )}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </td>
     </tr>
   );

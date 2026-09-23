@@ -277,6 +277,31 @@ export async function updateStaffUser(
   return serializeStaffUser(updated);
 }
 
+export async function deleteStaffUser(id: string, actorId: string) {
+  const existing = await prisma.user.findUnique({
+    where: { id },
+    include: { role: true },
+  });
+  if (!existing) throw HttpError.notFound("Staff user not found");
+  if (existing.role.slug === CUSTOMER_ROLE_SLUG) {
+    throw HttpError.badRequest("This user is a customer, not staff");
+  }
+
+  if (id === actorId) {
+    throw HttpError.badRequest("You cannot delete your own account");
+  }
+
+  if (existing.role.isSuperuser && existing.isActive) {
+    const remaining = await countActiveSuperusers(id);
+    if (remaining === 0) {
+      throw HttpError.conflict("Cannot delete the last active super-admin");
+    }
+  }
+
+  await prisma.user.delete({ where: { id } });
+  return { id: existing.id, name: existing.name };
+}
+
 export async function listRoles() {
   const roles = await prisma.role.findMany({
     where: { slug: { not: CUSTOMER_ROLE_SLUG } },

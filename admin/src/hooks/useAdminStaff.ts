@@ -112,6 +112,17 @@ export function useUpdateStaffUser() {
   });
 }
 
+export function useDeleteStaffUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.delete<{ id: string; name: string }>(`/admin/staff/users/${id}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+  });
+}
+
 export function useCreateStaffRole() {
   const qc = useQueryClient();
   return useMutation({

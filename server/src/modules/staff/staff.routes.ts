@@ -6,6 +6,7 @@ import { normalizeCustomerPhone } from "../../lib/phone.js";
 import {
   createRole,
   createStaffUser,
+  deleteStaffUser,
   listPermissions,
   listRoles,
   listStaffUsers,
@@ -78,6 +79,12 @@ adminStaffRouter.patch("/users/:id", requirePermission("users.manage"), async (r
   const actorId = (req as AuthenticatedRequest).staff?.id;
   if (!actorId) throw HttpError.unauthorized("Authentication required");
   res.json(await updateStaffUser(req.params.id ?? "", parsed.data, actorId));
+});
+
+adminStaffRouter.delete("/users/:id", requirePermission("users.manage"), async (req, res) => {
+  const actorId = (req as AuthenticatedRequest).staff?.id;
+  if (!actorId) throw HttpError.unauthorized("Authentication required");
+  res.json(await deleteStaffUser(req.params.id ?? "", actorId));
 });
 
 adminStaffRouter.get(
