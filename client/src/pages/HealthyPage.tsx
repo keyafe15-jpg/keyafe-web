@@ -8,6 +8,7 @@ import {
 } from "@/hooks/useProducts";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
+import { VegMark } from "@/components/product/VegMark";
 import { HEALTHY_COPY } from "@/content/healthy";
 import { cn } from "@/lib/cn";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
@@ -152,10 +153,11 @@ function HealthyProductCard({ product }: { product: ProductCard }) {
       )}
     >
       <div className="relative aspect-square overflow-hidden bg-cream-100">
+        {product.isEggless && <VegMark className="absolute top-2 left-2 z-10" />}
         {product.tags.length > 0 && (
           <ProductCardTags
             tags={product.tags}
-            className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
+            className="absolute top-2 right-2 z-10 flex max-w-[70%] flex-wrap justify-end gap-1"
           />
         )}
         {product.images[0] ? (

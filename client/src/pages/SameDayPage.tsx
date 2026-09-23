@@ -6,6 +6,7 @@ import { useSameDayProducts, type ProductCard, productInCategoryIds } from "@/ho
 import { useCategories, type CategoryNode } from "@/hooks/useCategories";
 import { LeadTimeChip } from "@/components/product/LeadTimeChip";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
+import { VegMark } from "@/components/product/VegMark";
 import { Reveal } from "@/components/motion/Reveal";
 import { SAMEDAY_COPY } from "@/content/sameday";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
@@ -516,11 +517,12 @@ function ProductCardView({ product, disabled }: { product: ProductCard; disabled
       )}
     >
       <Link to={`/product/${product.slug}`} className="block">
-        <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-cream-100">
+      <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-cream-100">
+          {product.isEggless && <VegMark className="absolute top-2 left-2 z-10" />}
           {product.tags.length > 0 && (
             <ProductCardTags
               tags={product.tags}
-              className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
+              className="absolute top-2 right-2 z-10 flex max-w-[70%] flex-wrap justify-end gap-1"
             />
           )}
           {product.images[0] && (

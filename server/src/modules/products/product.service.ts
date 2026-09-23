@@ -204,6 +204,7 @@ const PUBLIC_CARD_SELECT = {
   images: true,
   isAvailable: true,
   isFeatured: true,
+  isEggless: true,
   leadTimeHours: true,
   supportsSameDayDelivery: true,
   canBeDeliveredPanIndia: true,
@@ -244,6 +245,7 @@ type PublicCardRow = {
   images: string[];
   isAvailable: boolean;
   isFeatured: boolean;
+  isEggless: boolean;
   leadTimeHours: number;
   supportsSameDayDelivery: boolean;
   canBeDeliveredPanIndia: boolean;

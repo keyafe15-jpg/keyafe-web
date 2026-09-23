@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { categoryNames, type ProductCard } from "@/hooks/useProducts";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
+import { VegMark } from "@/components/product/VegMark";
 import { cn } from "@/lib/cn";
 
 interface CatalogProductCardProps {
@@ -25,17 +26,16 @@ export function CatalogProductCard({ product, className, omitTagSlug }: CatalogP
       aria-disabled={soldOut || undefined}
       className={cn(
         "group flex flex-col overflow-hidden rounded-card border border-cream-200 bg-white shadow-sm transition",
-        soldOut
-          ? "opacity-75"
-          : "hover:-translate-y-1 hover:shadow-md",
+        soldOut ? "opacity-75" : "hover:-translate-y-1 hover:shadow-md",
         className,
       )}
     >
       <div className="relative aspect-square overflow-hidden bg-cream-100">
+        {product.isEggless && <VegMark className="absolute top-2 left-2 z-10" />}
         {tags.length > 0 && (
           <ProductCardTags
             tags={tags}
-            className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
+            className="absolute top-2 right-2 z-10 flex max-w-[70%] flex-wrap justify-end gap-1"
           />
         )}
         {product.images[0] ? (

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
+import { VegMark } from "@/components/product/VegMark";
 import { Reveal } from "@/components/motion/Reveal";
 import { SlideCarousel } from "@/components/ui/SlideCarousel";
 import {
@@ -86,13 +87,10 @@ function PhotoTile({
       </div>
 
       <Sheen />
-      {tags.length > 0 && (
-        <ProductCardTags
-          tags={tags}
-          max={1}
-          className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
-        />
-      )}
+      <div className="absolute top-2 left-2 z-10 flex flex-wrap items-start gap-1">
+        {product.isEggless && <VegMark />}
+        {tags.length > 0 && <ProductCardTags tags={tags} max={1} className="flex flex-wrap gap-1" />}
+      </div>
       {soldOut && <SoldOut />}
 
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-8 sm:pt-10">
@@ -141,13 +139,10 @@ function RailCard({ product, omitTagSlug }: { product: ProductCard; omitTagSlug?
         <TileImage product={product} className={soldOut ? "grayscale" : undefined} />
       </div>
       <Sheen />
-      {tags.length > 0 && (
-        <ProductCardTags
-          tags={tags}
-          max={1}
-          className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
-        />
-      )}
+      <div className="absolute top-2 left-2 z-10 flex flex-wrap items-start gap-1">
+        {product.isEggless && <VegMark />}
+        {tags.length > 0 && <ProductCardTags tags={tags} max={1} className="flex flex-wrap gap-1" />}
+      </div>
       {soldOut && <SoldOut />}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-3 pt-12">
         <h3 className="line-clamp-2 font-display text-sm leading-snug text-white">{product.name}</h3>
@@ -170,6 +165,7 @@ function SoloBanner({ product, accent }: { product: ProductCard; accent: string 
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-cream-100 sm:h-24 sm:w-24">
         <TileImage product={product} className={soldOut ? "grayscale" : undefined} />
         <Sheen />
+        {product.isEggless && <VegMark className="absolute top-1.5 left-1.5 z-10" />}
         {soldOut && (
           <span className="absolute inset-x-0 bottom-0 bg-ink-900/70 py-0.5 text-center text-[9px] font-semibold tracking-wide text-white uppercase">
             Out of stock

@@ -19,6 +19,8 @@ export interface ProductCard {
   images: string[];
   isAvailable: boolean;
   isFeatured: boolean;
+  /** Storefront treats eggless products as vegetarian for the FSSAI-style mark. */
+  isEggless: boolean;
   leadTimeHours: number;
   supportsSameDayDelivery: boolean;
   canBeDeliveredPanIndia: boolean;
