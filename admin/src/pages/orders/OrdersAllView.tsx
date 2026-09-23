@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Truck, Store, Phone, ChevronRight, Search, X, Building2 } from "lucide-react";
+import { Truck, Store, Phone, ChevronRight, Building2 } from "lucide-react";
 import { useAdminOrders, useAdminOrderCounts, type OrderStatus } from "@/hooks/useAdminOrders";
 import { PaginationControls } from "@/components/ClientPagination";
-import { inputClass } from "@/components/form/Field";
 import { SourceBadge, StatusPill, SurpriseGiftBadge } from "@/pages/orders/order-ui";
+import { useListSearch } from "@/store/listSearch";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 20;
@@ -24,8 +24,7 @@ export function OrdersAllView() {
   const [tab, setTab] = useState<OrderStatus | "ALL">("ALL");
   const [deliveryFrom, setDeliveryFrom] = useState("");
   const [deliveryTo, setDeliveryTo] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const search = useListSearch((s) => s.query);
   const [page, setPage] = useState(1);
   const { data, isLoading, isFetching } = useAdminOrders({
     status: tab === "ALL" ? null : tab,
@@ -40,12 +39,8 @@ export function OrdersAllView() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [searchInput]);
+    setPage(1);
+  }, [search]);
 
   const searching = search.length > 0;
 
@@ -148,29 +143,6 @@ export function OrdersAllView() {
 
           {rangeInvalid && (
             <p className="text-[11px] text-brand-700">"From" must be on or before "To".</p>
-          )}
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <div className="relative max-w-md">
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search order #, customer, phone, or product…"
-            className={cn(inputClass, "pr-9 pl-9")}
-          />
-          {searchInput && (
-            <button
-              type="button"
-              onClick={() => setSearchInput("")}
-              className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
           )}
         </div>
       </div>

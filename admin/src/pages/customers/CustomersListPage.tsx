@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, X, ChevronRight, Layers } from "lucide-react";
+import { ChevronRight, Layers } from "lucide-react";
 import {
   useAdminCustomers,
   type AdminCustomer,
@@ -8,7 +8,7 @@ import {
 } from "@/hooks/useAdminCustomers";
 import { CustomerDetailDrawer } from "@/pages/customers/CustomerDetailDrawer";
 import { PaginationControls } from "@/components/ClientPagination";
-import { inputClass } from "@/components/form/Field";
+import { useListSearch } from "@/store/listSearch";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 20;
@@ -39,8 +39,7 @@ export function CustomersListPage() {
   const [page, setPage] = useState(1);
   const [typeTab, setTypeTab] = useState<CustomerRegisteredFilter>("ALL");
   const [statusTab, setStatusTab] = useState<CustomerActiveFilter>("ALL");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const search = useListSearch((s) => s.query);
   const [selected, setSelected] = useState<AdminCustomer | null>(null);
   const { data, isLoading, isFetching } = useAdminCustomers({
     page,
@@ -53,12 +52,8 @@ export function CustomersListPage() {
   const total = data?.total ?? 0;
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [searchInput]);
+    setPage(1);
+  }, [search]);
 
   const searching = search.length > 0;
 
@@ -84,45 +79,22 @@ export function CustomersListPage() {
       </div>
 
       <div className="mb-4 flex flex-col gap-3">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-1">
-            {TYPE_TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => changeTypeTab(t.key)}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-sm font-medium transition",
-                  typeTab === t.key
-                    ? "bg-brand-500 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative w-full max-w-md lg:w-auto">
-            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by name, phone, or email…"
-              className={cn(inputClass, "w-full pr-9 pl-9")}
-            />
-            {searchInput && (
-              <button
-                type="button"
-                onClick={() => setSearchInput("")}
-                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+        <div className="flex flex-wrap gap-1">
+          {TYPE_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => changeTypeTab(t.key)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-sm font-medium transition",
+                typeTab === t.key
+                  ? "bg-brand-500 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-wrap gap-1">

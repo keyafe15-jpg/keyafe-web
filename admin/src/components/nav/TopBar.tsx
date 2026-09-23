@@ -1,16 +1,42 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Menu, Search, Volume2, VolumeX, Bell, BellOff, LogOut, User } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Menu, Volume2, VolumeX, Bell, BellOff, LogOut, User } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { useAdminAuth } from "@/store/adminAuth";
 import { useAlerts } from "@/store/alerts";
+import { useListSearch } from "@/store/listSearch";
+import { DebouncedSearchInput } from "@/components/form/DebouncedSearchInput";
 import { disablePush, enablePush, getPushState } from "@/lib/push";
 import { cn } from "@/lib/cn";
+
+/** Routes where TopBar search filters the current list. */
+function searchConfigForPath(pathname: string): { placeholder: string } | null {
+  if (pathname === "/products") {
+    return { placeholder: "Search products by name, slug, or category…" };
+  }
+  if (pathname === "/customers") {
+    return { placeholder: "Search customers by name, phone, or email…" };
+  }
+  if (pathname === "/orders") {
+    return { placeholder: "Search order #, customer, phone, or product…" };
+  }
+  if (pathname === "/users") {
+    return { placeholder: "Search staff by name or phone…" };
+  }
+  if (pathname === "/delivery") {
+    return { placeholder: "Search pincode, city, or area…" };
+  }
+  return null;
+}
 
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const user = useAdminAuth((s) => s.user);
   const logout = useAdminAuth((s) => s.logout);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const clearSearch = useListSearch((s) => s.clear);
+  const setQuery = useListSearch((s) => s.setQuery);
+  const searchConfig = searchConfigForPath(pathname);
   const soundEnabled = useAlerts((s) => s.soundEnabled);
   const setSoundEnabled = useAlerts((s) => s.setSoundEnabled);
 
@@ -22,6 +48,11 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   useEffect(() => {
     setPushState(getPushState());
   }, []);
+
+  // Reset shared query when leaving a searchable list (or switching lists).
+  useEffect(() => {
+    clearSearch();
+  }, [pathname, clearSearch]);
 
   const togglePush = async () => {
     if (!pushState.supported || pushBusy) return;
@@ -59,14 +90,14 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="relative hidden max-w-sm flex-1 md:block">
-        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          placeholder="Search orders, products, customers…"
-          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
+      {searchConfig && (
+        <DebouncedSearchInput
+          key={pathname}
+          className="min-w-0 max-w-md flex-1"
+          placeholder={searchConfig.placeholder}
+          onDebouncedChange={setQuery}
         />
-      </div>
+      )}
 
       <div className="ml-auto flex items-center gap-2">
         {pushState.supported && (

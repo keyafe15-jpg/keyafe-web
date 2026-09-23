@@ -6,10 +6,8 @@ import {
   Building2,
   ImageOff,
   Phone,
-  Search,
   Store,
   Truck,
-  X,
 } from "lucide-react";
 import { useOrderSchedule, type ScheduleEntry } from "@/hooks/useOrderSchedule";
 import type { OrderStatus } from "@/hooks/useAdminOrders";
@@ -17,6 +15,7 @@ import { slotRank } from "@/content/slots";
 import { StatusPill, SourceBadge, SurpriseGiftBadge } from "@/pages/orders/order-ui";
 import { PaginationControls } from "@/components/ClientPagination";
 import { inputClass } from "@/components/form/Field";
+import { useListSearch } from "@/store/listSearch";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 25;
@@ -145,19 +144,14 @@ function ScheduleCard({ entry }: { entry: ScheduleEntry }) {
 export function OrdersScheduleView() {
   const [deliveryFrom, setDeliveryFrom] = useState(isoDay(0));
   const [deliveryTo, setDeliveryTo] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const search = useListSearch((s) => s.query);
   const [dir, setDir] = useState<"asc" | "desc">("asc");
   const [includeDone, setIncludeDone] = useState(false);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [searchInput]);
+    setPage(1);
+  }, [search]);
 
   const { data, isLoading, isFetching } = useOrderSchedule({
     deliveryFrom: deliveryFrom || null,
@@ -275,27 +269,6 @@ export function OrdersScheduleView() {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative max-w-md flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search order #, customer, phone, or product…"
-            className={cn(inputClass, "pr-9 pl-9")}
-          />
-          {searchInput && (
-            <button
-              type="button"
-              onClick={() => setSearchInput("")}
-              className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
         <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
           <input
             type="checkbox"

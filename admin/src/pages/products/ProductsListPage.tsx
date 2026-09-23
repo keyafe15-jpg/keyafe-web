@@ -3,8 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
   ImageOff,
-  Search,
-  X,
   Copy,
   Archive,
   ArchiveRestore,
@@ -23,7 +21,7 @@ import {
   type AdminProductListScope,
 } from "@/hooks/useAdminProducts";
 import { PaginationControls } from "@/components/ClientPagination";
-import { inputClass } from "@/components/form/Field";
+import { useListSearch } from "@/store/listSearch";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 20;
@@ -36,8 +34,7 @@ const SCOPES: { id: AdminProductListScope; label: string }[] = [
 
 export function ProductsListPage() {
   const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const search = useListSearch((s) => s.query);
   const [scope, setScope] = useState<AdminProductListScope>("catalog");
   const { data, isLoading, isFetching } = useAdminProducts(page, PAGE_SIZE, search, scope);
   const products = data?.items ?? [];
@@ -45,12 +42,8 @@ export function ProductsListPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [searchInput]);
+    setPage(1);
+  }, [search]);
 
   const searching = search.length > 0;
 
@@ -97,26 +90,6 @@ export function ProductsListPage() {
               {s.label}
             </button>
           ))}
-        </div>
-        <div className="relative max-w-md flex-1 sm:max-w-sm sm:flex-none">
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by name, slug, or category…"
-            className={cn(inputClass, "pr-9 pl-9")}
-          />
-          {searchInput && (
-            <button
-              type="button"
-              onClick={() => setSearchInput("")}
-              className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </div>
 

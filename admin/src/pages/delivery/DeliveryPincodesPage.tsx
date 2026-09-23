@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileSpreadsheet, Pencil, Plus, Save, Search, Trash2, Upload, X } from "lucide-react";
+import { FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload, X } from "lucide-react";
 import {
   useAdminDeliveryPincodes,
   useBulkImportDeliveryPincodes,
@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/cn";
 import { Field, inputClass, selectClass, submitClass } from "@/components/form/Field";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
+import { useListSearch } from "@/store/listSearch";
 
 const DISTRICTS: DeliveryDistrict[] = ["HOWRAH", "KOLKATA", "HOOGHLY"];
 const PAGE_SIZE = 10;
@@ -45,7 +46,7 @@ const pincodeIsValid = (pincode: string) => /^[1-9][0-9]{5}$/.test(pincode);
 export function DeliveryPincodesPage() {
   const { data: pincodes = [], isLoading } = useAdminDeliveryPincodes();
   const [district, setDistrict] = useState<"ALL" | DeliveryDistrict>("ALL");
-  const [query, setQuery] = useState("");
+  const query = useListSearch((s) => s.query);
 
   const filtered = pincodes.filter((row) => {
     const matchesDistrict = district === "ALL" || row.district === district;
@@ -89,26 +90,15 @@ export function DeliveryPincodesPage() {
       <NewPincodeForm />
 
       <div className="mt-5 rounded-card border border-slate-200 bg-white p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="relative md:w-80">
-            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search pincode, city, area"
-              className={cn(inputClass, "pl-9")}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <FilterButton active={district === "ALL"} onClick={() => setDistrict("ALL")}>
-              All
+        <div className="flex flex-wrap gap-2">
+          <FilterButton active={district === "ALL"} onClick={() => setDistrict("ALL")}>
+            All
+          </FilterButton>
+          {DISTRICTS.map((item) => (
+            <FilterButton key={item} active={district === item} onClick={() => setDistrict(item)}>
+              {item}
             </FilterButton>
-            {DISTRICTS.map((item) => (
-              <FilterButton key={item} active={district === item} onClick={() => setDistrict(item)}>
-                {item}
-              </FilterButton>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import { inputClass, selectClass, submitClass } from "@/components/form/Field";
 import { PaginationControls } from "@/components/ClientPagination";
 import { useStaffPermission } from "@/lib/permissions";
 import { useAdminAuth } from "@/store/adminAuth";
+import { useListSearch } from "@/store/listSearch";
 import {
   useCreateStaffRole,
   useCreateStaffUser,
@@ -70,35 +71,24 @@ export function UsersRolesPage() {
 function StaffTab() {
   const { data: roles = [] } = useStaffRoles();
   const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const search = useListSearch((s) => s.query);
   const { data, isLoading } = useStaffUsers({ page, search: search || undefined });
   const users = data?.items ?? [];
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [searchInput]);
+    setPage(1);
+  }, [search]);
 
   return (
     <div className="space-y-4">
       <NewStaffForm roles={roles} />
 
       <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 p-3">
-          <input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search name or phone"
-            className={cn(inputClass, "max-w-sm")}
-          />
-        </div>
         {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && users.length === 0 && (
-          <div className="p-8 text-center text-sm text-slate-500">No staff users yet.</div>
+          <div className="p-8 text-center text-sm text-slate-500">
+            {search ? `No staff match “${search}”.` : "No staff users yet."}
+          </div>
         )}
         {!isLoading && users.length > 0 && (
           <table className="w-full text-left text-sm">
