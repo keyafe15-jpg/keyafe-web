@@ -1,6 +1,12 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
-import { useAdminTags, useCreateTag, useUpdateTag, type AdminTag } from "@/hooks/useTags";
+import { Plus, Trash2 } from "lucide-react";
+import {
+  useAdminTags,
+  useCreateTag,
+  useDeleteTag,
+  useUpdateTag,
+  type AdminTag,
+} from "@/hooks/useTags";
 import { cn } from "@/lib/cn";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
 
@@ -24,7 +30,8 @@ export function TagsPage() {
           Labels like &ldquo;New launch&rdquo; and &ldquo;Best seller&rdquo;. Assign them on each
           product; they show as badges on the storefront. Tick{" "}
           <span className="font-medium">On homepage</span> to give a tag its own product row on the
-          landing page — lower <span className="font-medium">Order</span> appears first.
+          landing page — lower <span className="font-medium">Order</span> appears first. Delete only
+          works when no products use the tag — otherwise remove it from those products first.
         </p>
       </div>
 
@@ -46,6 +53,9 @@ export function TagsPage() {
                 <th className="w-32 px-4 py-2 text-center font-medium">On homepage</th>
                 <th className="w-20 px-4 py-2 text-center font-medium">Order</th>
                 <th className="w-28 px-4 py-2 text-right font-medium">Products</th>
+                <th className="w-14 px-4 py-2 text-right font-medium">
+                  <span className="sr-only">Delete</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -128,9 +138,12 @@ function NewTagRow() {
 
 function TagRow({ tag }: { tag: AdminTag }) {
   const update = useUpdateTag();
+  const del = useDeleteTag();
   const [name, setName] = useState(tag.name);
   const [colorHex, setColorHex] = useState(tag.colorHex ?? "#E31C79");
   const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inUse = tag.productCount > 0;
 
   const commit = async () => {
     await update.mutateAsync({
@@ -139,6 +152,22 @@ function TagRow({ tag }: { tag: AdminTag }) {
       colorHex: colorHex || null,
     });
     setDirty(false);
+  };
+
+  const onDelete = async () => {
+    setError(null);
+    if (inUse) {
+      setError(
+        `Used by ${tag.productCount} product${tag.productCount === 1 ? "" : "s"}. Remove it from those products first.`,
+      );
+      return;
+    }
+    if (!confirm(`Delete tag “${tag.name}”? This cannot be undone.`)) return;
+    try {
+      await del.mutateAsync(tag.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete");
+    }
   };
 
   return (
@@ -160,6 +189,7 @@ function TagRow({ tag }: { tag: AdminTag }) {
           className="w-full rounded-md border border-transparent bg-transparent py-1 font-medium text-slate-900 outline-none focus:border-slate-200 focus:bg-white focus:px-2"
         />
         <p className="text-xs text-slate-500">/{tag.slug}</p>
+        {error && <p className="mt-1 text-xs text-brand-700">{error}</p>}
       </td>
       <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-3">
         <div className="flex items-center gap-2">
@@ -219,6 +249,26 @@ function TagRow({ tag }: { tag: AdminTag }) {
           <span className="text-xs font-medium text-slate-500 md:hidden">Products</span>
           <span className="text-slate-600 tabular-nums">{tag.productCount}</span>
         </div>
+      </td>
+      <td className="mt-3 block text-right md:mt-0 md:table-cell md:px-4 md:py-3">
+        <button
+          type="button"
+          onClick={() => void onDelete()}
+          disabled={del.isPending}
+          title={
+            inUse
+              ? `Used by ${tag.productCount} product(s) — remove from products first`
+              : `Delete “${tag.name}”`
+          }
+          className={cn(
+            "inline-flex h-8 w-8 items-center justify-center rounded-md transition disabled:opacity-50",
+            inUse
+              ? "text-slate-300 hover:bg-slate-50 hover:text-slate-500"
+              : "text-red-500 hover:bg-red-50 hover:text-red-700",
+          )}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </td>
     </tr>
   );

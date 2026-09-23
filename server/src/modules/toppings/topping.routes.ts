@@ -32,22 +32,30 @@ toppingRouter.get("/", async (req, res) => {
 // TODO: gate behind requireAuth + requirePermission("toppings.write") once auth is wired.
 export const adminToppingRouter = Router();
 
+const toppingSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  kind: true,
+  priceDelta: true,
+  isVeg: true,
+  imageUrl: true,
+  sortOrder: true,
+  isActive: true,
+  _count: { select: { products: true } },
+} as const;
+
+function withProductCount<T extends { _count: { products: number } }>(row: T) {
+  const { _count, ...rest } = row;
+  return { ...rest, productCount: _count.products };
+}
+
 adminToppingRouter.get("/", async (_req, res) => {
   const toppings = await prisma.topping.findMany({
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      kind: true,
-      priceDelta: true,
-      isVeg: true,
-      imageUrl: true,
-      sortOrder: true,
-      isActive: true,
-    },
+    select: toppingSelect,
   });
-  res.json(toppings);
+  res.json(toppings.map(withProductCount));
 });
 
 const createToppingSchema = z.object({
@@ -73,8 +81,11 @@ adminToppingRouter.post("/", async (req, res) => {
     select: { id: true },
   });
   if (dup) throw HttpError.conflict("Slug already exists");
-  const created = await prisma.topping.create({ data: parsed.data });
-  res.status(201).json(created);
+  const created = await prisma.topping.create({
+    data: parsed.data,
+    select: toppingSelect,
+  });
+  res.status(201).json(withProductCount(created));
 });
 
 const updateToppingSchema = createToppingSchema.partial().extend({
@@ -96,6 +107,31 @@ adminToppingRouter.patch("/:id", async (req, res) => {
   const updated = await prisma.topping.update({
     where: { id: req.params.id },
     data: parsed.data,
+    select: toppingSelect,
   });
-  res.json(updated);
+  res.json(withProductCount(updated));
+});
+
+adminToppingRouter.delete("/:id", async (req, res) => {
+  const existing = await prisma.topping.findUnique({
+    where: { id: req.params.id },
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      _count: { select: { products: true } },
+    },
+  });
+  if (!existing) throw HttpError.notFound("Topping not found");
+
+  const productCount = existing._count.products;
+  const label = existing.kind === "CONDIMENT" ? "condiment" : "topping";
+  if (productCount > 0) {
+    throw HttpError.conflict(
+      `Cannot delete “${existing.name}” — ${productCount} product${productCount === 1 ? "" : "s"} still offer this ${label}. Remove it from those products first, or turn Active off to hide it from the storefront.`,
+    );
+  }
+
+  await prisma.topping.delete({ where: { id: existing.id } });
+  res.json({ id: existing.id, name: existing.name });
 });

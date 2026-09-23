@@ -1,6 +1,12 @@
 import { useMemo, useRef, useState } from "react";
-import { ImagePlus, Plus, X } from "lucide-react";
-import { useAdminAddons, useCreateAddon, useUpdateAddon, type AdminAddon } from "@/hooks/useAddons";
+import { ImagePlus, Plus, Trash2, X } from "lucide-react";
+import {
+  useAdminAddons,
+  useCreateAddon,
+  useDeleteAddon,
+  useUpdateAddon,
+  type AdminAddon,
+} from "@/hooks/useAddons";
 import { useAdminCategories, type AdminCategory } from "@/hooks/useAdminCategories";
 import { NestedCategoryMultiSelect } from "@/components/form/NestedCategoryMultiSelect";
 import { uploadImage } from "@/lib/uploads";
@@ -34,7 +40,8 @@ export function AddonsPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Add-ons</h1>
         <p className="mt-1 text-sm text-slate-500">
           Shared extras (candles, toppers, pizza extras). Assign default categories so new products
-          in those categories get the add-on pre-selected.
+          in those categories get the add-on pre-selected. Delete only works when no products offer
+          the add-on — otherwise deactivate it, or remove it from those products first.
         </p>
       </div>
 
@@ -67,6 +74,9 @@ export function AddonsPage() {
                     <th className="px-4 py-2 font-medium">Name</th>
                     <th className="w-32 px-4 py-2 text-right font-medium">Price (₹)</th>
                     <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
+                    <th className="w-14 px-4 py-2 text-right font-medium">
+                      <span className="sr-only">Delete</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -184,15 +194,34 @@ function NewAddonRow({ categories }: { categories: AdminCategory[] }) {
 
 function AddonRow({ addon, categories }: { addon: AdminAddon; categories: AdminCategory[] }) {
   const update = useUpdateAddon();
+  const del = useDeleteAddon();
   const [amount, setAmount] = useState<string>(Number(addon.priceDelta).toString());
   const [dirty, setDirty] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inUse = addon.productCount > 0;
 
   const commit = async () => {
     const parsed = Number(amount);
     if (Number.isNaN(parsed) || parsed < 0) return;
     await update.mutateAsync({ id: addon.id, priceDelta: parsed });
     setDirty(false);
+  };
+
+  const onDelete = async () => {
+    setError(null);
+    if (inUse) {
+      setError(
+        `Used by ${addon.productCount} product${addon.productCount === 1 ? "" : "s"}. Remove it from those products first, or turn Active off.`,
+      );
+      return;
+    }
+    if (!confirm(`Delete add-on “${addon.name}”? This cannot be undone.`)) return;
+    try {
+      await del.mutateAsync(addon.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete");
+    }
   };
 
   return (
@@ -209,6 +238,12 @@ function AddonRow({ addon, categories }: { addon: AdminAddon; categories: AdminC
       <td className="px-4 py-3">
         <p className="font-medium text-slate-900">{addon.name}</p>
         <p className="text-xs text-slate-500">/{addon.slug}</p>
+        {inUse && (
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            On {addon.productCount} product{addon.productCount === 1 ? "" : "s"}
+          </p>
+        )}
+        {error && <p className="mt-1 text-xs text-brand-700">{error}</p>}
         <div className="mt-2">
           <NestedCategoryMultiSelect
             categories={categories}
@@ -246,6 +281,26 @@ function AddonRow({ addon, categories }: { addon: AdminAddon; categories: AdminC
             className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
           />
         </label>
+      </td>
+      <td className="px-4 py-3 text-right">
+        <button
+          type="button"
+          onClick={() => void onDelete()}
+          disabled={del.isPending}
+          title={
+            inUse
+              ? `Used by ${addon.productCount} product(s) — remove from products or deactivate`
+              : `Delete “${addon.name}”`
+          }
+          className={cn(
+            "inline-flex h-8 w-8 items-center justify-center rounded-md transition disabled:opacity-50",
+            inUse
+              ? "text-slate-300 hover:bg-slate-50 hover:text-slate-500"
+              : "text-red-500 hover:bg-red-50 hover:text-red-700",
+          )}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </td>
     </tr>
   );

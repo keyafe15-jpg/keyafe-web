@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   useAdminToppings,
   useCreateTopping,
+  useDeleteTopping,
   useUpdateTopping,
   type AdminTopping,
   type ToppingKind,
@@ -21,6 +22,7 @@ export function ToppingsPage() {
   const { data: toppings = [], isLoading } = useAdminToppings();
   const [tab, setTab] = useState<ToppingKind>("TOPPING");
   const filtered = toppings.filter((t) => t.kind === tab);
+  const noun = tab === "TOPPING" ? "topping" : "condiment";
 
   return (
     <div>
@@ -28,7 +30,8 @@ export function ToppingsPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Toppings & condiments</h1>
         <p className="mt-1 text-sm text-slate-500">
           Master list for pizzas and similar products. Price delta is added to the item price when a
-          customer picks the option.
+          customer picks the option. Delete only works when no products offer the item — otherwise
+          deactivate it, or remove it from those products first.
         </p>
       </div>
 
@@ -46,19 +49,20 @@ export function ToppingsPage() {
       <div className="mt-4 overflow-hidden rounded-card border border-slate-200 bg-white">
         {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && filtered.length === 0 && (
-          <div className="p-8 text-center text-sm text-slate-500">
-            No {tab === "TOPPING" ? "toppings" : "condiments"} yet.
-          </div>
+          <div className="p-8 text-center text-sm text-slate-500">No {noun}s yet.</div>
         )}
         {!isLoading && filtered.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[620px] text-left text-sm">
+            <table className="w-full min-w-[680px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-2 font-medium">Name</th>
                   <th className="w-32 px-4 py-2 text-right font-medium">Price (₹)</th>
                   <th className="w-24 px-4 py-2 text-center font-medium">Veg</th>
                   <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
+                  <th className="w-16 px-4 py-2 text-right font-medium">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -150,8 +154,12 @@ function NewToppingRow({ kind }: { kind: ToppingKind }) {
 
 function ToppingRow({ topping }: { topping: AdminTopping }) {
   const update = useUpdateTopping();
+  const del = useDeleteTopping();
   const [amount, setAmount] = useState<string>(Number(topping.priceDelta).toString());
   const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inUse = topping.productCount > 0;
+  const noun = topping.kind === "CONDIMENT" ? "condiment" : "topping";
 
   const commit = async () => {
     const parsed = Number(amount);
@@ -160,11 +168,33 @@ function ToppingRow({ topping }: { topping: AdminTopping }) {
     setDirty(false);
   };
 
+  const onDelete = async () => {
+    setError(null);
+    if (inUse) {
+      setError(
+        `Used by ${topping.productCount} product${topping.productCount === 1 ? "" : "s"}. Remove it from those products first, or turn Active off.`,
+      );
+      return;
+    }
+    if (!confirm(`Delete ${noun} “${topping.name}”? This cannot be undone.`)) return;
+    try {
+      await del.mutateAsync(topping.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete");
+    }
+  };
+
   return (
     <tr className="hover:bg-slate-50">
       <td className="px-4 py-3">
         <p className="font-medium text-slate-900">{topping.name}</p>
         <p className="text-xs text-slate-500">/{topping.slug}</p>
+        {inUse && (
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            On {topping.productCount} product{topping.productCount === 1 ? "" : "s"}
+          </p>
+        )}
+        {error && <p className="mt-1 text-xs text-brand-700">{error}</p>}
       </td>
       <td className="px-4 py-2 text-right">
         <input
@@ -205,6 +235,26 @@ function ToppingRow({ topping }: { topping: AdminTopping }) {
             className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
           />
         </label>
+      </td>
+      <td className="px-4 py-3 text-right">
+        <button
+          type="button"
+          onClick={() => void onDelete()}
+          disabled={del.isPending}
+          title={
+            inUse
+              ? `Used by ${topping.productCount} product(s) — remove from products or deactivate`
+              : `Delete “${topping.name}”`
+          }
+          className={cn(
+            "inline-flex h-8 w-8 items-center justify-center rounded-md transition disabled:opacity-50",
+            inUse
+              ? "text-slate-300 hover:bg-slate-50 hover:text-slate-500"
+              : "text-red-500 hover:bg-red-50 hover:text-red-700",
+          )}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </td>
     </tr>
   );

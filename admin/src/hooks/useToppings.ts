@@ -16,6 +16,7 @@ export interface Topping {
 
 export interface AdminTopping extends Topping {
   isActive: boolean;
+  productCount: number;
 }
 
 export function useToppings(kind?: ToppingKind) {
@@ -69,6 +70,17 @@ export function useUpdateTopping() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id: string } & UpdateToppingPayload) =>
       api.patch<AdminTopping>(`/admin/toppings/${id}`, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "toppings"] });
+      void qc.invalidateQueries({ queryKey: ["toppings"] });
+    },
+  });
+}
+
+export function useDeleteTopping() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ id: string; name: string }>(`/admin/toppings/${id}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "toppings"] });
       void qc.invalidateQueries({ queryKey: ["toppings"] });

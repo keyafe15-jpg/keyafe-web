@@ -14,6 +14,7 @@ export interface Addon {
 export interface AdminAddon extends Addon {
   isActive: boolean;
   categoryIds: string[];
+  productCount: number;
 }
 
 export function useAddons() {
@@ -68,6 +69,17 @@ export function useUpdateAddon() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id: string } & UpdateAddonPayload) =>
       api.patch<AdminAddon>(`/admin/addons/${id}`, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "addons"] });
+      void qc.invalidateQueries({ queryKey: ["addons"] });
+    },
+  });
+}
+
+export function useDeleteAddon() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ id: string; name: string }>(`/admin/addons/${id}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "addons"] });
       void qc.invalidateQueries({ queryKey: ["addons"] });

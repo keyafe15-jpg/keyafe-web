@@ -25,27 +25,39 @@ addonRouter.get("/", async (_req, res) => {
 
 export const adminAddonRouter = Router();
 
+const addonSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  group: true,
+  priceDelta: true,
+  imageUrl: true,
+  sortOrder: true,
+  isActive: true,
+  defaultCategories: { select: { id: true } },
+  _count: { select: { products: true } },
+} as const;
+
+function serializeAddon<
+  T extends {
+    defaultCategories: { id: string }[];
+    _count: { products: number };
+  },
+>(row: T) {
+  const { defaultCategories, _count, ...addon } = row;
+  return {
+    ...addon,
+    categoryIds: defaultCategories.map((c) => c.id),
+    productCount: _count.products,
+  };
+}
+
 adminAddonRouter.get("/", async (_req, res) => {
   const addons = await prisma.addon.findMany({
     orderBy: [{ group: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      group: true,
-      priceDelta: true,
-      imageUrl: true,
-      sortOrder: true,
-      isActive: true,
-      defaultCategories: { select: { id: true } },
-    },
+    select: addonSelect,
   });
-  res.json(
-    addons.map(({ defaultCategories, ...addon }) => ({
-      ...addon,
-      categoryIds: defaultCategories.map((c) => c.id),
-    })),
-  );
+  res.json(addons.map(serializeAddon));
 });
 
 const createAddonSchema = z.object({
@@ -79,8 +91,9 @@ adminAddonRouter.post("/", async (req, res) => {
         ? { connect: categoryIds.map((id) => ({ id })) }
         : undefined,
     },
+    select: addonSelect,
   });
-  res.status(201).json(created);
+  res.status(201).json(serializeAddon(created));
 });
 
 const updateAddonSchema = createAddonSchema.partial().extend({
@@ -112,6 +125,29 @@ adminAddonRouter.patch("/:id", async (req, res) => {
           }
         : {}),
     },
+    select: addonSelect,
   });
-  res.json(updated);
+  res.json(serializeAddon(updated));
+});
+
+adminAddonRouter.delete("/:id", async (req, res) => {
+  const existing = await prisma.addon.findUnique({
+    where: { id: req.params.id },
+    select: {
+      id: true,
+      name: true,
+      _count: { select: { products: true } },
+    },
+  });
+  if (!existing) throw HttpError.notFound("Add-on not found");
+
+  const productCount = existing._count.products;
+  if (productCount > 0) {
+    throw HttpError.conflict(
+      `Cannot delete “${existing.name}” — ${productCount} product${productCount === 1 ? "" : "s"} still offer this add-on. Remove it from those products first, or turn Active off to hide it from the storefront.`,
+    );
+  }
+
+  await prisma.addon.delete({ where: { id: existing.id } });
+  res.json({ id: existing.id, name: existing.name });
 });

@@ -104,3 +104,25 @@ adminTagRouter.patch("/:id", async (req, res) => {
   const { _count, ...tag } = updated;
   res.json({ ...tag, productCount: _count.products });
 });
+
+adminTagRouter.delete("/:id", async (req, res) => {
+  const existing = await prisma.tag.findUnique({
+    where: { id: req.params.id },
+    select: {
+      id: true,
+      name: true,
+      _count: { select: { products: true } },
+    },
+  });
+  if (!existing) throw HttpError.notFound("Tag not found");
+
+  const productCount = existing._count.products;
+  if (productCount > 0) {
+    throw HttpError.conflict(
+      `Cannot delete “${existing.name}” — ${productCount} product${productCount === 1 ? "" : "s"} still use this tag. Remove it from those products first.`,
+    );
+  }
+
+  await prisma.tag.delete({ where: { id: existing.id } });
+  res.json({ id: existing.id, name: existing.name });
+});

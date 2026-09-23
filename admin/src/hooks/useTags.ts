@@ -69,3 +69,14 @@ export function useUpdateTag() {
     },
   });
 }
+
+export function useDeleteTag() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ id: string; name: string }>(`/admin/tags/${id}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "tags"] });
+      void qc.invalidateQueries({ queryKey: ["tags"] });
+    },
+  });
+}
