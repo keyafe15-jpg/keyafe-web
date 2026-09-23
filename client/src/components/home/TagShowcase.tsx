@@ -28,12 +28,12 @@ function Sheen() {
 function SoldOut() {
   return (
     <span className="absolute top-2 right-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
-      Sold out
+      Out of stock
     </span>
   );
 }
 
-function TileImage({ product }: { product: ProductCard }) {
+function TileImage({ product, className }: { product: ProductCard; className?: string }) {
   if (!product.images[0]) {
     return (
       <div className="flex h-full w-full items-center justify-center text-xs text-ink-500">
@@ -46,7 +46,10 @@ function TileImage({ product }: { product: ProductCard }) {
       src={product.images[0]}
       alt={product.name}
       loading="lazy"
-      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
+      className={cn(
+        "h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]",
+        className,
+      )}
     />
   );
 }
@@ -62,11 +65,15 @@ function PhotoTile({
 }) {
   const tags = omitTagSlug ? product.tags.filter((t) => t.slug !== omitTagSlug) : [];
   const large = size === "lg";
+  const soldOut = !product.isAvailable;
 
   return (
     <Link
       to={`/product/${product.slug}`}
-      className="group relative block h-full overflow-hidden rounded-card border border-cream-200 bg-cream-100 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg"
+      className={cn(
+        "group relative block h-full overflow-hidden rounded-card border border-cream-200 bg-cream-100 shadow-sm transition duration-300",
+        soldOut ? "opacity-75" : "hover:-translate-y-1 hover:shadow-lg",
+      )}
     >
       <div
         className={
@@ -75,7 +82,7 @@ function PhotoTile({
             : "aspect-[4/3] sm:aspect-auto sm:h-full"
         }
       >
-        <TileImage product={product} />
+        <TileImage product={product} className={soldOut ? "grayscale" : undefined} />
       </div>
 
       <Sheen />
@@ -86,7 +93,7 @@ function PhotoTile({
           className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
         />
       )}
-      {!product.isAvailable && <SoldOut />}
+      {soldOut && <SoldOut />}
 
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-8 sm:pt-10">
         {large && (
@@ -120,14 +127,18 @@ function PhotoTile({
 /** Portrait card for the mobile rail. */
 function RailCard({ product, omitTagSlug }: { product: ProductCard; omitTagSlug?: string }) {
   const tags = omitTagSlug ? product.tags.filter((t) => t.slug !== omitTagSlug) : [];
+  const soldOut = !product.isAvailable;
 
   return (
     <Link
       to={`/product/${product.slug}`}
-      className="group relative block overflow-hidden rounded-2xl border border-cream-200 bg-cream-100 shadow-sm"
+      className={cn(
+        "group relative block overflow-hidden rounded-2xl border border-cream-200 bg-cream-100 shadow-sm",
+        soldOut && "opacity-75",
+      )}
     >
       <div className="aspect-[3/4]">
-        <TileImage product={product} />
+        <TileImage product={product} className={soldOut ? "grayscale" : undefined} />
       </div>
       <Sheen />
       {tags.length > 0 && (
@@ -137,7 +148,7 @@ function RailCard({ product, omitTagSlug }: { product: ProductCard; omitTagSlug?
           className="absolute top-2 left-2 z-10 flex flex-wrap gap-1"
         />
       )}
-      {!product.isAvailable && <SoldOut />}
+      {soldOut && <SoldOut />}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-3 pt-12">
         <h3 className="line-clamp-2 font-display text-sm leading-snug text-white">{product.name}</h3>
         <p className="mt-0.5 text-xs font-semibold text-white">{priceLabel(product)}</p>
@@ -147,18 +158,32 @@ function RailCard({ product, omitTagSlug }: { product: ProductCard; omitTagSlug?
 }
 
 function SoloBanner({ product, accent }: { product: ProductCard; accent: string }) {
+  const soldOut = !product.isAvailable;
   return (
     <Link
       to={`/product/${product.slug}`}
-      className="group flex items-center gap-3 rounded-card border border-cream-200 bg-white p-2 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md sm:gap-4 sm:p-3"
+      className={cn(
+        "group flex items-center gap-3 rounded-card border border-cream-200 bg-white p-2 shadow-sm transition duration-300 sm:gap-4 sm:p-3",
+        soldOut ? "opacity-75" : "hover:-translate-y-0.5 hover:shadow-md",
+      )}
     >
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-cream-100 sm:h-24 sm:w-24">
-        <TileImage product={product} />
+        <TileImage product={product} className={soldOut ? "grayscale" : undefined} />
         <Sheen />
+        {soldOut && (
+          <span className="absolute inset-x-0 bottom-0 bg-ink-900/70 py-0.5 text-center text-[9px] font-semibold tracking-wide text-white uppercase">
+            Out of stock
+          </span>
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] tracking-wide text-ink-500 uppercase">{categoryNames(product)}</p>
-        <h3 className="line-clamp-1 font-display text-base text-ink-900 transition-colors group-hover:text-brand-500 sm:text-lg">
+        <h3
+          className={cn(
+            "line-clamp-1 font-display text-base sm:text-lg",
+            soldOut ? "text-ink-500" : "text-ink-900 transition-colors group-hover:text-brand-500",
+          )}
+        >
           {product.name}
         </h3>
         {product.shortDescription && (
@@ -166,7 +191,9 @@ function SoloBanner({ product, accent }: { product: ProductCard; accent: string 
             {product.shortDescription}
           </p>
         )}
-        <p className="mt-0.5 text-sm font-semibold text-ink-900">{priceLabel(product)}</p>
+        <p className={cn("mt-0.5 text-sm font-semibold", soldOut ? "text-ink-500" : "text-ink-900")}>
+          {priceLabel(product)}
+        </p>
       </div>
       <span
         aria-hidden="true"

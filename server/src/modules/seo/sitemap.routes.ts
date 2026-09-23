@@ -53,7 +53,7 @@ sitemapRouter.get("/sitemap.xml", async (_req, res) => {
       select: { slug: true, updatedAt: true },
     }),
     prisma.product.findMany({
-      where: { isActive: true, isAvailable: true },
+      where: { isActive: true },
       select: { slug: true, updatedAt: true },
     }),
     prisma.tag.findMany({ select: { slug: true } }),

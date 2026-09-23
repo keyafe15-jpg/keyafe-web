@@ -17,11 +17,17 @@ export function CatalogProductCard({ product, className, omitTagSlug }: CatalogP
   const priceValue = `₹${Number(product.startingPrice).toFixed(0)}`;
   const showsRange = product.template !== "CAKE";
   const tags = omitTagSlug ? product.tags.filter((t) => t.slug !== omitTagSlug) : product.tags;
+  const soldOut = !product.isAvailable;
+
   return (
     <Link
       to={`/product/${product.slug}`}
+      aria-disabled={soldOut || undefined}
       className={cn(
-        "group flex flex-col overflow-hidden rounded-card border border-cream-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md",
+        "group flex flex-col overflow-hidden rounded-card border border-cream-200 bg-white shadow-sm transition",
+        soldOut
+          ? "opacity-75"
+          : "hover:-translate-y-1 hover:shadow-md",
         className,
       )}
     >
@@ -36,7 +42,10 @@ export function CatalogProductCard({ product, className, omitTagSlug }: CatalogP
           <img
             src={product.images[0]}
             alt={product.name}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            className={cn(
+              "h-full w-full object-cover transition duration-300",
+              soldOut ? "grayscale" : "group-hover:scale-105",
+            )}
             loading="lazy"
           />
         ) : (
@@ -44,12 +53,22 @@ export function CatalogProductCard({ product, className, omitTagSlug }: CatalogP
             No image
           </div>
         )}
+        {soldOut && (
+          <span className="absolute inset-x-0 bottom-0 bg-ink-900/70 py-1.5 text-center text-[10px] font-semibold tracking-wide text-white uppercase sm:text-xs">
+            Out of stock
+          </span>
+        )}
       </div>
       <div className="flex flex-1 flex-col p-2.5 sm:p-4">
         <p className="text-ink-400 text-[10px] tracking-wide uppercase sm:text-xs">
           {categoryNames(product)}
         </p>
-        <h3 className="mt-1 line-clamp-1 text-sm text-ink-900 group-hover:text-brand-500 sm:text-lg">
+        <h3
+          className={cn(
+            "mt-1 line-clamp-1 text-sm sm:text-lg",
+            soldOut ? "text-ink-500" : "text-ink-900 group-hover:text-brand-500",
+          )}
+        >
           {product.name}
         </h3>
         {product.shortDescription && (
@@ -58,7 +77,12 @@ export function CatalogProductCard({ product, className, omitTagSlug }: CatalogP
           </p>
         )}
         <div className="mt-auto flex items-center justify-between gap-1 pt-2 sm:pt-3">
-          <span className="text-sm font-semibold text-ink-900 sm:text-lg">
+          <span
+            className={cn(
+              "text-sm font-semibold sm:text-lg",
+              soldOut ? "text-ink-500" : "text-ink-900",
+            )}
+          >
             {showsRange && (
               <span className="mr-1 hidden text-xs font-normal text-ink-500 sm:inline">
                 starts from
@@ -66,11 +90,7 @@ export function CatalogProductCard({ product, className, omitTagSlug }: CatalogP
             )}
             {priceValue}
           </span>
-          {!product.isAvailable ? (
-            <span className="rounded-md bg-cream-200 px-1.5 py-0.5 text-[10px] text-ink-500 sm:px-2 sm:text-xs">
-              Sold out
-            </span>
-          ) : product.supportsSameDayDelivery ? (
+          {!soldOut && product.supportsSameDayDelivery ? (
             <span className="rounded-md bg-brand-100 px-1.5 py-0.5 text-[10px] text-brand-700 sm:px-2 sm:text-xs">
               Same-day
             </span>

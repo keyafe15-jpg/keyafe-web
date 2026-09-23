@@ -70,10 +70,9 @@ export const createProductSchema = z.object({
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 
-/** Storefront only shows active products that are in stock. */
+/** Storefront lists active catalogue products (including out-of-stock). */
 const PUBLIC_LIST_WHERE = {
   isActive: true,
-  isAvailable: true,
 } as const;
 
 const ADMIN_LIST_SELECT = {
@@ -566,7 +565,7 @@ export async function listPublicProductsByTagSlug(slug: string, page = 1, pageSi
   };
 }
 
-// Full product detail for the PDP. Inactive or out-of-stock products 404.
+// Full product detail for the PDP. Inactive products 404; out-of-stock still load.
 export async function getPublicProductBySlug(slug: string) {
   const product = await prisma.product.findUnique({
     where: { slug },
@@ -676,7 +675,8 @@ export async function getPublicProductBySlug(slug: string) {
     },
   });
 
-  if (!product || !product.isActive || !product.isAvailable) {
+  // Inactive products 404. Out-of-stock still load so the PDP can show Sold out.
+  if (!product || !product.isActive) {
     throw HttpError.notFound("Product not found");
   }
 

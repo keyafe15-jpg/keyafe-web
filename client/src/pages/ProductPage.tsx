@@ -259,7 +259,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
             )}
             {!product.isAvailable && (
               <span className="rounded-full bg-cream-200 px-3 py-1 text-xs font-medium text-ink-700">
-                Sold out
+                Out of stock
               </span>
             )}
             {product.tags.map((t) => (
@@ -525,7 +525,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
               disabled={!canOrder}
               className="w-full rounded-full bg-brand-500 py-3 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {product.isAvailable ? PRODUCT_COPY.labels.addToCart : "Sold out"}
+              {product.isAvailable ? PRODUCT_COPY.labels.addToCart : "Out of stock"}
             </button>
             {product.isAvailable && !canOrder && (
               <p className="mt-2 text-center text-xs text-ink-500">
@@ -868,7 +868,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
             )}
             {!product.isAvailable && (
               <span className="rounded-full bg-cream-200 px-3 py-1 text-xs font-medium text-ink-700">
-                Sold out
+                Out of stock
               </span>
             )}
             {product.tags.map((t) => (
@@ -1065,7 +1065,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
               disabled={!canOrder}
               className="w-full rounded-full bg-brand-500 py-3 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {product.isAvailable ? PRODUCT_COPY.labels.addToCart : "Sold out"}
+              {product.isAvailable ? PRODUCT_COPY.labels.addToCart : "Out of stock"}
             </button>
             {product.isAvailable && !canOrder && (
               <p className="mt-2 text-center text-xs text-ink-500">

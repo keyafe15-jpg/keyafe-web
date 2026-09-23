@@ -966,18 +966,10 @@ export function ProductFormPage() {
             </Field>
           </Section>
 
-          <Section title="Status">
-            <Checkbox {...register("isActive")} label="Active" hint="Appears in the catalogue." />
-            <Checkbox
-              {...register("isAvailable")}
-              label="In stock"
-              hint="Uncheck to mark out of stock — hidden from the storefront."
-            />
-            <Checkbox
-              {...register("isFeatured")}
-              label="Featured"
-              hint="Appears in featured slots."
-            />
+          <Section
+            title="Listing"
+            description="Active, stock, and featured are toggled from the products table."
+          >
             <Field label="Sort order" hint="Lower shows first." error={errors.sortOrder?.message}>
               <input type="number" {...register("sortOrder")} className={inputClass} />
             </Field>

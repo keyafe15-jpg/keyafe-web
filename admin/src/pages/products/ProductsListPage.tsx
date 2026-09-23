@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, ImageOff, Search, X, Copy, Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import {
+  Plus,
+  ImageOff,
+  Search,
+  X,
+  Copy,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+  MoreVertical,
+  Pencil,
+} from "lucide-react";
+import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import {
   useAdminProducts,
   useArchiveProduct,
@@ -142,7 +154,9 @@ export function ProductsListPage() {
                   <th className="px-4 py-2 text-right font-medium">Price</th>
                   <th className="px-4 py-2 font-medium">Type</th>
                   <th className="px-4 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 text-right font-medium">Actions</th>
+                  <th className="px-4 py-2 text-right font-medium">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -180,8 +194,8 @@ export function ProductsListPage() {
                     <td className="px-4 py-3 text-xs text-slate-500">
                       {p.productType === "CONFIGURABLE" ? "Configurable" : "Variants"}
                     </td>
-                    <td className="px-4 py-3">
-                      <StatusBadges
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <StatusToggles
                         productId={p.id}
                         isActive={p.isActive}
                         isAvailable={p.isAvailable}
@@ -194,6 +208,9 @@ export function ProductsListPage() {
                         productId={p.id}
                         productName={p.name}
                         isArchived={Boolean(p.archivedAt)}
+                        isActive={p.isActive}
+                        isAvailable={p.isAvailable}
+                        isFeatured={p.isFeatured}
                       />
                     </td>
                   </tr>
@@ -235,21 +252,21 @@ export function ProductsListPage() {
                       <p className="mt-1 truncate text-xs text-slate-600">
                         {p.categories.map((c) => c.name).join(" · ") || "Uncategorised"}
                       </p>
-                      <div className="pointer-events-auto mt-2 flex flex-wrap items-center gap-1">
-                        <StatusBadges
+                      <div className="pointer-events-auto mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <StatusToggles
                           productId={p.id}
                           isActive={p.isActive}
                           isAvailable={p.isAvailable}
                           isFeatured={p.isFeatured}
                           isArchived={Boolean(p.archivedAt)}
                         />
-                        <span className="text-[10px] text-slate-400">
-                          {p.productType === "CONFIGURABLE" ? "Configurable" : "Variants"}
-                        </span>
                         <ProductRowActions
                           productId={p.id}
                           productName={p.name}
                           isArchived={Boolean(p.archivedAt)}
+                          isActive={p.isActive}
+                          isAvailable={p.isAvailable}
+                          isFeatured={p.isFeatured}
                         />
                       </div>
                     </div>
@@ -286,26 +303,38 @@ function PriceCell({ priceMin, priceMax }: { priceMin: number; priceMax: number 
   return <span>₹{priceMin.toFixed(2)}</span>;
 }
 
-const actionBtnClass =
-  "inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60";
+const iconBtnClass =
+  "inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50";
 
 function ProductRowActions({
   productId,
   productName,
   isArchived,
+  isActive,
+  isAvailable,
+  isFeatured,
 }: {
   productId: string;
   productName: string;
   isArchived: boolean;
+  isActive: boolean;
+  isAvailable: boolean;
+  isFeatured: boolean;
 }) {
   const navigate = useNavigate();
   const duplicate = useDuplicateProduct();
   const archive = useArchiveProduct();
   const unarchive = useUnarchiveProduct();
   const del = useDeleteProduct();
+  const update = useUpdateProduct();
   const [error, setError] = useState<string | null>(null);
+  const [statusPending, setStatusPending] = useState(false);
   const pending =
-    duplicate.isPending || archive.isPending || unarchive.isPending || del.isPending;
+    duplicate.isPending ||
+    archive.isPending ||
+    unarchive.isPending ||
+    del.isPending ||
+    statusPending;
 
   const run = async (fn: () => Promise<void>) => {
     setError(null);
@@ -316,34 +345,35 @@ function ProductRowActions({
     }
   };
 
+  const patchStatus = async (data: {
+    isActive?: boolean;
+    isAvailable?: boolean;
+    isFeatured?: boolean;
+  }) => {
+    setStatusPending(true);
+    setError(null);
+    try {
+      await update.mutateAsync({ id: productId, ...data });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Status update failed");
+    } finally {
+      setStatusPending(false);
+    }
+  };
+
+  const menuItemClass =
+    "flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 outline-none hover:bg-slate-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
+
   return (
     <span className="inline-flex flex-col items-end gap-0.5">
-      <span className="inline-flex flex-wrap justify-end gap-1">
-        {!isArchived && (
-          <button
-            type="button"
-            disabled={pending}
-            title={`Duplicate “${productName}” as a draft`}
-            className={actionBtnClass}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              void run(async () => {
-                const created = await duplicate.mutateAsync(productId);
-                navigate(`/products/${created.id}`, { state: { fromDuplicate: true } });
-              });
-            }}
-          >
-            <Copy className="h-3 w-3" />
-            {duplicate.isPending ? "…" : "Duplicate"}
-          </button>
-        )}
+      <span className="inline-flex items-center gap-0.5">
         {isArchived ? (
           <button
             type="button"
             disabled={pending}
-            title="Restore to catalogue as a draft"
-            className={actionBtnClass}
+            title="Unarchive"
+            aria-label={`Unarchive ${productName}`}
+            className={iconBtnClass}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -352,15 +382,15 @@ function ProductRowActions({
               });
             }}
           >
-            <ArchiveRestore className="h-3 w-3" />
-            {unarchive.isPending ? "…" : "Unarchive"}
+            <ArchiveRestore className="h-4 w-4" />
           </button>
         ) : (
           <button
             type="button"
             disabled={pending}
-            title="Hide from catalogue (can restore later)"
-            className={actionBtnClass}
+            title="Archive"
+            aria-label={`Archive ${productName}`}
+            className={iconBtnClass}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -372,15 +402,15 @@ function ProductRowActions({
               });
             }}
           >
-            <Archive className="h-3 w-3" />
-            {archive.isPending ? "…" : "Archive"}
+            <Archive className="h-4 w-4" />
           </button>
         )}
         <button
           type="button"
           disabled={pending}
-          title="Permanently delete"
-          className={cn(actionBtnClass, "border-red-200 text-red-700 hover:bg-red-50")}
+          title="Delete"
+          aria-label={`Delete ${productName}`}
+          className={cn(iconBtnClass, "text-red-500 hover:bg-red-50 hover:text-red-700")}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -396,16 +426,96 @@ function ProductRowActions({
             });
           }}
         >
-          <Trash2 className="h-3 w-3" />
-          {del.isPending ? "…" : "Delete"}
+          <Trash2 className="h-4 w-4" />
         </button>
+
+        <Dropdown.Root>
+          <Dropdown.Trigger asChild>
+            <button
+              type="button"
+              disabled={pending}
+              title="More actions"
+              aria-label={`More actions for ${productName}`}
+              className={iconBtnClass}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </Dropdown.Trigger>
+          <Dropdown.Portal>
+            <Dropdown.Content
+              align="end"
+              sideOffset={4}
+              className="z-40 min-w-[200px] rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Dropdown.Item
+                className={menuItemClass}
+                onSelect={() => navigate(`/products/${productId}`)}
+              >
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </Dropdown.Item>
+              {!isArchived && (
+                <Dropdown.Item
+                  className={menuItemClass}
+                  disabled={duplicate.isPending}
+                  onSelect={() => {
+                    void run(async () => {
+                      const created = await duplicate.mutateAsync(productId);
+                      navigate(`/products/${created.id}`, { state: { fromDuplicate: true } });
+                    });
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" /> Duplicate
+                </Dropdown.Item>
+              )}
+
+              {!isArchived && (
+                <>
+                  <Dropdown.Separator className="my-1 h-px bg-slate-100" />
+                  <Dropdown.Label className="px-3 py-1 text-[10px] font-medium tracking-wide text-slate-400 uppercase">
+                    Status
+                  </Dropdown.Label>
+                  <Dropdown.Item
+                    className={menuItemClass}
+                    disabled={statusPending}
+                    onSelect={() => {
+                      void patchStatus({ isActive: !isActive });
+                    }}
+                  >
+                    {isActive ? "Set as draft" : "Set as active"}
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    className={menuItemClass}
+                    disabled={statusPending || !isActive}
+                    onSelect={() => {
+                      if (!isActive) return;
+                      void patchStatus({ isAvailable: !isAvailable });
+                    }}
+                  >
+                    {isAvailable ? "Mark out of stock" : "Mark in stock"}
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    className={menuItemClass}
+                    disabled={statusPending}
+                    onSelect={() => {
+                      void patchStatus({ isFeatured: !isFeatured });
+                    }}
+                  >
+                    {isFeatured ? "Remove from featured" : "Mark as featured"}
+                  </Dropdown.Item>
+                </>
+              )}
+            </Dropdown.Content>
+          </Dropdown.Portal>
+        </Dropdown.Root>
       </span>
       {error && <span className="max-w-[12rem] text-right text-[10px] text-brand-700">{error}</span>}
     </span>
   );
 }
 
-function StatusBadges({
+function StatusToggles({
   productId,
   isActive,
   isAvailable,
@@ -419,86 +529,125 @@ function StatusBadges({
   isArchived: boolean;
 }) {
   const update = useUpdateProduct();
-  const [pending, setPending] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
 
-  const toggleStock = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (pending || !isActive || isArchived) return;
-    setPending(true);
+  const patch = async (
+    key: string,
+    data: { isActive?: boolean; isAvailable?: boolean; isFeatured?: boolean },
+  ) => {
+    if (pendingKey || isArchived) return;
+    setPendingKey(key);
     try {
-      await update.mutateAsync({
-        id: productId,
-        isAvailable: !isAvailable,
-      });
+      await update.mutateAsync({ id: productId, ...data });
     } finally {
-      setPending(false);
+      setPendingKey(null);
     }
   };
 
   if (isArchived) {
     return (
-      <div className="flex flex-wrap gap-1">
-        <Chip active label="Archived" tone="amber" />
-      </div>
+      <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+        Archived
+      </span>
     );
   }
 
   return (
     <div className="flex flex-wrap gap-1">
-      <Chip
+      <StatusToggle
         active={isActive}
-        label={isActive ? "Active" : "Draft"}
-        tone={isActive ? "green" : "slate"}
+        pending={pendingKey === "active"}
+        labelOn="Active"
+        labelOff="Draft"
+        titleOn="Click to set as draft (hidden from catalogue)"
+        titleOff="Click to activate (show in catalogue)"
+        tone="green"
+        onClick={() => void patch("active", { isActive: !isActive })}
       />
-      <button
-        type="button"
-        onClick={toggleStock}
-        disabled={!isActive || pending}
-        title={
-          !isActive
-            ? "Activate the product before changing stock"
-            : isAvailable
-              ? "Mark out of stock (hidden on storefront)"
-              : "Mark in stock (visible on storefront)"
+      <StatusToggle
+        active={isAvailable}
+        pending={pendingKey === "stock"}
+        disabled={!isActive}
+        labelOn="In stock"
+        labelOff="Out of stock"
+        titleOn={
+          isActive
+            ? "Click to mark out of stock"
+            : "Activate the product before changing stock"
         }
-        className={cn(
-          "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium transition",
-          !isActive && "cursor-not-allowed opacity-50",
-          isAvailable
-            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            : "bg-amber-50 text-amber-700 hover:bg-amber-100",
-        )}
-      >
-        {pending ? "…" : isAvailable ? "In stock" : "Out of stock"}
-      </button>
-      {isFeatured && <Chip active label="Featured" tone="brand" />}
+        titleOff={
+          isActive ? "Click to mark in stock" : "Activate the product before changing stock"
+        }
+        tone="emerald"
+        onClick={() => {
+          if (!isActive) return;
+          void patch("stock", { isAvailable: !isAvailable });
+        }}
+      />
+      <StatusToggle
+        active={isFeatured}
+        pending={pendingKey === "featured"}
+        labelOn="Featured"
+        labelOff="Featured"
+        titleOn="Click to remove from featured"
+        titleOff="Click to feature this product"
+        tone="brand"
+        dimWhenOff
+        onClick={() => void patch("featured", { isFeatured: !isFeatured })}
+      />
     </div>
   );
 }
 
-function Chip({
+function StatusToggle({
   active,
-  label,
+  pending,
+  disabled,
+  labelOn,
+  labelOff,
+  titleOn,
+  titleOff,
   tone,
+  dimWhenOff,
+  onClick,
 }: {
   active: boolean;
-  label: string;
-  tone: "green" | "slate" | "amber" | "brand";
+  pending?: boolean;
+  disabled?: boolean;
+  labelOn: string;
+  labelOff: string;
+  titleOn: string;
+  titleOff: string;
+  tone: "green" | "emerald" | "brand";
+  dimWhenOff?: boolean;
+  onClick: () => void;
 }) {
-  const tones: Record<string, string> = {
-    green: "bg-emerald-50 text-emerald-700",
-    slate: "bg-slate-100 text-slate-600",
-    amber: "bg-amber-50 text-amber-700",
-    brand: "bg-brand-100 text-brand-700",
+  const onTones = {
+    green: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+    emerald: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+    brand: "bg-brand-100 text-brand-700 hover:bg-brand-100/80",
   };
+  const offTone = dimWhenOff
+    ? "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+    : "bg-slate-100 text-slate-600 hover:bg-slate-200";
+
   return (
-    <span
+    <button
+      type="button"
+      disabled={disabled || pending}
+      title={active ? titleOn : titleOff}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
       className={cn(
-        "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium",
-        active ? tones[tone] : "bg-slate-100 text-slate-500",
+        "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium transition",
+        disabled && "cursor-not-allowed opacity-50",
+        active ? onTones[tone] : offTone,
       )}
     >
-      {label}
-    </span>
+      {pending ? "…" : active ? labelOn : labelOff}
+    </button>
   );
 }

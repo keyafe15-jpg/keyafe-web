@@ -496,9 +496,16 @@ function collectIds(node: CategoryNode): Set<string> {
 function ProductCardView({ product, disabled }: { product: ProductCard; disabled: boolean }) {
   const priceValue = `₹${Number(product.startingPrice).toFixed(0)}`;
   const showsRange = product.template !== "CAKE";
+  const soldOut = !product.isAvailable;
+  const ctaDisabled = disabled || soldOut;
 
   return (
-    <article className="group rounded-card border border-cream-200 bg-white p-3 shadow-sm transition hover:shadow-md">
+    <article
+      className={cn(
+        "group rounded-card border border-cream-200 bg-white p-3 shadow-sm transition",
+        soldOut ? "opacity-75" : "hover:shadow-md",
+      )}
+    >
       <Link to={`/product/${product.slug}`} className="block">
         <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-cream-100">
           {product.tags.length > 0 && (
@@ -511,33 +518,48 @@ function ProductCardView({ product, disabled }: { product: ProductCard; disabled
             <img
               src={product.images[0]}
               alt={product.name}
-              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              className={cn(
+                "h-full w-full object-cover transition duration-300",
+                soldOut ? "grayscale" : "group-hover:scale-105",
+              )}
             />
           )}
+          {soldOut && (
+            <span className="absolute inset-x-0 bottom-0 bg-ink-900/70 py-1.5 text-center text-[10px] font-semibold tracking-wide text-white uppercase">
+              Out of stock
+            </span>
+          )}
         </div>
-        <h3 className="line-clamp-2 text-sm font-medium text-ink-900 group-hover:text-brand-500">
+        <h3
+          className={cn(
+            "line-clamp-2 text-sm font-medium",
+            soldOut ? "text-ink-500" : "text-ink-900 group-hover:text-brand-500",
+          )}
+        >
           {product.name}
         </h3>
         {product.shortDescription && (
           <p className="mt-1 line-clamp-2 text-xs text-ink-500">{product.shortDescription}</p>
         )}
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-sm font-semibold text-ink-900">
+          <span className={cn("text-sm font-semibold", soldOut ? "text-ink-500" : "text-ink-900")}>
             {showsRange && <span className="mr-1 text-[10px] font-normal text-ink-500">from</span>}
             {priceValue}
           </span>
-          <LeadTimeChip
-            leadTimeHours={product.leadTimeHours}
-            supportsSameDay={product.supportsSameDayDelivery}
-          />
+          {!soldOut && (
+            <LeadTimeChip
+              leadTimeHours={product.leadTimeHours}
+              supportsSameDay={product.supportsSameDayDelivery}
+            />
+          )}
         </div>
       </Link>
       <button
         type="button"
-        disabled={disabled}
+        disabled={ctaDisabled}
         className="mt-3 w-full rounded-full bg-brand-500 py-1.5 text-xs font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {disabled ? "Closed" : "Add to cart"}
+        {soldOut ? "Out of stock" : disabled ? "Closed" : "Add to cart"}
       </button>
     </article>
   );
