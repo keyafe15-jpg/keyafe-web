@@ -4,6 +4,7 @@ import { HttpError } from "../../utils/httpError.js";
 import {
   emailCoupon,
   emailCouponSchema,
+  deleteCoupon,
   getAdminFreeDelivery,
   listCoupons,
   setCouponActive,
@@ -44,6 +45,10 @@ adminCouponRouter.patch("/:code/active", async (req, res) => {
   const isActive = Boolean(req.body?.isActive);
   const coupon = await setCouponActive(req.params.code, isActive);
   res.json(coupon);
+});
+
+adminCouponRouter.delete("/:code", async (req, res) => {
+  res.json(await deleteCoupon(req.params.code ?? ""));
 });
 
 adminCouponRouter.post("/:code/email", async (req, res) => {

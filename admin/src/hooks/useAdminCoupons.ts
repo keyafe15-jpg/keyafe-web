@@ -75,6 +75,15 @@ export function useSetCouponActive() {
   });
 }
 
+export function useDeleteCoupon() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) =>
+      api.delete<{ code: string }>(`/admin/coupons/${encodeURIComponent(code)}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["admin", "coupons"] }),
+  });
+}
+
 export function useEmailCoupon() {
   return useMutation({
     mutationFn: ({ code, to }: { code: string; to: string }) =>

@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
 import { useAdminCategories } from "@/hooks/useAdminCategories";
 import {
   useAdminCoupons,
+  useDeleteCoupon,
   useEmailCoupon,
   useFreeDeliverySettings,
   useSetCouponActive,
@@ -46,23 +48,30 @@ function emptyForm() {
   };
 }
 
+type FormState = ReturnType<typeof emptyForm>;
+
 export function CouponsPage() {
   const { data: coupons = [], isLoading } = useAdminCoupons();
   const { data: categories = [] } = useAdminCategories();
   const upsert = useUpsertCoupon();
   const setActive = useSetCouponActive();
+  const del = useDeleteCoupon();
   const email = useEmailCoupon();
   const free = useFreeDeliverySettings();
   const saveFree = useUpdateFreeDelivery();
 
-  const [form, setForm] = useState(emptyForm);
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [editing, setEditing] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   const [emailTo, setEmailTo] = useState<Record<string, string>>({});
+  const formRef = useRef<HTMLElement>(null);
 
   const [fdFrom, setFdFrom] = useState("");
   const [fdUntil, setFdUntil] = useState("");
   const [fdMin, setFdMin] = useState("");
+  const [fdOpen, setFdOpen] = useState(false);
 
   useEffect(() => {
     if (!free.data) return;
@@ -71,7 +80,56 @@ export function CouponsPage() {
     setFdMin(free.data.freeDeliveryMinCart != null ? String(free.data.freeDeliveryMinCart) : "");
   }, [free.data]);
 
-  const loadCoupon = (c: AdminCoupon) => {
+  const resetFreeDeliveryForm = () => {
+    setFdFrom(toLocalInput(free.data?.freeDeliveryFrom));
+    setFdUntil(toLocalInput(free.data?.freeDeliveryUntil));
+    setFdMin(
+      free.data?.freeDeliveryMinCart != null ? String(free.data.freeDeliveryMinCart) : "",
+    );
+  };
+
+  const freeDeliveryActive =
+    Boolean(free.data?.freeDeliveryUntil) &&
+    new Date(free.data!.freeDeliveryUntil!).getTime() > Date.now();
+
+  const freeDeliverySummary = (() => {
+    if (!free.data?.freeDeliveryUntil) return "Off — no free-delivery window.";
+    const from = free.data.freeDeliveryFrom
+      ? new Date(free.data.freeDeliveryFrom).toLocaleString("en-IN", {
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "now";
+    const until = new Date(free.data.freeDeliveryUntil).toLocaleString("en-IN", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const min =
+      free.data.freeDeliveryMinCart != null
+        ? ` · min cart ₹${Number(free.data.freeDeliveryMinCart)}`
+        : "";
+    return `${freeDeliveryActive ? "Active" : "Scheduled"} · ${from} → ${until}${min}`;
+  })();
+
+  const scrollToForm = () => {
+    window.setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+
+  const openNew = () => {
+    setEditing(null);
+    setForm(emptyForm());
+    setFormError(null);
+    setFormOpen(true);
+    scrollToForm();
+  };
+
+  const openEdit = (c: AdminCoupon) => {
     setEditing(c.code);
     setForm({
       code: c.code,
@@ -92,7 +150,16 @@ export function CouponsPage() {
       storefrontCopy: c.storefrontCopy ?? "",
       isActive: c.isActive,
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setFormError(null);
+    setFormOpen(true);
+    scrollToForm();
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditing(null);
+    setForm(emptyForm());
+    setFormError(null);
   };
 
   const saveCoupon = async () => {
@@ -117,10 +184,26 @@ export function CouponsPage() {
         storefrontCopy: form.storefrontCopy || null,
         isActive: form.isActive,
       });
-      setForm(emptyForm());
-      setEditing(null);
+      closeForm();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Couldn’t save coupon");
+    }
+  };
+
+  const onDelete = async (c: AdminCoupon) => {
+    setListError(null);
+    if (c.usageCount > 0) {
+      setListError(
+        `“${c.code}” has been used ${c.usageCount} time${c.usageCount === 1 ? "" : "s"}. Deactivate it instead.`,
+      );
+      return;
+    }
+    if (!confirm(`Delete coupon “${c.code}”? This cannot be undone.`)) return;
+    try {
+      await del.mutateAsync(c.code);
+      if (editing === c.code) closeForm();
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : "Failed to delete");
     }
   };
 
@@ -133,268 +216,17 @@ export function CouponsPage() {
         </p>
       </div>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-900">Free delivery</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          No code needed. Storefront delivery is ₹0 while this window is on. Offline orders still
-          pay the pincode fee.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <Field label="From">
-            <input
-              type="datetime-local"
-              className={inputClass}
-              value={fdFrom}
-              onChange={(e) => setFdFrom(e.target.value)}
-            />
-          </Field>
-          <Field label="Until" hint="Clear until to turn off">
-            <input
-              type="datetime-local"
-              className={inputClass}
-              value={fdUntil}
-              onChange={(e) => setFdUntil(e.target.value)}
-            />
-          </Field>
-          <Field label="Min cart (₹)" hint="Empty = all orders">
-            <input
-              type="number"
-              min={0}
-              className={inputClass}
-              value={fdMin}
-              onChange={(e) => setFdMin(e.target.value)}
-            />
-          </Field>
-        </div>
-        <button
-          type="button"
-          className={cn(submitClass, "mt-4")}
-          disabled={saveFree.isPending}
-          onClick={() =>
-            saveFree.mutate({
-              freeDeliveryFrom: fdFrom ? new Date(fdFrom).toISOString() : null,
-              freeDeliveryUntil: fdUntil ? new Date(fdUntil).toISOString() : null,
-              freeDeliveryMinCart: fdMin ? Number(fdMin) : null,
-            })
-          }
-        >
-          {saveFree.isPending ? "Saving…" : "Save free delivery"}
-        </button>
-        {saveFree.isSuccess && <span className="ml-3 text-xs text-emerald-700">Saved</span>}
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-900">
-          {editing ? `Edit ${editing}` : "New coupon"}
-        </h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Code" required>
-            <input
-              className={cn(inputClass, "uppercase")}
-              value={form.code}
-              disabled={Boolean(editing)}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-              placeholder="LAUNCH50"
-            />
-          </Field>
-          <Field label="Type">
-            <select
-              className={inputClass}
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value as CouponType })}
-            >
-              <option value="PERCENT">Percent off</option>
-              <option value="FLAT">Flat ₹ off</option>
-            </select>
-          </Field>
-          <Field label={form.type === "PERCENT" ? "Percent" : "Amount (₹)"}>
-            <input
-              type="number"
-              min={0}
-              className={inputClass}
-              value={form.value}
-              onChange={(e) => setForm({ ...form, value: e.target.value })}
-            />
-          </Field>
-          <Field label="Max discount ₹" hint="Caps a percent coupon">
-            <input
-              type="number"
-              min={0}
-              className={inputClass}
-              value={form.maxDiscount}
-              onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })}
-            />
-          </Field>
-          <Field label="Min cart ₹">
-            <input
-              type="number"
-              min={0}
-              className={inputClass}
-              value={form.minCartAmount}
-              onChange={(e) => setForm({ ...form, minCartAmount: e.target.value })}
-            />
-          </Field>
-          <Field label="Total uses" hint="e.g. 50 for launch">
-            <input
-              type="number"
-              min={1}
-              className={inputClass}
-              value={form.totalUsageLimit}
-              onChange={(e) => setForm({ ...form, totalUsageLimit: e.target.value })}
-            />
-          </Field>
-          <Field label="Per phone" hint="Usually 1">
-            <input
-              type="number"
-              min={1}
-              className={inputClass}
-              value={form.perCustomerLimit}
-              onChange={(e) => setForm({ ...form, perCustomerLimit: e.target.value })}
-            />
-          </Field>
-          <Field label="Valid from">
-            <input
-              type="datetime-local"
-              className={inputClass}
-              value={form.validFrom}
-              onChange={(e) => setForm({ ...form, validFrom: e.target.value })}
-            />
-          </Field>
-          <Field label="Valid until">
-            <input
-              type="datetime-local"
-              className={inputClass}
-              value={form.validUntil}
-              onChange={(e) => setForm({ ...form, validUntil: e.target.value })}
-            />
-          </Field>
-          <Field label="Only this phone" hint="Complaint / gift code">
-            <input
-              className={inputClass}
-              value={form.restrictedToPhone}
-              onChange={(e) => setForm({ ...form, restrictedToPhone: e.target.value })}
-              placeholder="9330048665"
-            />
-          </Field>
-          <Field label="Note">
-            <input
-              className={inputClass}
-              value={form.note}
-              onChange={(e) => setForm({ ...form, note: e.target.value })}
-            />
-          </Field>
-          <Field
-            label="Homepage headline"
-            hint="e.g. 50% off for the first 50 orders"
-            className="sm:col-span-2"
-          >
-            <input
-              className={inputClass}
-              value={form.headline}
-              maxLength={80}
-              onChange={(e) => setForm({ ...form, headline: e.target.value })}
-              placeholder="Launch special — 50% off"
-            />
-          </Field>
-          <Field
-            label="Homepage writeup"
-            hint="Shown under the headline. Mention first 50 customers, dates, etc."
-            className="sm:col-span-2 lg:col-span-3"
-          >
-            <textarea
-              className={inputClass}
-              rows={2}
-              maxLength={240}
-              value={form.storefrontCopy}
-              onChange={(e) => setForm({ ...form, storefrontCopy: e.target.value })}
-              placeholder="Use LAUNCH50 at checkout. First 50 storefront orders only — while it lasts."
-            />
-          </Field>
-        </div>
-        <Field label="Categories" hint="Empty = whole shop" className="mt-4">
-          <div className="flex flex-wrap gap-2">
-            {categories.map((c) => {
-              const on = form.applicableCategoryIds.includes(c.id);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      applicableCategoryIds: on
-                        ? form.applicableCategoryIds.filter((id) => id !== c.id)
-                        : [...form.applicableCategoryIds, c.id],
-                    })
-                  }
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs font-medium",
-                    on
-                      ? "bg-brand-50 border-brand-500 text-brand-700"
-                      : "border-slate-200 text-slate-600",
-                  )}
-                >
-                  {c.parentName ? `${c.parentName} / ${c.name}` : c.name}
-                </button>
-              );
-            })}
-          </div>
-        </Field>
-        <label className="mt-4 flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={form.showOnStorefront}
-            onChange={(e) => setForm({ ...form, showOnStorefront: e.target.checked })}
-          />
-          Show on homepage banner
-        </label>
-        <label className="mt-4 flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={form.waivesDelivery}
-            onChange={(e) => setForm({ ...form, waivesDelivery: e.target.checked })}
-          />
-          Also waive delivery
-        </label>
-        <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={form.isActive}
-            onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-          />
-          Active
-        </label>
-        {formError && <p className="mt-3 text-sm text-red-700">{formError}</p>}
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            className={submitClass}
-            disabled={upsert.isPending}
-            onClick={() => void saveCoupon()}
-          >
-            {upsert.isPending ? "Saving…" : editing ? "Update coupon" : "Create coupon"}
-          </button>
-          {editing && (
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm"
-              onClick={() => {
-                setEditing(null);
-                setForm(emptyForm());
-              }}
-            >
-              Cancel edit
-            </button>
-          )}
-        </div>
-      </section>
-
       <section>
         <h2 className="mb-3 text-sm font-semibold text-slate-900">All codes</h2>
+        {listError && (
+          <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{listError}</p>
+        )}
         {isLoading ? (
           <p className="text-sm text-slate-500">Loading…</p>
         ) : coupons.length === 0 ? (
-          <p className="text-sm text-slate-500">No coupons yet.</p>
+          <p className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+            No coupons yet — create one below.
+          </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
             <table className="w-full text-left text-sm">
@@ -405,78 +237,426 @@ export function CouponsPage() {
                   <th className="px-4 py-2">Uses</th>
                   <th className="px-4 py-2">Window</th>
                   <th className="px-4 py-2">Email</th>
-                  <th className="px-4 py-2" />
+                  <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {coupons.map((c) => (
-                  <tr key={c.code} className="border-b border-slate-50">
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        className="font-mono font-semibold text-slate-900 hover:text-brand-600"
-                        onClick={() => loadCoupon(c)}
-                      >
-                        {c.code}
-                      </button>
-                      {!c.isActive && (
-                        <span className="ml-2 text-[10px] text-slate-400 uppercase">off</span>
-                      )}
-                      {c.showOnStorefront && (
-                        <span className="ml-2 text-[10px] text-brand-600">homepage</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {c.type === "PERCENT" ? `${Number(c.value)}%` : `₹${Number(c.value)}`}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 tabular-nums">
-                      {c.usageCount}
-                      {c.totalUsageLimit != null ? ` / ${c.totalUsageLimit}` : ""}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
-                      {new Date(c.validFrom).toLocaleDateString("en-IN")} –{" "}
-                      {new Date(c.validUntil).toLocaleDateString("en-IN")}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        <input
-                          className="w-40 rounded border border-slate-200 px-2 py-1 text-xs"
-                          placeholder="email"
-                          value={emailTo[c.code] ?? ""}
-                          onChange={(e) => setEmailTo({ ...emailTo, [c.code]: e.target.value })}
-                        />
+                {coupons.map((c) => {
+                  const inUse = c.usageCount > 0;
+                  return (
+                    <tr key={c.code} className="border-b border-slate-50">
+                      <td className="px-4 py-3">
                         <button
                           type="button"
-                          className="text-xs font-medium text-brand-600"
-                          disabled={email.isPending}
-                          onClick={() => {
-                            const to = emailTo[c.code];
-                            if (!to) return;
-                            void email.mutateAsync({ code: c.code, to });
-                          }}
+                          className="font-mono font-semibold text-slate-900 hover:text-brand-600"
+                          onClick={() => openEdit(c)}
                         >
-                          Send
+                          {c.code}
                         </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        className="text-xs text-slate-500 hover:text-slate-800"
-                        onClick={() =>
-                          setActive.mutate({
-                            code: c.code,
-                            isActive: !c.isActive,
-                          })
-                        }
-                      >
-                        {c.isActive ? "Deactivate" : "Activate"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        {!c.isActive && (
+                          <span className="ml-2 text-[10px] text-slate-400 uppercase">off</span>
+                        )}
+                        {c.showOnStorefront && (
+                          <span className="ml-2 text-[10px] text-brand-600">homepage</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {c.type === "PERCENT" ? `${Number(c.value)}%` : `₹${Number(c.value)}`}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 tabular-nums">
+                        {c.usageCount}
+                        {c.totalUsageLimit != null ? ` / ${c.totalUsageLimit}` : ""}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500">
+                        {new Date(c.validFrom).toLocaleDateString("en-IN")} –{" "}
+                        {new Date(c.validUntil).toLocaleDateString("en-IN")}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1">
+                          <input
+                            className="w-40 rounded border border-slate-200 px-2 py-1 text-xs"
+                            placeholder="email"
+                            value={emailTo[c.code] ?? ""}
+                            onChange={(e) => setEmailTo({ ...emailTo, [c.code]: e.target.value })}
+                          />
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-brand-600"
+                            disabled={email.isPending}
+                            onClick={() => {
+                              const to = emailTo[c.code];
+                              if (!to) return;
+                              void email.mutateAsync({ code: c.code, to });
+                            }}
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-slate-600 hover:text-brand-600"
+                            onClick={() => openEdit(c)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs text-slate-500 hover:text-slate-800"
+                            onClick={() =>
+                              setActive.mutate({
+                                code: c.code,
+                                isActive: !c.isActive,
+                              })
+                            }
+                          >
+                            {c.isActive ? "Deactivate" : "Activate"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void onDelete(c)}
+                            disabled={del.isPending}
+                            title={
+                              inUse
+                                ? `Used ${c.usageCount} time(s) — deactivate instead`
+                                : `Delete “${c.code}”`
+                            }
+                            className={cn(
+                              "inline-flex h-8 w-8 items-center justify-center rounded-md transition disabled:opacity-50",
+                              inUse
+                                ? "text-slate-300 hover:bg-slate-50 hover:text-slate-500"
+                                : "text-red-500 hover:bg-red-50 hover:text-red-700",
+                            )}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Free delivery</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              No code needed. Storefront delivery is ₹0 while this window is on. Offline orders
+              still pay the pincode fee.
+            </p>
+          </div>
+          {fdOpen ? (
+            <button
+              type="button"
+              onClick={() => {
+                resetFreeDeliveryForm();
+                setFdOpen(false);
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+            >
+              <X className="h-3.5 w-3.5" /> Close
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                resetFreeDeliveryForm();
+                setFdOpen(true);
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-brand-300 hover:text-brand-700"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </button>
+          )}
+        </div>
+
+        {!fdOpen ? (
+          <p
+            className={cn(
+              "mt-4 rounded-lg border px-3 py-2.5 text-sm",
+              freeDeliveryActive
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-slate-100 bg-slate-50 text-slate-600",
+            )}
+          >
+            {free.isLoading ? "Loading…" : freeDeliverySummary}
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <Field label="From">
+                <input
+                  type="datetime-local"
+                  className={inputClass}
+                  value={fdFrom}
+                  onChange={(e) => setFdFrom(e.target.value)}
+                />
+              </Field>
+              <Field label="Until" hint="Clear until to turn off">
+                <input
+                  type="datetime-local"
+                  className={inputClass}
+                  value={fdUntil}
+                  onChange={(e) => setFdUntil(e.target.value)}
+                />
+              </Field>
+              <Field label="Min cart (₹)" hint="Empty = all orders">
+                <input
+                  type="number"
+                  min={0}
+                  className={inputClass}
+                  value={fdMin}
+                  onChange={(e) => setFdMin(e.target.value)}
+                />
+              </Field>
+            </div>
+            <button
+              type="button"
+              className={cn(submitClass, "mt-4")}
+              disabled={saveFree.isPending}
+              onClick={() => {
+                saveFree.mutate(
+                  {
+                    freeDeliveryFrom: fdFrom ? new Date(fdFrom).toISOString() : null,
+                    freeDeliveryUntil: fdUntil ? new Date(fdUntil).toISOString() : null,
+                    freeDeliveryMinCart: fdMin ? Number(fdMin) : null,
+                  },
+                  { onSuccess: () => setFdOpen(false) },
+                );
+              }}
+            >
+              {saveFree.isPending ? "Saving…" : "Save free delivery"}
+            </button>
+          </>
+        )}
+      </section>
+
+      <section ref={formRef}>
+        {!formOpen ? (
+          <button
+            type="button"
+            onClick={openNew}
+            className={cn(submitClass, "inline-flex items-center gap-1.5")}
+          >
+            <Plus className="h-4 w-4" /> New coupon
+          </button>
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-sm font-semibold text-slate-900">
+                {editing ? `Edit ${editing}` : "New coupon"}
+              </h2>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+              >
+                <X className="h-3.5 w-3.5" /> Close
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="Code" required>
+                <input
+                  className={cn(inputClass, "uppercase")}
+                  value={form.code}
+                  disabled={Boolean(editing)}
+                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                  placeholder="LAUNCH50"
+                />
+              </Field>
+              <Field label="Type">
+                <select
+                  className={inputClass}
+                  value={form.type}
+                  onChange={(e) => setForm({ ...form, type: e.target.value as CouponType })}
+                >
+                  <option value="PERCENT">Percent off</option>
+                  <option value="FLAT">Flat ₹ off</option>
+                </select>
+              </Field>
+              <Field label={form.type === "PERCENT" ? "Percent" : "Amount (₹)"}>
+                <input
+                  type="number"
+                  min={0}
+                  className={inputClass}
+                  value={form.value}
+                  onChange={(e) => setForm({ ...form, value: e.target.value })}
+                />
+              </Field>
+              <Field label="Max discount ₹" hint="Caps a percent coupon">
+                <input
+                  type="number"
+                  min={0}
+                  className={inputClass}
+                  value={form.maxDiscount}
+                  onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })}
+                />
+              </Field>
+              <Field label="Min cart ₹">
+                <input
+                  type="number"
+                  min={0}
+                  className={inputClass}
+                  value={form.minCartAmount}
+                  onChange={(e) => setForm({ ...form, minCartAmount: e.target.value })}
+                />
+              </Field>
+              <Field label="Total uses" hint="e.g. 50 for launch">
+                <input
+                  type="number"
+                  min={1}
+                  className={inputClass}
+                  value={form.totalUsageLimit}
+                  onChange={(e) => setForm({ ...form, totalUsageLimit: e.target.value })}
+                />
+              </Field>
+              <Field label="Per phone" hint="Usually 1">
+                <input
+                  type="number"
+                  min={1}
+                  className={inputClass}
+                  value={form.perCustomerLimit}
+                  onChange={(e) => setForm({ ...form, perCustomerLimit: e.target.value })}
+                />
+              </Field>
+              <Field label="Valid from">
+                <input
+                  type="datetime-local"
+                  className={inputClass}
+                  value={form.validFrom}
+                  onChange={(e) => setForm({ ...form, validFrom: e.target.value })}
+                />
+              </Field>
+              <Field label="Valid until">
+                <input
+                  type="datetime-local"
+                  className={inputClass}
+                  value={form.validUntil}
+                  onChange={(e) => setForm({ ...form, validUntil: e.target.value })}
+                />
+              </Field>
+              <Field label="Only this phone" hint="Complaint / gift code">
+                <input
+                  className={inputClass}
+                  value={form.restrictedToPhone}
+                  onChange={(e) => setForm({ ...form, restrictedToPhone: e.target.value })}
+                  placeholder="9330048665"
+                />
+              </Field>
+              <Field label="Note">
+                <input
+                  className={inputClass}
+                  value={form.note}
+                  onChange={(e) => setForm({ ...form, note: e.target.value })}
+                />
+              </Field>
+              <Field
+                label="Homepage headline"
+                hint="e.g. 50% off for the first 50 orders"
+                className="sm:col-span-2"
+              >
+                <input
+                  className={inputClass}
+                  value={form.headline}
+                  maxLength={80}
+                  onChange={(e) => setForm({ ...form, headline: e.target.value })}
+                  placeholder="Launch special — 50% off"
+                />
+              </Field>
+              <Field
+                label="Homepage writeup"
+                hint="Shown under the headline. Mention first 50 customers, dates, etc."
+                className="sm:col-span-2 lg:col-span-3"
+              >
+                <textarea
+                  className={inputClass}
+                  rows={2}
+                  maxLength={240}
+                  value={form.storefrontCopy}
+                  onChange={(e) => setForm({ ...form, storefrontCopy: e.target.value })}
+                  placeholder="Use LAUNCH50 at checkout. First 50 storefront orders only — while it lasts."
+                />
+              </Field>
+            </div>
+            <Field label="Categories" hint="Empty = whole shop" className="mt-4">
+              <div className="flex flex-wrap gap-2">
+                {categories.map((c) => {
+                  const on = form.applicableCategoryIds.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          applicableCategoryIds: on
+                            ? form.applicableCategoryIds.filter((id) => id !== c.id)
+                            : [...form.applicableCategoryIds, c.id],
+                        })
+                      }
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-xs font-medium",
+                        on
+                          ? "bg-brand-50 border-brand-500 text-brand-700"
+                          : "border-slate-200 text-slate-600",
+                      )}
+                    >
+                      {c.parentName ? `${c.parentName} / ${c.name}` : c.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+            <label className="mt-4 flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.showOnStorefront}
+                onChange={(e) => setForm({ ...form, showOnStorefront: e.target.checked })}
+              />
+              Show on homepage banner
+            </label>
+            <label className="mt-4 flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.waivesDelivery}
+                onChange={(e) => setForm({ ...form, waivesDelivery: e.target.checked })}
+              />
+              Also waive delivery
+            </label>
+            <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.isActive}
+                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+              />
+              Active
+            </label>
+            {formError && <p className="mt-3 text-sm text-red-700">{formError}</p>}
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                className={submitClass}
+                disabled={upsert.isPending}
+                onClick={() => void saveCoupon()}
+              >
+                {upsert.isPending ? "Saving…" : editing ? "Update coupon" : "Create coupon"}
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                onClick={closeForm}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </section>

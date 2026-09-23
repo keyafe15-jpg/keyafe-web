@@ -435,6 +435,21 @@ export async function setCouponActive(code: string, isActive: boolean) {
   }
 }
 
+export async function deleteCoupon(code: string) {
+  const existing = await prisma.coupon.findUnique({
+    where: { code: code.trim().toUpperCase() },
+    select: { code: true, usageCount: true },
+  });
+  if (!existing) throw HttpError.notFound("Coupon not found");
+  if (existing.usageCount > 0) {
+    throw HttpError.conflict(
+      `Cannot delete “${existing.code}” — it has been used ${existing.usageCount} time${existing.usageCount === 1 ? "" : "s"}. Deactivate it instead to stop new redemptions.`,
+    );
+  }
+  await prisma.coupon.delete({ where: { code: existing.code } });
+  return { code: existing.code };
+}
+
 export const emailCouponSchema = z.object({
   to: z.string().email(),
 });
