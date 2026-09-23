@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 
@@ -214,6 +215,11 @@ const PUBLIC_CARD_SELECT = {
     select: { id: true, slug: true, name: true, colorHex: true },
     orderBy: { name: "asc" as const },
   },
+  flavors: {
+    where: { isActive: true },
+    select: { id: true, slug: true, name: true },
+    orderBy: { sortOrder: "asc" as const },
+  },
   // Read the size group's options so we can surface a "starts from" price
   // for variant-priced products (pizzas, etc.) where basePrice = 0.
   optionGroups: {
@@ -251,11 +257,134 @@ type PublicCardRow = {
     name: string;
     colorHex: string | null;
   }[];
+  flavors: { id: string; slug: string; name: string }[];
   optionGroups: {
     priceMode: "ABSOLUTE" | "DELTA";
     options: { price: unknown }[];
   }[];
 };
+
+export type PublicCatalogSort = "featured" | "price_asc" | "price_desc";
+
+export type PublicCatalogFilters = {
+  flavor?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sort?: PublicCatalogSort;
+};
+
+/** Parse storefront catalog query params (flavor / price range / sort). */
+export function parsePublicCatalogFilters(
+  query: Record<string, unknown>,
+): PublicCatalogFilters {
+  const flavor =
+    typeof query.flavor === "string" && query.flavor.trim()
+      ? query.flavor.trim()
+      : undefined;
+
+  const minRaw = query.minPrice != null ? Number(query.minPrice) : NaN;
+  const maxRaw = query.maxPrice != null ? Number(query.maxPrice) : NaN;
+  const minPrice = Number.isFinite(minRaw) && minRaw >= 0 ? minRaw : undefined;
+  const maxPrice = Number.isFinite(maxRaw) && maxRaw >= 0 ? maxRaw : undefined;
+
+  const sortRaw = typeof query.sort === "string" ? query.sort : undefined;
+  const sort: PublicCatalogSort | undefined =
+    sortRaw === "price_asc" || sortRaw === "price_desc" || sortRaw === "featured"
+      ? sortRaw
+      : undefined;
+
+  return { flavor, minPrice, maxPrice, sort };
+}
+
+function flavorWhereClause(flavor?: string): Prisma.ProductWhereInput {
+  if (!flavor) return {};
+  return { flavors: { some: { slug: flavor, isActive: true } } };
+}
+
+function needsStartingPricePostFilter(filters: PublicCatalogFilters) {
+  return (
+    filters.minPrice != null ||
+    filters.maxPrice != null ||
+    filters.sort === "price_asc" ||
+    filters.sort === "price_desc"
+  );
+}
+
+/**
+ * Shared paginated listing: flavour filter hits the DB; price range / price sort
+ * run after decorating `startingPrice` (variant-priced products can't sort by
+ * basePrice alone). Fine for bakery-scale catalogues.
+ */
+async function listDecoratedPublicProducts(
+  where: Prisma.ProductWhereInput,
+  page = 1,
+  pageSize = 12,
+  filters: PublicCatalogFilters = {},
+) {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
+  const whereWithFlavor: Prisma.ProductWhereInput = {
+    AND: [where, flavorWhereClause(filters.flavor)],
+  };
+  const defaultOrder = [
+    { isFeatured: "desc" as const },
+    { sortOrder: "asc" as const },
+    { createdAt: "desc" as const },
+  ];
+
+  if (!needsStartingPricePostFilter(filters)) {
+    const [total, products] = await Promise.all([
+      prisma.product.count({ where: whereWithFlavor }),
+      prisma.product.findMany({
+        where: whereWithFlavor,
+        orderBy: defaultOrder,
+        skip: (safePage - 1) * safePageSize,
+        take: safePageSize,
+        select: PUBLIC_CARD_SELECT,
+      }),
+    ]);
+
+    return {
+      items: products.map((p) => decorateCard(p as unknown as PublicCardRow)),
+      total,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+    };
+  }
+
+  const products = await prisma.product.findMany({
+    where: whereWithFlavor,
+    orderBy: defaultOrder,
+    select: PUBLIC_CARD_SELECT,
+  });
+
+  let items = products.map((p) => decorateCard(p as unknown as PublicCardRow));
+
+  if (filters.minPrice != null) {
+    items = items.filter((p) => Number(p.startingPrice) >= filters.minPrice!);
+  }
+  if (filters.maxPrice != null) {
+    items = items.filter((p) => Number(p.startingPrice) <= filters.maxPrice!);
+  }
+
+  if (filters.sort === "price_asc") {
+    items = [...items].sort((a, b) => Number(a.startingPrice) - Number(b.startingPrice));
+  } else if (filters.sort === "price_desc") {
+    items = [...items].sort((a, b) => Number(b.startingPrice) - Number(a.startingPrice));
+  }
+
+  const total = items.length;
+  const pageItems = items.slice((safePage - 1) * safePageSize, safePage * safePageSize);
+
+  return {
+    items: pageItems,
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize) || 1),
+  };
+}
 
 // Adds a `startingPrice` string (min customer-visible price) for the card,
 // derived from the size group when priced by variant.
@@ -279,7 +408,12 @@ function decorateCard(row: PublicCardRow) {
 // Returns products for a category slug. If the slug is a top-level
 // category, includes products from all its children so shoppers see
 // everything under "Celebration Cakes" without picking a sub yet.
-export async function listPublicProductsByCategorySlug(slug: string, page = 1, pageSize = 12) {
+export async function listPublicProductsByCategorySlug(
+  slug: string,
+  page = 1,
+  pageSize = 12,
+  filters: PublicCatalogFilters = {},
+) {
   const category = await prisma.category.findUnique({
     where: { slug },
     select: {
@@ -296,54 +430,30 @@ export async function listPublicProductsByCategorySlug(slug: string, page = 1, p
   });
   if (!category) throw HttpError.notFound("Category not found");
 
-  const safePage = Math.max(1, Number(page) || 1);
-  const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
-  const skip = (safePage - 1) * safePageSize;
   const categoryIds = [category.id, ...category.children.map((c) => c.id)];
-  const inCategories = {
+  const where: Prisma.ProductWhereInput = {
+    ...PUBLIC_LIST_WHERE,
     categoryLinks: { some: { categoryId: { in: categoryIds } } },
   };
 
-  const [total, products] = await Promise.all([
-    prisma.product.count({
-      where: {
-        ...PUBLIC_LIST_WHERE,
-        ...inCategories,
-      },
-    }),
-    prisma.product.findMany({
-      where: {
-        ...PUBLIC_LIST_WHERE,
-        ...inCategories,
-      },
-      orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-      skip,
-      take: safePageSize,
-      select: PUBLIC_CARD_SELECT,
-    }),
-  ]);
-
-  const items = products.map((p) => decorateCard(p as unknown as PublicCardRow));
-  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
-
-  return {
-    items,
-    page: safePage,
-    pageSize: safePageSize,
-    total,
-    totalPages,
-  };
+  return listDecoratedPublicProducts(where, page, pageSize, filters);
 }
 
 // Products whose linked category (or its parent) belongs to this store slug.
-export async function listPublicProductsByDepartmentSlug(slug: string, page = 1, pageSize = 12) {
+export async function listPublicProductsByDepartmentSlug(
+  slug: string,
+  page = 1,
+  pageSize = 12,
+  filters: PublicCatalogFilters = {},
+) {
   const department = await prisma.department.findFirst({
     where: { slug, isActive: true },
     select: { id: true, slug: true, name: true },
   });
   if (!department) throw HttpError.notFound("Store not found");
 
-  const inDepartment = {
+  const where: Prisma.ProductWhereInput = {
+    ...PUBLIC_LIST_WHERE,
     categoryLinks: {
       some: {
         category: {
@@ -357,40 +467,8 @@ export async function listPublicProductsByDepartmentSlug(slug: string, page = 1,
     },
   };
 
-  const safePage = Math.max(1, Number(page) || 1);
-  const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
-  const skip = (safePage - 1) * safePageSize;
-
-  const [total, products] = await Promise.all([
-    prisma.product.count({
-      where: {
-        ...PUBLIC_LIST_WHERE,
-        ...inDepartment,
-      },
-    }),
-    prisma.product.findMany({
-      where: {
-        ...PUBLIC_LIST_WHERE,
-        ...inDepartment,
-      },
-      orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-      skip,
-      take: safePageSize,
-      select: PUBLIC_CARD_SELECT,
-    }),
-  ]);
-
-  const items = products.map((p) => decorateCard(p as unknown as PublicCardRow));
-  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
-
-  return {
-    items,
-    page: safePage,
-    pageSize: safePageSize,
-    total,
-    totalPages,
-    department,
-  };
+  const pageResult = await listDecoratedPublicProducts(where, page, pageSize, filters);
+  return { ...pageResult, department };
 }
 
 // All same-day-eligible products, ordered like the category listings. Client
@@ -495,7 +573,12 @@ function buildPublicProductSearchWhere(search: string) {
 }
 
 /** Storefront free-text search. Short/empty queries return an empty page, not an error. */
-export async function listPublicProductsBySearch(search: string, page = 1, pageSize = 12) {
+export async function listPublicProductsBySearch(
+  search: string,
+  page = 1,
+  pageSize = 12,
+  filters: PublicCatalogFilters = {},
+) {
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
   const where = buildPublicProductSearchWhere(search);
@@ -511,57 +594,37 @@ export async function listPublicProductsBySearch(search: string, page = 1, pageS
     };
   }
 
-  const [total, products] = await Promise.all([
-    prisma.product.count({ where }),
-    prisma.product.findMany({
-      where,
-      orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-      skip: (safePage - 1) * safePageSize,
-      take: safePageSize,
-      select: PUBLIC_CARD_SELECT,
-    }),
-  ]);
+  const pageResult = await listDecoratedPublicProducts(where, page, pageSize, filters);
 
   return {
     query: search.trim(),
-    items: products.map((p) => decorateCard(p as unknown as PublicCardRow)),
-    total,
-    page: safePage,
-    pageSize: safePageSize,
-    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+    ...pageResult,
   };
 }
 
 // Paginated listing for a single tag, backing the section "view all" links.
-export async function listPublicProductsByTagSlug(slug: string, page = 1, pageSize = 12) {
+export async function listPublicProductsByTagSlug(
+  slug: string,
+  page = 1,
+  pageSize = 12,
+  filters: PublicCatalogFilters = {},
+) {
   const tag = await prisma.tag.findUnique({
     where: { slug },
     select: { id: true, slug: true, name: true, colorHex: true },
   });
   if (!tag) throw HttpError.notFound("Tag not found");
 
-  const safePage = Math.max(1, Number(page) || 1);
-  const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
-  const where = { ...PUBLIC_LIST_WHERE, tags: { some: { id: tag.id } } };
+  const where: Prisma.ProductWhereInput = {
+    ...PUBLIC_LIST_WHERE,
+    tags: { some: { id: tag.id } },
+  };
 
-  const [total, products] = await Promise.all([
-    prisma.product.count({ where }),
-    prisma.product.findMany({
-      where,
-      orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-      skip: (safePage - 1) * safePageSize,
-      take: safePageSize,
-      select: PUBLIC_CARD_SELECT,
-    }),
-  ]);
+  const pageResult = await listDecoratedPublicProducts(where, page, pageSize, filters);
 
   return {
     tag: { slug: tag.slug, name: tag.name, colorHex: tag.colorHex },
-    items: products.map((p) => decorateCard(p as unknown as PublicCardRow)),
-    total,
-    page: safePage,
-    pageSize: safePageSize,
-    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+    ...pageResult,
   };
 }
 

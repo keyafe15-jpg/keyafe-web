@@ -10,6 +10,8 @@ import { Reveal } from "@/components/motion/Reveal";
 import { SAMEDAY_COPY } from "@/content/sameday";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
+import { CatalogFilters } from "@/components/product/CatalogFilters";
+import { applyCatalogFilters, catalogFiltersFromSearchParams } from "@/lib/catalogFilters";
 
 const SAME_DAY_PAGE_SIZE = 12;
 
@@ -31,6 +33,7 @@ export function SameDayPage() {
   const pruned = useMemo(() => pruneTree(categories, eligibleIds), [categories, eligibleIds]);
 
   const [params, setParams] = useSearchParams();
+  const catalogFilters = useMemo(() => catalogFiltersFromSearchParams(params), [params]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -38,7 +41,11 @@ export function SameDayPage() {
   const activeNode = useMemo(() => findBySlug(pruned, activeSlug), [pruned, activeSlug]);
 
   const setCategory = (slug: string) => {
-    setParams({ cat: slug });
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("cat", slug);
+      return next;
+    });
     setMobileNavOpen(false);
   };
 
@@ -69,12 +76,13 @@ export function SameDayPage() {
     [activeNode],
   );
 
-  const visibleProducts = useMemo(
-    () => products.filter((p) => productInCategoryIds(p, activeIds)),
-    [products, activeIds],
-  );
+  const visibleProducts = useMemo(() => {
+    const byCategory = products.filter((p) => productInCategoryIds(p, activeIds));
+    return applyCatalogFilters(byCategory, catalogFilters);
+  }, [products, activeIds, catalogFilters]);
 
   const activeLabel = activeNode?.name ?? "…";
+  const filterResetKey = `${activeSlug}|${catalogFilters.flavor}|${catalogFilters.minPrice}|${catalogFilters.maxPrice}|${catalogFilters.sort}`;
 
   return (
     <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">
@@ -118,6 +126,7 @@ export function SameDayPage() {
         </div>
       )}
 
+      <CatalogFilters className="mb-6" />
       {/* Mobile category picker */}
       <div className="mb-4 md:hidden">
         <button
@@ -216,7 +225,7 @@ export function SameDayPage() {
             <ClientPagination
               items={visibleProducts}
               pageSize={SAME_DAY_PAGE_SIZE}
-              resetKey={activeSlug}
+              resetKey={filterResetKey}
             >
               {({ items, page, pageCount, setPage }) => (
                 <>

@@ -1,18 +1,27 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useProductsByTag } from "@/hooks/useProducts";
 import { CatalogProductCard, ProductGridSkeleton } from "@/components/product/CatalogProductCard";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
+import { CatalogFilters } from "@/components/product/CatalogFilters";
 import { ProductTagBadge } from "@/components/product/ProductTagBadge";
 import { Reveal } from "@/components/motion/Reveal";
 import { PaginationControls } from "@/components/ClientPagination";
+import { catalogFiltersFromSearchParams } from "@/lib/catalogFilters";
 
 const PAGE_SIZE = 12;
 
 export function TagPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  const filters = useMemo(() => catalogFiltersFromSearchParams(searchParams), [searchParams]);
   const [page, setPage] = useState(1);
-  const { data, isLoading, isError } = useProductsByTag(slug, page, PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [slug, filters.flavor, filters.minPrice, filters.maxPrice, filters.sort]);
+
+  const { data, isLoading, isError } = useProductsByTag(slug, page, PAGE_SIZE, filters);
 
   const products = data?.items ?? [];
 
@@ -36,9 +45,11 @@ export function TagPage() {
         </div>
       </Reveal>
 
-      <div className="mb-8 flex justify-center">
+      <div className="mb-6 flex justify-center">
         <CatalogSearchBar className="w-full max-w-md" />
       </div>
+
+      <CatalogFilters className="mb-8" onChange={() => setPage(1)} />
 
       {isLoading && <ProductGridSkeleton />}
 
@@ -53,7 +64,7 @@ export function TagPage() {
 
       {!isLoading && !isError && products.length === 0 && (
         <div className="rounded-card border border-cream-200 bg-white p-10 text-center text-sm text-ink-500">
-          Nothing here just yet — check back soon.
+          Nothing matches these filters — try clearing them or check back soon.
         </div>
       )}
 

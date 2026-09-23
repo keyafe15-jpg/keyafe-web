@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   useHealthyTreatProducts,
   type ProductCard,
@@ -12,11 +12,15 @@ import { HEALTHY_COPY } from "@/content/healthy";
 import { cn } from "@/lib/cn";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
+import { CatalogFilters } from "@/components/product/CatalogFilters";
+import { applyCatalogFilters, catalogFiltersFromSearchParams } from "@/lib/catalogFilters";
 
 const PAGE_SIZE = 12;
 
 export function HealthyPage() {
   const { data: products = [], isLoading } = useHealthyTreatProducts();
+  const [searchParams] = useSearchParams();
+  const catalogFilters = useMemo(() => catalogFiltersFromSearchParams(searchParams), [searchParams]);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
   const categories = useMemo(() => {
@@ -31,17 +35,22 @@ export function HealthyPage() {
     return [...map.values()];
   }, [products]);
 
-  const visibleProducts = activeCategoryId
-    ? products.filter((p) => productInCategoryIds(p, new Set([activeCategoryId])))
-    : products;
+  const visibleProducts = useMemo(() => {
+    const byCategory = activeCategoryId
+      ? products.filter((p) => productInCategoryIds(p, new Set([activeCategoryId])))
+      : products;
+    return applyCatalogFilters(byCategory, catalogFilters);
+  }, [products, activeCategoryId, catalogFilters]);
 
   const selectCategory = (id: string | null) => {
     setActiveCategoryId(id);
   };
 
+  const filterResetKey = `${activeCategoryId ?? "all"}|${catalogFilters.flavor}|${catalogFilters.minPrice}|${catalogFilters.maxPrice}|${catalogFilters.sort}`;
+
   return (
     <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="mb-2 flex items-center gap-2 text-sm tracking-widest text-brand-500 uppercase">
             <LeafIcon /> {HEALTHY_COPY.eyebrow}
@@ -51,6 +60,8 @@ export function HealthyPage() {
         </div>
         <CatalogSearchBar className="w-full max-w-md shrink-0 sm:w-80" />
       </div>
+
+      <CatalogFilters className="mb-6" />
 
       {!isLoading && categories.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
@@ -82,7 +93,7 @@ export function HealthyPage() {
         <ClientPagination
           items={visibleProducts}
           pageSize={PAGE_SIZE}
-          resetKey={activeCategoryId ?? "all"}
+          resetKey={filterResetKey}
         >
           {({ items, page, pageCount, setPage }) => (
             <>

@@ -73,6 +73,66 @@
   animation: drawer-slide-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Dual price-range thumbs: transparent track, only the thumb receives events. */
+.catalog-price-thumb {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  outline: none;
+}
+
+.catalog-price-thumb::-webkit-slider-runnable-track {
+  height: 1.5rem;
+  background: transparent;
+}
+
+.catalog-price-thumb::-moz-range-track {
+  height: 1.5rem;
+  background: transparent;
+  border: none;
+}
+
+.catalog-price-thumb::-webkit-slider-thumb {
+  pointer-events: auto;
+  appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.1875rem;
+  border-radius: 9999px;
+  border: 2px solid #e31c79;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(26, 33, 42, 0.18);
+  cursor: grab;
+}
+
+.catalog-price-thumb::-moz-range-thumb {
+  pointer-events: auto;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 9999px;
+  border: 2px solid #e31c79;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(26, 33, 42, 0.18);
+  cursor: grab;
+}
+
+.catalog-price-thumb:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(227, 28, 121, 0.28);
+}
+
+.catalog-price-thumb:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px rgba(227, 28, 121, 0.28);
+}
+
+.catalog-price-thumb:active::-webkit-slider-thumb,
+.catalog-price-thumb:active::-moz-range-thumb {
+  cursor: grabbing;
+}
+
 @keyframes dropdown-open {
   from {
     opacity: 0;

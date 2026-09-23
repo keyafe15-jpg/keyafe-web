@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useCategories, type CategoryNode } from "@/hooks/useCategories";
 import { useProductsByCategory } from "@/hooks/useProducts";
@@ -8,19 +8,28 @@ import { cn } from "@/lib/cn";
 import { PaginationControls } from "@/components/ClientPagination";
 import { CatalogProductCard, ProductGridSkeleton } from "@/components/product/CatalogProductCard";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
+import { CatalogFilters } from "@/components/product/CatalogFilters";
+import { catalogFiltersFromSearchParams } from "@/lib/catalogFilters";
 
 const PAGE_SIZE = 12;
 
 export function CategoryPage() {
   const { slug = "" } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  const filters = useMemo(() => catalogFiltersFromSearchParams(searchParams), [searchParams]);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
     setPage(1);
-  }, [slug]);
+  }, [slug, filters.flavor, filters.minPrice, filters.maxPrice, filters.sort]);
 
   const { data: tree = [], isLoading: catsLoading } = useCategories();
-  const { data: response, isLoading: prodsLoading } = useProductsByCategory(slug, page, PAGE_SIZE);
+  const { data: response, isLoading: prodsLoading } = useProductsByCategory(
+    slug,
+    page,
+    PAGE_SIZE,
+    filters,
+  );
   const products = response?.items ?? [];
   const totalPages = response?.totalPages ?? 1;
 
@@ -68,7 +77,7 @@ export function CategoryPage() {
         )}
       </nav>
 
-      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-3xl text-ink-900">{current?.name ?? "Loading…"}</h1>
           {current?.description && (
@@ -77,6 +86,8 @@ export function CategoryPage() {
         </div>
         <CatalogSearchBar className="w-full max-w-md shrink-0 sm:w-80" />
       </header>
+
+      <CatalogFilters className="mb-6" onChange={() => setPage(1)} />
 
       <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
         {hasSubs && (
@@ -132,7 +143,7 @@ export function CategoryPage() {
             <ProductGridSkeleton />
           ) : products.length === 0 ? (
             <div className="border-cream-300 rounded-card border border-dashed bg-cream-50 p-10 text-center">
-              <p className="text-ink-700">No products in this category yet.</p>
+              <p className="text-ink-700">No products match these filters.</p>
               <p className="mt-1 text-sm text-ink-500">{CATEGORY_PLACEHOLDER_COPY.variantsSoon}</p>
             </div>
           ) : (

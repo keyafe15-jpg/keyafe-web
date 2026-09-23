@@ -10,12 +10,17 @@ import {
   listHomeTagShowcase,
   listPublicProductsByTagSlug,
   listPublicProductsBySearch,
+  parsePublicCatalogFilters,
 } from "./product.service.js";
 import { registerPublicReviewRoutes } from "../reviews/review.routes.js";
 
 export const publicProductRouter = Router();
 
 registerPublicReviewRoutes(publicProductRouter);
+
+function catalogFiltersFromReq(query: Record<string, unknown>) {
+  return parsePublicCatalogFilters(query);
+}
 
 // Fixed paths — must be declared BEFORE the /:slug route so Express doesn't
 // treat them as a slug.
@@ -48,10 +53,12 @@ publicProductRouter.get("/showcase", async (req, res) => {
 
 publicProductRouter.get("/tag/:slug", async (req, res) => {
   const { page, pageSize } = req.query;
+  const filters = catalogFiltersFromReq(req.query as Record<string, unknown>);
   const result = await listPublicProductsByTagSlug(
     req.params.slug,
     Number(page ?? 1),
     Number(pageSize ?? 12),
+    filters,
   );
   res.setHeader("Cache-Control", "public, max-age=30");
   res.json(result);
@@ -60,7 +67,13 @@ publicProductRouter.get("/tag/:slug", async (req, res) => {
 publicProductRouter.get("/search", async (req, res) => {
   const { q, page, pageSize } = req.query;
   const query = typeof q === "string" ? q : "";
-  const result = await listPublicProductsBySearch(query, Number(page ?? 1), Number(pageSize ?? 12));
+  const filters = catalogFiltersFromReq(req.query as Record<string, unknown>);
+  const result = await listPublicProductsBySearch(
+    query,
+    Number(page ?? 1),
+    Number(pageSize ?? 12),
+    filters,
+  );
   res.setHeader("Cache-Control", "public, max-age=30");
   res.json(result);
 });
@@ -69,16 +82,22 @@ publicProductRouter.get("/", async (req, res) => {
   const { category, department, page, pageSize } = req.query;
   const pageNum = Number(page ?? 1);
   const sizeNum = Number(pageSize ?? 12);
+  const filters = catalogFiltersFromReq(req.query as Record<string, unknown>);
 
   if (typeof category === "string" && category) {
-    const products = await listPublicProductsByCategorySlug(category, pageNum, sizeNum);
+    const products = await listPublicProductsByCategorySlug(category, pageNum, sizeNum, filters);
     res.setHeader("Cache-Control", "public, max-age=30");
     res.json(products);
     return;
   }
 
   if (typeof department === "string" && department) {
-    const products = await listPublicProductsByDepartmentSlug(department, pageNum, sizeNum);
+    const products = await listPublicProductsByDepartmentSlug(
+      department,
+      pageNum,
+      sizeNum,
+      filters,
+    );
     res.setHeader("Cache-Control", "public, max-age=30");
     res.json(products);
     return;

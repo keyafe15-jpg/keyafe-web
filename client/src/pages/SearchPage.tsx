@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { useProductSearch } from "@/hooks/useProducts";
 import { CatalogProductCard, ProductGridSkeleton } from "@/components/product/CatalogProductCard";
+import { CatalogFilters } from "@/components/product/CatalogFilters";
 import { Reveal } from "@/components/motion/Reveal";
 import { PaginationControls } from "@/components/ClientPagination";
 import { Seo } from "@/components/seo/Seo";
+import { catalogFiltersFromSearchParams } from "@/lib/catalogFilters";
 
 const PAGE_SIZE = 12;
 const MIN_QUERY = 2;
@@ -15,6 +17,7 @@ export function SearchPage() {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
   const urlQ = params.get("q") ?? "";
+  const filters = useMemo(() => catalogFiltersFromSearchParams(params), [params]);
   const [input, setInput] = useState(urlQ);
   const [page, setPage] = useState(1);
 
@@ -59,10 +62,19 @@ export function SearchPage() {
     return () => window.clearTimeout(timer);
   }, [input, setParams, urlQ, location.key, navigate]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [filters.flavor, filters.minPrice, filters.maxPrice, filters.sort]);
+
   // URL is the source of truth for the fetch (updated after the debounce above).
   const debouncedQ = urlQ.trim();
   const searching = debouncedQ.length >= MIN_QUERY;
-  const { data, isLoading, isFetching, isError } = useProductSearch(debouncedQ, page, PAGE_SIZE);
+  const { data, isLoading, isFetching, isError } = useProductSearch(
+    debouncedQ,
+    page,
+    PAGE_SIZE,
+    filters,
+  );
 
   const products = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -76,7 +88,7 @@ export function SearchPage() {
       />
 
       <Reveal>
-        <div className="mx-auto mb-8 max-w-xl">
+        <div className="mx-auto mb-6 max-w-xl">
           <p className="mb-2 text-center text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
             Search
           </p>
@@ -123,6 +135,8 @@ export function SearchPage() {
         </div>
       </Reveal>
 
+      {searching && <CatalogFilters className="mb-8" onChange={() => setPage(1)} />}
+
       {searching && isLoading && <ProductGridSkeleton />}
 
       {searching && isError && (
@@ -133,7 +147,7 @@ export function SearchPage() {
 
       {searching && !isLoading && !isError && products.length === 0 && (
         <div className="rounded-card border border-cream-200 bg-white p-10 text-center text-sm text-ink-500">
-          <p className="mb-4">No treats matched “{debouncedQ}”.</p>
+          <p className="mb-4">No treats matched “{debouncedQ}” with these filters.</p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link to="/store/dessert" className="text-brand-500 hover:underline">
               Dessert store

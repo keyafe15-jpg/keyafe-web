@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import {
+  type CatalogFilterState,
+  EMPTY_CATALOG_FILTERS,
+  catalogFiltersToQuerySuffix,
+} from "@/lib/catalogFilters";
 
 export interface ProductCard {
   id: string;
@@ -20,6 +25,7 @@ export interface ProductCard {
   isHealthyTreat: boolean;
   categories: { id: string; slug: string; name: string }[];
   tags: ProductTag[];
+  flavors: { id: string; slug: string; name: string }[];
 }
 
 export interface ProductTag {
@@ -46,24 +52,36 @@ export interface PaginatedProductsResponse {
   totalPages: number;
 }
 
-export function useProductsByCategory(slug: string | undefined, page = 1, pageSize = 12) {
+export function useProductsByCategory(
+  slug: string | undefined,
+  page = 1,
+  pageSize = 12,
+  filters: CatalogFilterState = EMPTY_CATALOG_FILTERS,
+) {
+  const filterQs = catalogFiltersToQuerySuffix(filters);
   return useQuery<PaginatedProductsResponse>({
-    queryKey: ["products", "category", slug, page, pageSize],
+    queryKey: ["products", "category", slug, page, pageSize, filters],
     queryFn: () =>
       api.get<PaginatedProductsResponse>(
-        `/products?category=${encodeURIComponent(slug!)}&page=${page}&pageSize=${pageSize}`,
+        `/products?category=${encodeURIComponent(slug!)}&page=${page}&pageSize=${pageSize}${filterQs}`,
       ),
     enabled: !!slug,
     staleTime: 60_000,
   });
 }
 
-export function useProductsByDepartment(slug: string | undefined, page = 1, pageSize = 12) {
+export function useProductsByDepartment(
+  slug: string | undefined,
+  page = 1,
+  pageSize = 12,
+  filters: CatalogFilterState = EMPTY_CATALOG_FILTERS,
+) {
+  const filterQs = catalogFiltersToQuerySuffix(filters);
   return useQuery<PaginatedProductsResponse>({
-    queryKey: ["products", "department", slug, page, pageSize],
+    queryKey: ["products", "department", slug, page, pageSize, filters],
     queryFn: () =>
       api.get<PaginatedProductsResponse>(
-        `/products?department=${encodeURIComponent(slug!)}&page=${page}&pageSize=${pageSize}`,
+        `/products?department=${encodeURIComponent(slug!)}&page=${page}&pageSize=${pageSize}${filterQs}`,
       ),
     enabled: !!slug,
     staleTime: 60_000,
@@ -119,11 +137,19 @@ export interface TagProductsPage {
   totalPages: number;
 }
 
-export function useProductsByTag(slug: string | undefined, page = 1, pageSize = 12) {
+export function useProductsByTag(
+  slug: string | undefined,
+  page = 1,
+  pageSize = 12,
+  filters: CatalogFilterState = EMPTY_CATALOG_FILTERS,
+) {
+  const filterQs = catalogFiltersToQuerySuffix(filters);
   return useQuery<TagProductsPage>({
-    queryKey: ["products", "tag", slug, page, pageSize],
+    queryKey: ["products", "tag", slug, page, pageSize, filters],
     queryFn: () =>
-      api.get<TagProductsPage>(`/products/tag/${slug}?page=${page}&pageSize=${pageSize}`),
+      api.get<TagProductsPage>(
+        `/products/tag/${slug}?page=${page}&pageSize=${pageSize}${filterQs}`,
+      ),
     enabled: !!slug,
     staleTime: 30_000,
   });
@@ -139,13 +165,19 @@ export interface ProductSearchPage {
 }
 
 /** Free-text catalogue search. Queries shorter than 2 chars are not fetched. */
-export function useProductSearch(q: string, page = 1, pageSize = 12) {
+export function useProductSearch(
+  q: string,
+  page = 1,
+  pageSize = 12,
+  filters: CatalogFilterState = EMPTY_CATALOG_FILTERS,
+) {
   const trimmed = q.trim();
+  const filterQs = catalogFiltersToQuerySuffix(filters);
   return useQuery<ProductSearchPage>({
-    queryKey: ["products", "search", trimmed, page, pageSize],
+    queryKey: ["products", "search", trimmed, page, pageSize, filters],
     queryFn: () =>
       api.get<ProductSearchPage>(
-        `/products/search?q=${encodeURIComponent(trimmed)}&page=${page}&pageSize=${pageSize}`,
+        `/products/search?q=${encodeURIComponent(trimmed)}&page=${page}&pageSize=${pageSize}${filterQs}`,
       ),
     enabled: trimmed.length >= 2,
     staleTime: 30_000,
