@@ -12,6 +12,13 @@ import {
   textareaClass,
 } from "@/components/form/Field";
 import { MultiImageUpload } from "@/components/form/MultiImageUpload";
+import {
+  AddonQuickAdd,
+  CategoryQuickAdd,
+  FlavourQuickAdd,
+  TagQuickAdd,
+  ToppingQuickAdd,
+} from "@/components/products/ProductQuickAdds";
 import { useFlatCategories } from "@/hooks/useCategories";
 import { useFlavours } from "@/hooks/useFlavours";
 import { useTags } from "@/hooks/useTags";
@@ -700,8 +707,12 @@ export function ProductFormPage() {
               </Section>
               <Section
                 title="Toppings"
-                description={`Which toppings can be added? Manage the master list under /toppings.`}
+                description="Which toppings can be added? Create new ones here without leaving this page."
               >
+                <ToppingQuickAdd
+                  kind="TOPPING"
+                  onCreated={(id) => setToppingIds((prev) => new Set(prev).add(id))}
+                />
                 <ChipPicker
                   items={toppingsAll
                     .filter((t) => t.kind === "TOPPING" && t.isActive)
@@ -721,6 +732,10 @@ export function ProductFormPage() {
                 title="Condiments / Extras"
                 description="Things like hot honey, ranch, oregano packets."
               >
+                <ToppingQuickAdd
+                  kind="CONDIMENT"
+                  onCreated={(id) => setToppingIds((prev) => new Set(prev).add(id))}
+                />
                 <ChipPicker
                   items={toppingsAll
                     .filter((t) => t.kind === "CONDIMENT" && t.isActive)
@@ -765,6 +780,9 @@ export function ProductFormPage() {
               title="Flavours"
               description={`Which of the ${flavours.length} master flavours does this product offer?`}
             >
+              <FlavourQuickAdd
+                onCreated={(id) => setFlavorIds((prev) => new Set(prev).add(id))}
+              />
               <ChipPicker
                 items={flavours.map((f) => ({ id: f.id, label: f.name }))}
                 selected={flavorIds}
@@ -784,13 +802,20 @@ export function ProductFormPage() {
             title="Add-ons"
             description="Optional extras. Add-ons assigned to the selected categories are pre-checked — you can still turn them off."
           >
+            <AddonQuickAdd
+              categoryIds={watch("categoryIds") ?? []}
+              existingGroups={[
+                ...new Set(addonsAll.map((a) => a.group || "Other").filter(Boolean)),
+              ]}
+              onCreated={(id) => setAddonIds((prev) => new Set(prev).add(id))}
+            />
             {addonsAll.filter((a) => a.isActive).length === 0 ? (
               <p className="text-xs text-slate-500">
-                No add-ons yet —{" "}
+                No add-ons yet — use Add add-on above, or manage the full list under{" "}
                 <Link to="/addons" className="text-brand-600 hover:underline">
-                  create add-ons
-                </Link>{" "}
-                first, then attach them here.
+                  Add-ons
+                </Link>
+                .
               </p>
             ) : (
               <div className="space-y-4">
@@ -823,13 +848,14 @@ export function ProductFormPage() {
           </Section>
 
           <Section title="Tags" description="Cross-cutting labels used in filters and badges.">
+            <TagQuickAdd onCreated={(id) => setTagIds((prev) => new Set(prev).add(id))} />
             {tags.length === 0 ? (
               <p className="text-xs text-slate-500">
-                No tags yet —{" "}
+                No tags yet — use Add tag above, or manage the full list under{" "}
                 <Link to="/tags" className="text-brand-600 hover:underline">
-                  create tags
-                </Link>{" "}
-                first, then assign them here.
+                  Tags
+                </Link>
+                .
               </p>
             ) : (
               <ChipPicker
@@ -927,31 +953,45 @@ export function ProductFormPage() {
               error={errors.categoryIds?.message}
               hint="A product can appear in more than one category or subcategory."
             >
+              <div className="mb-2">
+                <CategoryQuickAdd
+                  onCreated={(id) => {
+                    const current = watch("categoryIds") ?? [];
+                    if (!current.includes(id)) {
+                      setValue("categoryIds", [...current, id], { shouldValidate: true });
+                    }
+                  }}
+                />
+              </div>
               <div className="max-h-56 space-y-1.5 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3">
-                {categories.map((c) => {
-                  const selected = watch("categoryIds") ?? [];
-                  const checked = selected.includes(c.id);
-                  return (
-                    <label key={c.id} className="flex items-start gap-2 text-sm text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => {
-                          const current = watch("categoryIds") ?? [];
-                          setValue(
-                            "categoryIds",
-                            e.target.checked
-                              ? [...current, c.id]
-                              : current.filter((id) => id !== c.id),
-                            { shouldValidate: true },
-                          );
-                        }}
-                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500"
-                      />
-                      <span>{c.label}</span>
-                    </label>
-                  );
-                })}
+                {categories.length === 0 ? (
+                  <p className="text-xs text-slate-500">No categories yet — add one above.</p>
+                ) : (
+                  categories.map((c) => {
+                    const selected = watch("categoryIds") ?? [];
+                    const checked = selected.includes(c.id);
+                    return (
+                      <label key={c.id} className="flex items-start gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const current = watch("categoryIds") ?? [];
+                            setValue(
+                              "categoryIds",
+                              e.target.checked
+                                ? [...current, c.id]
+                                : current.filter((cid) => cid !== c.id),
+                              { shouldValidate: true },
+                            );
+                          }}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500"
+                        />
+                        <span>{c.label}</span>
+                      </label>
+                    );
+                  })
+                )}
               </div>
             </Field>
             <Field
