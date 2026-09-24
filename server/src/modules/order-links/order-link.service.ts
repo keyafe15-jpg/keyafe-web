@@ -728,6 +728,9 @@ export const placeOfflineOrderSchema = z.object({
   advanceAmount: z.coerce.number().nonnegative().optional().default(0),
   paymentScreenshotUrl: z.string().url().nullable().optional(),
 
+  // Optional override of the pincode-table delivery fee (admin offline only).
+  deliveryFee: z.coerce.number().nonnegative().optional().nullable(),
+
   ...manualDiscountFields,
 });
 
@@ -767,7 +770,8 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
         "We don't currently deliver to this pincode. Choose pickup or a different address.",
       );
     }
-    deliveryFee = Number(info.deliveryFee);
+    deliveryFee =
+      input.deliveryFee != null ? Number(input.deliveryFee) : Number(info.deliveryFee);
     isLocalZone = true;
   }
 

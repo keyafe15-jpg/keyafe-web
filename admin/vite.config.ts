@@ -10,9 +10,13 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  optimizeDeps: {
+    include: ["@keyafe/shared", "@googlemaps/js-api-loader"],
+  },
   server: {
     port: 5175,
     strictPort: false,
+    fs: { allow: [".."] },
     allowedHosts: ["localhost", "127.0.0.1", "unmoved-demote-stunned.ngrok-free.dev"],
     proxy: {
       "/api": "http://localhost:4000",

@@ -134,14 +134,15 @@ pnpm build          # builds every package
 
 ### Google Places (address search)
 
-Checkout, saved addresses, and order-link delivery forms use Google Places Autocomplete. Without a key, the field falls back to free-text “Uber / Rapido search”.
+Shared via `@keyafe/shared`. Storefront checkout / addresses / order-links and admin offline-order forms use Places Autocomplete. Without a key, the field falls back to free-text “Uber / Rapido search”.
 
 ```bash
 cp client/.env.example client/.env
-# set VITE_GOOGLE_MAPS_API_KEY=… then restart the client Vite process
+cp admin/.env.example admin/.env
+# set VITE_GOOGLE_MAPS_API_KEY=… in both, then restart Vite
 ```
 
-Enable **Maps JavaScript API** + **Places API (New)** on the key. Use **HTTP referrer** application restrictions (`http://localhost:5173/*` plus production) — not IP address restrictions. IP locks are for server keys; browser Places calls will return 403 if the key is IP-restricted.
+Enable **Maps JavaScript API** + **Places API (New)** on the key. Use **HTTP referrer** application restrictions (`http://localhost:5173/*`, `http://localhost:5175/*`, plus production) — not IP address restrictions. IP locks are for server keys; browser Places calls will return 403 if the key is IP-restricted.
 
 ### SMTP (order emails)
 

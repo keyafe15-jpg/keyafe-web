@@ -46,10 +46,7 @@ export function CatalogFilters({
   const { data: flavours = [] } = useMasterFlavours();
   const filters = useMemo(() => catalogFiltersFromSearchParams(params), [params]);
   const active = catalogFiltersAreActive(filters);
-  const summary = useMemo(
-    () => summarizeActiveFilters(filters, flavours),
-    [filters, flavours],
-  );
+  const summary = useMemo(() => summarizeActiveFilters(filters, flavours), [filters, flavours]);
 
   const urlMin = parseBound(filters.minPrice, CATALOG_PRICE_FLOOR);
   const urlMax = parseBound(filters.maxPrice, CATALOG_PRICE_CEILING);
@@ -117,7 +114,7 @@ export function CatalogFilters({
         >
           <SlidersHorizontal className="h-4 w-4 shrink-0 text-brand-500" aria-hidden="true" />
           <span className="text-xs font-semibold tracking-[0.18em] text-ink-700 uppercase">
-            Filter
+            Filters
           </span>
           {summary.count > 0 && (
             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500 px-1.5 text-[10px] font-semibold text-white">
@@ -139,7 +136,7 @@ export function CatalogFilters({
           <button
             type="button"
             onClick={clearAll}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-cream-200 bg-cream-50 px-2.5 py-1 text-xs font-medium text-ink-700 transition hover:border-brand-200 hover:text-brand-600"
+            className="hover:border-brand-200 hover:text-brand-600 inline-flex shrink-0 items-center gap-1 rounded-full border border-cream-200 bg-cream-50 px-2.5 py-1 text-xs font-medium text-ink-700 transition"
             aria-label="Clear filters"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -188,12 +185,12 @@ export function CatalogFilters({
           )}
 
           {preset.price && (
-            <div className="flex min-w-0 flex-col gap-1 sm:min-w-[220px] sm:max-w-xs sm:flex-1">
+            <div className="flex min-w-0 flex-col gap-1 sm:max-w-xs sm:min-w-[220px] sm:flex-1">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[11px] font-medium tracking-wide text-ink-500 uppercase">
                   Price
                 </span>
-                <span className="text-xs tabular-nums text-ink-700">
+                <span className="text-xs text-ink-700 tabular-nums">
                   ₹{localMin.toLocaleString("en-IN")} – ₹{localMax.toLocaleString("en-IN")}
                   {localMax >= CATALOG_PRICE_CEILING ? "+" : ""}
                 </span>
@@ -357,7 +354,7 @@ function Segmented({
             "rounded-full px-3 py-1.5 text-xs font-medium transition sm:text-sm",
             value === opt.value
               ? "bg-brand-500 text-white shadow-sm"
-              : "text-ink-700 hover:text-brand-600",
+              : "hover:text-brand-600 text-ink-700",
           )}
         >
           {opt.label}

@@ -85,7 +85,8 @@ export function useOrderStream() {
     });
 
     es.onerror = () => {
-      // EventSource auto-reconnects; nothing to do here.
+      // EventSource auto-reconnects; auth expiry is handled by the shared
+      // API 401 handler on the next normal request.
     };
 
     return () => {

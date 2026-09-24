@@ -26,6 +26,7 @@ import {
 import { useFlavours } from "@/hooks/useFlavours";
 import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
+import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
 import { cn } from "@/lib/cn";
 
 interface PincodeInfo {
@@ -91,6 +92,8 @@ export function OfflineOrderDirectFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
+  /** Editable delivery fee; prefilled from pincode table when the check succeeds. */
+  const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
 
   useOrderItemRefPreviews(items, setItems);
 
@@ -145,8 +148,22 @@ export function OfflineOrderDirectFormPage() {
     };
   }, [pincode, fulfillment]);
 
+  useEffect(() => {
+    if (fulfillment === "PICKUP") {
+      setDeliveryFeeInput("");
+      return;
+    }
+    if (pincodeInfo?.serviceable) {
+      setDeliveryFeeInput(String(Number(pincodeInfo.deliveryFee)));
+    } else {
+      setDeliveryFeeInput("");
+    }
+  }, [fulfillment, pincodeInfo]);
+
   const deliveryFee =
-    fulfillment === "DELIVERY" && pincodeInfo?.serviceable ? Number(pincodeInfo.deliveryFee) : 0;
+    fulfillment === "DELIVERY" && deliveryFeeInput.trim() !== ""
+      ? Math.max(0, Number(deliveryFeeInput) || 0)
+      : 0;
 
   const subtotal = useMemo(
     () => items.reduce((sum, it) => sum + Number(it.unitPrice || 0) * Number(it.qty || 0), 0),
@@ -278,6 +295,7 @@ export function OfflineOrderDirectFormPage() {
         paymentScreenshotUrl,
         discountType: discount > 0 ? discountType : null,
         discountValue: discount > 0 ? Number(discountValue) : null,
+        deliveryFee: fulfillment === "DELIVERY" ? deliveryFee : undefined,
       };
 
       const order = await create.mutateAsync(payload);
@@ -442,6 +460,22 @@ export function OfflineOrderDirectFormPage() {
                     </span>
                   </span>
                 </label>
+                <Field
+                  label="Search address"
+                  required
+                  className="sm:col-span-2"
+                  hint="Search a building, society, or landmark for riders (Uber / Rapido). Flat / house details go in the lines below — all fields stay editable."
+                >
+                  <AddressPlacesSearch
+                    value={mapSearchQuery}
+                    onChange={setMapSearchQuery}
+                    onPlaceSelect={(place) => {
+                      if (place.line1) setLine1(place.line1);
+                      if (place.pincode) setPincode(place.pincode);
+                    }}
+                    placeholder="Start typing building, society, or area"
+                  />
+                </Field>
                 <Field label="Pincode" required className="sm:col-span-1">
                   <input
                     inputMode="numeric"
@@ -455,8 +489,8 @@ export function OfflineOrderDirectFormPage() {
                   {pincodeInfo?.serviceable && (
                     <p className="mt-1 text-xs text-emerald-700">
                       {pincodeInfo.city}
-                      {pincodeInfo.area ? ` · ${pincodeInfo.area}` : ""} · ₹
-                      {Number(pincodeInfo.deliveryFee).toFixed(0)} delivery
+                      {pincodeInfo.area ? ` · ${pincodeInfo.area}` : ""}
+                      {` · table rate ₹${Number(pincodeInfo.deliveryFee).toFixed(0)}`}
                     </p>
                   )}
                   {pincodeError && <p className="mt-1 text-xs text-red-700">{pincodeError}</p>}
@@ -486,16 +520,17 @@ export function OfflineOrderDirectFormPage() {
                   />
                 </Field>
                 <Field
-                  label="What to search on Uber / Rapido"
-                  required
-                  className="sm:col-span-2"
-                  hint="Whatever the delivery partner should type — building name, landmark, etc."
+                  label="Delivery charge"
+                  className="sm:col-span-1"
+                  hint="Prefilled from the pincode table — change if you’re charging a different amount for this order."
                 >
                   <input
-                    value={mapSearchQuery}
-                    onChange={(e) => setMapSearchQuery(e.target.value)}
-                    placeholder="Rose Apartments, Prince Anwar Shah Road"
+                    inputMode="decimal"
+                    value={deliveryFeeInput}
+                    onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
+                    placeholder="0"
                     className={inputClass}
+                    disabled={!pincodeInfo?.serviceable}
                   />
                 </Field>
 
@@ -518,6 +553,22 @@ export function OfflineOrderDirectFormPage() {
 
                 {!billingSameAsDelivery && (
                   <>
+                    <Field
+                      label="Billing address search"
+                      required
+                      className="sm:col-span-2"
+                      hint="Same as delivery — search first, then edit lines if needed."
+                    >
+                      <AddressPlacesSearch
+                        value={billMapSearchQuery}
+                        onChange={setBillMapSearchQuery}
+                        onPlaceSelect={(place) => {
+                          if (place.line1) setBillLine1(place.line1);
+                          if (place.pincode) setBillPincode(place.pincode);
+                        }}
+                        placeholder="Start typing billing building or area"
+                      />
+                    </Field>
                     <Field label="Billing pincode" required>
                       <input
                         inputMode="numeric"
@@ -549,13 +600,6 @@ export function OfflineOrderDirectFormPage() {
                       <input
                         value={billLandmark}
                         onChange={(e) => setBillLandmark(e.target.value)}
-                        className={inputClass}
-                      />
-                    </Field>
-                    <Field label="Billing map search" required className="sm:col-span-2">
-                      <input
-                        value={billMapSearchQuery}
-                        onChange={(e) => setBillMapSearchQuery(e.target.value)}
                         className={inputClass}
                       />
                     </Field>

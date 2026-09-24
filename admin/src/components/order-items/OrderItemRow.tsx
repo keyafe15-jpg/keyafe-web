@@ -3,13 +3,11 @@ import { ChevronDown, ChevronRight, Package, Sparkles, Trash2, X } from "lucide-
 import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
-import type { CakeSize } from "@/hooks/useCakeSizes";
 import { Field, inputClass, selectClass } from "@/components/form/Field";
 import { SearchableSelect } from "@/components/form/SearchableSelect";
 import { formatCatalogProductLabel, resetCatalogProductPick } from "@/lib/catalogProductOptions";
 import {
   availableFixedSkus,
-  cakeSizeSelectLabel,
   computeCakeUnitPrice,
   customPoundsToGrams,
   formatCustomPoundLabel,
@@ -30,7 +28,6 @@ export function OrderItemRow({
   flavours,
   allToppings,
   allAddons,
-  cakeSizes,
   onPatch,
   onRemove,
   canRemove,
@@ -41,7 +38,6 @@ export function OrderItemRow({
   flavours: Array<{ id: string; name: string; additionalAmount: string }>;
   allToppings: AdminTopping[];
   allAddons: AdminAddon[];
-  cakeSizes: CakeSize[];
   onPatch: (patch: Partial<OrderItemDraft>) => void;
   onRemove: () => void;
   canRemove: boolean;
@@ -83,17 +79,6 @@ export function OrderItemRow({
   const pickerFlavours = hasAttachedFlavours
     ? flavours.filter((f) => productFlavourIds.has(f.id))
     : flavours;
-  const availableCakeSizes = useMemo(() => {
-    if (!isCakeConfigurator) return [];
-    return cakeSizes.filter((s) => {
-      if (!s.isActive) return false;
-      if (productDetail?.sellByPound) {
-        if (productDetail.minGrams != null && s.grams < productDetail.minGrams) return false;
-        if (productDetail.maxGrams != null && s.grams > productDetail.maxGrams) return false;
-      }
-      return true;
-    });
-  }, [isCakeConfigurator, cakeSizes, productDetail]);
 
   const isCustomCake = item.kind === "CUSTOM" && item.customTemplate === "CAKE";
   const isCustomPizza = item.kind === "CUSTOM" && item.customTemplate === "PIZZA";
@@ -114,10 +99,6 @@ export function OrderItemRow({
     () => allToppings.filter((t) => t.isActive && t.kind === "CONDIMENT"),
     [allToppings],
   );
-  const activeCustomCakeSizes = useMemo(() => cakeSizes.filter((s) => s.isActive), [cakeSizes]);
-  const customCakeParsedPounds = parseCustomPounds(item.customPounds);
-  const customCakeGrams =
-    customCakeParsedPounds != null ? customPoundsToGrams(customCakeParsedPounds) : null;
 
   useEffect(() => {
     if (item.kind !== "CATALOG" || !selectedProduct || !productDetail) return;
@@ -181,19 +162,13 @@ export function OrderItemRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPizza, productDetail]);
 
-  // Preselect default pound size when cake detail arrives (skip if custom).
+  // Default to 1 lb when cake product loads (pounds-only — no size dropdown).
   useEffect(() => {
-    if (!isCakeConfigurator || availableCakeSizes.length === 0) return;
-    if (item.cakeSizeId || item.customPounds.trim()) return;
-    const oneLb = availableCakeSizes.find((s) => s.grams === 500);
-    const pick = oneLb ?? availableCakeSizes[0];
-    onPatch({
-      cakeSizeId: pick.id,
-      sizeGrams: String(pick.grams),
-      sizeLabel: pick.label,
-    });
+    if (!isCakeConfigurator) return;
+    if (item.customPounds.trim()) return;
+    onPatch({ customPounds: "1", cakeSizeId: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCakeConfigurator, availableCakeSizes, productDetail?.id, item.customPounds]);
+  }, [isCakeConfigurator, productDetail?.id]);
 
   // Preselect flavour when there's an obvious default.
   useEffect(() => {
@@ -207,7 +182,7 @@ export function OrderItemRow({
   const pickedCrust = crustOptions.find((o) => o.id === item.crustOptionId);
   const pickedToppingsFull = allToppings.filter((t) => item.toppingSelections.includes(t.id));
 
-  // Recompute cake price when size, custom pounds, or flavour changes.
+  // Recompute cake price from pounds + flavour.
   useEffect(() => {
     if (!isCakeConfigurator || !productDetail) return;
 
@@ -216,23 +191,9 @@ export function OrderItemRow({
     const flavourAdditional = flavour ? Number(flavour.additionalAmount) : 0;
 
     const parsedPounds = parseCustomPounds(item.customPounds);
-    const customGrams = parsedPounds != null ? customPoundsToGrams(parsedPounds) : null;
-    const customInRange =
-      customGrams != null &&
-      isGramsWithinBounds(customGrams, productDetail.minGrams, productDetail.maxGrams);
-
-    let grams: number | null = null;
-    let sizeLabel = "";
-
-    if (customInRange && parsedPounds != null && customGrams != null) {
-      grams = customGrams;
-      sizeLabel = formatCustomPoundLabel(parsedPounds);
-    } else {
-      const size = availableCakeSizes.find((s) => s.id === item.cakeSizeId);
-      if (!size) return;
-      grams = size.grams;
-      sizeLabel = size.label;
-    }
+    if (parsedPounds == null) return;
+    const grams = customPoundsToGrams(parsedPounds);
+    if (!isGramsWithinBounds(grams, productDetail.minGrams, productDetail.maxGrams)) return;
 
     const computed = computeCakeUnitPrice(base, grams, flavourAdditional, hasAttachedFlavours);
     const addonsDelta = allAddons
@@ -241,12 +202,12 @@ export function OrderItemRow({
     onPatch({
       unitPrice: (computed + addonsDelta).toFixed(0),
       sizeGrams: String(grams),
-      sizeLabel,
+      sizeLabel: formatCustomPoundLabel(parsedPounds),
+      cakeSizeId: "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isCakeConfigurator,
-    item.cakeSizeId,
     item.customPounds,
     item.flavourId,
     item.addonSelections.join("|"),
@@ -276,43 +237,28 @@ export function OrderItemRow({
     item.addonSelections.join("|"),
   ]);
 
-  // Custom cake — sync size label/grams from pound picker or custom pounds.
+  // Custom cake — sync size label/grams from pounds.
   useEffect(() => {
     if (!isCustomCake || !item.expanded) return;
 
     const parsedPounds = parseCustomPounds(item.customPounds);
-    if (parsedPounds != null) {
-      const grams = customPoundsToGrams(parsedPounds);
-      onPatch({
-        sizeLabel: formatCustomPoundLabel(parsedPounds),
-        sizeGrams: String(grams),
-      });
-      return;
-    }
-
-    const size = activeCustomCakeSizes.find((s) => s.id === item.cakeSizeId);
-    if (!size) return;
+    if (parsedPounds == null) return;
+    const grams = customPoundsToGrams(parsedPounds);
     onPatch({
-      sizeLabel: size.label,
-      sizeGrams: String(size.grams),
+      sizeLabel: formatCustomPoundLabel(parsedPounds),
+      sizeGrams: String(grams),
+      cakeSizeId: "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCustomCake, item.expanded, item.cakeSizeId, item.customPounds, activeCustomCakeSizes]);
+  }, [isCustomCake, item.expanded, item.customPounds]);
 
-  // Default pound size when custom cake details open.
+  // Default 1 lb when custom cake details open.
   useEffect(() => {
     if (!isCustomCake || !item.expanded) return;
-    if (item.cakeSizeId || item.customPounds.trim()) return;
-    if (activeCustomCakeSizes.length === 0) return;
-    const oneLb = activeCustomCakeSizes.find((s) => s.grams === 500);
-    const pick = oneLb ?? activeCustomCakeSizes[0];
-    onPatch({
-      cakeSizeId: pick.id,
-      sizeLabel: pick.label,
-      sizeGrams: String(pick.grams),
-    });
+    if (item.customPounds.trim()) return;
+    onPatch({ customPounds: "1", cakeSizeId: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCustomCake, item.expanded, activeCustomCakeSizes]);
+  }, [isCustomCake, item.expanded]);
 
   // Custom pizza — sync size label from preset or free text.
   useEffect(() => {
@@ -491,12 +437,18 @@ export function OrderItemRow({
                 value={item.productName}
                 onChange={(e) => onPatch({ productName: e.target.value })}
                 placeholder={
-                  item.kind === "CATALOG" ? "Uses product name if blank" : "1 pound chocolate cake"
+                  item.kind === "CATALOG"
+                    ? "Uses product name if blank"
+                    : item.customTemplate === "PIZZA"
+                      ? "e.g. Chicken BBQ pizza"
+                      : item.customTemplate === "OTHER"
+                        ? "Item name"
+                        : "1 pound chocolate cake"
                 }
                 className={inputClass}
               />
             </Field>
-            <Field label={autoPriced ? "Unit price (auto)" : "Unit price (₹)"} required>
+            <Field label={autoPriced ? "Price (auto)" : "Price"} required>
               <input
                 type="text"
                 inputMode="decimal"
@@ -520,85 +472,32 @@ export function OrderItemRow({
           </div>
 
           {isCakeConfigurator && productDetail && (
-            <div className="mt-3 space-y-3 rounded-md border border-amber-100 bg-amber-50/40 p-3">
-              <p className="text-xs text-amber-900/70">
-                {hasAttachedFlavours
-                  ? `Base ₹${cakeBasePrice.toFixed(0)}/lb — flavour is part of this recipe.`
-                  : `Base ₹${cakeBasePrice.toFixed(0)}/lb — flavour adds per pound on top.`}
-              </p>
-              {availableCakeSizes.length > 0 && (
-                <Field
-                  label="Size (pounds)"
-                  required={!item.customPounds.trim()}
-                  hint="Pick a standard size, or enter custom pounds below."
-                >
-                  <SearchableSelect
-                    value={item.customPounds.trim() ? "" : item.cakeSizeId}
-                    onChange={(cakeSizeId) => onPatch({ cakeSizeId, customPounds: "" })}
-                    searchPlaceholder="Search sizes…"
-                    allowEmpty
-                    placeholder={
-                      item.customPounds.trim() && parsedCustomPounds != null
-                        ? formatCustomPoundLabel(parsedCustomPounds)
-                        : "— Pick size —"
-                    }
-                    options={availableCakeSizes.map((s) => ({
-                      value: s.id,
-                      label: cakeSizeSelectLabel(
-                        s.label,
-                        s.grams,
-                        cakeBasePrice,
-                        cakeFlavourAdditional,
-                        hasAttachedFlavours,
-                      ),
-                      keywords: s.label,
-                    }))}
-                  />
-                </Field>
-              )}
+            <div className="mt-3 grid gap-2 sm:grid-cols-[5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)]">
               <Field
-                label="Custom pounds"
-                hint="Optional. Overrides the size dropdown — e.g. 2.5 for two-and-a-half pounds."
+                label="Pounds"
+                required
                 error={
                   customOutOfRange
-                    ? `Must be between ${productDetail.minGrams != null ? (productDetail.minGrams / 500).toFixed(1) : "0.1"} and ${productDetail.maxGrams != null ? (productDetail.maxGrams / 500).toFixed(1) : "any"} lb for this product.`
+                    ? `Between ${productDetail.minGrams != null ? (productDetail.minGrams / 500).toFixed(1) : "0.1"}–${productDetail.maxGrams != null ? (productDetail.maxGrams / 500).toFixed(1) : "any"} lb`
                     : undefined
                 }
               >
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1">
                   <input
                     type="number"
                     min={productDetail.minGrams ? productDetail.minGrams / 500 : 0.1}
                     max={productDetail.maxGrams ? productDetail.maxGrams / 500 : undefined}
                     step={0.1}
                     value={item.customPounds}
-                    onChange={(e) =>
-                      onPatch({
-                        customPounds: e.target.value,
-                        cakeSizeId: e.target.value.trim() ? "" : item.cakeSizeId,
-                      })
-                    }
-                    placeholder="e.g. 2.5"
-                    className={cn(inputClass, "w-28")}
+                    onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
+                    placeholder="1"
+                    className={cn(inputClass, "w-full")}
                   />
-                  <span className="text-sm text-slate-600">lb</span>
-                  {customPreviewPrice != null && (
-                    <span className="text-xs text-slate-500">
-                      · {customGrams} g · ₹{customPreviewPrice.toFixed(0)}
-                    </span>
-                  )}
+                  <span className="shrink-0 text-xs text-slate-500">lb</span>
                 </div>
               </Field>
-              {pickerFlavours.length > 0 && (
-                <Field
-                  label="Flavour"
-                  required={!hasAttachedFlavours}
-                  hint={
-                    hasAttachedFlavours
-                      ? "Linked to this product in the catalog."
-                      : "Optional add-on per pound."
-                  }
-                >
+              {pickerFlavours.length > 0 ? (
+                <Field label="Flavour" required={!hasAttachedFlavours}>
                   <SearchableSelect
                     value={item.flavourId}
                     onChange={(flavourId) => onPatch({ flavourId })}
@@ -619,6 +518,8 @@ export function OrderItemRow({
                     })}
                   />
                 </Field>
+              ) : (
+                <div />
               )}
               <Field label="Message on cake">
                 <input
@@ -628,55 +529,62 @@ export function OrderItemRow({
                   className={inputClass}
                 />
               </Field>
+              {customPreviewPrice != null && (
+                <p className="text-[11px] text-slate-500 sm:col-span-3">
+                  ₹{cakeBasePrice.toFixed(0)}/lb
+                  {customGrams != null ? ` · ${customGrams}g` : ""}
+                  {hasAttachedFlavours ? " · flavour in recipe" : ""}
+                </p>
+              )}
             </div>
           )}
 
           {isPizza && productDetail && (
-            <div className="mt-3 space-y-3 rounded-md border border-sky-100 bg-sky-50/40 p-3">
-              {sizeOptions.length > 0 && (
-                <Field label="Size" required>
-                  <SearchableSelect
-                    value={item.sizeOptionId}
-                    onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
-                    searchPlaceholder="Search sizes…"
-                    allowEmpty={false}
-                    placeholder="— Pick size —"
-                    options={sizeOptions.map((o) => ({
-                      value: o.id!,
-                      label: formatOptionSelectLabel(
-                        o,
-                        Number(productDetail.basePrice),
-                        sizePriceMode,
-                      ),
-                      keywords: o.label,
-                    }))}
-                  />
-                </Field>
-              )}
-              {crustOptions.length > 0 && (
-                <Field label="Crust">
-                  <select
-                    value={item.crustOptionId}
-                    onChange={(e) => onPatch({ crustOptionId: e.target.value })}
-                    className={selectClass}
-                  >
-                    {crustOptions.map((o) => {
-                      const delta = Number(o.price);
-                      return (
-                        <option key={o.id} value={o.id}>
-                          {o.label}
-                          {delta === 0 ? "" : ` (+₹${delta.toFixed(0)})`}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </Field>
-              )}
+            <div className="mt-3 space-y-2">
+              <div className="grid gap-2 sm:grid-cols-[minmax(9rem,14rem)_minmax(8rem,1fr)]">
+                {sizeOptions.length > 0 && (
+                  <Field label="Size" required>
+                    <SearchableSelect
+                      value={item.sizeOptionId}
+                      onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
+                      searchPlaceholder="Search sizes…"
+                      allowEmpty={false}
+                      placeholder="— Pick size —"
+                      options={sizeOptions.map((o) => ({
+                        value: o.id!,
+                        label: formatOptionSelectLabel(
+                          o,
+                          Number(productDetail.basePrice),
+                          sizePriceMode,
+                        ),
+                        keywords: o.label,
+                      }))}
+                    />
+                  </Field>
+                )}
+                {crustOptions.length > 0 && (
+                  <Field label="Crust">
+                    <select
+                      value={item.crustOptionId}
+                      onChange={(e) => onPatch({ crustOptionId: e.target.value })}
+                      className={selectClass}
+                    >
+                      {crustOptions.map((o) => {
+                        const delta = Number(o.price);
+                        return (
+                          <option key={o.id} value={o.id}>
+                            {o.label}
+                            {delta === 0 ? "" : ` (+₹${delta.toFixed(0)})`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </Field>
+                )}
+              </div>
               {availToppings.length > 0 && (
                 <div>
-                  <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
-                    Toppings
-                  </p>
+                  <p className="mb-1 text-[11px] font-medium text-slate-500">Toppings</p>
                   <div className="flex flex-wrap gap-1.5">
                     {availToppings.map((t) => {
                       const on = item.toppingSelections.includes(t.id);
@@ -705,9 +613,7 @@ export function OrderItemRow({
               )}
               {availCondiments.length > 0 && (
                 <div>
-                  <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
-                    Condiments / Extras
-                  </p>
+                  <p className="mb-1 text-[11px] font-medium text-slate-500">Condiments</p>
                   <div className="flex flex-wrap gap-1.5">
                     {availCondiments.map((t) => {
                       const on = item.toppingSelections.includes(t.id);
@@ -751,326 +657,316 @@ export function OrderItemRow({
             <button
               type="button"
               onClick={() => onPatch({ expanded: !item.expanded })}
-              className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-brand-700"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-brand-700"
             >
               {item.expanded ? (
                 <ChevronDown className="h-3 w-3" />
               ) : (
                 <ChevronRight className="h-3 w-3" />
               )}
-              {item.expanded ? "Hide" : "Show"} details (category, size, flavour, message,
-              instructions)
+              {item.expanded ? "Hide" : "Show"} details
             </button>
           )}
 
           {showCustomDetails && (
-            <div className="mt-3 space-y-3">
-              <Field label="Category">
-                <select
-                  value={item.customTemplate}
-                  onChange={(e) =>
-                    onPatch({
-                      customTemplate: e.target.value as OrderItemDraft["customTemplate"],
-                      cakeSizeId: "",
-                      customPounds: "",
-                      customPizzaSize: "",
-                      flavourId: "",
-                      customFlavour: "",
-                      sizeLabel: "",
-                      sizeGrams: "",
-                      sizeOptionId: "",
-                      crustOptionId: "",
-                      crustLabel: "",
-                      toppingSelections: [],
-                      addonSelections: [],
-                    })
-                  }
-                  className={selectClass}
-                >
-                  <option value="CAKE">Cake</option>
-                  <option value="PIZZA">Pizza</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </Field>
-
+            <div className="mt-2 space-y-2">
               {isCustomCake ? (
-                <div className="space-y-3 rounded-md border border-amber-100 bg-amber-50/40 p-3">
-                  {activeCustomCakeSizes.length > 0 && (
-                    <Field
-                      label="Size (pounds)"
-                      required={!item.customPounds.trim()}
-                      hint="Pick a standard size, or enter custom pounds below."
-                    >
-                      <SearchableSelect
-                        value={item.customPounds.trim() ? "" : item.cakeSizeId}
-                        onChange={(cakeSizeId) => onPatch({ cakeSizeId, customPounds: "" })}
-                        searchPlaceholder="Search sizes…"
-                        allowEmpty
-                        placeholder={
-                          item.customPounds.trim() && customCakeParsedPounds != null
-                            ? formatCustomPoundLabel(customCakeParsedPounds)
-                            : "— Pick size —"
-                        }
-                        options={activeCustomCakeSizes.map((s) => ({
-                          value: s.id,
-                          label: s.servesText
-                            ? `${s.label} · ${s.grams}g · ${s.servesText}`
-                            : `${s.label} · ${s.grams}g`,
-                          keywords: s.label,
-                        }))}
-                      />
-                    </Field>
-                  )}
-                  <Field
-                    label="Custom pounds"
-                    hint="Optional. Overrides the size dropdown — e.g. 2.5 for two-and-a-half pounds."
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="number"
-                        min={0.1}
-                        step={0.1}
-                        value={item.customPounds}
+                <>
+                  <div className="grid gap-2 sm:grid-cols-[7rem_5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)]">
+                    <Field label="Category">
+                      <select
+                        value={item.customTemplate}
                         onChange={(e) =>
                           onPatch({
-                            customPounds: e.target.value,
-                            cakeSizeId: e.target.value.trim() ? "" : item.cakeSizeId,
-                          })
-                        }
-                        placeholder="e.g. 2.5"
-                        className={cn(inputClass, "w-28")}
-                      />
-                      <span className="text-sm text-slate-600">lb</span>
-                      {customCakeGrams != null && (
-                        <span className="text-xs text-slate-500">· {customCakeGrams} g</span>
-                      )}
-                    </div>
-                  </Field>
-                  {flavours.length > 0 && (
-                    <Field
-                      label="Flavour"
-                      hint="Pick from your flavour list, or type a custom one below."
-                    >
-                      <SearchableSelect
-                        value={item.flavourId}
-                        onChange={(flavourId) => onPatch({ flavourId })}
-                        searchPlaceholder="Search flavours…"
-                        allowEmpty
-                        placeholder="— Pick flavour —"
-                        options={flavours.map((f) => {
-                          const delta = Number(f.additionalAmount);
-                          return {
-                            value: f.id,
-                            label: delta > 0 ? `${f.name} (+₹${delta.toFixed(0)}/lb)` : f.name,
-                            keywords: f.name,
-                          };
-                        })}
-                      />
-                    </Field>
-                  )}
-                  <Field
-                    label="Custom flavour"
-                    hint="Use when the flavour isn't in the list above."
-                  >
-                    <input
-                      value={item.customFlavour}
-                      onChange={(e) => onPatch({ customFlavour: e.target.value })}
-                      placeholder="e.g. Ferrero Rocher, red velvet"
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Message on cake">
-                    <input
-                      value={item.messageOnCake}
-                      onChange={(e) => onPatch({ messageOnCake: e.target.value })}
-                      placeholder="Happy Birthday Aarav"
-                      className={inputClass}
-                    />
-                  </Field>
-                </div>
-              ) : isCustomPizza ? (
-                <div className="space-y-3 rounded-md border border-sky-100 bg-sky-50/40 p-3">
-                  {pizzaSizePresets.length > 0 && (
-                    <Field
-                      label="Size"
-                      required={!item.customPizzaSize.trim()}
-                      hint="Pick a standard size label, or enter a custom size below."
-                    >
-                      <SearchableSelect
-                        value={item.customPizzaSize.trim() ? "" : item.sizeOptionId}
-                        onChange={(sizeKey) =>
-                          onPatch({
-                            sizeOptionId: sizeKey,
+                            customTemplate: e.target.value as OrderItemDraft["customTemplate"],
+                            cakeSizeId: "",
+                            customPounds: e.target.value === "CAKE" ? item.customPounds || "1" : "",
                             customPizzaSize: "",
-                            sizeLabel: pizzaSizeLabelForKey(pizzaSizePresets, sizeKey),
+                            flavourId: "",
+                            customFlavour: "",
+                            sizeLabel: "",
+                            sizeGrams: "",
+                            sizeOptionId: "",
+                            crustOptionId: "",
+                            crustLabel: "",
+                            toppingSelections: [],
+                            addonSelections: [],
                           })
                         }
-                        searchPlaceholder="Search sizes…"
-                        allowEmpty
-                        placeholder={
-                          item.customPizzaSize.trim()
-                            ? item.customPizzaSize.trim()
-                            : "— Pick size —"
-                        }
-                        options={pizzaSizePresets.map((s) => ({
-                          value: s.key,
-                          label: s.label,
-                          keywords: s.label,
-                        }))}
-                      />
-                    </Field>
-                  )}
-                  <Field
-                    label="Custom size"
-                    hint='Optional. Overrides the dropdown — e.g. "7 inch" or "Medium".'
-                  >
-                    <input
-                      value={item.customPizzaSize}
-                      onChange={(e) =>
-                        onPatch({
-                          customPizzaSize: e.target.value,
-                          sizeOptionId: e.target.value.trim() ? "" : item.sizeOptionId,
-                          sizeLabel: e.target.value.trim() || item.sizeLabel,
-                        })
-                      }
-                      placeholder="e.g. 7 inch"
-                      className={inputClass}
-                    />
-                  </Field>
-                  {pizzaCrustPresets.length > 0 && (
-                    <Field label="Crust">
-                      <select
-                        value={item.crustOptionId}
-                        onChange={(e) => {
-                          const crust = pizzaCrustPresets.find((c) => c.id === e.target.value);
-                          const oldCrust = pizzaCrustPresets.find(
-                            (c) => c.id === item.crustOptionId,
-                          );
-                          const oldDelta = oldCrust?.price ?? 0;
-                          const newDelta = crust?.price ?? 0;
-                          onPatch({
-                            crustOptionId: e.target.value,
-                            crustLabel: crust?.label ?? "",
-                            unitPrice: Math.max(
-                              0,
-                              Number(item.unitPrice || 0) + newDelta - oldDelta,
-                            ).toFixed(0),
-                          });
-                        }}
                         className={selectClass}
                       >
-                        <option value="">— Default —</option>
-                        {pizzaCrustPresets.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.label}
-                            {c.price === 0 ? "" : ` (+₹${c.price.toFixed(0)})`}
-                          </option>
-                        ))}
+                        <option value="CAKE">Cake</option>
+                        <option value="PIZZA">Pizza</option>
+                        <option value="OTHER">Other</option>
                       </select>
                     </Field>
-                  )}
-                  {customPizzaToppings.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
-                        Toppings
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {customPizzaToppings.map((t) => {
-                          const on = item.toppingSelections.includes(t.id);
-                          const delta = Number(t.priceDelta);
-                          return (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => toggleTopping(t.id)}
-                              className={cn(
-                                "rounded-full border px-2.5 py-1 text-xs font-medium transition",
-                                on
-                                  ? "border-brand-500 bg-brand-100 text-brand-700"
-                                  : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
-                              )}
-                            >
-                              {t.name}
-                              {delta > 0 && (
-                                <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
-                              )}
-                            </button>
-                          );
-                        })}
+                    <Field label="Pounds" required>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0.1}
+                          step={0.1}
+                          value={item.customPounds}
+                          onChange={(e) =>
+                            onPatch({ customPounds: e.target.value, cakeSizeId: "" })
+                          }
+                          placeholder="1"
+                          className={cn(inputClass, "w-full")}
+                        />
+                        <span className="shrink-0 text-xs text-slate-500">lb</span>
                       </div>
-                    </div>
-                  )}
-                  {customPizzaCondiments.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
-                        Condiments / Extras
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {customPizzaCondiments.map((t) => {
-                          const on = item.toppingSelections.includes(t.id);
-                          const delta = Number(t.priceDelta);
-                          return (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => toggleTopping(t.id)}
-                              className={cn(
-                                "rounded-full border px-2.5 py-1 text-xs font-medium transition",
-                                on
-                                  ? "border-brand-500 bg-brand-100 text-brand-700"
-                                  : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
-                              )}
-                            >
-                              {t.name}
-                              {delta > 0 && (
-                                <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Size label">
-                    <input
-                      value={item.sizeLabel}
-                      onChange={(e) => onPatch({ sizeLabel: e.target.value })}
-                      placeholder="1 pound / 500g"
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Size (grams)">
-                    <input
-                      type="number"
-                      min={1}
-                      value={item.sizeGrams}
-                      onChange={(e) => onPatch({ sizeGrams: e.target.value })}
-                      className={inputClass}
-                    />
-                  </Field>
-                  {flavours.length > 0 && (
-                    <Field label="Flavour">
-                      <SearchableSelect
-                        value={item.flavourId}
-                        onChange={(flavourId) => onPatch({ flavourId })}
-                        searchPlaceholder="Search flavours…"
-                        allowEmpty
-                        placeholder="— Pick flavour —"
-                        options={flavours.map((f) => ({
-                          value: f.id,
-                          label: f.name,
-                          keywords: f.name,
-                        }))}
+                    </Field>
+                    {flavours.length > 0 ? (
+                      <Field label="Flavour">
+                        <SearchableSelect
+                          value={item.flavourId}
+                          onChange={(flavourId) =>
+                            onPatch({
+                              flavourId,
+                              customFlavour: flavourId ? "" : item.customFlavour,
+                            })
+                          }
+                          searchPlaceholder="Search flavours…"
+                          allowEmpty
+                          placeholder="— Pick flavour —"
+                          options={flavours.map((f) => {
+                            const delta = Number(f.additionalAmount);
+                            return {
+                              value: f.id,
+                              label: delta > 0 ? `${f.name} (+₹${delta.toFixed(0)}/lb)` : f.name,
+                              keywords: f.name,
+                            };
+                          })}
+                        />
+                      </Field>
+                    ) : (
+                      <div />
+                    )}
+                    <Field label="Message on cake">
+                      <input
+                        value={item.messageOnCake}
+                        onChange={(e) => onPatch({ messageOnCake: e.target.value })}
+                        placeholder="Happy Birthday Aarav"
+                        className={inputClass}
                       />
                     </Field>
+                  </div>
+                  <Field label="Custom flavour">
+                    <input
+                      value={item.customFlavour}
+                      onChange={(e) =>
+                        onPatch({
+                          customFlavour: e.target.value,
+                          flavourId: e.target.value.trim() ? "" : item.flavourId,
+                        })
+                      }
+                      placeholder="If not in the list — e.g. Ferrero Rocher"
+                      className={inputClass}
+                    />
+                  </Field>
+                </>
+              ) : isCustomPizza ? (
+                <>
+                  <div className="grid gap-2 sm:grid-cols-[7rem_minmax(8rem,11rem)_minmax(7rem,9rem)_minmax(8rem,1fr)]">
+                    <Field label="Category">
+                      <select
+                        value={item.customTemplate}
+                        onChange={(e) =>
+                          onPatch({
+                            customTemplate: e.target.value as OrderItemDraft["customTemplate"],
+                            cakeSizeId: "",
+                            customPounds: e.target.value === "CAKE" ? "1" : "",
+                            customPizzaSize: "",
+                            flavourId: "",
+                            customFlavour: "",
+                            sizeLabel: "",
+                            sizeGrams: "",
+                            sizeOptionId: "",
+                            crustOptionId: "",
+                            crustLabel: "",
+                            toppingSelections: [],
+                            addonSelections: [],
+                          })
+                        }
+                        className={selectClass}
+                      >
+                        <option value="CAKE">Cake</option>
+                        <option value="PIZZA">Pizza</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </Field>
+                    {pizzaSizePresets.length > 0 ? (
+                      <Field label="Size" required={!item.customPizzaSize.trim()}>
+                        <SearchableSelect
+                          value={item.customPizzaSize.trim() ? "" : item.sizeOptionId}
+                          onChange={(sizeKey) =>
+                            onPatch({
+                              sizeOptionId: sizeKey,
+                              customPizzaSize: "",
+                              sizeLabel: pizzaSizeLabelForKey(pizzaSizePresets, sizeKey),
+                            })
+                          }
+                          searchPlaceholder="Search sizes…"
+                          allowEmpty
+                          placeholder={
+                            item.customPizzaSize.trim()
+                              ? item.customPizzaSize.trim()
+                              : "— Pick size —"
+                          }
+                          options={pizzaSizePresets.map((s) => ({
+                            value: s.key,
+                            label: s.label,
+                            keywords: s.label,
+                          }))}
+                        />
+                      </Field>
+                    ) : (
+                      <div />
+                    )}
+                    <Field label="Custom size">
+                      <input
+                        value={item.customPizzaSize}
+                        onChange={(e) =>
+                          onPatch({
+                            customPizzaSize: e.target.value,
+                            sizeOptionId: e.target.value.trim() ? "" : item.sizeOptionId,
+                            sizeLabel: e.target.value.trim() || item.sizeLabel,
+                          })
+                        }
+                        placeholder="e.g. 7 inch"
+                        className={inputClass}
+                      />
+                    </Field>
+                    {pizzaCrustPresets.length > 0 ? (
+                      <Field label="Crust">
+                        <select
+                          value={item.crustOptionId}
+                          onChange={(e) => {
+                            const crust = pizzaCrustPresets.find((c) => c.id === e.target.value);
+                            onPatch({
+                              crustOptionId: e.target.value,
+                              crustLabel: crust?.label ?? "",
+                            });
+                          }}
+                          className={selectClass}
+                        >
+                          <option value="">— Optional —</option>
+                          {pizzaCrustPresets.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    ) : (
+                      <div />
+                    )}
+                  </div>
+                  {(customPizzaToppings.length > 0 || customPizzaCondiments.length > 0) && (
+                    <div className="space-y-2">
+                      {customPizzaToppings.length > 0 && (
+                        <div>
+                          <p className="mb-1 text-[11px] font-medium text-slate-500">Toppings</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {customPizzaToppings.map((t) => {
+                              const on = item.toppingSelections.includes(t.id);
+                              const delta = Number(t.priceDelta);
+                              return (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => toggleTopping(t.id)}
+                                  className={cn(
+                                    "rounded-full border px-2.5 py-1 text-xs font-medium transition",
+                                    on
+                                      ? "border-brand-500 bg-brand-100 text-brand-700"
+                                      : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
+                                  )}
+                                >
+                                  {t.name}
+                                  {delta > 0 && (
+                                    <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {customPizzaCondiments.length > 0 && (
+                        <div>
+                          <p className="mb-1 text-[11px] font-medium text-slate-500">Condiments</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {customPizzaCondiments.map((t) => {
+                              const on = item.toppingSelections.includes(t.id);
+                              const delta = Number(t.priceDelta);
+                              return (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => toggleTopping(t.id)}
+                                  className={cn(
+                                    "rounded-full border px-2.5 py-1 text-xs font-medium transition",
+                                    on
+                                      ? "border-brand-500 bg-brand-100 text-brand-700"
+                                      : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
+                                  )}
+                                >
+                                  {t.name}
+                                  {delta > 0 && (
+                                    <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
+                </>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-[7rem_minmax(12rem,1fr)]">
+                  <Field label="Category">
+                    <select
+                      value={item.customTemplate}
+                      onChange={(e) =>
+                        onPatch({
+                          customTemplate: e.target.value as OrderItemDraft["customTemplate"],
+                          cakeSizeId: "",
+                          customPounds: e.target.value === "CAKE" ? "1" : "",
+                          customPizzaSize: "",
+                          flavourId: "",
+                          customFlavour: "",
+                          sizeLabel: "",
+                          sizeGrams: "",
+                          sizeOptionId: "",
+                          crustOptionId: "",
+                          crustLabel: "",
+                          messageOnCake: "",
+                          toppingSelections: [],
+                          addonSelections: [],
+                        })
+                      }
+                      className={selectClass}
+                    >
+                      <option value="CAKE">Cake</option>
+                      <option value="PIZZA">Pizza</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </Field>
+                  <Field label="Size / variant">
+                    <input
+                      value={item.sizeLabel}
+                      onChange={(e) => onPatch({ sizeLabel: e.target.value, sizeGrams: "" })}
+                      placeholder="Optional — e.g. half tray, 500ml"
+                      className={inputClass}
+                    />
+                  </Field>
                 </div>
               )}
 
-              {customAddons.length > 0 && (
+              {isCustomCake && customAddons.length > 0 && (
                 <AddonGroupPicker
                   addons={customAddons}
                   selected={item.addonSelections}
@@ -1082,7 +978,13 @@ export function OrderItemRow({
                 <input
                   value={item.instructions}
                   onChange={(e) => onPatch({ instructions: e.target.value })}
-                  placeholder="Extra frosting, no nuts…"
+                  placeholder={
+                    isCustomPizza
+                      ? "Well done, light cheese…"
+                      : isCustomCake
+                        ? "Extra frosting, no nuts…"
+                        : "Any special notes…"
+                  }
                   className={inputClass}
                 />
               </Field>

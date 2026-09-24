@@ -4,6 +4,8 @@ import { ArrowUpRight, CalendarRange, Package, ShoppingBag, TrendingUp } from "l
 import { api } from "@/lib/api";
 import { useAdminAuth } from "@/store/adminAuth";
 import { staffHasPermission } from "@/lib/permissions";
+import { GstExportPanel } from "@/pages/orders/GstExportPanel";
+import { OrdersBackupPanel } from "@/pages/orders/OrdersBackupPanel";
 
 interface DashboardAnalyticsResponse {
   summary: {
@@ -197,6 +199,11 @@ export function DashboardPage() {
             <StatLine label="Total GST received" value={formatCurrency(summary.totalGstReceived)} />
           </div>
         </PanelCard>
+      </div>
+
+      <div className="mt-6 space-y-4">
+        <GstExportPanel />
+        <OrdersBackupPanel />
       </div>
     </div>
   );

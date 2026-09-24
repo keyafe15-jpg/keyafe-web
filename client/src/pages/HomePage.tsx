@@ -130,8 +130,8 @@ export function HomePage() {
       <DeliveryReel />
 
       <section className="relative z-10 mx-auto max-w-6xl px-4 pt-5 pb-6 md:pt-7 md:pb-8">
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-8 xl:gap-10">
-          <div className="home-rise rounded-2xl border border-white/50 bg-white/40 px-5 py-6 text-center shadow-sm backdrop-blur-md sm:px-6 sm:py-7 lg:text-left">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.15fr)] lg:items-stretch lg:gap-4 xl:gap-6">
+          <div className="home-rise flex h-full flex-col rounded-2xl border border-white/50 bg-white/40 px-5 py-6 text-center shadow-sm backdrop-blur-md sm:px-6 sm:py-7 lg:text-left">
             <div
               className="home-rise border-brand-200/80 mb-3 inline-flex items-center gap-2 rounded-md border bg-white/50 px-3 py-1.5 text-[11px] font-medium tracking-[0.22em] text-brand-700 uppercase backdrop-blur-sm"
               style={{ animationDelay: "0.05s" }}
@@ -171,8 +171,19 @@ export function HomePage() {
             </p>
 
             <div
-              className="home-rise mt-4 flex flex-wrap justify-center gap-3 lg:justify-start"
+              className="home-rise mx-auto mt-5 w-full max-w-md lg:mt-auto lg:mx-0 lg:pt-6"
               style={{ animationDelay: "0.82s" }}
+            >
+              <CatalogSearchBar
+                placeholder={HOME_COPY.search.placeholder}
+                className="border-white/60 bg-white/55 backdrop-blur-sm"
+              />
+            </div>
+
+            {/* Phone-only store buttons — from sm up the illustrated doors handle entry. */}
+            <div
+              className="home-rise mt-4 flex flex-wrap justify-center gap-3 sm:hidden"
+              style={{ animationDelay: "0.95s" }}
             >
               <Link
                 to={HOME_COPY.hero.primaryCta.to}
@@ -187,44 +198,33 @@ export function HomePage() {
                 {HOME_COPY.hero.secondaryCta.label}
               </Link>
             </div>
-
-            <div className="mt-3 flex flex-wrap justify-center gap-2 lg:justify-start">
-              {HOME_COPY.shopChips.map((chip, index) => (
-                <Link
-                  key={chip.to}
-                  to={chip.to}
-                  className="home-pill rounded-md border border-white/60 bg-white/45 px-2.5 py-1 text-[11px] font-medium text-ink-700 shadow-sm backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:text-brand-700"
-                  style={{ animationDelay: `${0.95 + index * 0.08}s` }}
-                >
-                  {chip.label}
-                </Link>
-              ))}
-            </div>
-
-            <div
-              className="home-rise mx-auto mt-4 max-w-md lg:mx-0"
-              style={{ animationDelay: "1.15s" }}
-            >
-              <CatalogSearchBar
-                placeholder={HOME_COPY.search.placeholder}
-                className="border-white/60 bg-white/55 backdrop-blur-sm"
-              />
-            </div>
           </div>
 
-          <div>
+          {/* Desktop bridge — draws the eye from copy to the doors */}
+          <div
+            className="home-rise hidden flex-col items-center justify-center self-center lg:flex"
+            style={{ animationDelay: "0.9s" }}
+            aria-hidden="true"
+          >
+            <span className="text-[10px] font-semibold tracking-[0.28em] text-ink-500 uppercase">
+              or
+            </span>
+            <span className="store-bridge-pulse mt-2 text-brand-500">→</span>
+          </div>
+
+          <div className="flex flex-col">
             <Reveal>
               <div className="mb-4 text-center lg:mb-5 lg:text-left">
-                <p className="mb-1 text-center text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
+                <p className="mb-1 text-center text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase lg:text-left">
                   {HOME_COPY.storeDoors.eyebrow}
                 </p>
-                <h2 className="text-center font-display text-xl text-ink-900 sm:text-2xl">
+                <h2 className="text-center font-display text-xl text-ink-900 sm:text-2xl lg:text-left">
                   {HOME_COPY.storeDoors.heading}
                 </h2>
               </div>
             </Reveal>
             <StoreDoorsMobileTabs groups={storeGroups} />
-            <div className="hidden justify-center gap-5 sm:flex lg:justify-start lg:gap-6">
+            <div className="store-pair hidden flex-1 items-end justify-center gap-5 sm:flex lg:justify-start lg:gap-6">
               {storeGroups.map((group, index) => (
                 <Reveal key={group.department!.id} delay={index * 100} from="scale">
                   <StoreDoor

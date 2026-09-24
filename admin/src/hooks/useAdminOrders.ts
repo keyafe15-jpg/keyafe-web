@@ -318,3 +318,105 @@ export function useDownloadChallan() {
     },
   });
 }
+
+export type GstExportInput =
+  | { mode: "range"; from: string; to: string; format: "xlsx" | "pdf" }
+  | { mode: "fy"; fy: string; format: "xlsx" | "pdf" };
+
+/** GST invoice register for the accountant — Excel workbook or summary PDF. */
+export function useDownloadGstExport() {
+  return useMutation({
+    mutationFn: async (input: GstExportInput) => {
+      const params = new URLSearchParams({ format: input.format });
+      if (input.mode === "fy") {
+        params.set("fy", input.fy);
+      } else {
+        params.set("from", input.from);
+        params.set("to", input.to);
+      }
+      const { blob, filename, headers } = await api.getBlob(
+        `/admin/orders/gst-export?${params.toString()}`,
+      );
+      const name =
+        filename ??
+        `gst-register.${input.format === "pdf" ? "pdf" : "xlsx"}`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+
+      return {
+        filename: name,
+        count: headers.get("X-Gst-Export-Count"),
+        period: headers.get("X-Gst-Export-Period"),
+      };
+    },
+  });
+}
+
+function triggerBrowserDownload(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/** Full orders backup for disaster recovery — XLSX (2 sheets) or denormalized CSV. */
+export function useDownloadOrdersBackup() {
+  return useMutation({
+    mutationFn: async (input: {
+      format: "xlsx" | "csv";
+      from?: string;
+      to?: string;
+    }) => {
+      const params = new URLSearchParams({ format: input.format });
+      if (input.from) params.set("from", input.from);
+      if (input.to) params.set("to", input.to);
+      const { blob, filename, headers } = await api.getBlob(
+        `/admin/orders/backup?${params.toString()}`,
+      );
+      const name = filename ?? `orders-backup.${input.format}`;
+      triggerBrowserDownload(blob, name);
+      return {
+        filename: name,
+        orderCount: headers.get("X-Backup-Order-Count"),
+        itemCount: headers.get("X-Backup-Item-Count"),
+        period: headers.get("X-Backup-Period"),
+      };
+    },
+  });
+}
+
+export interface OrdersBackupImportResult {
+  created: number;
+  updated: number;
+  itemCount: number;
+  skipped: number;
+  errors: string[];
+}
+
+/** Reimport an orders backup XLSX/CSV (upsert by order number). */
+export function useImportOrdersBackup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return api.postForm<OrdersBackupImportResult>("/admin/orders/backup/import", form);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "order-counts"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "orders", "analytics"] });
+    },
+  });
+}

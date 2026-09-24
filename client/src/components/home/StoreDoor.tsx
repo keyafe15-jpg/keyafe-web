@@ -21,13 +21,16 @@ export function StoreDoor({
   categories,
   palette,
   compact = false,
+  fill = false,
 }: {
   name: string;
   slug: string;
   categories: CategoryNode[];
   palette?: StoreDoorPalette | null;
-  /** Smaller door for the home intro + stores row. */
+  /** Smaller door for tight layouts. */
   compact?: boolean;
+  /** Stretch to parent width (home store pair). */
+  fill?: boolean;
 }) {
   const colors = palette ?? FALLBACK_PALETTE;
   const imageUrl = categories.find((c) => c.imageUrl)?.imageUrl ?? null;
@@ -45,14 +48,19 @@ export function StoreDoor({
   return (
     <article
       className={
-        compact
-          ? "mx-auto w-full max-w-[220px] sm:max-w-[240px] lg:max-w-[250px]"
-          : "mx-auto w-full max-w-[360px] sm:max-w-[400px]"
+        fill
+          ? "w-full"
+          : compact
+            ? "store-pair-door mx-auto w-full max-w-[220px] sm:max-w-[240px] lg:max-w-[250px]"
+            : "mx-auto w-full max-w-[360px] sm:max-w-[400px]"
       }
     >
-      <Link to={href} className="storefront group block rounded-[1.5rem] outline-offset-4">
+      <Link
+        to={href}
+        className="storefront group block rounded-[1.5rem] outline-offset-4 transition duration-300 hover:-translate-y-1.5"
+      >
         <div
-          className={`relative overflow-hidden border-2 shadow-[0_18px_36px_rgba(26,33,42,0.12)] ${
+          className={`relative overflow-hidden border-2 shadow-[0_18px_36px_rgba(26,33,42,0.12)] transition duration-300 group-hover:shadow-[0_22px_40px_rgba(26,33,42,0.18)] ${
             compact ? "rounded-[1.15rem]" : "rounded-[1.5rem]"
           }`}
           style={{
@@ -114,7 +122,7 @@ export function StoreDoor({
                   <img
                     src={imageUrl}
                     alt={`${name} store`}
-                    className="h-full w-full object-cover object-center opacity-90"
+                    className="h-full w-full object-cover object-center opacity-90 transition duration-500 group-hover:scale-105"
                   />
                 ) : (
                   <div
@@ -135,6 +143,20 @@ export function StoreDoor({
               </div>
             </div>
 
+            {/* Compact: category peek only on hover — no extra layout height */}
+            {compact && categories.length > 0 ? (
+              <div className="pointer-events-none absolute inset-x-2 bottom-[10%] z-30 flex translate-y-1 flex-wrap justify-center gap-1 opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                {categories.slice(0, 2).map((category) => (
+                  <span
+                    key={category.id}
+                    className="rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-medium text-ink-700 shadow-sm"
+                  >
+                    {category.name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
             <div
               className="absolute inset-x-0 bottom-0 h-[8%] border-t"
               style={{
@@ -152,16 +174,22 @@ export function StoreDoor({
           {line}
         </p>
         <span
-          className={`text-brand-600 flex items-center justify-center gap-1 font-semibold ${
+          className={`text-brand-600 flex items-center justify-center gap-1 font-semibold transition group-hover:gap-2 ${
             compact ? "mt-0.5 text-xs" : "mt-1 text-sm"
           }`}
+          style={{ color: colors.accentHex }}
         >
           {HOME_COPY.storeDoors.enter}
-          <span aria-hidden="true">→</span>
+          <span
+            aria-hidden="true"
+            className="inline-block transition-transform duration-300 group-hover:translate-x-1"
+          >
+            →
+          </span>
         </span>
       </Link>
 
-      {!compact ? (
+      {!compact && !fill ? (
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           {categories.map((category) => (
             <Link

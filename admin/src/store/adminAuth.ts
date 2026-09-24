@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { api, setAdminAccessToken } from "@/lib/api";
+import { api, setAdminAccessToken, setUnauthorizedHandler } from "@/lib/api";
 
 export interface AdminUser {
   id: string;
@@ -35,6 +35,16 @@ interface AdminAuthState {
 function applySession(user: AdminUser, accessToken: string, refreshToken: string) {
   setAdminAccessToken(accessToken);
   return { user, accessToken, refreshToken, isSubmitting: false, error: null };
+}
+
+function clearSession() {
+  setAdminAccessToken(null);
+  return {
+    user: null as AdminUser | null,
+    accessToken: null as string | null,
+    refreshToken: null as string | null,
+    error: null as string | null,
+  };
 }
 
 export const useAdminAuth = create<AdminAuthState>()(
@@ -85,13 +95,7 @@ export const useAdminAuth = create<AdminAuthState>()(
       },
 
       async logout() {
-        setAdminAccessToken(null);
-        set({
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-          error: null,
-        });
+        set(clearSession());
       },
 
       clearError: () => set({ error: null }),
@@ -112,3 +116,9 @@ export const useAdminAuth = create<AdminAuthState>()(
     },
   ),
 );
+
+// When any API call gets a 401 (expired/invalid JWT), clear the persisted
+// session so the login screen is the next thing the user sees — not an error toast.
+setUnauthorizedHandler(() => {
+  useAdminAuth.setState(clearSession());
+});

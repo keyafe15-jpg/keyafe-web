@@ -3,7 +3,6 @@ import { useAdminProducts } from "@/hooks/useAdminProducts";
 import { useFlavours } from "@/hooks/useFlavours";
 import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
-import { useAdminCakeSizes } from "@/hooks/useCakeSizes";
 import type { OrderLinkKind } from "@/hooks/useAdminOrderLinks";
 import { FormSection } from "./FormSection";
 import { OrderItemRow } from "./OrderItemRow";
@@ -29,12 +28,11 @@ export function OrderItemsEditor({
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
-  const { data: cakeSizes = [] } = useAdminCakeSizes();
 
   return (
     <FormSection
       title="Items"
-      subtitle="Catalog picks a product from your menu; Custom is a one-off item."
+      subtitle="Same item editor for send-link and full order. Catalog picks a menu product; Custom is a one-off."
       action={
         <div className="flex gap-2">
           <button
@@ -64,7 +62,6 @@ export function OrderItemsEditor({
             flavours={flavours}
             allToppings={allToppings}
             allAddons={allAddons}
-            cakeSizes={cakeSizes}
             onPatch={(patch) => patchItem(item.id, patch)}
             onRemove={() => removeItem(item.id)}
             canRemove={items.length > 1}

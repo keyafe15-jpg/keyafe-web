@@ -68,7 +68,16 @@ export function createApp() {
       // Without this the browser hides these headers from cross-origin
       // fetches, so the admin couldn't name a downloaded document or show the
       // number that was issued for it.
-      exposedHeaders: ["Content-Disposition", "X-Invoice-Number", "X-Challan-Number"],
+      exposedHeaders: [
+        "Content-Disposition",
+        "X-Invoice-Number",
+        "X-Challan-Number",
+        "X-Gst-Export-Count",
+        "X-Gst-Export-Period",
+        "X-Backup-Order-Count",
+        "X-Backup-Item-Count",
+        "X-Backup-Period",
+      ],
     }),
   );
   app.use(

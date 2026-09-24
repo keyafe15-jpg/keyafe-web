@@ -60,6 +60,9 @@ export interface PlaceOfflineOrderPayload {
 
   discountType?: "FLAT" | "PERCENT" | null;
   discountValue?: number | null;
+
+  /** Optional override of the pincode-table delivery fee. */
+  deliveryFee?: number | null;
 }
 
 export interface OfflineOrderResponse {

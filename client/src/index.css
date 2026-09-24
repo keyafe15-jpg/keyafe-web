@@ -551,6 +551,39 @@ gmp-place-autocomplete:focus-within {
   transform: rotateY(78deg);
 }
 
+.storefront-door {
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hovering one home door softly dims its sibling */
+.store-pair:hover .store-pair-door {
+  opacity: 0.55;
+  transition: opacity 0.3s ease;
+}
+
+.store-pair:hover .store-pair-door:hover {
+  opacity: 1;
+}
+
+@keyframes store-bridge-pulse {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateX(4px);
+    opacity: 1;
+  }
+}
+
+.store-bridge-pulse {
+  display: inline-block;
+  font-size: 1.25rem;
+  line-height: 1;
+  animation: store-bridge-pulse 1.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-motif] {
     animation: none !important;
@@ -579,7 +612,8 @@ gmp-place-autocomplete:focus-within {
   .delivery-ken,
   .film-ken,
   .promise-bob,
-  .delivery-route::after {
+  .delivery-route::after,
+  .store-bridge-pulse {
     animation: none !important;
   }
 

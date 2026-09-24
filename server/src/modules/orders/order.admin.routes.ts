@@ -7,7 +7,11 @@ import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
 import { buildInvoicePdf, sendInvoiceEmail } from "./invoice.service.js";
+import { buildGstExport } from "./gst-export.service.js";
+import { buildOrdersBackup, importOrdersBackup } from "./orders-backup.service.js";
 import { buildChallanPdf } from "./challan.service.js";
+import multer from "multer";
+
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
 import {
@@ -671,6 +675,75 @@ adminOrderRouter.get("/stream", requirePermission("orders.read"), (req, res) => 
     res.end();
   });
 });
+
+/**
+ * GST invoice register for a date range or Indian financial year.
+ * Issues missing invoice numbers for paid/partial orders in the window, then
+ * returns an XLS workbook (register + lines + HSN) or a summary PDF.
+ * Must sit before /:idOrNumber so "gst-export" is not parsed as an id.
+ */
+adminOrderRouter.get("/gst-export", requirePermission("invoices.read"), async (req, res) => {
+  const formatRaw = String(req.query.format ?? "xlsx").toLowerCase();
+  if (formatRaw !== "xlsx" && formatRaw !== "pdf") {
+    throw HttpError.badRequest('format must be "xlsx" or "pdf"');
+  }
+  const result = await buildGstExport({
+    from: typeof req.query.from === "string" ? req.query.from : undefined,
+    to: typeof req.query.to === "string" ? req.query.to : undefined,
+    fy: typeof req.query.fy === "string" ? req.query.fy : undefined,
+    format: formatRaw,
+  });
+  res.setHeader("Content-Type", result.contentType);
+  res.setHeader("Content-Length", result.buffer.length);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+  res.setHeader("X-Gst-Export-Count", String(result.meta.orderCount));
+  res.setHeader("X-Gst-Export-Period", result.meta.label);
+  res.end(result.buffer);
+});
+
+const backupUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 40 * 1024 * 1024 },
+});
+
+/**
+ * Full orders backup (Orders + OrderItems). Prefer XLSX for round-trip restore;
+ * CSV is a denormalized single sheet that also reimports.
+ */
+adminOrderRouter.get("/backup", requirePermission("orders.read"), async (req, res) => {
+  const formatRaw = String(req.query.format ?? "xlsx").toLowerCase();
+  if (formatRaw !== "xlsx" && formatRaw !== "csv") {
+    throw HttpError.badRequest('format must be "xlsx" or "csv"');
+  }
+  const result = await buildOrdersBackup({
+    format: formatRaw,
+    from: typeof req.query.from === "string" ? req.query.from : undefined,
+    to: typeof req.query.to === "string" ? req.query.to : undefined,
+  });
+  res.setHeader("Content-Type", result.contentType);
+  res.setHeader("Content-Length", result.buffer.length);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+  res.setHeader("X-Backup-Order-Count", String(result.meta.orderCount));
+  res.setHeader("X-Backup-Item-Count", String(result.meta.itemCount));
+  res.setHeader("X-Backup-Period", result.meta.label);
+  res.end(result.buffer);
+});
+
+adminOrderRouter.post(
+  "/backup/import",
+  requirePermission("orders.update"),
+  backupUpload.single("file"),
+  async (req, res) => {
+    const file = req.file;
+    if (!file?.buffer?.length) {
+      throw HttpError.badRequest("Upload an orders backup XLSX or CSV file");
+    }
+    const result = await importOrdersBackup(file.buffer);
+    res.json(result);
+  },
+);
 
 adminOrderRouter.get("/:idOrNumber", requirePermission("orders.read"), async (req, res) => {
   const key = req.params.idOrNumber ?? "";

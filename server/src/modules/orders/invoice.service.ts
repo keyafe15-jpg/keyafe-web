@@ -78,6 +78,7 @@ export async function getSellerSettings(): Promise<SellerSettings> {
  */
 export async function ensureInvoiceNumber(
   orderId: string,
+  opts?: { invoiceDate?: Date },
 ): Promise<{ invoiceNumber: string; invoiceDate: Date; reused: boolean }> {
   const existing = await prisma.order.findUnique({
     where: { id: orderId },
@@ -103,7 +104,9 @@ export async function ensureInvoiceNumber(
   }
 
   const settings = await getSellerSettings();
-  const invoiceDate = new Date();
+  // GST export may pass the order's supply date so the invoice lands in the
+  // correct return period instead of "today".
+  const invoiceDate = opts?.invoiceDate ?? new Date();
   const fy = financialYearLabel(invoiceDate, settings.fyStartMonth);
   const series = `${settings.invoicePrefix}/${fy}`;
 

@@ -82,7 +82,7 @@ export function isGramsWithinBounds(
 export function formatCustomPoundLabel(pounds: number): string {
   const rounded = Math.round(pounds * 10) / 10;
   const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-  return `${text} lb (custom)`;
+  return `${text} lb`;
 }
 
 export function cakeVolumeDiscount(grams: number): number {

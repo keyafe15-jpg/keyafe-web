@@ -53,7 +53,7 @@ export function newOrderItem(kind: OrderLinkKind = "CATALOG"): OrderItemDraft {
     refFile: null,
     refPreview: null,
     keptImageUrl: null,
-    expanded: false,
+    expanded: kind === "CUSTOM",
     customTemplate: "CAKE",
     sizeOptionId: "",
     crustOptionId: "",
@@ -61,7 +61,7 @@ export function newOrderItem(kind: OrderLinkKind = "CATALOG"): OrderItemDraft {
     toppingSelections: [],
     addonSelections: [],
     cakeSizeId: "",
-    customPounds: "",
+    customPounds: kind === "CUSTOM" ? "1" : "",
     customPizzaSize: "",
     variantId: "",
   };
@@ -92,7 +92,7 @@ export function orderLinkItemToDraft(it: OrderLinkItem): OrderItemDraft {
     toppingSelections: [],
     addonSelections: [],
     cakeSizeId: "",
-    customPounds: "",
+    customPounds: it.sizeGrams ? String(Math.round((it.sizeGrams / 500) * 10) / 10) : "",
     customPizzaSize: "",
     variantId: "",
   };
