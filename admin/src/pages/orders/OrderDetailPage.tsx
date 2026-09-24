@@ -31,6 +31,8 @@ import { textareaClass, inputClass, selectClass } from "@/components/form/Field"
 import { uploadImage } from "@/lib/uploads";
 import { TIME_SLOTS } from "@/content/slots";
 import { useStaffPermission } from "@/lib/permissions";
+import { OrderItemsEditPanel } from "@/components/orders/OrderItemsEditPanel";
+import { ImageLightboxThumb } from "@/components/ui/ImageLightboxThumb";
 
 export function OrderDetailPage() {
   const { idOrNumber = "" } = useParams<{ idOrNumber: string }>();
@@ -40,11 +42,18 @@ export function OrderDetailPage() {
   const canReadInvoices = useStaffPermission("invoices.read");
   const canReadChallans = useStaffPermission("challans.read");
   const scheduleLocked = order?.status === "DELIVERED" || order?.status === "CANCELLED";
+  const itemsEditLocked =
+    scheduleLocked || Boolean(order?.invoiceNumber) || order?.paymentStatus === "REFUNDED";
 
   const [adminNotes, setAdminNotes] = useState("");
   useEffect(() => {
     if (order) setAdminNotes(order.adminNotes ?? "");
   }, [order?.adminNotes]);
+
+  const [editingItems, setEditingItems] = useState(false);
+  useEffect(() => {
+    setEditingItems(false);
+  }, [order?.id]);
 
   const [advanceInput, setAdvanceInput] = useState("");
   useEffect(() => {
@@ -129,6 +138,31 @@ export function OrderDetailPage() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
           <Card title="Items">
+            {canUpdate && !itemsEditLocked && !editingItems && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] text-slate-500">
+                  Need a different size, qty, or ref image? Edit items without cancelling the order.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEditingItems(true)}
+                  className="rounded-md border border-brand-300 bg-white px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
+                >
+                  Edit items
+                </button>
+              </div>
+            )}
+            {itemsEditLocked && canUpdate && (
+              <p className="mb-3 text-[11px] text-slate-500">
+                {order.invoiceNumber
+                  ? "Items locked — invoice already issued."
+                  : "Items locked on delivered, cancelled, or refunded orders."}
+              </p>
+            )}
+            {editingItems && canUpdate && !itemsEditLocked ? (
+              <OrderItemsEditPanel order={order} onClose={() => setEditingItems(false)} />
+            ) : (
+              <>
             {canUpdate && order.items.length > 1 && !scheduleLocked && (
               <BulkScheduleBar
                 pending={update.isPending}
@@ -146,13 +180,15 @@ export function OrderDetailPage() {
               />
             )}
             <ul className="divide-y divide-slate-100">
-              {order.items.map((it) => (
+              {order.items.map((it) => {
+                const thumb = it.referenceImageUrl ?? it.productImage;
+                return (
                 <li key={it.id} className="flex items-start gap-3 py-3">
-                  {it.productImage ? (
-                    <img
-                      src={it.productImage}
-                      alt=""
-                      className="h-14 w-14 shrink-0 rounded-md object-cover"
+                  {thumb ? (
+                    <ImageLightboxThumb
+                      src={thumb}
+                      alt={it.productName}
+                      className="h-14 w-14"
                     />
                   ) : (
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
@@ -213,8 +249,11 @@ export function OrderDetailPage() {
                     )}
                   </div>
                 </li>
-              ))}
+              );
+              })}
             </ul>
+              </>
+            )}
           </Card>
 
           <Card title="Totals">

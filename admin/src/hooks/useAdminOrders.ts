@@ -56,9 +56,9 @@ export interface AdminOrderListItem {
 
 export interface AdminOrderItem {
   id: string;
-  productId: string;
+  productId: string | null;
   productName: string;
-  productSlug: string;
+  productSlug: string | null;
   productImage: string | null;
   sizeGrams: number | null;
   sizeLabel: string | null;
@@ -66,6 +66,7 @@ export interface AdminOrderItem {
   flavourName: string | null;
   messageOnCake: string | null;
   instructions: string | null;
+  referenceImageUrl: string | null;
   deliveryDate: string | null;
   deliverySlotKey: string | null;
   deliverySlotLabel: string | null;
@@ -232,6 +233,49 @@ export function useUpdateOrder() {
       void qc.invalidateQueries({ queryKey: ["admin", "order", data.id] });
       void qc.invalidateQueries({
         queryKey: ["admin", "order", data.orderNumber],
+      });
+    },
+  });
+}
+
+export interface EditOrderItemPayload {
+  id?: string;
+  productId?: string | null;
+  productName: string;
+  sizeGrams?: number | null;
+  sizeLabel?: string | null;
+  flavourId?: string | null;
+  flavourName?: string | null;
+  messageOnCake?: string | null;
+  instructions?: string | null;
+  referenceImageUrl?: string | null;
+  unitPrice: number;
+  qty: number;
+}
+
+export interface EditOrderItemsPayload {
+  items: EditOrderItemPayload[];
+  collectedNow?: number;
+}
+
+export interface EditOrderItemsResult {
+  order: AdminOrder;
+  previousTotal: number;
+  newTotal: number;
+  refundDue: number;
+  collectedNow: number;
+}
+
+export function useEditOrderItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & EditOrderItemsPayload) =>
+      api.patch<EditOrderItemsResult>(`/admin/orders/${id}/items`, body),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "order", data.order.id] });
+      void qc.invalidateQueries({
+        queryKey: ["admin", "order", data.order.orderNumber],
       });
     },
   });

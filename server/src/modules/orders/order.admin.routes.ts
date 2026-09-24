@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
+import { editOrderItems, editOrderItemsSchema } from "./order.edit-items.js";
 import { buildInvoicePdf, sendInvoiceEmail } from "./invoice.service.js";
 import { buildGstExport } from "./gst-export.service.js";
 import { buildOrdersBackup, importOrdersBackup } from "./orders-backup.service.js";
@@ -750,6 +751,17 @@ adminOrderRouter.get("/:idOrNumber", requirePermission("orders.read"), async (re
   if (!key) throw HttpError.badRequest("Missing order id");
   const order = key.startsWith("KEY-") ? await getOrderByNumber(key) : await getOrderById(key);
   res.json(order);
+});
+
+adminOrderRouter.patch("/:id/items", requirePermission("orders.update"), async (req, res) => {
+  const id = req.params.id ?? "";
+  if (!id) throw HttpError.badRequest("Missing order id");
+  const parsed = editOrderItemsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid item update", parsed.error.flatten());
+  }
+  const result = await editOrderItems(id, parsed.data);
+  res.json(result);
 });
 
 // Both invoice routes assign a permanent number on first use, which is why
