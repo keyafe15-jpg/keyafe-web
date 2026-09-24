@@ -1,6 +1,6 @@
 export const BRAND = {
   name: "Keyafe",
-  legalName: "Keyafe Bakery",
+  legalName: "Keyafe Foods",
   tagline: "Handcrafted cakes, cookies & bakes — baked fresh, delivered warm.",
   supportEmail: "keyafe15@gmail.com",
   supportPhone: "+91 93300 48665",

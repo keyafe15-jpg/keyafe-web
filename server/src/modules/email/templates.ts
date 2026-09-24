@@ -113,7 +113,7 @@ function shell(title: string, bodyHtml: string): string {
       ${bodyHtml}
     </div>
     <p style="text-align:center;color:#7d8590;font-size:12px;margin-top:24px;">
-      Keyafe Bakery · Howrah 711202 · +91 93300 48665
+      Keyafe Foods · Howrah 711202 · +91 93300 48665
     </p>
   </div>
 </body></html>`;

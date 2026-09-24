@@ -541,6 +541,24 @@ export function CheckoutPage() {
                     </div>
                   )}
 
+                  <Field
+                    label="Find your address"
+                    required
+                    error={errors.mapSearchQuery}
+                    hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Flat / house details stay editable in the fields below."
+                    className="sm:col-span-2"
+                  >
+                    <AddressPlacesSearch
+                      value={mapSearchQuery}
+                      onChange={setMapSearchQuery}
+                      onPlaceSelect={(place) => {
+                        if (place.line1) setLine1(place.line1);
+                        if (place.city) setLine2(place.city);
+                        if (place.pincode) setPincode(place.pincode);
+                        if (place.stateCode) setStateCode(place.stateCode);
+                      }}
+                    />
+                  </Field>
                   <Field label="Pincode" required error={errors.pincode} className="sm:col-span-2">
                     <div className="flex items-center gap-3">
                       <Input
@@ -557,23 +575,6 @@ export function CheckoutPage() {
                         panIndiaOnly={hasOnlyPanIndiaItems}
                       />
                     </div>
-                  </Field>
-                  <Field
-                    label="Find your address"
-                    required
-                    error={errors.mapSearchQuery}
-                    hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Your flat needn’t be on Google — type it in the lines below."
-                    className="sm:col-span-2"
-                  >
-                    <AddressPlacesSearch
-                      value={mapSearchQuery}
-                      onChange={setMapSearchQuery}
-                      onPlaceSelect={(place) => {
-                        if (place.line1) setLine1(place.line1);
-                        if (place.pincode) setPincode(place.pincode);
-                        if (place.stateCode) setStateCode(place.stateCode);
-                      }}
-                    />
                   </Field>
                   <Field
                     label="Address line 1"
@@ -667,6 +668,25 @@ export function CheckoutPage() {
 
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
                       <Field
+                        label="Find your address"
+                        required
+                        error={errors.mapSearchQuery}
+                        hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Flat / house details stay editable in the fields below."
+                        className="sm:col-span-2"
+                      >
+                        <AddressPlacesSearch
+                          value={mapSearchQuery}
+                          onChange={setMapSearchQuery}
+                          onPlaceSelect={(place) => {
+                            if (place.line1) setLine1(place.line1);
+                            if (place.city) setLine2(place.city);
+                            if (place.pincode) setPincode(place.pincode);
+                            if (place.stateCode) setStateCode(place.stateCode);
+                          }}
+                        />
+                      </Field>
+
+                      <Field
                         label="Pincode"
                         required
                         error={errors.pincode}
@@ -728,24 +748,6 @@ export function CheckoutPage() {
                           <StateSelect value={stateCode} onChange={setStateCode} />
                         </Field>
                       )}
-
-                      <Field
-                        label="Find your address"
-                        required
-                        error={errors.mapSearchQuery}
-                        hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Your flat needn’t be on Google — type it in the lines below."
-                        className="sm:col-span-2"
-                      >
-                        <AddressPlacesSearch
-                          value={mapSearchQuery}
-                          onChange={setMapSearchQuery}
-                          onPlaceSelect={(place) => {
-                            if (place.line1) setLine1(place.line1);
-                            if (place.pincode) setPincode(place.pincode);
-                            if (place.stateCode) setStateCode(place.stateCode);
-                          }}
-                        />
-                      </Field>
                     </div>
 
                     {submitError && (
@@ -797,6 +799,23 @@ export function CheckoutPage() {
               {!billingSameAsDelivery && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
+                    label="Find billing address"
+                    required
+                    error={errors.billMapSearchQuery}
+                    className="sm:col-span-2"
+                  >
+                    <AddressPlacesSearch
+                      value={billMapSearchQuery}
+                      onChange={setBillMapSearchQuery}
+                      onPlaceSelect={(place) => {
+                        if (place.line1) setBillLine1(place.line1);
+                        if (place.city) setBillLine2(place.city);
+                        if (place.pincode) setBillPincode(place.pincode);
+                        if (place.stateCode) setBillStateCode(place.stateCode);
+                      }}
+                    />
+                  </Field>
+                  <Field
                     label="Pincode"
                     required
                     error={errors.billPincode}
@@ -808,22 +827,6 @@ export function CheckoutPage() {
                       placeholder="711202"
                       className="w-32"
                       inputMode="numeric"
-                    />
-                  </Field>
-                  <Field
-                    label="Find billing address"
-                    required
-                    error={errors.billMapSearchQuery}
-                    className="sm:col-span-2"
-                  >
-                    <AddressPlacesSearch
-                      value={billMapSearchQuery}
-                      onChange={setBillMapSearchQuery}
-                      onPlaceSelect={(place) => {
-                        if (place.line1) setBillLine1(place.line1);
-                        if (place.pincode) setBillPincode(place.pincode);
-                        if (place.stateCode) setBillStateCode(place.stateCode);
-                      }}
                     />
                   </Field>
                   <Field

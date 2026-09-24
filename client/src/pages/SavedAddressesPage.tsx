@@ -190,6 +190,44 @@ export function SavedAddressesPage() {
 
             <div>
               <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
+                Find your address
+              </label>
+              <AddressPlacesSearch
+                value={form.mapSearchQuery}
+                onChange={(mapSearchQuery) => {
+                  setForm((prev) => ({ ...prev, mapSearchQuery }));
+                  setErrors((prev) => ({ ...prev, mapSearchQuery: "" }));
+                }}
+                onPlaceSelect={(place) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    mapSearchQuery: place.mapSearchQuery,
+                    line1: place.line1 || prev.line1,
+                    line2: place.city || prev.line2,
+                    city: place.city || prev.city,
+                    // Name and code must stay a matched pair — the code drives
+                    // the GST split, so never adopt one without the other.
+                    state: place.stateCode ? place.state : prev.state,
+                    stateCode: place.stateCode || prev.stateCode,
+                    pincode: place.pincode || prev.pincode,
+                  }));
+                  setErrors((prev) => ({
+                    ...prev,
+                    mapSearchQuery: "",
+                    line1: "",
+                    city: "",
+                    state: "",
+                    pincode: "",
+                  }));
+                }}
+              />
+              {errors.mapSearchQuery && (
+                <p className="mt-1 text-xs text-red-600">{errors.mapSearchQuery}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 Address line 1
               </label>
               <input
@@ -223,43 +261,6 @@ export function SavedAddressesPage() {
                 onChange={(e) => setForm({ ...form, landmark: e.target.value })}
                 className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none"
               />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
-                Find your address
-              </label>
-              <AddressPlacesSearch
-                value={form.mapSearchQuery}
-                onChange={(mapSearchQuery) => {
-                  setForm((prev) => ({ ...prev, mapSearchQuery }));
-                  setErrors((prev) => ({ ...prev, mapSearchQuery: "" }));
-                }}
-                onPlaceSelect={(place) => {
-                  setForm((prev) => ({
-                    ...prev,
-                    mapSearchQuery: place.mapSearchQuery,
-                    line1: place.line1 || prev.line1,
-                    city: place.city || prev.city,
-                    // Name and code must stay a matched pair — the code drives
-                    // the GST split, so never adopt one without the other.
-                    state: place.stateCode ? place.state : prev.state,
-                    stateCode: place.stateCode || prev.stateCode,
-                    pincode: place.pincode || prev.pincode,
-                  }));
-                  setErrors((prev) => ({
-                    ...prev,
-                    mapSearchQuery: "",
-                    line1: "",
-                    city: "",
-                    state: "",
-                    pincode: "",
-                  }));
-                }}
-              />
-              {errors.mapSearchQuery && (
-                <p className="mt-1 text-xs text-red-600">{errors.mapSearchQuery}</p>
-              )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">

@@ -33,7 +33,7 @@ const envSchema = z.object({
     .transform((v) => v === "true"),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  EMAIL_FROM: z.string().default("Keyafe Bakery <keyafe15@gmail.com>"),
+  EMAIL_FROM: z.string().default("Keyafe Foods <keyafe15@gmail.com>"),
 
   // Web Push (VAPID). If either key is missing, push endpoints stay
   // functional but sendPushToAll() no-ops with a warning.

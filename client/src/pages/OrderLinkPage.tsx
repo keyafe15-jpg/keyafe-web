@@ -285,8 +285,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         customerGstin: isBusinessOrder ? gstin : null,
         fulfillment,
         deliveryAddress,
-        recipientName:
-          fulfillment === "DELIVERY" ? recipientName.trim() || name.trim() : null,
+        recipientName: fulfillment === "DELIVERY" ? recipientName.trim() || name.trim() : null,
         deliveryPhone: fulfillment === "DELIVERY" ? deliveryPhone.trim() || phone.trim() : null,
         billingAddress,
         billingSameAsDelivery: fulfillment === "DELIVERY" ? billingSameAsDelivery : undefined,
@@ -315,7 +314,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
     <section className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6 text-center">
         <p className="text-xs font-semibold tracking-wider text-brand-700 uppercase">
-          Keyafe Bakery
+          Keyafe Foods
         </p>
         <h1 className="mt-1 font-display text-2xl text-ink-900 md:text-3xl">Confirm your order</h1>
         <p className="mt-1 text-sm text-ink-500">
@@ -459,7 +458,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                   type="checkbox"
                   checked={isSurpriseGift}
                   onChange={(e) => setIsSurpriseGift(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-cream-300 text-brand-600 focus:ring-brand-500/20"
+                  className="border-cream-300 text-brand-600 mt-0.5 h-4 w-4 rounded focus:ring-brand-500/20"
                 />
                 <span>
                   <span className="text-sm font-medium text-ink-900">Surprise gift</span>
@@ -468,6 +467,23 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                   </span>
                 </span>
               </label>
+              <Field
+                label="Find your address"
+                required
+                error={errors.mapSearchQuery}
+                hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Flat / house details stay editable in the fields below."
+                className="sm:col-span-2"
+              >
+                <AddressPlacesSearch
+                  value={mapSearchQuery}
+                  onChange={setMapSearchQuery}
+                  onPlaceSelect={(place) => {
+                    if (place.line1) setLine1(place.line1);
+                    if (place.city) setLine2(place.city);
+                    if (place.pincode) setPincode(place.pincode);
+                  }}
+                />
+              </Field>
               <Field label="Pincode" required error={errors.pincode} className="sm:col-span-2">
                 <div className="flex items-center gap-3">
                   <Input
@@ -507,22 +523,6 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                   placeholder="Near the metro station"
                 />
               </Field>
-              <Field
-                label="Find your address"
-                required
-                error={errors.mapSearchQuery}
-                hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Your flat needn’t be on Google — type it in the lines below."
-                className="sm:col-span-2"
-              >
-                <AddressPlacesSearch
-                  value={mapSearchQuery}
-                  onChange={setMapSearchQuery}
-                  onPlaceSelect={(place) => {
-                    if (place.line1) setLine1(place.line1);
-                    if (place.pincode) setPincode(place.pincode);
-                  }}
-                />
-              </Field>
             </div>
           </Section>
         )}
@@ -534,7 +534,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                 type="checkbox"
                 checked={billingSameAsDelivery}
                 onChange={(e) => setBillingSameAsDelivery(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-cream-300 text-brand-600 focus:ring-brand-500/20"
+                className="border-cream-300 text-brand-600 mt-0.5 h-4 w-4 rounded focus:ring-brand-500/20"
               />
               <span>
                 <span className="text-sm font-medium text-ink-900">Same as delivery address</span>
@@ -545,7 +545,28 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
             </label>
             {!billingSameAsDelivery && (
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Pincode" required error={errors.billPincode} className="sm:col-span-2">
+                <Field
+                  label="Find billing address"
+                  required
+                  error={errors.billMapSearchQuery}
+                  className="sm:col-span-2"
+                >
+                  <AddressPlacesSearch
+                    value={billMapSearchQuery}
+                    onChange={setBillMapSearchQuery}
+                    onPlaceSelect={(place) => {
+                      if (place.line1) setBillLine1(place.line1);
+                      if (place.city) setBillLine2(place.city);
+                      if (place.pincode) setBillPincode(place.pincode);
+                    }}
+                  />
+                </Field>
+                <Field
+                  label="Pincode"
+                  required
+                  error={errors.billPincode}
+                  className="sm:col-span-2"
+                >
                   <Input
                     value={billPincode}
                     onChange={(v) => setBillPincode(v.replace(/\D/g, "").slice(0, 6))}
@@ -578,21 +599,6 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                     value={billLandmark}
                     onChange={setBillLandmark}
                     placeholder="Near the metro station"
-                  />
-                </Field>
-                <Field
-                  label="Find billing address"
-                  required
-                  error={errors.billMapSearchQuery}
-                  className="sm:col-span-2"
-                >
-                  <AddressPlacesSearch
-                    value={billMapSearchQuery}
-                    onChange={setBillMapSearchQuery}
-                    onPlaceSelect={(place) => {
-                      if (place.line1) setBillLine1(place.line1);
-                      if (place.pincode) setBillPincode(place.pincode);
-                    }}
                   />
                 </Field>
               </div>

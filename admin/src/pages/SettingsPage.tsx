@@ -61,7 +61,7 @@ function SectionHeader({
         <button
           type="button"
           onClick={onEdit}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-brand-300 hover:text-brand-700"
+          className="hover:border-brand-300 inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:text-brand-700"
         >
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
@@ -74,7 +74,9 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="grid gap-0.5 sm:grid-cols-[9rem_1fr] sm:gap-3">
       <dt className="text-xs font-medium text-slate-500">{label}</dt>
-      <dd className="text-sm text-slate-900">{value || <span className="text-slate-400">Not set</span>}</dd>
+      <dd className="text-sm text-slate-900">
+        {value || <span className="text-slate-400">Not set</span>}
+      </dd>
     </div>
   );
 }
@@ -151,7 +153,7 @@ function UpiSettingsSection() {
             <input
               value={upiPayeeName}
               onChange={(e) => setUpiPayeeName(e.target.value)}
-              placeholder="Keyafe Bakery"
+              placeholder="Keyafe Foods"
               className={inputClass}
             />
           </Field>

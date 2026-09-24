@@ -83,7 +83,7 @@ function FeaturePill({
   );
 }
 
-export function Header() {
+export function Header({ isCustomLink }: { isCustomLink: boolean }) {
   const count = useCart((s) => s.itemCount());
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
@@ -142,175 +142,179 @@ export function Header() {
           </Link>
 
           {/* Middle — Categories dropdown + highlighted tabs. Hidden on small and tablet screens. */}
-          <nav
-            className={cn(
-              "ml-auto hidden items-center gap-0.5 rounded-full p-1 lg:flex",
-              overlay
-                ? "border border-white/50 bg-white/40 shadow-sm backdrop-blur-md"
-                : "border border-cream-200/80 bg-white/75 shadow-sm backdrop-blur-md",
-            )}
-          >
-            <CategoriesMenu />
-            {departments.map((store) => (
+          {!isCustomLink && (
+            <nav
+              className={cn(
+                "ml-auto hidden items-center gap-0.5 rounded-full p-1 lg:flex",
+                overlay
+                  ? "border border-white/50 bg-white/40 shadow-sm backdrop-blur-md"
+                  : "border border-cream-200/80 bg-white/75 shadow-sm backdrop-blur-md",
+              )}
+            >
+              <CategoriesMenu />
+              {departments.map((store) => (
+                <NavLink
+                  key={store.id}
+                  to={storePath(store.slug)}
+                  className={({ isActive }) =>
+                    cn(
+                      "rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap text-ink-700 transition hover:bg-cream-100",
+                      isActive && "bg-cream-100 text-ink-900",
+                    )
+                  }
+                >
+                  {store.name}
+                </NavLink>
+              ))}
+              <span className="mx-1 h-5 w-px shrink-0 bg-cream-200" aria-hidden="true" />
+              <FeaturePill
+                to={SAMEDAY_NAV.to}
+                label={SAMEDAY_NAV.label}
+                accent="brand"
+                icon={
+                  <svg
+                    width={13}
+                    height={13}
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
+                  </svg>
+                }
+              />
+              <FeaturePill
+                to={HEALTHY_NAV.to}
+                label={HEALTHY_NAV.label}
+                accent="emerald"
+                icon={
+                  <svg
+                    width={13}
+                    height={13}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96c1.4-.98 2.3-.19 2.05 1.28C20.28 12 16 22 11 22" />
+                    <path d="M2 21c0-3 1.85-5.36 5.08-6" />
+                  </svg>
+                }
+              />
+              <FeaturePill
+                to={PANINDIA_NAV.to}
+                label={PANINDIA_NAV.label}
+                accent="amber"
+                icon={
+                  <svg
+                    width={13}
+                    height={13}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M10 17h4V5H2v12h3" />
+                    <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1" />
+                    <circle cx="7.5" cy="17.5" r="2.5" />
+                    <circle cx="17.5" cy="17.5" r="2.5" />
+                  </svg>
+                }
+              />
+              <FeaturePill
+                to={CORPORATE_NAV.to}
+                label={CORPORATE_NAV.label}
+                accent="indigo"
+                icon={
+                  <svg
+                    width={13}
+                    height={13}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 21h18" />
+                    <path d="M5 21V7l7-4 7 4v14" />
+                    <path d="M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01" />
+                  </svg>
+                }
+              />
+              <span className="mx-1 h-5 w-px shrink-0 bg-cream-200" aria-hidden="true" />
               <NavLink
-                key={store.id}
-                to={storePath(store.slug)}
+                to="/about"
                 className={({ isActive }) =>
                   cn(
-                    "rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap text-ink-700 transition hover:bg-cream-100",
-                    isActive && "bg-cream-100 text-ink-900",
+                    "rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap text-ink-700 transition hover:bg-ink-900 hover:text-white",
+                    isActive && "bg-ink-900 text-white",
                   )
                 }
               >
-                {store.name}
+                About
               </NavLink>
-            ))}
-            <span className="mx-1 h-5 w-px shrink-0 bg-cream-200" aria-hidden="true" />
-            <FeaturePill
-              to={SAMEDAY_NAV.to}
-              label={SAMEDAY_NAV.label}
-              accent="brand"
-              icon={
-                <svg
-                  width={13}
-                  height={13}
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
-                </svg>
-              }
-            />
-            <FeaturePill
-              to={HEALTHY_NAV.to}
-              label={HEALTHY_NAV.label}
-              accent="emerald"
-              icon={
-                <svg
-                  width={13}
-                  height={13}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96c1.4-.98 2.3-.19 2.05 1.28C20.28 12 16 22 11 22" />
-                  <path d="M2 21c0-3 1.85-5.36 5.08-6" />
-                </svg>
-              }
-            />
-            <FeaturePill
-              to={PANINDIA_NAV.to}
-              label={PANINDIA_NAV.label}
-              accent="amber"
-              icon={
-                <svg
-                  width={13}
-                  height={13}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M10 17h4V5H2v12h3" />
-                  <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1" />
-                  <circle cx="7.5" cy="17.5" r="2.5" />
-                  <circle cx="17.5" cy="17.5" r="2.5" />
-                </svg>
-              }
-            />
-            <FeaturePill
-              to={CORPORATE_NAV.to}
-              label={CORPORATE_NAV.label}
-              accent="indigo"
-              icon={
-                <svg
-                  width={13}
-                  height={13}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M3 21h18" />
-                  <path d="M5 21V7l7-4 7 4v14" />
-                  <path d="M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01" />
-                </svg>
-              }
-            />
-            <span className="mx-1 h-5 w-px shrink-0 bg-cream-200" aria-hidden="true" />
-            <NavLink
-              to="/about"
-              className={({ isActive }) =>
-                cn(
-                  "rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap text-ink-700 transition hover:bg-ink-900 hover:text-white",
-                  isActive && "bg-ink-900 text-white",
-                )
-              }
-            >
-              About
-            </NavLink>
-          </nav>
+            </nav>
+          )}
 
-          <div className="flex items-center gap-2">
-            {user ? (
-              <div className="hidden sm:block">
-                <UserMenu />
-              </div>
-            ) : (
-              <div className="hidden sm:block">
-                <AuthDialog
-                  trigger={
-                    <button
-                      type="button"
-                      className={cn(
-                        "rounded-full px-4 py-1.5 text-sm font-medium transition",
-                        overlay
-                          ? "text-ink-800 border border-white/50 bg-white/40 backdrop-blur-md hover:bg-white/60"
-                          : "border border-ink-700 text-ink-700 hover:bg-cream-100",
-                      )}
-                    >
-                      {AUTH_COPY.headerButton}
-                    </button>
-                  }
-                />
-              </div>
-            )}
-
-            <CatalogSearchBar variant="icon" overlay={overlay} />
-
-            <Link
-              to="/cart"
-              className="relative rounded-full bg-ink-700 p-2.5 text-sm font-medium text-white transition hover:bg-ink-900"
-            >
-              <ShoppingCart className="h-4 w-4" />
-              {count > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
-                  {count}
-                </span>
+          {!isCustomLink && (
+            <div className="flex items-center gap-2">
+              {user ? (
+                <div className="hidden sm:block">
+                  <UserMenu />
+                </div>
+              ) : (
+                <div className="hidden sm:block">
+                  <AuthDialog
+                    trigger={
+                      <button
+                        type="button"
+                        className={cn(
+                          "rounded-full px-4 py-1.5 text-sm font-medium transition",
+                          overlay
+                            ? "text-ink-800 border border-white/50 bg-white/40 backdrop-blur-md hover:bg-white/60"
+                            : "border border-ink-700 text-ink-700 hover:bg-cream-100",
+                        )}
+                      >
+                        {AUTH_COPY.headerButton}
+                      </button>
+                    }
+                  />
+                </div>
               )}
-            </Link>
 
-            <button
-              type="button"
-              aria-label="Open menu"
-              aria-expanded={mobileMenuOpen}
-              onClick={() => setMobileMenuOpen((open) => !open)}
-              className="text-ink-800 flex h-10 w-10 items-center justify-center rounded-full border border-[#e7d6b4] bg-white shadow-sm lg:hidden"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
+              <CatalogSearchBar variant="icon" overlay={overlay} />
+
+              <Link
+                to="/cart"
+                className="relative rounded-full bg-ink-700 p-2.5 text-sm font-medium text-white transition hover:bg-ink-900"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                {count > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
+                    {count}
+                  </span>
+                )}
+              </Link>
+
+              <button
+                type="button"
+                aria-label="Open menu"
+                aria-expanded={mobileMenuOpen}
+                onClick={() => setMobileMenuOpen((open) => !open)}
+                className="text-ink-800 flex h-10 w-10 items-center justify-center rounded-full border border-[#e7d6b4] bg-white shadow-sm lg:hidden"
+              >
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </div>
+          )}
         </div>
       </header>
 

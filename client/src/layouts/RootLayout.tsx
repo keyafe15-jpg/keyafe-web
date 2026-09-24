@@ -20,14 +20,14 @@ const PRIVATE_PATH_PREFIXES = [
 export function RootLayout() {
   const { pathname } = useLocation();
   const isPrivate = PRIVATE_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-
+  const isCustomLink = pathname.startsWith("/o/");
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip">
       {/* React 19 hoists this into <head>. */}
       {isPrivate && <meta name="robots" content="noindex,nofollow" />}
       <ShopClosedBanner />
       <AnnouncementBar />
-      <Header />
+      <Header isCustomLink={isCustomLink} />
       <main className="flex-1">
         <Outlet />
       </main>

@@ -36,10 +36,9 @@ export function OrderSuccessPage() {
   const isDelivery = order.fulfillment === "DELIVERY";
   const cancelled = order.status === "CANCELLED";
   const deliverToName = order.recipientName?.trim() || order.customerName;
-  const deliverToPhone =
-    order.isSurpriseGift
-      ? order.customerPhone
-      : order.deliveryPhone?.trim() || order.customerPhone;
+  const deliverToPhone = order.isSurpriseGift
+    ? order.customerPhone
+    : order.deliveryPhone?.trim() || order.customerPhone;
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-12">
@@ -121,7 +120,7 @@ export function OrderSuccessPage() {
             </>
           ) : (
             <div className="text-sm text-ink-700">
-              <p className="font-medium">Keyafe Bakery</p>
+              <p className="font-medium">Keyafe Foods</p>
               <p className="text-ink-500">Howrah, West Bengal 711202</p>
               <p className="mt-2 text-ink-500">Under {order.customerName}</p>
             </div>
