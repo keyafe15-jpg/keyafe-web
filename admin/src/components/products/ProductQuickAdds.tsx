@@ -472,7 +472,11 @@ export function AddonQuickAdd({
   );
 }
 
-export function CategoryQuickAdd({ onCreated }: { onCreated: (id: string) => void }) {
+export function CategoryQuickAdd({
+  onCreated,
+}: {
+  onCreated: (id: string, meta?: { slug: string; name: string }) => void;
+}) {
   const create = useCreateCategory();
   const qc = useQueryClient();
   const { data: allCategories = [] } = useAdminCategories();
@@ -515,7 +519,7 @@ export function CategoryQuickAdd({ onCreated }: { onCreated: (id: string) => voi
         qc.invalidateQueries({ queryKey: ["categories"] }),
         qc.invalidateQueries({ queryKey: ["admin", "categories"] }),
       ]);
-      onCreated(created.id);
+      onCreated(created.id, { slug: created.slug, name: created.name });
       reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create");

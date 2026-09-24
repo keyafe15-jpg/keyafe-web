@@ -3,10 +3,13 @@ import { StatusCodes } from "http-status-codes";
 import { HttpError } from "../../utils/httpError.js";
 import {
   archiveProduct,
+  bulkCreateProducts,
+  bulkCreateProductsSchema,
   createProduct,
   createProductSchema,
   deleteProduct,
   duplicateProduct,
+  exportProductsSpreadsheet,
   getAdminProductById,
   listProducts,
   unarchiveProduct,
@@ -42,6 +45,24 @@ adminProductRouter.post("/", async (req, res) => {
   }
   const product = await createProduct(parsed.data);
   res.status(StatusCodes.CREATED).json(product);
+});
+
+adminProductRouter.post("/bulk", async (req, res) => {
+  const parsed = bulkCreateProductsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid product import", parsed.error.flatten());
+  }
+  const result = await bulkCreateProducts(parsed.data.rows, parsed.data.mode);
+  res.json(result);
+});
+
+adminProductRouter.get("/export", async (req, res) => {
+  const rawScope = typeof req.query.scope === "string" ? req.query.scope : "all";
+  const scope = LIST_SCOPES.has(rawScope as AdminProductListScope)
+    ? (rawScope as AdminProductListScope)
+    : "all";
+  const rows = await exportProductsSpreadsheet(scope);
+  res.json({ rows, count: rows.length });
 });
 
 adminProductRouter.post("/:id/duplicate", async (req, res) => {

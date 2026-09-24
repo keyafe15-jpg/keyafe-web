@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { X, Upload } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
@@ -14,10 +15,13 @@ export function MultiImageUpload({
   value,
   onChange,
   max = 5,
+  compact = false,
 }: {
   value: File[];
   onChange: (files: File[]) => void;
   max?: number;
+  /** Smaller dropzone for dense forms (e.g. bulk quick-add). */
+  compact?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
@@ -78,16 +82,35 @@ export function MultiImageUpload({
       {value.length === 0 ? (
         <label
           htmlFor={inputId}
-          className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50/60 px-4 py-8 text-center transition hover:border-brand-500 hover:bg-slate-50"
+          className={cn(
+            "flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/60 text-center transition hover:border-brand-500 hover:bg-slate-50",
+            compact
+              ? "flex-row px-3 py-3"
+              : "flex-col gap-1 px-4 py-8",
+          )}
         >
-          <Upload className="h-6 w-6 text-slate-400" />
-          <span className="text-sm font-medium text-slate-700">Upload product photos</span>
-          <span className="text-xs text-slate-500">
-            Up to {max} · JPG / PNG / WEBP · 12 MB each
+          <Upload className={cn("text-slate-400", compact ? "h-4 w-4 shrink-0" : "h-6 w-6")} />
+          <span className={compact ? "text-left" : undefined}>
+            <span
+              className={cn(
+                "font-medium text-slate-700",
+                compact ? "text-xs" : "block text-sm",
+              )}
+            >
+              {compact ? "Add photos" : "Upload product photos"}
+            </span>
+            <span className={cn("text-slate-500", compact ? "ml-1.5 text-[10px]" : "block text-xs")}>
+              Up to {max} · JPG / PNG / WEBP · 12 MB each
+            </span>
           </span>
         </label>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div
+          className={cn(
+            "grid gap-3",
+            compact ? "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5",
+          )}
+        >
           {value.map((file, idx) => (
             <div
               key={`${file.name}-${idx}`}

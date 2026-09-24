@@ -9,6 +9,7 @@ import {
   Trash2,
   MoreVertical,
   Pencil,
+  Layers,
 } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import {
@@ -23,6 +24,7 @@ import {
 import { PaginationControls } from "@/components/ClientPagination";
 import { useListSearch } from "@/store/listSearch";
 import { cn } from "@/lib/cn";
+import { ProductsBulkImport } from "@/components/products/ProductsBulkImport";
 
 const PAGE_SIZE = 20;
 
@@ -36,6 +38,7 @@ export function ProductsListPage() {
   const [page, setPage] = useState(1);
   const search = useListSearch((s) => s.query);
   const [scope, setScope] = useState<AdminProductListScope>("catalog");
+  const [bulkOpen, setBulkOpen] = useState(false);
   const { data, isLoading, isFetching } = useAdminProducts(page, PAGE_SIZE, search, scope);
   const products = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -62,13 +65,29 @@ export function ProductsListPage() {
                   : `Catalogue — ${total} product${total === 1 ? "" : "s"}.`}
           </p>
         </div>
-        <Link
-          to="/products/new"
-          className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
-        >
-          <Plus className="h-4 w-4" /> New product
-        </Link>
+        <div className="flex flex-wrap items-center gap-2 self-start">
+          <button
+            type="button"
+            onClick={() => setBulkOpen((o) => !o)}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition",
+              bulkOpen
+                ? "border-brand-400 bg-brand-50 text-brand-800"
+                : "border-slate-200 bg-white text-slate-700 hover:border-brand-300 hover:text-brand-700",
+            )}
+          >
+            <Layers className="h-4 w-4" /> Bulk upload
+          </button>
+          <Link
+            to="/products/new"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
+          >
+            <Plus className="h-4 w-4" /> New product
+          </Link>
+        </div>
       </div>
+
+      <ProductsBulkImport open={bulkOpen} onClose={() => setBulkOpen(false)} />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">

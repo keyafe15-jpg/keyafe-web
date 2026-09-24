@@ -145,6 +145,86 @@ export function useCreateProduct() {
   });
 }
 
+export type BulkProductImportRow = {
+  name: string;
+  slug?: string | null;
+  categorySlugs: string[];
+  basePrice: number;
+  template?: ProductTemplate;
+  productType?: "FIXED_VARIANTS" | "CONFIGURABLE";
+  shortDescription?: string | null;
+  images?: string[];
+  gstRate?: number;
+  hsnCode?: string;
+  isEggless?: boolean;
+  isSpicy?: boolean;
+  sellByPound?: boolean;
+  allowCustomSize?: boolean;
+  supportsMessageOnCake?: boolean;
+  supportsSameDayDelivery?: boolean;
+  canBeDeliveredPanIndia?: boolean;
+  isActive?: boolean;
+  isAvailable?: boolean;
+  isFeatured?: boolean;
+  sortOrder?: number;
+  sizeOptions?: ProductOptionInput[];
+  crustOptions?: ProductOptionInput[];
+};
+
+export type BulkCreateProductsResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: Array<{ row: number; name?: string; message: string }>;
+};
+
+export function useBulkCreateProducts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      rows,
+      mode = "create",
+    }: {
+      rows: BulkProductImportRow[];
+      mode?: "create" | "upsert";
+    }) => api.post<BulkCreateProductsResult>("/admin/products/bulk", { rows, mode }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "products"] });
+    },
+  });
+}
+
+export type ProductExportRow = {
+  name: string;
+  slug: string;
+  categorySlugs: string;
+  basePrice: number;
+  template: string;
+  productType: string;
+  shortDescription: string;
+  images: string;
+  gstRate: number;
+  hsnCode: string;
+  isEggless: boolean;
+  isSpicy: boolean;
+  sellByPound: boolean;
+  supportsSameDayDelivery: boolean;
+  canBeDeliveredPanIndia: boolean;
+  isActive: boolean;
+  isAvailable: boolean;
+  isFeatured: boolean;
+  sortOrder: number;
+};
+
+export function useExportProducts() {
+  return useMutation({
+    mutationFn: (scope: AdminProductListScope = "all") =>
+      api.get<{ rows: ProductExportRow[]; count: number }>(
+        `/admin/products/export?scope=${scope}`,
+      ),
+  });
+}
+
 // Detail includes everything the form needs to prefill. `flavorIds`/`tagIds`
 // are flattened from the relation for direct use.
 export interface AdminProductDetail extends CreateProductPayload {

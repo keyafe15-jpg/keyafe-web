@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload, X } from "lucide-react";
+import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import {
   useAdminDeliveryPincodes,
   useBulkImportDeliveryPincodes,
@@ -14,6 +14,12 @@ import { cn } from "@/lib/cn";
 import { Field, inputClass, selectClass, submitClass } from "@/components/form/Field";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 import { useListSearch } from "@/store/listSearch";
+import { BulkSpreadsheetImport } from "@/components/form/BulkSpreadsheetImport";
+import {
+  cellString,
+  parseBoolean,
+  toNumberOrNull,
+} from "@/lib/spreadsheetImport";
 
 const DISTRICTS: DeliveryDistrict[] = ["HOWRAH", "KOLKATA", "HOOGHLY"];
 const PAGE_SIZE = 10;
@@ -35,13 +41,47 @@ const emptyForm: DeliveryPincodePayload = {
   expressDeliveryFee: null,
 };
 
-const toNumberOrNull = (value: unknown) => {
-  if (value === null || value === undefined || value === "") return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 const pincodeIsValid = (pincode: string) => /^[1-9][0-9]{5}$/.test(pincode);
+
+function parseDistrict(value: unknown): DeliveryDistrict | null {
+  const normalized = cellString(value).toUpperCase();
+  return DISTRICTS.includes(normalized as DeliveryDistrict)
+    ? (normalized as DeliveryDistrict)
+    : null;
+}
+
+function titleCase(value: string) {
+  return value.toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function parsePincodeImportRow(row: Record<string, unknown>): DeliveryPincodePayload | null {
+  const pincode = cellString(row.pincode);
+  if (!pincodeIsValid(pincode)) return null;
+
+  const district = parseDistrict(row.district);
+  if (!district) return null;
+
+  const deliveryFee = toNumberOrNull(row.deliveryfee ?? row.customerdeliveryfee);
+  if (deliveryFee === null) return null;
+
+  const city = cellString(row.city) || titleCase(district);
+  const area = cellString(row.area ?? row.areaname);
+
+  return {
+    pincode,
+    city,
+    area: area || null,
+    district,
+    deliveryFee,
+    sameDayEligible: parseBoolean(row.samedayeligible, true),
+    minOrderAmount: toNumberOrNull(row.minorderamount),
+    extraLeadHours: toNumberOrNull(row.extraleadhours) ?? 0,
+    notes: cellString(row.notes) || null,
+    isActive: parseBoolean(row.isactive, true),
+    expressEligible: parseBoolean(row.expresseligible, true),
+    expressDeliveryFee: toNumberOrNull(row.expressdeliveryfee),
+  };
+}
 
 export function DeliveryPincodesPage() {
   const { data: pincodes = [], isLoading } = useAdminDeliveryPincodes();
@@ -154,199 +194,42 @@ export function DeliveryPincodesPage() {
 
 function BulkImportPanel() {
   const bulkImport = useBulkImportDeliveryPincodes();
-  const [rows, setRows] = useState<DeliveryPincodePayload[]>([]);
-  const [fileName, setFileName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<string | null>(null);
-
-  const onFileChange = async (file: File | undefined) => {
-    setError(null);
-    setResult(null);
-    setRows([]);
-    setFileName(file?.name ?? "");
-    if (!file) return;
-
-    try {
-      const parsed = await parseImportFile(file);
-      if (parsed.length === 0) {
-        setError("No valid delivery pincode rows found in this file.");
-        return;
-      }
-      setRows(parsed);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to read file");
-    }
-  };
-
-  const submit = async () => {
-    setError(null);
-    setResult(null);
-    try {
-      const response = await bulkImport.mutateAsync(rows);
-      setResult(`Imported ${response.imported} pincode${response.imported === 1 ? "" : "s"}.`);
-      setRows([]);
-      setFileName("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Import failed");
-    }
-  };
 
   return (
-    <div className="border-brand-300 bg-brand-50/40 mb-5 rounded-card border border-dashed p-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-2xl">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <FileSpreadsheet className="h-4 w-4 text-brand-500" />
-            Bulk import delivery pincodes
-          </div>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            Upload CSV, XLS, or XLSX. Expected columns: {IMPORT_COLUMNS}. Duplicate pincodes in the
-            file are de-duplicated by the backend.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <label className="hover:border-brand-300 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:text-brand-500">
-            <Upload className="h-4 w-4" /> Choose file
-            <input
-              type="file"
-              accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              onChange={(event) => void onFileChange(event.target.files?.[0])}
-              className="sr-only"
-            />
-          </label>
-          <button
-            type="button"
-            disabled={rows.length === 0 || bulkImport.isPending}
-            onClick={submit}
-            className={cn(submitClass, "inline-flex items-center gap-1.5")}
-          >
-            Import {rows.length > 0 ? rows.length : ""}
-          </button>
-        </div>
-      </div>
-
-      {fileName && (
-        <p className="mt-3 text-xs text-slate-600">
-          Selected: <span className="font-medium text-slate-900">{fileName}</span>
-        </p>
-      )}
-      {rows.length > 0 && (
-        <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <div className="border-b border-slate-100 px-3 py-2 text-xs font-medium text-slate-500">
-            Previewing first {Math.min(rows.length, 5)} of {rows.length} valid rows
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Pincode</th>
-                  <th className="px-3 py-2 font-medium">Area</th>
-                  <th className="px-3 py-2 font-medium">District</th>
-                  <th className="px-3 py-2 text-right font-medium">Fee</th>
-                  <th className="px-3 py-2 text-right font-medium">Min order</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {rows.slice(0, 5).map((row) => (
-                  <tr key={row.pincode}>
-                    <td className="px-3 py-2 font-medium text-slate-900">{row.pincode}</td>
-                    <td className="px-3 py-2 text-slate-600">{row.area}</td>
-                    <td className="px-3 py-2 text-slate-600">{row.district}</td>
-                    <td className="px-3 py-2 text-right text-slate-700 tabular-nums">
-                      ₹{row.deliveryFee}
-                    </td>
-                    <td className="px-3 py-2 text-right text-slate-700 tabular-nums">
-                      {row.minOrderAmount ? `₹${row.minOrderAmount}` : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-      {result && (
-        <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{result}</p>
-      )}
-      {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
-    </div>
+    <BulkSpreadsheetImport<DeliveryPincodePayload>
+      title="Bulk import delivery pincodes"
+      description="Upload CSV, XLS, or XLSX. Duplicate pincodes in the file are de-duplicated by the backend."
+      columnsHint={IMPORT_COLUMNS}
+      parseRow={parsePincodeImportRow}
+      rowKey={(row) => row.pincode}
+      previewColumns={[
+        {
+          id: "pincode",
+          header: "Pincode",
+          cell: (row) => <span className="font-medium text-slate-900">{row.pincode}</span>,
+        },
+        { id: "area", header: "Area", cell: (row) => row.area },
+        { id: "district", header: "District", cell: (row) => row.district },
+        {
+          id: "fee",
+          header: "Fee",
+          align: "right",
+          cell: (row) => `₹${row.deliveryFee}`,
+        },
+        {
+          id: "min",
+          header: "Min order",
+          align: "right",
+          cell: (row) => (row.minOrderAmount ? `₹${row.minOrderAmount}` : "-"),
+        },
+      ]}
+      onImport={async (rows) => {
+        const response = await bulkImport.mutateAsync(rows);
+        return `Imported ${response.imported} pincode${response.imported === 1 ? "" : "s"}.`;
+      }}
+      emptyFileMessage="No valid delivery pincode rows found in this file."
+    />
   );
-}
-
-async function parseImportFile(file: File): Promise<DeliveryPincodePayload[]> {
-  const XLSX = await import("xlsx");
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) return [];
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    defval: "",
-  });
-  return rawRows
-    .map(normalizeImportRow)
-    .filter((row): row is DeliveryPincodePayload => row !== null);
-}
-
-function normalizeImportRow(rawRow: Record<string, unknown>): DeliveryPincodePayload | null {
-  const row = normalizedObject(rawRow);
-  const pincode = String(row.pincode ?? "").trim();
-  if (!pincodeIsValid(pincode)) return null;
-
-  const district = parseDistrict(row.district);
-  if (!district) return null;
-
-  const deliveryFee = toNumberOrNull(row.deliveryfee ?? row.customerdeliveryfee);
-  if (deliveryFee === null) return null;
-
-  const city = String(row.city || titleCase(district)).trim();
-  const area = String(row.area ?? row.areaname ?? "").trim();
-
-  return {
-    pincode,
-    city,
-    area: area || null,
-    district,
-    deliveryFee,
-    sameDayEligible: parseBoolean(row.samedayeligible, true),
-    minOrderAmount: toNumberOrNull(row.minorderamount),
-    extraLeadHours: toNumberOrNull(row.extraleadhours) ?? 0,
-    notes: String(row.notes ?? "").trim() || null,
-    isActive: parseBoolean(row.isactive, true),
-    expressEligible: parseBoolean(row.expresseligible, true),
-    expressDeliveryFee: toNumberOrNull(row.expressdeliveryfee),
-  };
-}
-
-function normalizedObject(rawRow: Record<string, unknown>) {
-  return Object.fromEntries(
-    Object.entries(rawRow).map(([key, value]) => [
-      key.toLowerCase().replace(/[^a-z0-9]/g, ""),
-      value,
-    ]),
-  );
-}
-
-function parseDistrict(value: unknown): DeliveryDistrict | null {
-  const normalized = String(value ?? "")
-    .trim()
-    .toUpperCase();
-  return DISTRICTS.includes(normalized as DeliveryDistrict)
-    ? (normalized as DeliveryDistrict)
-    : null;
-}
-
-function parseBoolean(value: unknown, fallback: boolean) {
-  if (typeof value === "boolean") return value;
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (["true", "yes", "y", "1"].includes(normalized)) return true;
-  if (["false", "no", "n", "0"].includes(normalized)) return false;
-  return fallback;
-}
-
-function titleCase(value: string) {
-  return value.toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {

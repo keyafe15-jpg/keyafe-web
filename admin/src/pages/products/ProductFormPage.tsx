@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Cake, Pizza, Sparkles, Save, Trash2, X, Copy, Archive, ArchiveRestore } from "lucide-react";
+import { Cake, Pizza, Sparkles, Save, Trash2, X, Copy, Archive, ArchiveRestore, ChevronDown } from "lucide-react";
 import {
   Field,
   inputClass,
@@ -19,7 +19,9 @@ import {
   TagQuickAdd,
   ToppingQuickAdd,
 } from "@/components/products/ProductQuickAdds";
-import { useFlatCategories } from "@/hooks/useCategories";
+import { NestedCategoryMultiSelect } from "@/components/form/NestedCategoryMultiSelect";
+import { SearchableMultiSelect } from "@/components/form/SearchableMultiSelect";
+import { useAdminCategories } from "@/hooks/useAdminCategories";
 import { useFlavours } from "@/hooks/useFlavours";
 import { useTags } from "@/hooks/useTags";
 import { useAdminToppings } from "@/hooks/useToppings";
@@ -93,7 +95,7 @@ export function ProductFormPage() {
   const openedFromDuplicate =
     isEdit && Boolean((location.state as { fromDuplicate?: boolean } | null)?.fromDuplicate);
 
-  const { data: categories = [] } = useFlatCategories();
+  const { data: categories = [] } = useAdminCategories();
   const { data: flavours = [] } = useFlavours();
   const { data: tags = [] } = useTags();
   const { data: toppingsAll = [] } = useAdminToppings();
@@ -581,7 +583,7 @@ export function ProductFormPage() {
             />
           </Section>
 
-          <Section title="Customization">
+          <Section title="Customization" collapseOnMobile>
             <div className="grid gap-4 sm:grid-cols-2">
               <Checkbox
                 {...register("isCustomizable")}
@@ -699,7 +701,7 @@ export function ProductFormPage() {
                   showDiameter
                 />
               </Section>
-              <Section title="Crust" description="Optional. Leave empty if only one crust.">
+              <Section title="Crust" description="Optional. Leave empty if only one crust." collapseOnMobile>
                 <OptionsEditor
                   options={crustOptions}
                   onChange={setCrustOptions}
@@ -717,47 +719,63 @@ export function ProductFormPage() {
               <Section
                 title="Toppings"
                 description="Which toppings can be added? Create new ones here without leaving this page."
+                collapseOnMobile
               >
                 <ToppingQuickAdd
                   kind="TOPPING"
                   onCreated={(id) => setToppingIds((prev) => new Set(prev).add(id))}
                 />
-                <ChipPicker
+                <SearchableMultiSelect
                   items={toppingsAll
                     .filter((t) => t.kind === "TOPPING" && t.isActive)
                     .map((t) => ({
-                      id: t.id,
+                      value: t.id,
                       label: `${t.name} · +₹${Number(t.priceDelta).toFixed(0)}`,
                     }))}
-                  selected={toppingIds}
-                  onToggle={(id) => {
-                    const next = new Set(toppingIds);
-                    next.has(id) ? next.delete(id) : next.add(id);
-                    setToppingIds(next);
+                  selected={[...toppingIds].filter(
+                    (id) => toppingsAll.find((t) => t.id === id)?.kind === "TOPPING",
+                  )}
+                  onChange={(ids) => {
+                    const kept = [...toppingIds].filter(
+                      (id) => toppingsAll.find((t) => t.id === id)?.kind !== "TOPPING",
+                    );
+                    setToppingIds(new Set([...kept, ...ids]));
                   }}
+                  placeholder="Search or pick toppings"
+                  searchPlaceholder="Search toppings…"
+                  allowSelectAll
+                  allowClearAll
                 />
               </Section>
               <Section
                 title="Condiments / Extras"
                 description="Things like hot honey, ranch, oregano packets."
+                collapseOnMobile
               >
                 <ToppingQuickAdd
                   kind="CONDIMENT"
                   onCreated={(id) => setToppingIds((prev) => new Set(prev).add(id))}
                 />
-                <ChipPicker
+                <SearchableMultiSelect
                   items={toppingsAll
                     .filter((t) => t.kind === "CONDIMENT" && t.isActive)
                     .map((t) => ({
-                      id: t.id,
+                      value: t.id,
                       label: `${t.name} · +₹${Number(t.priceDelta).toFixed(0)}`,
                     }))}
-                  selected={toppingIds}
-                  onToggle={(id) => {
-                    const next = new Set(toppingIds);
-                    next.has(id) ? next.delete(id) : next.add(id);
-                    setToppingIds(next);
+                  selected={[...toppingIds].filter(
+                    (id) => toppingsAll.find((t) => t.id === id)?.kind === "CONDIMENT",
+                  )}
+                  onChange={(ids) => {
+                    const kept = [...toppingIds].filter(
+                      (id) => toppingsAll.find((t) => t.id === id)?.kind !== "CONDIMENT",
+                    );
+                    setToppingIds(new Set([...kept, ...ids]));
                   }}
+                  placeholder="Search or pick condiments"
+                  searchPlaceholder="Search condiments…"
+                  allowSelectAll
+                  allowClearAll
                 />
               </Section>
             </>
@@ -767,6 +785,7 @@ export function ProductFormPage() {
             <Section
               title="Variants"
               description="Optional. Add rows if this product ships in multiple sizes/portions/flavours — each with its own price."
+              collapseOnMobile
             >
               <OptionsEditor
                 options={sizeOptions}
@@ -788,28 +807,27 @@ export function ProductFormPage() {
             <Section
               title="Flavours"
               description={`Which of the ${flavours.length} master flavours does this product offer?`}
+              collapseOnMobile
             >
               <FlavourQuickAdd
                 onCreated={(id) => setFlavorIds((prev) => new Set(prev).add(id))}
               />
-              <ChipPicker
-                items={flavours.map((f) => ({ id: f.id, label: f.name }))}
-                selected={flavorIds}
-                onToggle={(id) => {
-                  const next = new Set(flavorIds);
-                  next.has(id) ? next.delete(id) : next.add(id);
-                  setFlavorIds(next);
-                }}
+              <SearchableMultiSelect
+                items={flavours.map((f) => ({ value: f.id, label: f.name }))}
+                selected={[...flavorIds]}
+                onChange={(ids) => setFlavorIds(new Set(ids))}
+                placeholder="Search or pick flavours"
+                searchPlaceholder="Search flavours…"
+                allowSelectAll
+                allowClearAll
               />
-              {flavorIds.size > 0 && (
-                <p className="mt-2 text-xs text-slate-500">{flavorIds.size} selected</p>
-              )}
             </Section>
           )}
 
           <Section
             title="Add-ons"
             description="Optional extras. Add-ons assigned to the selected categories are pre-checked — you can still turn them off."
+            collapseOnMobile
           >
             <AddonQuickAdd
               categoryIds={watch("categoryIds") ?? []}
@@ -835,20 +853,32 @@ export function ProductFormPage() {
                       <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
                         {group}
                       </p>
-                      <ChipPicker
+                      <SearchableMultiSelect
                         items={addonsAll
                           .filter((a) => a.isActive && (a.group || "Other") === group)
                           .map((a) => ({
-                            id: a.id,
+                            value: a.id,
                             label: `${a.name} · +₹${Number(a.priceDelta).toFixed(0)}`,
                             imageUrl: a.imageUrl,
                           }))}
-                        selected={addonIds}
-                        onToggle={(id) => {
-                          const next = new Set(addonIds);
-                          next.has(id) ? next.delete(id) : next.add(id);
-                          setAddonIds(next);
+                        selected={[...addonIds].filter((id) =>
+                          addonsAll.some(
+                            (a) => a.id === id && (a.group || "Other") === group,
+                          ),
+                        )}
+                        onChange={(ids) => {
+                          const groupIds = new Set(
+                            addonsAll
+                              .filter((a) => (a.group || "Other") === group)
+                              .map((a) => a.id),
+                          );
+                          const kept = [...addonIds].filter((id) => !groupIds.has(id));
+                          setAddonIds(new Set([...kept, ...ids]));
                         }}
+                        placeholder={`Search ${group}…`}
+                        searchPlaceholder={`Search ${group}…`}
+                        allowSelectAll
+                        allowClearAll
                       />
                     </div>
                   ))}
@@ -856,7 +886,7 @@ export function ProductFormPage() {
             )}
           </Section>
 
-          <Section title="Tags" description="Cross-cutting labels used in filters and badges.">
+          <Section title="Tags" description="Cross-cutting labels used in filters and badges." collapseOnMobile>
             <TagQuickAdd onCreated={(id) => setTagIds((prev) => new Set(prev).add(id))} />
             {tags.length === 0 ? (
               <p className="text-xs text-slate-500">
@@ -867,19 +897,19 @@ export function ProductFormPage() {
                 .
               </p>
             ) : (
-              <ChipPicker
-                items={tags.map((t) => ({ id: t.id, label: t.name }))}
-                selected={tagIds}
-                onToggle={(id) => {
-                  const next = new Set(tagIds);
-                  next.has(id) ? next.delete(id) : next.add(id);
-                  setTagIds(next);
-                }}
+              <SearchableMultiSelect
+                items={tags.map((t) => ({ value: t.id, label: t.name }))}
+                selected={[...tagIds]}
+                onChange={(ids) => setTagIds(new Set(ids))}
+                placeholder="Search or pick tags"
+                searchPlaceholder="Search tags…"
+                allowSelectAll
+                allowClearAll
               />
             )}
           </Section>
 
-          <Section title="SEO / Metadata">
+          <Section title="SEO / Metadata" collapseOnMobile>
             <div className="grid gap-4">
               <Field label="Meta title" error={errors.metaTitle?.message}>
                 <input {...register("metaTitle")} className={inputClass} />
@@ -972,36 +1002,12 @@ export function ProductFormPage() {
                   }}
                 />
               </div>
-              <div className="max-h-56 space-y-1.5 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3">
-                {categories.length === 0 ? (
-                  <p className="text-xs text-slate-500">No categories yet — add one above.</p>
-                ) : (
-                  categories.map((c) => {
-                    const selected = watch("categoryIds") ?? [];
-                    const checked = selected.includes(c.id);
-                    return (
-                      <label key={c.id} className="flex items-start gap-2 text-sm text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            const current = watch("categoryIds") ?? [];
-                            setValue(
-                              "categoryIds",
-                              e.target.checked
-                                ? [...current, c.id]
-                                : current.filter((cid) => cid !== c.id),
-                              { shouldValidate: true },
-                            );
-                          }}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500"
-                        />
-                        <span>{c.label}</span>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
+              <NestedCategoryMultiSelect
+                categories={categories}
+                selected={watch("categoryIds") ?? []}
+                onChange={(ids) => setValue("categoryIds", ids, { shouldValidate: true })}
+                placeholder="Search or pick categories"
+              />
             </Field>
             <Field
               label="Product type"
@@ -1033,18 +1039,52 @@ function Section({
   title,
   description,
   children,
+  /** On small screens, start collapsed so the form isn’t an endless scroll. Desktop stays open. */
+  collapseOnMobile = false,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
+  collapseOnMobile?: boolean;
 }) {
+  const [open, setOpen] = useState(!collapseOnMobile);
+
   return (
     <section className="rounded-card border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 px-4 py-3">
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
-      </div>
-      <div className="space-y-4 p-4">{children}</div>
+      <button
+        type="button"
+        onClick={() => {
+          if (window.matchMedia("(min-width: 1024px)").matches) return;
+          setOpen((v) => !v);
+        }}
+        className={cn(
+          "flex w-full items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left",
+          "lg:cursor-default",
+        )}
+        aria-expanded={open}
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-slate-900">{title}</span>
+          {description && (
+            <span
+              className={cn(
+                "mt-0.5 block text-xs text-slate-500",
+                !open && "hidden lg:block",
+              )}
+            >
+              {description}
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          className={cn(
+            "mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition lg:hidden",
+            open && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
+      <div className={cn("space-y-4 p-4", !open && "hidden lg:block")}>{children}</div>
     </section>
   );
 }
@@ -1073,43 +1113,6 @@ const Checkbox = (
     </label>
   );
 };
-
-function ChipPicker({
-  items,
-  selected,
-  onToggle,
-}: {
-  items: { id: string; label: string; imageUrl?: string | null }[];
-  selected: Set<string>;
-  onToggle: (id: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {items.map((item) => {
-        const on = selected.has(item.id);
-        return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onToggle(item.id)}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border py-1 text-xs font-medium transition",
-              item.imageUrl ? "pr-2.5 pl-1" : "px-2.5",
-              on
-                ? "border-brand-500 bg-brand-100 text-brand-700"
-                : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
-            )}
-          >
-            {item.imageUrl && (
-              <img src={item.imageUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
-            )}
-            {item.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function TemplateChip({
   active,

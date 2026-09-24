@@ -924,6 +924,278 @@ export async function createProduct(input: CreateProductInput) {
   return product;
 }
 
+/** Lean row for CSV/XLS bulk create — categories by slug, images by URL. */
+export const bulkProductRowSchema = z.object({
+  name: z.string().trim().min(2),
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9-]+$/, "Lowercase letters, digits, hyphens only")
+    .optional()
+    .nullable(),
+  categorySlugs: z.array(z.string().trim().min(1)).min(1, "At least one category slug"),
+  basePrice: z.coerce.number().nonnegative(),
+  template: z.enum(["CAKE", "PIZZA", "OTHER"]).default("CAKE"),
+  productType: z.enum(["FIXED_VARIANTS", "CONFIGURABLE"]).default("CONFIGURABLE"),
+  shortDescription: z.string().trim().max(300).optional().nullable(),
+  images: z.array(z.string().url()).max(10).default([]),
+  gstRate: z.coerce.number().min(0).max(28).optional(),
+  hsnCode: z.string().trim().optional(),
+  isEggless: z.boolean().optional(),
+  isSpicy: z.boolean().optional(),
+  sellByPound: z.boolean().optional(),
+  allowCustomSize: z.boolean().optional(),
+  supportsMessageOnCake: z.boolean().optional(),
+  supportsSameDayDelivery: z.boolean().optional(),
+  canBeDeliveredPanIndia: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  isAvailable: z.boolean().optional(),
+  isFeatured: z.boolean().optional(),
+  sortOrder: z.coerce.number().int().optional(),
+  sizeOptions: z.array(optionSchema).optional(),
+  crustOptions: z.array(optionSchema).optional(),
+});
+
+export type BulkProductRow = z.infer<typeof bulkProductRowSchema>;
+
+export const bulkCreateProductsSchema = z.object({
+  rows: z.array(bulkProductRowSchema).min(1).max(500),
+  /** create = skip existing slugs; upsert = update by slug (backup restore). */
+  mode: z.enum(["create", "upsert"]).default("create"),
+});
+
+export type BulkCreateProductsResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: Array<{ row: number; name?: string; message: string }>;
+};
+
+function rowToCreateInput(
+  row: BulkProductRow,
+  slug: string,
+  categoryIds: string[],
+): CreateProductInput {
+  return {
+    name: row.name,
+    slug,
+    categoryIds,
+    basePrice: row.basePrice,
+    template: row.template,
+    productType: row.productType,
+    shortDescription: row.shortDescription ?? null,
+    images: row.images ?? [],
+    gstRate: row.gstRate ?? 5,
+    hsnCode: row.hsnCode ?? "1905",
+    priceIsGstInclusive: true,
+    isEggless: row.isEggless ?? true,
+    isSpicy: row.isSpicy ?? false,
+    sellByPound: row.template === "CAKE" ? (row.sellByPound ?? false) : false,
+    supportsSameDayDelivery: row.supportsSameDayDelivery ?? false,
+    canBeDeliveredPanIndia: row.canBeDeliveredPanIndia ?? false,
+    isActive: row.isActive ?? true,
+    isAvailable: row.isAvailable ?? true,
+    isFeatured: row.isFeatured ?? false,
+    sortOrder: row.sortOrder ?? 0,
+    flavorIds: [],
+    tagIds: [],
+    isCustomizable: false,
+    allowCustomSize: row.template === "CAKE" ? (row.allowCustomSize ?? false) : false,
+    supportsMessageOnCake:
+      row.template === "CAKE" ? (row.supportsMessageOnCake ?? false) : false,
+    messageMaxLength: 40,
+    leadTimeHours: 0,
+    isHealthyTreat: false,
+    allergens: [],
+    sizeOptions:
+      row.template === "PIZZA" || row.template === "OTHER"
+        ? row.sizeOptions
+        : undefined,
+    crustOptions: row.template === "PIZZA" ? row.crustOptions : undefined,
+  };
+}
+
+export async function bulkCreateProducts(
+  rows: BulkProductRow[],
+  mode: "create" | "upsert" = "create",
+): Promise<BulkCreateProductsResult> {
+  const allSlugs = [...new Set(rows.flatMap((r) => r.categorySlugs.map((s) => s.trim())))];
+  const categories = await prisma.category.findMany({
+    where: { slug: { in: allSlugs } },
+    select: { id: true, slug: true },
+  });
+  const categoryBySlug = new Map(categories.map((c) => [c.slug, c.id]));
+
+  const result: BulkCreateProductsResult = {
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+  };
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    const rowNum = i + 1;
+    try {
+      const categoryIds: string[] = [];
+      for (const slug of row.categorySlugs) {
+        const id = categoryBySlug.get(slug.trim());
+        if (!id) {
+          throw new Error(`Unknown category slug “${slug}”`);
+        }
+        if (!categoryIds.includes(id)) categoryIds.push(id);
+      }
+
+      const explicitSlug = row.slug?.trim() || null;
+      const existing = explicitSlug
+        ? await prisma.product.findUnique({
+            where: { slug: explicitSlug },
+            select: { id: true },
+          })
+        : null;
+
+      if (existing) {
+        if (mode === "create") {
+          result.skipped += 1;
+          result.errors.push({
+            row: rowNum,
+            name: row.name,
+            message: `Slug “${explicitSlug}” already exists — skipped`,
+          });
+          continue;
+        }
+        await updateProduct(existing.id, {
+          name: row.name,
+          categoryIds,
+          basePrice: row.basePrice,
+          template: row.template,
+          productType: row.productType,
+          shortDescription: row.shortDescription ?? null,
+          images: row.images ?? [],
+          gstRate: row.gstRate,
+          hsnCode: row.hsnCode,
+          isEggless: row.isEggless,
+          isSpicy: row.isSpicy,
+          sellByPound: row.template === "CAKE" ? row.sellByPound : false,
+          allowCustomSize: row.template === "CAKE" ? row.allowCustomSize : false,
+          supportsMessageOnCake:
+            row.template === "CAKE" ? row.supportsMessageOnCake : false,
+          supportsSameDayDelivery: row.supportsSameDayDelivery,
+          canBeDeliveredPanIndia: row.canBeDeliveredPanIndia,
+          isActive: row.isActive,
+          isAvailable: row.isAvailable,
+          isFeatured: row.isFeatured,
+          sortOrder: row.sortOrder,
+          sizeOptions:
+            row.template === "PIZZA" || row.template === "OTHER"
+              ? row.sizeOptions
+              : undefined,
+          crustOptions: row.template === "PIZZA" ? row.crustOptions : undefined,
+        });
+        result.updated += 1;
+        continue;
+      }
+
+      const slug = explicitSlug || (await allocateUniqueSlug(row.name));
+      await createProduct(rowToCreateInput(row, slug, categoryIds));
+      result.created += 1;
+    } catch (err) {
+      result.skipped += 1;
+      result.errors.push({
+        row: rowNum,
+        name: row.name,
+        message: err instanceof Error ? err.message : "Failed to import",
+      });
+    }
+  }
+
+  return result;
+}
+
+/** Flat rows matching bulk import columns — for backup / template export. */
+export type ProductSpreadsheetRow = {
+  name: string;
+  slug: string;
+  categorySlugs: string;
+  basePrice: number;
+  template: string;
+  productType: string;
+  shortDescription: string;
+  images: string;
+  gstRate: number;
+  hsnCode: string;
+  isEggless: boolean;
+  isSpicy: boolean;
+  sellByPound: boolean;
+  supportsSameDayDelivery: boolean;
+  canBeDeliveredPanIndia: boolean;
+  isActive: boolean;
+  isAvailable: boolean;
+  isFeatured: boolean;
+  sortOrder: number;
+};
+
+export async function exportProductsSpreadsheet(
+  scope: AdminProductListScope = "all",
+): Promise<ProductSpreadsheetRow[]> {
+  const where =
+    scope === "catalog"
+      ? { archivedAt: null }
+      : scope === "archived"
+        ? { archivedAt: { not: null } }
+        : {};
+
+  const products = await prisma.product.findMany({
+    where,
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: {
+      name: true,
+      slug: true,
+      basePrice: true,
+      template: true,
+      productType: true,
+      shortDescription: true,
+      images: true,
+      gstRate: true,
+      hsnCode: true,
+      isEggless: true,
+      isSpicy: true,
+      sellByPound: true,
+      supportsSameDayDelivery: true,
+      canBeDeliveredPanIndia: true,
+      isActive: true,
+      isAvailable: true,
+      isFeatured: true,
+      sortOrder: true,
+      categoryLinks: {
+        select: { category: { select: { slug: true } } },
+      },
+    },
+  });
+
+  return products.map((p) => ({
+    name: p.name,
+    slug: p.slug,
+    categorySlugs: p.categoryLinks.map((l) => l.category.slug).join("; "),
+    basePrice: Number(p.basePrice),
+    template: p.template,
+    productType: p.productType,
+    shortDescription: p.shortDescription ?? "",
+    images: p.images.join("; "),
+    gstRate: Number(p.gstRate),
+    hsnCode: p.hsnCode,
+    isEggless: p.isEggless,
+    isSpicy: p.isSpicy,
+    sellByPound: p.sellByPound,
+    supportsSameDayDelivery: p.supportsSameDayDelivery,
+    canBeDeliveredPanIndia: p.canBeDeliveredPanIndia,
+    isActive: p.isActive,
+    isAvailable: p.isAvailable,
+    isFeatured: p.isFeatured,
+    sortOrder: p.sortOrder,
+  }));
+}
+
 function slugifyProductName(name: string) {
   return name
     .toLowerCase()
