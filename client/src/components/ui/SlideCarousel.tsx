@@ -32,6 +32,8 @@ type Props = {
   autoPlayMs?: number;
   /** Width class for each slide. */
   slideClassName?: string;
+  /** Snap alignment — `start` works better when multiple slides are visible. */
+  snapAlign?: "start" | "center";
   className?: string;
 };
 
@@ -45,6 +47,7 @@ export function SlideCarousel({
   hideFrom,
   autoPlayMs = 5500,
   slideClassName = "w-[min(100%,22rem)]",
+  snapAlign = "center",
   className,
 }: Props) {
   const slides = Children.toArray(children).filter(Boolean);
@@ -106,14 +109,18 @@ export function SlideCarousel({
     >
       <div
         ref={scrollerRef}
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label={ariaLabel}
       >
         {slides.map((slide, index) => (
           <div
             key={index}
             data-slide-carousel-item
-            className={cn("shrink-0 snap-center", slideClassName)}
+            className={cn(
+              "flex shrink-0 flex-col",
+              snapAlign === "start" ? "snap-start" : "snap-center",
+              slideClassName,
+            )}
           >
             {slide}
           </div>

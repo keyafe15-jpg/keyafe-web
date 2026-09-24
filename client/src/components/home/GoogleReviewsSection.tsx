@@ -1,6 +1,6 @@
 import { Star } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
-import { MobileSlideCarousel } from "@/components/ui/SlideCarousel";
+import { SlideCarousel } from "@/components/ui/SlideCarousel";
 import { BRAND } from "@/content/brand";
 import { HOME_COPY } from "@/content/home";
 import {
@@ -158,21 +158,17 @@ export function GoogleReviewsSection() {
       )}
 
       {data && data.reviews.length > 0 && (
-        <>
-          <MobileSlideCarousel ariaLabel="Guest reviews" hideFrom="md">
+        <Reveal>
+          <SlideCarousel
+            ariaLabel="Guest reviews"
+            snapAlign="start"
+            slideClassName="w-[min(100%,22rem)] sm:w-[calc((100%-0.75rem)/2)] lg:w-[calc((100%-1.5rem)/3)]"
+          >
             {data.reviews.map((review, index) => (
               <ReviewCard key={`${review.authorName}-${index}`} review={review} />
             ))}
-          </MobileSlideCarousel>
-
-          <div className="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-3">
-            {data.reviews.map((review, index) => (
-              <Reveal key={`${review.authorName}-${index}`} delay={index * 80}>
-                <ReviewCard review={review} />
-              </Reveal>
-            ))}
-          </div>
-        </>
+          </SlideCarousel>
+        </Reveal>
       )}
 
       {data && (
