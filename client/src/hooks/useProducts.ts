@@ -21,6 +21,8 @@ export interface ProductCard {
   isFeatured: boolean;
   /** Storefront treats eggless products as vegetarian for the FSSAI-style mark. */
   isEggless: boolean;
+  isSpicy: boolean;
+  isCustomizable: boolean;
   leadTimeHours: number;
   supportsSameDayDelivery: boolean;
   canBeDeliveredPanIndia: boolean;
@@ -255,6 +257,7 @@ export interface ProductDetail {
   template: ProductTemplate;
   isCustomizable: boolean;
   isEggless: boolean;
+  isSpicy: boolean;
   sellByPound: boolean;
   minGrams: number | null;
   maxGrams: number | null;

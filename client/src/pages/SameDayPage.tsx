@@ -83,7 +83,7 @@ export function SameDayPage() {
   }, [products, activeIds, catalogFilters]);
 
   const activeLabel = activeNode?.name ?? "…";
-  const filterResetKey = `${activeSlug}|${catalogFilters.flavor}|${catalogFilters.minPrice}|${catalogFilters.maxPrice}|${catalogFilters.sort}`;
+  const filterResetKey = `${activeSlug}|${catalogFilters.flavor}|${catalogFilters.minPrice}|${catalogFilters.maxPrice}|${catalogFilters.sort}|${catalogFilters.noCream}|${catalogFilters.fixedDesign}|${catalogFilters.diet}|${catalogFilters.heat}`;
 
   return (
     <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">

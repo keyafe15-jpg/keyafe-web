@@ -21,7 +21,17 @@ export function CategoryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [slug, filters.flavor, filters.minPrice, filters.maxPrice, filters.sort]);
+  }, [
+    slug,
+    filters.flavor,
+    filters.minPrice,
+    filters.maxPrice,
+    filters.sort,
+    filters.noCream,
+    filters.fixedDesign,
+    filters.diet,
+    filters.heat,
+  ]);
 
   const { data: tree = [], isLoading: catsLoading } = useCategories();
   const { data: response, isLoading: prodsLoading } = useProductsByCategory(
@@ -87,7 +97,11 @@ export function CategoryPage() {
         <CatalogSearchBar className="w-full max-w-md shrink-0 sm:w-80" />
       </header>
 
-      <CatalogFilters className="mb-6" onChange={() => setPage(1)} />
+      <CatalogFilters
+        className="mb-6"
+        departmentSlug={current?.department?.slug}
+        onChange={() => setPage(1)}
+      />
 
       <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
         {hasSubs && (

@@ -64,7 +64,16 @@ export function SearchPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [filters.flavor, filters.minPrice, filters.maxPrice, filters.sort]);
+  }, [
+    filters.flavor,
+    filters.minPrice,
+    filters.maxPrice,
+    filters.sort,
+    filters.noCream,
+    filters.fixedDesign,
+    filters.diet,
+    filters.heat,
+  ]);
 
   // URL is the source of truth for the fetch (updated after the debounce above).
   const debouncedQ = urlQ.trim();

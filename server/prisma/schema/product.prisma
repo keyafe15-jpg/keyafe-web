@@ -35,7 +35,10 @@ model Product {
   isCustomizable Boolean     @default(false)
   // Whether the product itself is eggless. Independent of flavour eggless flags
   // (those describe individual flavour recipes on the master list).
+  // Storefront also uses this as the veg / non-veg mark (and savory diet filter).
   isEggless      Boolean     @default(true)
+  // Savory heat flag — drives the Spicy / Mild catalog filter.
+  isSpicy        Boolean     @default(false)
 
   // If true, the PDP shows a pound selector (from CakeSize master list) and
   // charges (basePrice + flavourAdditional) × pounds − ₹50 per half-lb above 1 lb.

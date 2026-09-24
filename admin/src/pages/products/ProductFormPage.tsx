@@ -51,6 +51,7 @@ const formSchema = z.object({
   template: z.enum(["CAKE", "PIZZA", "OTHER"]),
   isCustomizable: z.boolean(),
   isEggless: z.boolean(),
+  isSpicy: z.boolean(),
   sellByPound: z.boolean(),
   minGrams: z.union([z.coerce.number().int().positive(), z.literal("")]).optional(),
   maxGrams: z.union([z.coerce.number().int().positive(), z.literal("")]).optional(),
@@ -137,6 +138,7 @@ export function ProductFormPage() {
       template: "CAKE",
       isCustomizable: false,
       isEggless: true,
+      isSpicy: false,
       sellByPound: false,
       minGrams: "",
       maxGrams: "",
@@ -186,6 +188,7 @@ export function ProductFormPage() {
       template: existing.template ?? "CAKE",
       isCustomizable: existing.isCustomizable,
       isEggless: existing.isEggless,
+      isSpicy: existing.isSpicy ?? false,
       sellByPound: existing.sellByPound,
       minGrams: existing.minGrams ?? "",
       maxGrams: existing.maxGrams ?? "",
@@ -271,6 +274,7 @@ export function ProductFormPage() {
         template: values.template,
         isCustomizable: values.isCustomizable,
         isEggless: values.isEggless,
+        isSpicy: values.isSpicy,
         sellByPound: values.sellByPound,
         minGrams: typeof values.minGrams === "number" ? values.minGrams : null,
         maxGrams: typeof values.maxGrams === "number" ? values.maxGrams : null,
@@ -586,8 +590,13 @@ export function ProductFormPage() {
               />
               <Checkbox
                 {...register("isEggless")}
-                label="Eggless"
-                hint="Shown as ‘veg’ on the storefront. Turn off for egg-based cakes."
+                label="Eggless / vegetarian"
+                hint="Shown as the green veg mark on the storefront. Turn off for egg-based cakes or non-veg savoury."
+              />
+              <Checkbox
+                {...register("isSpicy")}
+                label="Spicy"
+                hint="Used by the savoury catalog heat filter (Spicy / Mild)."
               />
               {template === "CAKE" && (
                 <>

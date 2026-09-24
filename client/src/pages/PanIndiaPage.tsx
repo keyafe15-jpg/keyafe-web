@@ -47,7 +47,7 @@ export function PanIndiaPage() {
     setActiveCategoryId(id);
   };
 
-  const filterResetKey = `${activeCategoryId ?? "all"}|${catalogFilters.flavor}|${catalogFilters.minPrice}|${catalogFilters.maxPrice}|${catalogFilters.sort}`;
+  const filterResetKey = `${activeCategoryId ?? "all"}|${catalogFilters.flavor}|${catalogFilters.minPrice}|${catalogFilters.maxPrice}|${catalogFilters.sort}|${catalogFilters.noCream}|${catalogFilters.fixedDesign}|${catalogFilters.diet}|${catalogFilters.heat}`;
 
   return (
     <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">

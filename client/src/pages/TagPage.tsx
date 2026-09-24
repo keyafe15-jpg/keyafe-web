@@ -19,7 +19,17 @@ export function TagPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [slug, filters.flavor, filters.minPrice, filters.maxPrice, filters.sort]);
+  }, [
+    slug,
+    filters.flavor,
+    filters.minPrice,
+    filters.maxPrice,
+    filters.sort,
+    filters.noCream,
+    filters.fixedDesign,
+    filters.diet,
+    filters.heat,
+  ]);
 
   const { data, isLoading, isError } = useProductsByTag(slug, page, PAGE_SIZE, filters);
 

@@ -102,6 +102,7 @@ export interface CreateProductPayload {
   template: ProductTemplate;
   isCustomizable: boolean;
   isEggless: boolean;
+  isSpicy: boolean;
   sellByPound: boolean;
   minGrams?: number | null;
   maxGrams?: number | null;

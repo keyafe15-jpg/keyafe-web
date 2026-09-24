@@ -32,6 +32,7 @@ export const createProductSchema = z.object({
   template: z.enum(["CAKE", "PIZZA", "OTHER"]).default("CAKE"),
   isCustomizable: z.boolean().default(false),
   isEggless: z.boolean().default(true),
+  isSpicy: z.boolean().default(false),
   sellByPound: z.boolean().default(false),
   minGrams: z.coerce.number().int().positive().nullable().optional(),
   maxGrams: z.coerce.number().int().positive().nullable().optional(),
@@ -205,6 +206,8 @@ const PUBLIC_CARD_SELECT = {
   isAvailable: true,
   isFeatured: true,
   isEggless: true,
+  isSpicy: true,
+  isCustomizable: true,
   leadTimeHours: true,
   supportsSameDayDelivery: true,
   canBeDeliveredPanIndia: true,
@@ -246,6 +249,8 @@ type PublicCardRow = {
   isAvailable: boolean;
   isFeatured: boolean;
   isEggless: boolean;
+  isSpicy: boolean;
+  isCustomizable: boolean;
   leadTimeHours: number;
   supportsSameDayDelivery: boolean;
   canBeDeliveredPanIndia: boolean;
@@ -267,15 +272,21 @@ type PublicCardRow = {
 };
 
 export type PublicCatalogSort = "featured" | "price_asc" | "price_desc";
+export type PublicCatalogDiet = "veg" | "nonveg";
+export type PublicCatalogHeat = "spicy" | "mild";
 
 export type PublicCatalogFilters = {
   flavor?: string;
   minPrice?: number;
   maxPrice?: number;
   sort?: PublicCatalogSort;
+  noCream?: boolean;
+  fixedDesign?: boolean;
+  diet?: PublicCatalogDiet;
+  heat?: PublicCatalogHeat;
 };
 
-/** Parse storefront catalog query params (flavor / price range / sort). */
+/** Parse storefront catalog query params (flavor / price / sort / dessert & savory chips). */
 export function parsePublicCatalogFilters(
   query: Record<string, unknown>,
 ): PublicCatalogFilters {
@@ -295,12 +306,61 @@ export function parsePublicCatalogFilters(
       ? sortRaw
       : undefined;
 
-  return { flavor, minPrice, maxPrice, sort };
+  const noCream =
+    query.noCream === "1" || query.noCream === "true" || query.noCream === true;
+  const fixedDesign =
+    query.fixed === "1" || query.fixed === "true" || query.fixed === true;
+
+  const dietRaw = typeof query.diet === "string" ? query.diet : undefined;
+  const diet: PublicCatalogDiet | undefined =
+    dietRaw === "veg" || dietRaw === "nonveg" ? dietRaw : undefined;
+
+  const heatRaw = typeof query.heat === "string" ? query.heat : undefined;
+  const heat: PublicCatalogHeat | undefined =
+    heatRaw === "spicy" || heatRaw === "mild" ? heatRaw : undefined;
+
+  return {
+    flavor,
+    minPrice,
+    maxPrice,
+    sort,
+    noCream: noCream || undefined,
+    fixedDesign: fixedDesign || undefined,
+    diet,
+    heat,
+  };
 }
 
-function flavorWhereClause(flavor?: string): Prisma.ProductWhereInput {
-  if (!flavor) return {};
-  return { flavors: { some: { slug: flavor, isActive: true } } };
+const NO_CREAM_CATEGORY_SLUG = "no-cream-cakes";
+
+function catalogAttributeWhere(filters: PublicCatalogFilters): Prisma.ProductWhereInput {
+  const clauses: Prisma.ProductWhereInput[] = [];
+
+  if (filters.flavor) {
+    clauses.push({ flavors: { some: { slug: filters.flavor, isActive: true } } });
+  }
+  if (filters.noCream) {
+    clauses.push({
+      categoryLinks: { some: { category: { slug: NO_CREAM_CATEGORY_SLUG } } },
+    });
+  }
+  if (filters.fixedDesign) {
+    clauses.push({ isCustomizable: false });
+  }
+  if (filters.diet === "veg") {
+    clauses.push({ isEggless: true });
+  } else if (filters.diet === "nonveg") {
+    clauses.push({ isEggless: false });
+  }
+  if (filters.heat === "spicy") {
+    clauses.push({ isSpicy: true });
+  } else if (filters.heat === "mild") {
+    clauses.push({ isSpicy: false });
+  }
+
+  if (clauses.length === 0) return {};
+  if (clauses.length === 1) return clauses[0]!;
+  return { AND: clauses };
 }
 
 function needsStartingPricePostFilter(filters: PublicCatalogFilters) {
@@ -313,7 +373,7 @@ function needsStartingPricePostFilter(filters: PublicCatalogFilters) {
 }
 
 /**
- * Shared paginated listing: flavour filter hits the DB; price range / price sort
+ * Shared paginated listing: attribute filters hit the DB; price range / price sort
  * run after decorating `startingPrice` (variant-priced products can't sort by
  * basePrice alone). Fine for bakery-scale catalogues.
  */
@@ -325,8 +385,8 @@ async function listDecoratedPublicProducts(
 ) {
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 12));
-  const whereWithFlavor: Prisma.ProductWhereInput = {
-    AND: [where, flavorWhereClause(filters.flavor)],
+  const whereWithFilters: Prisma.ProductWhereInput = {
+    AND: [where, catalogAttributeWhere(filters)],
   };
   const defaultOrder = [
     { isFeatured: "desc" as const },
@@ -336,9 +396,9 @@ async function listDecoratedPublicProducts(
 
   if (!needsStartingPricePostFilter(filters)) {
     const [total, products] = await Promise.all([
-      prisma.product.count({ where: whereWithFlavor }),
+      prisma.product.count({ where: whereWithFilters }),
       prisma.product.findMany({
-        where: whereWithFlavor,
+        where: whereWithFilters,
         orderBy: defaultOrder,
         skip: (safePage - 1) * safePageSize,
         take: safePageSize,
@@ -356,7 +416,7 @@ async function listDecoratedPublicProducts(
   }
 
   const products = await prisma.product.findMany({
-    where: whereWithFlavor,
+    where: whereWithFilters,
     orderBy: defaultOrder,
     select: PUBLIC_CARD_SELECT,
   });
@@ -646,6 +706,7 @@ export async function getPublicProductBySlug(slug: string) {
       template: true,
       isCustomizable: true,
       isEggless: true,
+      isSpicy: true,
       sellByPound: true,
       minGrams: true,
       maxGrams: true,
@@ -927,6 +988,7 @@ export async function duplicateProduct(id: string) {
     template: source.template,
     isCustomizable: source.isCustomizable,
     isEggless: source.isEggless,
+    isSpicy: source.isSpicy,
     sellByPound: source.sellByPound,
     minGrams: source.minGrams,
     maxGrams: source.maxGrams,
