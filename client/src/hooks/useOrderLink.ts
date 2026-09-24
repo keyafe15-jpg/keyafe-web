@@ -33,6 +33,8 @@ export interface PublicOrderLink {
   expiresAt: string | null;
   discountType: "FLAT" | "PERCENT" | null;
   discountValue: string | null;
+  /** When set, customer pays this delivery fee (not the pincode table rate). */
+  deliveryFee: string | null;
   linkedOrder: { orderNumber: string } | null;
 }
 

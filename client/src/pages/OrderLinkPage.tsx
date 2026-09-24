@@ -123,8 +123,14 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
 
   const subtotal = link.items.reduce((sum, it) => sum + Number(it.unitPrice) * it.qty, 0);
   const discount = manualDiscountRupees(subtotal, link.discountType, link.discountValue);
+  const lockedDeliveryFee =
+    link.deliveryFee != null && Number.isFinite(Number(link.deliveryFee))
+      ? Number(link.deliveryFee)
+      : null;
   const deliveryFee =
-    fulfillment === "DELIVERY" && pincodeResult?.serviceable ? pincodeResult.deliveryFee : 0;
+    fulfillment === "DELIVERY" && pincodeResult?.serviceable
+      ? (lockedDeliveryFee ?? pincodeResult.deliveryFee)
+      : 0;
   const total = subtotal - discount + deliveryFee;
 
   const payNowAmount =
@@ -499,8 +505,10 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                     ) : pincodeResult ? (
                       pincodeResult.serviceable ? (
                         <span className="text-xs text-emerald-700">
-                          {[pincodeResult.city, pincodeResult.area].filter(Boolean).join(" · ")} · ₹
-                          {pincodeResult.deliveryFee} delivery
+                          {[pincodeResult.city, pincodeResult.area].filter(Boolean).join(" · ")}
+                          {lockedDeliveryFee == null
+                            ? ` · ₹${pincodeResult.deliveryFee} delivery`
+                            : ""}
                         </span>
                       ) : (
                         <span className="text-xs text-brand-700">

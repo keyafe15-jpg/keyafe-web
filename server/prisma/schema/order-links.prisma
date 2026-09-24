@@ -39,6 +39,11 @@ model OrderLink {
   discountType  OfflineDiscountType?
   discountValue Decimal?             @db.Decimal(10, 2)
 
+  // Optional delivery fee locked by admin (e.g. after agreeing the address on
+  // WhatsApp). When set, the customer sees this amount instead of the pincode
+  // table rate — they are not told it was overridden.
+  deliveryFee Decimal? @db.Decimal(10, 2)
+
   status    OrderLinkStatus @default(OPEN)
   expiresAt DateTime?
 

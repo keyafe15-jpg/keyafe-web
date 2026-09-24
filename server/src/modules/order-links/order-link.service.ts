@@ -120,6 +120,9 @@ export const createOrderLinkSchema = z.object({
 
   expiresInDays: z.coerce.number().int().positive().max(365).nullable().optional(),
 
+  // Optional locked delivery fee for this link (null = use pincode table).
+  deliveryFee: z.coerce.number().nonnegative().nullable().optional(),
+
   ...manualDiscountFields,
 });
 
@@ -197,6 +200,7 @@ export async function createOrderLink(input: CreateOrderLinkInput) {
       expiresAt,
       discountType: discount.discountType,
       discountValue: discount.discountValue,
+      deliveryFee: input.deliveryFee ?? null,
       items: { create: itemCreates },
     },
     include: { items: { orderBy: { sortOrder: "asc" } } },
@@ -264,6 +268,7 @@ export async function getOrderLinkByToken(token: string) {
       expiresAt: true,
       discountType: true,
       discountValue: true,
+      deliveryFee: true,
       items: {
         orderBy: { sortOrder: "asc" },
         select: {
@@ -412,7 +417,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
     isSurpriseGift: input.isSurpriseGift,
   });
 
-  // Delivery fee lookup
+  // Delivery fee: locked on the link when admin set one, else pincode table.
   let deliveryFee = 0;
   let isLocalZone = false;
   if (input.fulfillment === "DELIVERY" && input.deliveryAddress) {
@@ -422,7 +427,8 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
         "We don't currently deliver to this pincode. Choose pickup or a different address.",
       );
     }
-    deliveryFee = Number(info.deliveryFee);
+    deliveryFee =
+      link.deliveryFee != null ? Number(link.deliveryFee) : Number(info.deliveryFee);
     isLocalZone = true;
   }
 
@@ -620,6 +626,7 @@ export const updateOrderLinkSchema = z.object({
     .optional(),
   customerName: z.string().trim().nullable().optional(),
   customerPhone: z.string().trim().nullable().optional(),
+  deliveryFee: z.coerce.number().nonnegative().nullable().optional(),
   ...manualDiscountFields,
 });
 
@@ -642,6 +649,7 @@ export async function updateOrderLink(id: string, input: UpdateOrderLinkInput) {
   if (input.adminNotes !== undefined) data.adminNotes = input.adminNotes;
   if (input.customerName !== undefined) data.customerName = input.customerName;
   if (input.customerPhone !== undefined) data.customerPhone = input.customerPhone;
+  if (input.deliveryFee !== undefined) data.deliveryFee = input.deliveryFee;
   if (input.expiresInDays !== undefined) {
     data.expiresAt = input.expiresInDays
       ? new Date(Date.now() + input.expiresInDays * 24 * 3600 * 1000)

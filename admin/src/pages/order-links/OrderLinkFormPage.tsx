@@ -47,6 +47,7 @@ export function OrderLinkFormPage() {
   const [expiresInDays, setExpiresInDays] = useState<string>("7");
   const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
+  const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{
@@ -69,6 +70,9 @@ export function OrderLinkFormPage() {
         ? String(Number(existing.discountValue))
         : "",
     );
+    setDeliveryFeeInput(
+      existing.deliveryFee != null ? String(Number(existing.deliveryFee)) : "",
+    );
     if (existing.expiresAt) {
       const daysLeft = Math.max(
         1,
@@ -88,11 +92,16 @@ export function OrderLinkFormPage() {
     0,
   );
   const discount = manualDiscountRupees(itemsTotal, discountType, discountValue);
-  const grandTotal = itemsTotal - discount;
+  const lockedDeliveryFee =
+    deliveryFeeInput.trim() !== "" ? Math.max(0, Number(deliveryFeeInput) || 0) : null;
+  const grandTotal = itemsTotal - discount + (lockedDeliveryFee ?? 0);
 
   const discountPayload = {
     discountType: discount > 0 ? discountType : null,
     discountValue: discount > 0 ? Number(discountValue) : null,
+  };
+  const deliveryFeePayload = {
+    deliveryFee: lockedDeliveryFee,
   };
 
   const submit = async () => {
@@ -117,6 +126,7 @@ export function OrderLinkFormPage() {
           adminNotes: adminNotes.trim() || null,
           expiresInDays: expiresInDays ? Number(expiresInDays) : null,
           ...discountPayload,
+          ...deliveryFeePayload,
         });
         navigate("/offline-orders");
         return;
@@ -129,6 +139,7 @@ export function OrderLinkFormPage() {
         adminNotes: adminNotes.trim() || null,
         expiresInDays: expiresInDays ? Number(expiresInDays) : null,
         ...discountPayload,
+        ...deliveryFeePayload,
       };
 
       const link = await create.mutateAsync(payload);
@@ -170,7 +181,7 @@ export function OrderLinkFormPage() {
 
           <Section
             title="Discount"
-            subtitle="Optional. Locked on the items total. Customer still pays delivery if they choose it."
+            subtitle="Optional. Locked on the items total — not delivery."
           >
             <ManualDiscountFields
               type={discountType}
@@ -178,6 +189,21 @@ export function OrderLinkFormPage() {
               onType={setDiscountType}
               onValue={setDiscountValue}
             />
+          </Section>
+
+          <Section
+            title="Delivery charge"
+            subtitle="Optional. Lock a fee when you’ve already agreed the address (e.g. on WhatsApp). Leave blank so the customer’s pincode sets the table rate. The customer only sees the amount — not that it was overridden."
+          >
+            <Field label="Delivery charge (₹)" hint="Blank = pincode table when they order.">
+              <input
+                inputMode="decimal"
+                value={deliveryFeeInput}
+                onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
+                placeholder="e.g. 80"
+                className={inputClass}
+              />
+            </Field>
           </Section>
 
           <Section
@@ -242,12 +268,25 @@ export function OrderLinkFormPage() {
                 <span className="tabular-nums">−₹{discount.toFixed(0)}</span>
               </div>
             )}
+            {lockedDeliveryFee != null && (
+              <div className="mb-2 flex justify-between text-sm text-slate-700">
+                <span>Delivery (locked)</span>
+                <span className="tabular-nums">₹{lockedDeliveryFee.toFixed(0)}</span>
+              </div>
+            )}
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-slate-700">Locked price</span>
+              <span className="text-sm text-slate-700">
+                {lockedDeliveryFee != null ? "Items + delivery" : "Locked items price"}
+              </span>
               <span className="text-2xl font-semibold text-slate-900 tabular-nums">
                 ₹{grandTotal.toFixed(0)}
               </span>
             </div>
+            {lockedDeliveryFee == null && (
+              <p className="mt-1 text-[11px] text-slate-500">
+                Delivery still added from the customer’s pincode when they order.
+              </p>
+            )}
 
             <div className="mt-4">
               <Field label="Expires in (days)" hint="Link stops working after this. Blank = never.">

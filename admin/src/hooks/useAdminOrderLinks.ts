@@ -33,6 +33,8 @@ export interface OrderLink {
   expiresAt: string | null;
   discountType: "FLAT" | "PERCENT" | null;
   discountValue: string | null;
+  /** Locked delivery fee when set; otherwise customer pays pincode table rate. */
+  deliveryFee: string | null;
   linkedOrder: {
     id: string;
     orderNumber: string;
@@ -71,6 +73,8 @@ export interface CreateOrderLinkPayload {
   expiresInDays?: number | null;
   discountType?: "FLAT" | "PERCENT" | null;
   discountValue?: number | null;
+  /** Lock delivery fee for this link; null = use pincode table when customer orders. */
+  deliveryFee?: number | null;
 }
 
 export function useAdminOrderLinks(status?: OrderLinkStatus | "ALL") {
@@ -103,6 +107,7 @@ export interface UpdateOrderLinkPayload {
   customerPhone?: string | null;
   discountType?: "FLAT" | "PERCENT" | null;
   discountValue?: number | null;
+  deliveryFee?: number | null;
 }
 
 export function useAdminOrderLink(id: string | undefined) {
