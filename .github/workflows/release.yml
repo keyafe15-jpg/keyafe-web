@@ -1,0 +1,146 @@
+name: Cut release
+
+# Does NOT run on push to main.
+# Actions → Cut release → Run workflow → choose bump or explicit version.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Semver bump (ignored if version is set)
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: Explicit version without v (e.g. 1.2.0). Leave empty to auto-bump.
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag, build, deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve version
+        id: ver
+        run: |
+          set -euo pipefail
+          EXPLICIT="${{ inputs.version }}"
+          if [[ -n "$EXPLICIT" ]]; then
+            VER="${EXPLICIT#v}"
+          else
+            LATEST="$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo 'v0.0.0')"
+            LATEST="${LATEST#v}"
+            IFS=. read -r MAJOR MINOR PATCH <<<"$LATEST"
+            MAJOR=${MAJOR:-0}; MINOR=${MINOR:-0}; PATCH=${PATCH:-0}
+            case "${{ inputs.bump }}" in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+            VER="${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VER" >> "$GITHUB_OUTPUT"
+          echo "Resolved v$VER"
+
+      - name: Create release branch + tag
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          BRANCH="release/${TAG}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH" "${{ github.sha }}"
+          git push origin "$BRANCH" --force
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        env:
+          APP_VERSION: ${{ steps.ver.outputs.tag }}
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_GOOGLE_PLACE_ID: ${{ secrets.VITE_GOOGLE_PLACE_ID }}
+        run: |
+          pnpm --filter server build
+          pnpm --filter client build
+          pnpm --filter admin build
+
+      - name: Pack release tarball
+        env:
+          APP_VERSION: ${{ steps.ver.outputs.tag }}
+        run: |
+          chmod +x deploy/pack-release.sh
+          ./deploy/pack-release.sh
+
+      - name: Upload to droplet
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
+            keyafe-release.tgz \
+            "$USER@$HOST:/tmp/keyafe-release.tgz"
+          scp -i ~/.ssh/deploy_key \
+            deploy/remote-release.sh \
+            "$USER@$HOST:/tmp/remote-release.sh"
+
+      - name: Activate release on droplet
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "$USER@$HOST" \
+            "APP_VERSION='$TAG' RELEASE_TARBALL=/tmp/keyafe-release.tgz bash /tmp/remote-release.sh"
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          PREV="$(git describe --tags --match 'v*' --abbrev=0 "$TAG^" 2>/dev/null || true)"
+          NOTES_ARGS=()
+          if [[ -n "$PREV" ]]; then
+            NOTES_ARGS=(--notes "$(git log --pretty=format:'- %s (%h)' "$PREV..$TAG")")
+          else
+            NOTES_ARGS=(--generate-notes)
+          fi
+          gh release create "$TAG" keyafe-release.tgz \
+            --title "$TAG" \
+            "${NOTES_ARGS[@]}"

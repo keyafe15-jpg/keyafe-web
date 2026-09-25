@@ -59,6 +59,9 @@ const envSchema = z.object({
     .min(32, "JWT_SECRET must be at least 32 chars")
     .default("dev-secret-keyafe-please-change-me-2026"),
   JWT_EXPIRES_IN: z.string().default("7d"),
+
+  /** Set by release deploy (e.g. v1.2.3). Optional in local/dev. */
+  APP_VERSION: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
