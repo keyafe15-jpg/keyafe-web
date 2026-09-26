@@ -24,8 +24,19 @@ ln -sfn "$APP_ROOT/shared/.env" "$RELEASE_DIR/server/.env"
 
 echo "==> Prisma migrate"
 cd "$RELEASE_DIR/server"
-# Use the shipped binary — avoid corepack pulling pnpm 10+ (ERR_PNPM_IGNORED_BUILDS).
-./node_modules/.bin/prisma migrate deploy
+# Prefer the package entry (portable). .bin/prisma shims often break after tar
+# (wrong relative path → /var/www/keyafe/releases/node_modules/...).
+# Remove stray node_modules left by older pnpm runs at the releases/ root.
+rm -rf "$APP_ROOT/releases/node_modules"
+PRISMA_JS="./node_modules/prisma/build/index.js"
+if [[ ! -f "$PRISMA_JS" ]]; then
+  PRISMA_JS="$(find "$RELEASE_DIR/server/node_modules" -path '*/prisma/build/index.js' | head -n1 || true)"
+fi
+if [[ -z "${PRISMA_JS}" || ! -f "$PRISMA_JS" ]]; then
+  echo "Prisma CLI not found under $RELEASE_DIR/server/node_modules" >&2
+  exit 1
+fi
+node "$PRISMA_JS" migrate deploy
 
 echo "==> Symlink current → $VERSION"
 ln -sfn "$RELEASE_DIR" "$APP_ROOT/current"

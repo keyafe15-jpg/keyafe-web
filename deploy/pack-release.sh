@@ -20,8 +20,8 @@ cp -a "$ROOT/client/dist/." "$STAGE/client/"
 cp -a "$ROOT/admin/dist/." "$STAGE/admin/"
 
 # Portable server package (prod deps + built dist)
-# pnpm deploy creates an isolated install directory.
-pnpm --dir "$ROOT" --filter server deploy --prod "$STAGE/server-deploy"
+# Hoisted layout survives tarball move better than pnpm's nested .bin symlinks.
+pnpm --dir "$ROOT" --filter server deploy --prod --config.node-linker=hoisted "$STAGE/server-deploy"
 # Flatten into stage/server (deploy puts package contents in the target)
 rm -rf "$STAGE/server"
 mv "$STAGE/server-deploy" "$STAGE/server"
@@ -31,6 +31,7 @@ mkdir -p "$STAGE/server/prisma"
 cp -a "$ROOT/server/prisma/." "$STAGE/server/prisma/"
 
 # Prisma CLI needed on server for migrate (not always in --prod deploy)
+echo "node-linker=hoisted" > "$STAGE/server/.npmrc"
 pnpm --dir "$STAGE/server" add prisma@5.22.0 --save-prod
 
 # Generate client against shipped schema (in case deploy pruned it)
