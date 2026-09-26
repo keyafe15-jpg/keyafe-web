@@ -18,7 +18,7 @@ cp -a "$ROOT/admin/dist/." "$STAGE/admin/"
 
 # Portable server package (prod deps + built dist)
 # pnpm deploy creates an isolated install directory.
-pnpm --dir "$ROOT" --filter server deploy --prod --legacy "$STAGE/server-deploy"
+pnpm --dir "$ROOT" --filter server deploy --prod "$STAGE/server-deploy"
 # Flatten into stage/server (deploy puts package contents in the target)
 rm -rf "$STAGE/server"
 mv "$STAGE/server-deploy" "$STAGE/server"
