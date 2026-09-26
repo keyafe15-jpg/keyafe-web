@@ -4,7 +4,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-STAGE="$(mktemp -d)"
+# Stage inside the repo — pnpm deploy breaks on system /tmp (relative paths → EACCES /home/tmp).
+STAGE="$ROOT/.release-stage"
+rm -rf "$STAGE"
+mkdir -p "$STAGE"
 trap 'rm -rf "$STAGE"' EXIT
 
 VERSION="${APP_VERSION:-unknown}"

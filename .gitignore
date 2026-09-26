@@ -28,3 +28,7 @@ pnpm-debug.log*
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# release pack staging / artifact
+.release-stage/
+keyafe-release.tgz
