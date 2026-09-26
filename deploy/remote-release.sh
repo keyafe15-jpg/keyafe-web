@@ -24,7 +24,8 @@ ln -sfn "$APP_ROOT/shared/.env" "$RELEASE_DIR/server/.env"
 
 echo "==> Prisma migrate"
 cd "$RELEASE_DIR/server"
-pnpm exec prisma migrate deploy
+# Use the shipped binary — avoid corepack pulling pnpm 10+ (ERR_PNPM_IGNORED_BUILDS).
+./node_modules/.bin/prisma migrate deploy
 
 echo "==> Symlink current → $VERSION"
 ln -sfn "$RELEASE_DIR" "$APP_ROOT/current"
