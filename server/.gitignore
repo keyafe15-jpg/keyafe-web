@@ -1,8 +1,9 @@
 node_modules
 dist
-uploads
 .env
 .env.*
 !.env.example
 *.log
 .DS_Store
+src/modules/uploads/*
+!src/modules/uploads/upload.routes.ts
