@@ -19,6 +19,7 @@ import {
   FileText,
   Megaphone,
   MessageSquareQuote,
+  GalleryHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -132,6 +133,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Marketing",
     items: [
+      {
+        to: "/hero-slides",
+        label: "Hero slider",
+        icon: GalleryHorizontal,
+        requiresPermission: "settings.update",
+      },
       {
         to: "/announcement",
         label: "Announcement",

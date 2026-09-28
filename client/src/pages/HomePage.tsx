@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { HeroSlider, type CollectionSlide } from "@/components/hero/HeroSlider";
+import { HeroSlider, type HeroSlideView } from "@/components/hero/HeroSlider";
+import { HeroStaticBanner } from "@/components/hero/HeroStaticBanner";
 import { HomePromoBanner } from "@/components/home/HomePromoBanner";
 import { TagShowcase } from "@/components/home/TagShowcase";
 import { HomeFilm } from "@/components/home/HomeFilm";
@@ -12,14 +13,14 @@ import { Reveal } from "@/components/motion/Reveal";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { BakeryJsonLd, Seo } from "@/components/seo/Seo";
 import { SlideCarousel } from "@/components/ui/SlideCarousel";
-import { HOME_COLLECTIONS, HOME_COPY, HOME_SEO, KEYAFE_OFFERINGS } from "@/content/home";
+import { HOME_COPY, HOME_SEO, KEYAFE_OFFERINGS } from "@/content/home";
 import { cn } from "@/lib/cn";
+import { useHeroSlides } from "@/hooks/useHeroSlides";
 import {
   groupCategoriesByDepartment,
   useCategories,
   useDepartments,
   type CategoryDepartmentGroup,
-  type CategoryNode,
 } from "@/hooks/useCategories";
 
 const promiseCards = [
@@ -83,23 +84,22 @@ function PromiseCard({
 export function HomePage() {
   const { data: categories = [] } = useCategories();
   const { data: departments = [] } = useDepartments();
+  const { data: heroSlides, isPending: heroPending } = useHeroSlides();
 
-  const slides = useMemo((): CollectionSlide[] => {
-    const images = imagesBySlug(categories);
-    return HOME_COLLECTIONS.map((item) => {
-      const imageUrl = item.categorySlug ? (images.get(item.categorySlug) ?? null) : null;
-      const imageUrlMobile = item.mobileCategorySlug
-        ? (images.get(item.mobileCategorySlug) ?? imageUrl)
-        : imageUrl;
-      return {
-        title: item.title,
-        line: item.line,
-        to: item.to,
-        imageUrl,
-        imageUrlMobile,
-      };
-    });
-  }, [categories]);
+  const slides = useMemo(
+    (): HeroSlideView[] =>
+      (heroSlides ?? []).map((slide) => ({
+        key: slide.id,
+        mediaType: slide.mediaType,
+        desktopUrl: slide.desktopUrl,
+        mobileUrl: slide.mobileUrl,
+        posterUrl: slide.posterUrl,
+        title: slide.title,
+        line: slide.subtitle,
+        to: slide.linkUrl,
+      })),
+    [heroSlides],
+  );
 
   const storeGroups = useMemo(
     () => groupCategoriesByDepartment(categories, departments).filter((g) => g.department),
@@ -123,7 +123,8 @@ export function HomePage() {
 
       <section className="pb-0">
         <div className="relative w-full">
-          <HeroSlider slides={slides} />
+          {/* Loading renders the slider's skeleton at the same height. */}
+          {heroPending || slides.length > 0 ? <HeroSlider slides={slides} /> : <HeroStaticBanner />}
         </div>
       </section>
 
@@ -405,15 +406,4 @@ function StoreDoorsMobileTabs({ groups }: { groups: CategoryDepartmentGroup[] })
       />
     </div>
   );
-}
-
-function imagesBySlug(tree: CategoryNode[]) {
-  const map = new Map<string, string>();
-  for (const category of tree) {
-    if (category.imageUrl) map.set(category.slug, category.imageUrl);
-    for (const child of category.children) {
-      if (child.imageUrl) map.set(child.slug, child.imageUrl);
-    }
-  }
-  return map;
 }

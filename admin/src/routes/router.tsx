@@ -22,6 +22,7 @@ import { OfflineOrderDirectFormPage } from "@/pages/order-links/OfflineOrderDire
 import { DeliveryPincodesPage } from "@/pages/delivery/DeliveryPincodesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { AnnouncementPage } from "@/pages/AnnouncementPage";
+import { HeroSlidesPage } from "@/pages/HeroSlidesPage";
 import { StoreHoursPage } from "@/pages/store/StoreHoursPage";
 import { CouponsPage } from "@/pages/coupons/CouponsPage";
 import { CustomersListPage } from "@/pages/customers/CustomersListPage";
@@ -119,6 +120,10 @@ export const router = createBrowserRouter([
             element: (
               <StubPage title="Same-Day Categories" subtitle="Ready-to-grab menu structure." />
             ),
+          },
+          {
+            path: "hero-slides",
+            element: <HeroSlidesPage />,
           },
           {
             path: "announcement",

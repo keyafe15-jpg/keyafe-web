@@ -9,6 +9,7 @@ export type UploadPurpose =
   | "category"
   | "addon"
   | "festival"
+  | "hero"
   | "admin";
 
 export interface PresignInput {

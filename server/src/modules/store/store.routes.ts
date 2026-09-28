@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { gstinIssue, gstinStateCode, normalizeGstin } from "../../lib/gstin.js";
+import { sanitizeSiteLink } from "../../lib/siteLink.js";
 import { FALLBACK_SELLER_STATE_CODE } from "../orders/order.tax.js";
 import {
   computeSameDayStatus,
@@ -247,21 +248,6 @@ const announcementSelect = {
   announcementLinkLabel: true,
 } as const;
 
-function sanitizeAnnouncementLink(raw: string | null | undefined): string | null {
-  const value = raw?.trim() || null;
-  if (!value) return null;
-  if (value.startsWith("/") && !value.startsWith("//")) return value;
-  try {
-    const url = new URL(value);
-    if (url.protocol === "http:" || url.protocol === "https:") {
-      return url.toString();
-    }
-  } catch {
-    // fall through
-  }
-  throw HttpError.badRequest("Link must be a site path like /pan-india or a https URL.");
-}
-
 const announcementSchema = z.object({
   announcementEnabled: z.boolean(),
   announcementText: z.string().trim().max(160),
@@ -290,7 +276,7 @@ adminBusinessRouter.patch("/announcement", async (req, res) => {
     select: { id: true },
   });
   if (!existing) throw HttpError.notFound("Business settings not found");
-  const linkUrl = sanitizeAnnouncementLink(parsed.data.announcementLinkUrl);
+  const linkUrl = sanitizeSiteLink(parsed.data.announcementLinkUrl);
   const label = parsed.data.announcementLinkLabel?.trim() || null;
   const updated = await prisma.businessSettings.update({
     where: { id: existing.id },

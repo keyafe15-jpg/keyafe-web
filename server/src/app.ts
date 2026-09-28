@@ -12,6 +12,7 @@ import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 import { sitemapRouter } from "./modules/seo/sitemap.routes.js";
 import { uploadRouter } from "./modules/uploads/upload.routes.js";
+import { adminHeroRouter, heroRouter } from "./modules/hero/hero.routes.js";
 import {
   storeRouter,
   adminBusinessRouter,
@@ -114,6 +115,7 @@ export function createApp() {
   app.use("/api/addresses", addressRouter);
   app.use("/api/uploads", uploadRouter);
   app.use("/api/store", storeRouter);
+  app.use("/api/hero-slides", heroRouter);
   app.use("/api/delivery", deliveryRouter);
   app.use("/api/categories", categoryRouter);
   app.use("/api/departments", departmentRouter);
@@ -182,6 +184,12 @@ export function createApp() {
     adminBusinessRouter,
   );
   app.use("/api/admin/store", requireStaff, requirePermission("store.write"), adminStoreRouter);
+  app.use(
+    "/api/admin/hero-slides",
+    requireStaff,
+    requirePermission("settings.update"),
+    adminHeroRouter,
+  );
   app.use("/api/admin/quotes", requireStaff, adminQuoteRouter);
   app.use("/api/admin/reviews", requireStaff, adminReviewRouter);
   app.use(

@@ -13,7 +13,13 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
   "image/heic": "heic",
   "image/heif": "heif",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
 };
+
+function maxBytesFor(contentType: string) {
+  return contentType.startsWith("video/") ? env.UPLOAD_MAX_VIDEO_BYTES : env.UPLOAD_MAX_BYTES;
+}
 
 function todayFolder() {
   const now = new Date();
@@ -58,7 +64,7 @@ export class LocalDiskStorage implements StorageProvider {
       {
         key,
         contentType: input.contentType,
-        maxBytes: env.UPLOAD_MAX_BYTES,
+        maxBytes: maxBytesFor(input.contentType),
       } satisfies UploadToken,
       env.UPLOAD_TOKEN_SECRET,
       { expiresIn: TOKEN_TTL_SECONDS },

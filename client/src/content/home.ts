@@ -1,47 +1,3 @@
-export type HomeCollection = {
-  title: string;
-  line: string;
-  to: string;
-  categorySlug?: string;
-  mobileCategorySlug?: string;
-};
-
-export const HOME_COLLECTIONS: HomeCollection[] = [
-  {
-    title: "Celebration cakes",
-    line: "Birthdays, weddings and custom art — start here.",
-    to: "/category/celebration-cakes",
-    categorySlug: "celebration-cakes",
-    mobileCategorySlug: "birthday-cakes",
-  },
-  {
-    title: "Everyday sweets",
-    line: "Dry cakes and tea-time bakes for the week.",
-    to: "/category/dry-cakes",
-    categorySlug: "dry-cakes",
-    mobileCategorySlug: "tubs",
-  },
-  {
-    title: "Pizzas",
-    line: "Hand-tossed, wood-fired, ready when you are.",
-    to: "/category/pizzas",
-    categorySlug: "pizzas",
-    mobileCategorySlug: "panuozzo",
-  },
-  {
-    title: "Same day",
-    line: "Need it today? Shop what’s baking now.",
-    to: "/same-day",
-    mobileCategorySlug: "kids-cakes",
-  },
-  {
-    title: "Healthy treats",
-    line: "Lighter recipes without losing the joy.",
-    to: "/healthy",
-    mobileCategorySlug: "tubs",
-  },
-];
-
 /**
  * Everything we make, including the made-to-order items that never appear as
  * catalogue products. Declared in the homepage structured data so search
@@ -85,8 +41,11 @@ export const HOME_COPY = {
       to: "/pan-india",
     },
   },
-  collections: {
-    badge: "Shop this",
+  // Hero fallback when no slides are live in admin → Hero slider.
+  banner: {
+    eyebrow: "Keyafe · Belur, Kolkata",
+    title: "Freshly baked, every single day",
+    line: "Cakes, cookies, brownies, hampers and pizzas — delivered across Kolkata.",
   },
   film: {
     src: "/hero/keyafeoverall.mp4",

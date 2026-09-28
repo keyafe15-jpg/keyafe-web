@@ -1,18 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { HOME_COPY } from "@/content/home";
 import { cn } from "@/lib/cn";
 
-export type CollectionSlide = {
-  title: string;
-  line: string;
-  to: string;
-  imageUrl: string | null;
-  imageUrlMobile: string | null;
+export type HeroSlideView = {
+  key: string;
+  mediaType: "IMAGE" | "VIDEO";
+  desktopUrl: string | null;
+  mobileUrl: string | null;
+  posterUrl: string | null;
+  title: string | null;
+  line: string | null;
+  to: string | null;
 };
 
-const slideFrame =
+export const slideFrame =
   "relative aspect-[16/9] min-h-[280px] w-full sm:aspect-auto sm:min-h-0 sm:h-[400px] md:h-[440px] lg:h-[480px]";
+
+const MOBILE_QUERY = "(max-width: 639px)";
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const sync = () => setMatches(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, [query]);
+  return matches;
+}
 
 function ChevronIcon({ direction }: { direction: "prev" | "next" }) {
   return (
@@ -57,11 +73,47 @@ function NavArrow({
   );
 }
 
-export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
+function SlideLink({
+  to,
+  active,
+  children,
+}: {
+  to: string | null;
+  active: boolean;
+  children: ReactNode;
+}) {
+  const className = "group relative block overflow-hidden rounded-none outline-offset-4";
+  if (!to) return <div className={className}>{children}</div>;
+  if (/^https?:\/\//i.test(to)) {
+    return (
+      <a
+        href={to}
+        target="_blank"
+        rel="noopener noreferrer"
+        tabIndex={active ? 0 : -1}
+        className={className}
+      >
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link to={to} tabIndex={active ? 0 : -1} className={className}>
+      {children}
+    </Link>
+  );
+}
+
+export function HeroSlider({ slides }: { slides: HeroSlideView[] }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
+  // Slide whose video can't autoplay (e.g. iOS Low Power Mode) or failed to
+  // load, so the timer takes over instead of waiting for `ended`.
+  const [stalledIndex, setStalledIndex] = useState<number | null>(null);
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   const count = slides.length;
 
   const goToPrevious = () => {
@@ -82,17 +134,46 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
     return () => media.removeEventListener("change", sync);
   }, []);
 
+  const activeIsVideo = slides[selectedIndex]?.mediaType === "VIDEO";
+  // A playing video advances the carousel itself when it ends.
+  const videoDrivesTiming = activeIsVideo && !reduceMotion && stalledIndex !== selectedIndex;
+
   useEffect(() => {
-    if (count < 2 || paused || reduceMotion) return;
+    if (count < 2 || paused || reduceMotion || videoDrivesTiming) return;
     const autoplay = window.setInterval(() => {
       setSelectedIndex((current) => (current + 1) % count);
     }, 5200);
     return () => window.clearInterval(autoplay);
-  }, [count, paused, reduceMotion]);
+  }, [count, paused, reduceMotion, videoDrivesTiming]);
 
   useEffect(() => {
     if (selectedIndex >= count && count > 0) setSelectedIndex(0);
   }, [count, selectedIndex]);
+
+  useEffect(() => {
+    videoRefs.current.forEach((video, index) => {
+      if (!video) return;
+      if (index === selectedIndex && !reduceMotion) {
+        video.currentTime = 0;
+        video
+          .play()
+          .then(() => setStalledIndex((s) => (s === index ? null : s)))
+          .catch(() => setStalledIndex(index));
+      } else {
+        video.pause();
+      }
+    });
+  }, [selectedIndex, reduceMotion, count, isMobile]);
+
+  const handleVideoEnded = (video: HTMLVideoElement) => {
+    // Hovering pauses the carousel, so replay instead of moving on.
+    if (paused) {
+      video.currentTime = 0;
+      void video.play().catch(() => setStalledIndex(selectedIndex));
+      return;
+    }
+    goToNext();
+  };
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     setTouchStartX(event.touches[0]?.clientX ?? null);
@@ -140,22 +221,44 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
           >
             {slides.map((slide, index) => {
               const active = index === selectedIndex;
+              const alt = slide.title ?? "Keyafe";
+              const videoSrc = isMobile
+                ? (slide.mobileUrl ?? slide.desktopUrl)
+                : (slide.desktopUrl ?? slide.mobileUrl);
               return (
-                <div key={slide.to} className="w-full shrink-0" aria-hidden={!active}>
-                  <Link
-                    to={slide.to}
-                    tabIndex={active ? 0 : -1}
-                    className="group relative block overflow-hidden rounded-none outline-offset-4"
-                  >
+                <div key={slide.key} className="w-full shrink-0" aria-hidden={!active}>
+                  <SlideLink to={slide.to} active={active}>
                     <div className={slideFrame}>
-                      {slide.imageUrl || slide.imageUrlMobile ? (
+                      {slide.mediaType === "VIDEO" && videoSrc && !(reduceMotion && slide.posterUrl) ? (
+                        <video
+                          ref={(el) => {
+                            videoRefs.current[index] = el;
+                          }}
+                          src={videoSrc}
+                          poster={slide.posterUrl ?? undefined}
+                          muted
+                          playsInline
+                          loop={count < 2}
+                          preload={active ? "auto" : "none"}
+                          onEnded={(e) => active && handleVideoEnded(e.currentTarget)}
+                          onError={() => setStalledIndex(index)}
+                          aria-label={alt}
+                          className="h-full w-full object-cover object-center"
+                        />
+                      ) : slide.mediaType === "VIDEO" && slide.posterUrl ? (
+                        <img
+                          src={slide.posterUrl}
+                          alt={alt}
+                          className="h-full w-full object-cover object-center"
+                        />
+                      ) : slide.desktopUrl || slide.mobileUrl ? (
                         <picture>
-                          {slide.imageUrlMobile && (
-                            <source media="(max-width: 639px)" srcSet={slide.imageUrlMobile} />
+                          {slide.mobileUrl && (
+                            <source media={MOBILE_QUERY} srcSet={slide.mobileUrl} />
                           )}
                           <img
-                            src={slide.imageUrl ?? slide.imageUrlMobile ?? ""}
-                            alt={slide.title}
+                            src={slide.desktopUrl ?? slide.mobileUrl ?? ""}
+                            alt={alt}
                             className={cn(
                               "h-full w-full object-cover object-center",
                               active && !reduceMotion && "collection-ken",
@@ -166,27 +269,38 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                         <div className="h-full w-full bg-gradient-to-br from-brand-100 via-cream-100 to-amber-100" />
                       )}
 
-                      {active && (
+                      {active && slide.title && (
                         <div className="absolute inset-0 z-[1] flex items-end justify-center p-3 pb-10 sm:items-center sm:p-4 sm:pb-12">
-                          <div className="w-full max-w-[16rem] text-center sm:max-w-md">
-                            <div className="border border-white/25 bg-black/25 px-3.5 py-2.5 shadow-[0_10px_28px_rgba(26,33,42,0.22)] backdrop-blur-md sm:rounded-lg sm:px-7 sm:py-5">
-                              <div className="mb-1 flex items-center justify-center sm:mb-2">
-                                <span className="inline-flex bg-brand-500/90 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.16em] text-white uppercase sm:rounded-md sm:px-2 sm:text-[10px] sm:tracking-[0.18em]">
-                                  {HOME_COPY.collections.badge}
-                                </span>
-                              </div>
-                              <h2 className="font-display text-lg leading-snug text-white drop-shadow-sm sm:text-3xl sm:leading-tight">
+                          <div className="w-full max-w-[17rem] text-center sm:max-w-lg">
+                            <div className="hero-caption relative overflow-hidden border border-white/20 bg-[#1a1614]/35 px-5 py-3.5 shadow-[0_18px_40px_rgba(20,14,10,0.35)] backdrop-blur-md sm:px-10 sm:py-6">
+                              <span
+                                aria-hidden
+                                className="pointer-events-none absolute inset-1 border border-white/15 sm:inset-1.5"
+                              />
+                              <h2 className="hero-caption-title font-display text-xl leading-tight font-medium text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.35)] sm:text-4xl">
                                 {slide.title}
                               </h2>
-                              <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-white/90 drop-shadow-sm sm:mt-1 sm:line-clamp-none sm:text-sm sm:leading-5">
-                                {slide.line}
-                              </p>
+                              {slide.line && (
+                                <>
+                                  <div
+                                    aria-hidden
+                                    className="mx-auto my-2 flex w-28 items-center gap-2 sm:my-3 sm:w-44"
+                                  >
+                                    <span className="hero-caption-rule hero-caption-rule-left h-px flex-1 bg-gradient-to-r from-transparent to-amber-200/90" />
+                                    <span className="hero-caption-gem size-1.5 bg-amber-200 sm:size-2" />
+                                    <span className="hero-caption-rule hero-caption-rule-right h-px flex-1 bg-gradient-to-l from-transparent to-amber-200/90" />
+                                  </div>
+                                  <p className="hero-caption-line line-clamp-2 text-[10px] leading-4 font-medium tracking-[0.18em] text-white/90 uppercase sm:line-clamp-none sm:text-xs sm:leading-5 sm:tracking-[0.22em]">
+                                    {slide.line}
+                                  </p>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
                       )}
                     </div>
-                  </Link>
+                  </SlideLink>
                 </div>
               );
             })}
@@ -199,18 +313,18 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
               <NavArrow
                 direction="prev"
                 onClick={goToPrevious}
-                label={prevTitle ? `Previous collection, ${prevTitle}` : "Previous collection"}
+                label={prevTitle ? `Previous slide, ${prevTitle}` : "Previous slide"}
               />
               <NavArrow
                 direction="next"
                 onClick={goToNext}
-                label={nextTitle ? `Next collection, ${nextTitle}` : "Next collection"}
+                label={nextTitle ? `Next slide, ${nextTitle}` : "Next slide"}
               />
             </div>
 
             <div
               role="tablist"
-              aria-label="Collections"
+              aria-label="Slides"
               className="pointer-events-none absolute inset-x-0 bottom-3 z-[2] flex items-center justify-center gap-2 sm:bottom-4"
             >
               {slides.map((slide, index) => {
@@ -218,10 +332,10 @@ export function HeroSlider({ slides }: { slides: CollectionSlide[] }) {
                 return (
                   <button
                     type="button"
-                    key={slide.to}
+                    key={slide.key}
                     role="tab"
                     aria-selected={active}
-                    aria-label={slide.title}
+                    aria-label={slide.title ?? `Slide ${index + 1}`}
                     onClick={() => setSelectedIndex(index)}
                     className={cn(
                       "pointer-events-auto h-2 rounded-full transition-all duration-300",

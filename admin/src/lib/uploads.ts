@@ -1,3 +1,5 @@
+import { getAdminAccessToken } from "@/lib/api";
+
 export type UploadPurpose =
   | "quote-reference"
   | "payment-screenshot"
@@ -5,6 +7,7 @@ export type UploadPurpose =
   | "category"
   | "addon"
   | "festival"
+  | "hero"
   | "admin";
 
 interface PresignResult {
@@ -19,13 +22,18 @@ interface PresignResult {
 
 const API_BASE = "/api";
 
-export async function uploadImage(
+/** Images for any purpose; MP4/WebM video only for `hero`. */
+export async function uploadFile(
   file: File,
   purpose: UploadPurpose,
 ): Promise<{ publicUrl: string; key: string }> {
+  const token = getAdminAccessToken();
   const presignRes = await fetch(`${API_BASE}/uploads/presign`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({
       purpose,
       contentType: file.type,
@@ -65,9 +73,11 @@ export async function uploadImage(
   return { publicUrl: presign.publicUrl, key: presign.key };
 }
 
+export const uploadImage = uploadFile;
+
 export async function uploadImages(
   files: File[],
   purpose: UploadPurpose,
 ): Promise<{ publicUrl: string; key: string }[]> {
-  return Promise.all(files.map((f) => uploadImage(f, purpose)));
+  return Promise.all(files.map((f) => uploadFile(f, purpose)));
 }

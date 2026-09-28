@@ -12,6 +12,10 @@ export function setAdminAccessToken(token: string | null) {
   if (token) sessionEnding = false;
 }
 
+export function getAdminAccessToken(): string | null {
+  return accessToken;
+}
+
 export function setUnauthorizedHandler(handler: UnauthorizedHandler) {
   unauthorizedHandler = handler;
 }

@@ -7,3 +7,6 @@ dist
 .DS_Store
 src/modules/uploads/*
 !src/modules/uploads/upload.routes.ts
+
+# user-uploaded files (served from shared/uploads in prod)
+/uploads/

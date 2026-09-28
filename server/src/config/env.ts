@@ -22,6 +22,12 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(12 * 1024 * 1024),
+  // Hero slider videos only. Nginx client_max_body_size must be at least this.
+  UPLOAD_MAX_VIDEO_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(40 * 1024 * 1024),
 
   // Email — SMTP (Gmail app password recommended). If SMTP_USER/PASS are
   // missing, emails are only logged so dev flows keep working.

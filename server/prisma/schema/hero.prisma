@@ -1,0 +1,23 @@
+enum HeroMediaType {
+  IMAGE
+  VIDEO
+}
+
+// Home page hero carousel. The admin API caps the table at 6 rows; when it is
+// empty the storefront falls back to the built-in category collection slides.
+model HeroSlide {
+  id         String        @id @default(cuid())
+  mediaType  HeroMediaType @default(IMAGE)
+  desktopUrl String
+  mobileUrl  String? // falls back to desktopUrl (cropped) on phones
+  posterUrl  String? // video only — shown while the video loads
+  title      String?
+  subtitle   String?
+  linkUrl    String? // site path like /same-day, or a https URL
+  sortOrder  Int           @default(0)
+  isActive   Boolean       @default(true)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([isActive, sortOrder])
+}
