@@ -624,6 +624,99 @@
   animation: hero-caption-rise 0.7s 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* About page */
+@keyframes about-polaroid-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-28px) rotate(calc(var(--tilt, 0deg) * 3)) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--tilt, 0deg));
+  }
+}
+
+.about-polaroid {
+  transform: rotate(var(--tilt, 0deg));
+  animation: about-polaroid-drop 0.75s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.35s ease;
+}
+
+.about-polaroid:hover {
+  z-index: 10;
+  transform: rotate(0deg) scale(1.06);
+  box-shadow: 0 22px 44px rgba(26, 22, 20, 0.22);
+}
+
+@keyframes about-year-in {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.about-year-in {
+  animation: about-year-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.about-year-ghost {
+  -webkit-text-stroke: 1.5px rgba(227, 28, 121, 0.2);
+  animation: about-year-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes about-candle-flicker {
+  0%,
+  100% {
+    transform: scaleY(1) rotate(-2deg);
+    opacity: 1;
+  }
+  40% {
+    transform: scaleY(1.25) rotate(3deg);
+    opacity: 0.85;
+  }
+  70% {
+    transform: scaleY(0.9) rotate(-1deg);
+    opacity: 1;
+  }
+}
+
+.about-candle {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.7rem;
+  border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+  background: radial-gradient(circle at 50% 70%, #fde68a 0 35%, #f59e0b 60%, #e31c79 100%);
+  transform-origin: 50% 100%;
+  animation: about-candle-flicker 1.4s ease-in-out infinite;
+}
+
+@keyframes about-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.about-marquee-track {
+  animation: about-marquee 60s linear infinite;
+}
+
+.about-marquee-reverse {
+  animation-direction: reverse;
+}
+
+.about-marquee:hover .about-marquee-track {
+  animation-play-state: paused;
+}
+
 .pac-container {
   z-index: 10050 !important;
 }
@@ -723,8 +816,17 @@ gmp-place-autocomplete:focus-within {
   .hero-caption-title,
   .hero-caption-rule,
   .hero-caption-gem,
-  .hero-caption-line {
+  .hero-caption-line,
+  .about-polaroid,
+  .about-year-in,
+  .about-year-ghost,
+  .about-candle,
+  .about-marquee-track {
     animation: none !important;
+  }
+
+  .about-marquee {
+    overflow-x: auto;
   }
 
   .hero-caption::after {

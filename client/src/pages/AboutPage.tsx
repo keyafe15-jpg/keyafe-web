@@ -1,12 +1,9 @@
 import { Link } from "react-router-dom";
+import { AboutBanner } from "@/components/about/AboutBanner";
+import { BirthdayCelebrations } from "@/components/about/BirthdayCelebrations";
+import { MomentsMarquee } from "@/components/about/MomentsMarquee";
 import { PageMotifs } from "@/components/decor/PageMotifs";
-
-const storyPillars = [
-  "Founded on 16 December 2019",
-  "Based in Belur, Howrah",
-  "Serving Kolkata, Howrah & Hooghly",
-  "Family-led, home-baked with heart",
-];
+import { SlideCarousel } from "@/components/ui/SlideCarousel";
 
 const timeline = [
   {
@@ -73,16 +70,6 @@ const makers = [
   },
 ];
 
-const productHighlights = [
-  "Eggless cakes",
-  "Pizzas",
-  "Cookies",
-  "Brownies",
-  "Cheesecakes",
-  "Custom celebration cakes",
-  "Small & large occasion orders",
-];
-
 const principles = [
   {
     title: "Handmade with heart",
@@ -98,107 +85,68 @@ const principles = [
   },
 ];
 
+function TimelineCard({ item }: { item: (typeof timeline)[number] }) {
+  return (
+    <div className="h-full rounded-[1.5rem] border border-cream-200 bg-white p-5 shadow-sm md:p-6">
+      <p className="text-sm font-semibold tracking-[0.18em] text-brand-500 uppercase">
+        {item.year}
+      </p>
+      <h3 className="mt-3 text-xl text-ink-900 md:mt-4 md:text-2xl">{item.title}</h3>
+      <p className="mt-2.5 text-sm leading-6 text-ink-700 md:mt-3 md:text-base md:leading-7">
+        {item.body}
+      </p>
+    </div>
+  );
+}
+
+function PrincipleCard({ principle }: { principle: (typeof principles)[number] }) {
+  return (
+    <div className="from-brand-50 h-full rounded-[1.5rem] border border-brand-100 bg-gradient-to-br to-white p-5 md:p-6">
+      <h3 className="text-xl text-ink-900 md:text-2xl">{principle.title}</h3>
+      <p className="mt-2.5 text-sm leading-6 text-ink-700 md:mt-3 md:text-base md:leading-7">
+        {principle.text}
+      </p>
+    </div>
+  );
+}
+
 export function AboutPage() {
   return (
     <div className="relative isolate overflow-hidden pb-20">
       <PageMotifs />
 
-      <section className="mx-auto max-w-6xl px-4 pt-14 md:pt-20">
-        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-          <div>
-            <p className="mb-3 text-sm font-medium tracking-[0.22em] text-brand-500 uppercase">
-              About Keyafe
-            </p>
-            <h1 className="max-w-xl text-4xl leading-tight text-ink-900 md:text-6xl">
-              A sweet story, grown from our family kitchen.
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-8 text-ink-700 md:text-lg">
-              What began on 16 December 2019 in Belur, Howrah, has grown into a heartfelt bakery and
-              dessert studio built with love, patience and a lot of togetherness.
-            </p>
+      <AboutBanner />
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              {storyPillars.map((pill) => (
-                <span
-                  key={pill}
-                  className="border-brand-200 bg-brand-50 rounded-full border px-3 py-1.5 text-xs font-medium text-brand-700"
-                >
-                  {pill}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Link
-                to="/get-quote"
-                className="rounded-full bg-brand-500 px-6 py-3 text-sm font-medium text-white transition hover:bg-brand-700"
-              >
-                Request a custom order
-              </Link>
-              <Link
-                to="/same-day"
-                className="rounded-full border border-ink-700 px-6 py-3 text-sm font-medium text-ink-700 transition hover:bg-cream-100"
-              >
-                Explore fresh picks
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="overflow-hidden rounded-[1.5rem] border border-cream-200 bg-white shadow-sm sm:translate-y-6">
-              <img
-                src="https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=900&q=80"
-                alt="Celebration cake on a table"
-                className="h-[360px] w-full object-cover"
-              />
-            </div>
-            <div className="space-y-4">
-              <div className="overflow-hidden rounded-[1.5rem] border border-cream-200 bg-white shadow-sm">
-                <img
-                  src="https://images.unsplash.com/photo-1517433670267-08bbd4be890f?auto=format&fit=crop&w=900&q=80"
-                  alt="Freshly baked cookies and pastries"
-                  className="h-[170px] w-full object-cover"
-                />
-              </div>
-              <div className="border-brand-200 from-brand-50 rounded-[1.5rem] border bg-gradient-to-br to-white p-5 shadow-sm">
-                <p className="text-xs font-semibold tracking-[0.2em] text-brand-700 uppercase">
-                  Our promise
-                </p>
-                <p className="mt-3 text-2xl font-semibold text-ink-900">
-                  From our kitchen to your celebration.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-20 max-w-6xl px-4">
-        <div className="mb-8 max-w-2xl">
+      <section className="mx-auto mt-14 max-w-6xl px-4 md:mt-20">
+        <div className="mb-6 max-w-2xl md:mb-8">
           <p className="text-sm font-medium tracking-[0.2em] text-brand-500 uppercase">Our story</p>
           <h2 className="mt-2 text-3xl text-ink-900 md:text-5xl">
             Built on love, learning and a lot of practice.
           </h2>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-3">
+        <SlideCarousel
+          ariaLabel="Our story"
+          hideFrom="md"
+          slideClassName="w-[88%]"
+          snapAlign="start"
+        >
           {timeline.map((item) => (
-            <div
-              key={item.year}
-              className="rounded-[1.5rem] border border-cream-200 bg-white p-6 shadow-sm"
-            >
-              <p className="text-sm font-semibold tracking-[0.18em] text-brand-500 uppercase">
-                {item.year}
-              </p>
-              <h3 className="mt-4 text-2xl text-ink-900">{item.title}</h3>
-              <p className="mt-3 leading-7 text-ink-700">{item.body}</p>
-            </div>
+            <TimelineCard key={item.year} item={item} />
+          ))}
+        </SlideCarousel>
+
+        <div className="hidden gap-5 md:grid md:grid-cols-3">
+          {timeline.map((item) => (
+            <TimelineCard key={item.year} item={item} />
           ))}
         </div>
       </section>
 
-      <section className="mx-auto mt-20 max-w-6xl px-4">
-        <div className="mb-8 flex items-end justify-between gap-4">
+      <BirthdayCelebrations />
+
+      <section className="mx-auto mt-14 max-w-6xl px-4 md:mt-20">
+        <div className="mb-6 flex items-end justify-between gap-4 md:mb-8">
           <div>
             <p className="text-sm font-medium tracking-[0.2em] text-brand-500 uppercase">
               The people behind Keyafe
@@ -209,73 +157,66 @@ export function AboutPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <SlideCarousel
+          ariaLabel="The people behind Keyafe"
+          snapAlign="start"
+          autoPlayMs={6000}
+          slideClassName="w-[min(85%,20rem)] sm:w-[calc((100%-0.75rem)/2)] lg:w-[calc((100%-1.5rem)/3)]"
+        >
           {makers.map((person) => (
             <article
               key={person.name}
-              className="overflow-hidden rounded-[1.5rem] border border-cream-200 bg-white shadow-sm"
+              className="flex h-full flex-col overflow-hidden rounded-[1.25rem] border border-cream-200 bg-white shadow-sm"
             >
-              <img src={person.image} alt={person.name} className="h-64 w-full object-cover" />
-              <div className="p-5">
-                <h3 className="text-2xl text-ink-900">{person.name}</h3>
-                <p className="mt-1 text-sm font-medium tracking-[0.15em] text-brand-500 uppercase">
+              <img
+                src={person.image}
+                alt={person.name}
+                loading="lazy"
+                className="aspect-[4/3] w-full object-cover object-[center_40%]"
+              />
+              <div className="flex-1 p-4 sm:p-5">
+                <h3 className="text-xl text-ink-900">{person.name}</h3>
+                <p className="mt-1 text-[11px] font-medium tracking-[0.14em] text-brand-500 uppercase">
                   {person.role}
                 </p>
-                <p className="mt-3 leading-7 text-ink-700">{person.description}</p>
+                <p className="mt-2.5 text-sm leading-6 text-ink-700">{person.description}</p>
               </div>
             </article>
           ))}
-        </div>
+        </SlideCarousel>
       </section>
 
-      <section className="mx-auto mt-20 max-w-6xl px-4">
-        <div className="grid gap-8 rounded-[2rem] border border-cream-200 bg-white p-6 shadow-sm lg:grid-cols-[0.9fr_1.1fr] lg:p-8">
-          <div>
-            <p className="text-sm font-medium tracking-[0.2em] text-brand-500 uppercase">
-              What we make
-            </p>
-            <h2 className="mt-2 text-3xl text-ink-900 md:text-5xl">
-              Bakes for every little celebration and every big milestone.
-            </h2>
-          </div>
+      <MomentsMarquee />
 
-          <div className="flex flex-wrap gap-3">
-            {productHighlights.map((item) => (
-              <span
-                key={item}
-                className="rounded-full bg-cream-100 px-4 py-2 text-sm font-medium text-ink-700"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-20 max-w-6xl px-4">
-        <div className="grid gap-5 md:grid-cols-3">
+      <section className="mx-auto mt-14 max-w-6xl px-4 md:mt-20">
+        <SlideCarousel
+          ariaLabel="What we stand for"
+          hideFrom="md"
+          slideClassName="w-[88%]"
+          snapAlign="start"
+        >
           {principles.map((principle) => (
-            <div
-              key={principle.title}
-              className="from-brand-50 rounded-[1.5rem] border border-brand-100 bg-gradient-to-br to-white p-6"
-            >
-              <h3 className="text-2xl text-ink-900">{principle.title}</h3>
-              <p className="mt-3 leading-7 text-ink-700">{principle.text}</p>
-            </div>
+            <PrincipleCard key={principle.title} principle={principle} />
+          ))}
+        </SlideCarousel>
+
+        <div className="hidden gap-5 md:grid md:grid-cols-3">
+          {principles.map((principle) => (
+            <PrincipleCard key={principle.title} principle={principle} />
           ))}
         </div>
       </section>
 
-      <section className="mx-auto mt-20 max-w-5xl px-4">
-        <div className="via-ink-800 rounded-[2rem] bg-gradient-to-r from-ink-900 to-brand-700 p-8 text-white md:p-12">
+      <section className="mx-auto mt-14 max-w-5xl px-4 md:mt-20">
+        <div className="via-ink-800 rounded-[2rem] bg-gradient-to-r from-ink-900 to-brand-700 p-6 text-white sm:p-8 md:p-12">
           <p className="text-sm font-medium tracking-[0.2em] text-brand-100 uppercase">
             Thank you for being part of our journey
           </p>
-          <h2 className="mt-3 max-w-2xl text-3xl md:text-5xl">
+          <h2 className="mt-3 max-w-2xl text-2xl sm:text-3xl md:text-5xl">
             We hope you will support Keyafe as we continue to grow, learn and bring joy to more
             homes.
           </h2>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-cream-50">
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-cream-50 sm:mt-5 sm:text-base">
             From our family to yours, every order is a little story of trust, care and celebration.
             We’re grateful for every smile, every feedback and every chance to make your moments
             sweeter.

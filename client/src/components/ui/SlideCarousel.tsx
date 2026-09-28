@@ -1,11 +1,4 @@
-import {
-  Children,
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { Children, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 const GAP_PX = 12; // gap-3
@@ -53,40 +46,51 @@ export function SlideCarousel({
   const slides = Children.toArray(children).filter(Boolean);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  // Last reachable scroll position — less than slides.length - 1 when several slides show at once.
+  const [maxIndex, setMaxIndex] = useState(Math.max(0, slides.length - 1));
   const [paused, setPaused] = useState(false);
 
-  const syncActive = useEffectEvent(() => {
+  const measure = useEffectEvent(() => {
     const el = scrollerRef.current;
     if (!el) return;
     const slide = el.querySelector<HTMLElement>("[data-slide-carousel-item]");
     if (!slide) return;
     const step = slide.offsetWidth + GAP_PX;
     if (step <= 0) return;
-    const next = Math.round(el.scrollLeft / step);
-    setActive(Math.max(0, Math.min(slides.length - 1, next)));
+    const overflow = el.scrollWidth - el.clientWidth;
+    const lastIndex = Math.max(0, Math.min(slides.length - 1, Math.round(overflow / step)));
+    const atEnd = overflow > 0 && el.scrollLeft >= overflow - 2;
+    const next = atEnd ? lastIndex : Math.round(el.scrollLeft / step);
+    setMaxIndex(lastIndex);
+    setActive(Math.max(0, Math.min(lastIndex, next)));
   });
 
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    const onScroll = () => syncActive();
+    const onScroll = () => measure();
     el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [syncActive]);
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
-    if (paused || autoPlayMs <= 0 || slides.length < 2) return;
+    if (paused || autoPlayMs <= 0 || maxIndex < 1) return;
     const id = window.setInterval(() => {
       const el = scrollerRef.current;
       if (!el) return;
       const slide = el.querySelector<HTMLElement>("[data-slide-carousel-item]");
       if (!slide) return;
       const step = slide.offsetWidth + GAP_PX;
-      const next = (active + 1) % slides.length;
+      const next = active >= maxIndex ? 0 : active + 1;
       el.scrollTo({ left: next * step, behavior: "smooth" });
     }, autoPlayMs);
     return () => window.clearInterval(id);
-  }, [active, paused, autoPlayMs, slides.length]);
+  }, [active, maxIndex, paused, autoPlayMs]);
 
   const goTo = (index: number) => {
     const el = scrollerRef.current;
@@ -109,7 +113,7 @@ export function SlideCarousel({
     >
       <div
         ref={scrollerRef}
-        className="flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory [scrollbar-width:none] items-stretch gap-3 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         aria-label={ariaLabel}
       >
         {slides.map((slide, index) => (
@@ -127,19 +131,19 @@ export function SlideCarousel({
         ))}
       </div>
 
-      {slides.length > 1 && (
+      {maxIndex > 0 && (
         <div
           className="mt-4 flex items-center justify-center gap-2"
           role="tablist"
           aria-label={`${ariaLabel} slides`}
         >
-          {slides.map((_, index) => (
+          {Array.from({ length: maxIndex + 1 }, (_, index) => (
             <button
               key={index}
               type="button"
               role="tab"
               aria-selected={index === active}
-              aria-label={`Slide ${index + 1} of ${slides.length}`}
+              aria-label={`Slide ${index + 1} of ${maxIndex + 1}`}
               onClick={() => goTo(index)}
               className={cn(
                 "h-1.5 rounded-full transition-all",

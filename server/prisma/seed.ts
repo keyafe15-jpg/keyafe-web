@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@prisma/client";
+import { env } from "../src/config/env.js";
 import { logger } from "../src/utils/logger.js";
 
 const prisma = new PrismaClient();
@@ -989,8 +990,14 @@ async function main() {
   await seedDepartments();
   await seedCategories();
   await seedTags();
-  await seedProducts();
   await seedSameDayCategories();
+
+  // Demo catalogue + fake orders would pollute a live shop's reports.
+  if (env.NODE_ENV === "production" && process.env.SEED_DEMO_DATA !== "true") {
+    logger.info("Production: skipping demo products and sample orders (set SEED_DEMO_DATA=true to include)");
+    return;
+  }
+  await seedProducts();
   await seedSampleOrders();
 }
 
