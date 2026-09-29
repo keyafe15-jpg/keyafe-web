@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { useCart } from "@/store/cart";
 import { CART_COPY } from "@/content/misc";
 import { cn } from "@/lib/cn";
+import { formatINR } from "@/lib/price";
+import { Price } from "@/components/product/Price";
 import type { CartLine } from "@/types/domain";
 
 export function CartPage() {
@@ -9,6 +11,7 @@ export function CartPage() {
   const removeLine = useCart((s) => s.removeLine);
   const updateQty = useCart((s) => s.updateQty);
   const subtotal = useCart((s) => s.subtotal());
+  const savings = useCart((s) => s.savings());
   const clear = useCart((s) => s.clear);
 
   if (lines.length === 0) return <EmptyCart />;
@@ -49,6 +52,12 @@ export function CartPage() {
           <div className="rounded-card border border-cream-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 font-display text-lg text-ink-900">Order summary</h2>
             <SummaryRow label={CART_COPY.subtotal} value={subtotal} />
+            {savings > 0 && (
+              <div className="flex items-baseline justify-between py-1 text-sm text-emerald-700">
+                <span>You save</span>
+                <span className="tabular-nums">{formatINR(savings)}</span>
+              </div>
+            )}
             <SummaryRow label="Delivery" value={null} hint="Calculated at checkout" />
             <hr className="my-4 border-cream-200" />
             <div className="flex items-baseline justify-between">
@@ -88,6 +97,8 @@ function CartLineCard({
   onQty: (qty: number) => void;
 }) {
   const lineTotal = line.unitPrice * line.qty;
+  const originalLineTotal =
+    line.originalUnitPrice != null ? line.originalUnitPrice * line.qty : null;
   return (
     <li className="grid gap-4 rounded-card border border-cream-200 bg-white p-4 sm:grid-cols-[110px_1fr_auto]">
       <div className="h-28 w-28 shrink-0 overflow-hidden rounded-lg bg-cream-100 sm:h-full sm:w-[110px]">
@@ -133,14 +144,20 @@ function CartLineCard({
         </dl>
 
         <div className="mt-3 flex items-center gap-3">
-          <span className="text-xs text-ink-500">₹{line.unitPrice.toFixed(2)} each</span>
+          <span className="text-xs text-ink-500">
+            <Price amount={line.unitPrice} original={line.originalUnitPrice} /> each
+          </span>
           <QtyStepper value={line.qty} onChange={onQty} />
         </div>
       </div>
 
       <div className="text-right sm:min-w-[110px]">
         <p className="text-ink-400 text-[11px] tracking-wide uppercase">Total</p>
-        <p className="text-lg font-semibold text-ink-900 tabular-nums">₹{lineTotal.toFixed(2)}</p>
+        <Price
+          amount={lineTotal}
+          original={originalLineTotal}
+          className="justify-end text-lg text-ink-900 tabular-nums"
+        />
       </div>
     </li>
   );

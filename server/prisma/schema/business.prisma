@@ -4,21 +4,21 @@ enum GstScheme {
 }
 
 model BusinessSettings {
-  id                String    @id @default(cuid())
-  legalName         String
-  tradeName         String
-  gstin             String?
-  gstScheme         GstScheme @default(REGULAR)
-  registeredAddress Json // { line1, line2, city, state, stateCode, pincode }
-  invoicePrefix     String    @default("KEY")
-  fyStartMonth      Int       @default(4) // April = Indian FY start
+  id                     String    @id @default(cuid())
+  legalName              String
+  tradeName              String
+  gstin                  String?
+  gstScheme              GstScheme @default(REGULAR)
+  registeredAddress      Json // { line1, line2, city, state, stateCode, pincode }
+  invoicePrefix          String    @default("KEY")
+  fyStartMonth           Int       @default(4) // April = Indian FY start
   // Printed in the terms box on delivery challans; the box is omitted when blank.
-  challanTerms      String?
-  supportEmail      String
-  supportPhone      String
+  challanTerms           String?
+  supportEmail           String
+  supportPhone           String
   // Where the new-order notification email is sent. Falls back to supportEmail if null.
   orderNotificationEmail String?
-  currency          String    @default("INR")
+  currency               String    @default("INR")
 
   // Manual UPI collection (offline/order-link flows) — no gateway, no fees.
   // Customers pay this VPA directly and upload a screenshot as proof.

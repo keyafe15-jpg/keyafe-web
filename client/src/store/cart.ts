@@ -9,6 +9,8 @@ interface CartState {
   removeLine: (id: string) => void;
   clear: () => void;
   subtotal: () => number;
+  /** Total saved versus original prices across discounted lines. */
+  savings: () => number;
   itemCount: () => number;
 }
 
@@ -33,6 +35,12 @@ export const useCart = create<CartState>()(
       removeLine: (id) => set((s) => ({ lines: s.lines.filter((l) => l.id !== id) })),
       clear: () => set({ lines: [] }),
       subtotal: () => get().lines.reduce((sum, l) => sum + l.unitPrice * l.qty, 0),
+      savings: () =>
+        get().lines.reduce(
+          (sum, l) =>
+            sum + Math.max(0, ((l.originalUnitPrice ?? l.unitPrice) - l.unitPrice) * l.qty),
+          0,
+        ),
       itemCount: () => get().lines.reduce((sum, l) => sum + l.qty, 0),
     }),
     { name: "keyafe-cart", version: 2 },

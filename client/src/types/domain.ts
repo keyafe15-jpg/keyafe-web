@@ -58,5 +58,7 @@ export interface CartLine {
 
   // Pricing
   unitPrice: Money;
+  /** Pre-discount unit price, shown struck through. Absent when not discounted. */
+  originalUnitPrice?: Money;
   qty: number;
 }

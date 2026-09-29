@@ -29,26 +29,30 @@ model Product {
   // Drives which sections the admin form shows and how storefront renders variants.
   template ProductTemplate @default(CAKE)
 
-  images         String[] // Cloudinary URLs, index 0 = primary
-  basePrice      Decimal     @db.Decimal(10, 2)
-  productType    ProductType
-  isCustomizable Boolean     @default(false)
+  images          String[] // Cloudinary URLs, index 0 = primary
+  basePrice       Decimal     @db.Decimal(10, 2)
+  // Optional sale price for the product's starting price (base, or smallest
+  // size when size-priced). Storefront scales every configured price by
+  // discountedPrice / startingPrice and strikes through the original.
+  discountedPrice Decimal?    @db.Decimal(10, 2)
+  productType     ProductType
+  isCustomizable  Boolean     @default(false)
   // Whether the product itself is eggless. Independent of flavour eggless flags
   // (those describe individual flavour recipes on the master list).
   // Storefront also uses this as the veg / non-veg mark (and savory diet filter).
-  isEggless      Boolean     @default(true)
+  isEggless       Boolean     @default(true)
   // Savory heat flag — drives the Spicy / Mild catalog filter.
-  isSpicy        Boolean     @default(false)
+  isSpicy         Boolean     @default(false)
 
   // If true, the PDP shows a pound selector (from CakeSize master list) and
   // charges (basePrice + flavourAdditional) × pounds − ₹50 per half-lb above 1 lb.
-  sellByPound      Boolean @default(false)
+  sellByPound     Boolean @default(false)
   // Optional per-product size bounds (in grams). Null = no bound. Applied to
   // the CakeSize master list to filter the picker.
-  minGrams         Int?
-  maxGrams         Int?
+  minGrams        Int?
+  maxGrams        Int?
   // If true, the PDP shows a "custom pounds" input alongside the master sizes.
-  allowCustomSize  Boolean @default(false)
+  allowCustomSize Boolean @default(false)
 
   // Customization flags
   supportsMessageOnCake   Boolean @default(false)
@@ -76,25 +80,25 @@ model Product {
   adminNotes      String?
   kitchenNotes    String?
 
-  isActive    Boolean @default(true) // in catalogue at all
-  isAvailable Boolean @default(true) // can be ordered right now (soft "sold out" toggle)
-  isFeatured  Boolean @default(false)
-  sortOrder   Int     @default(0)
+  isActive    Boolean   @default(true) // in catalogue at all
+  isAvailable Boolean   @default(true) // can be ordered right now (soft "sold out" toggle)
+  isFeatured  Boolean   @default(false)
+  sortOrder   Int       @default(0)
   // Soft-retire from the day-to-day catalogue. Null = not archived.
   // Archived products stay in admin for history; storefront never shows them.
   archivedAt  DateTime?
 
   // Relations
-  optionGroups OptionGroup[]
-  variants     ProductVariant[]
-  categoryLinks ProductCategory[]
-  flavors      Flavor[]         @relation("ProductFlavors")
-  toppings     Topping[]        @relation("ProductToppings")
-  addons       Addon[]          @relation("ProductAddons")
-  tags         Tag[]            @relation("ProductTags")
-  festivals    Festival[]       @relation("FestivalProducts")
+  optionGroups   OptionGroup[]
+  variants       ProductVariant[]
+  categoryLinks  ProductCategory[]
+  flavors        Flavor[]          @relation("ProductFlavors")
+  toppings       Topping[]         @relation("ProductToppings")
+  addons         Addon[]           @relation("ProductAddons")
+  tags           Tag[]             @relation("ProductTags")
+  festivals      Festival[]        @relation("FestivalProducts")
   orderLinkItems OrderLinkItem[]
-  reviews      ProductReview[]
+  reviews        ProductReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -110,12 +114,12 @@ enum ProductReviewStatus {
 }
 
 model ProductReview {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   // Null for guest reviews. Logged-in customers are linked when present.
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   rating      Int // 1–5
   title       String?
@@ -124,8 +128,8 @@ model ProductReview {
   displayName String
   email       String?
 
-  status             ProductReviewStatus @default(PENDING)
-  verifiedPurchase   Boolean             @default(false)
+  status           ProductReviewStatus @default(PENDING)
+  verifiedPurchase Boolean             @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

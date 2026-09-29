@@ -28,6 +28,9 @@ export const createProductSchema = z.object({
   images: z.array(z.string().url()).max(10),
 
   basePrice: z.coerce.number().nonnegative(),
+  discountedPrice: z
+    .preprocess((v) => (v === "" ? null : v), z.coerce.number().positive().nullable())
+    .optional(),
   productType: z.enum(["FIXED_VARIANTS", "CONFIGURABLE"]).default("CONFIGURABLE"),
   template: z.enum(["CAKE", "PIZZA", "OTHER"]).default("CAKE"),
   isCustomizable: z.boolean().default(false),
@@ -195,12 +198,38 @@ export async function listProducts(
   };
 }
 
+type SizeGroupPricing = {
+  priceMode: "ABSOLUTE" | "DELTA";
+  options: { price: unknown }[];
+};
+
+/** Lowest customer-visible price before any discount — base, or smallest size. */
+function actualStartingPrice(basePrice: unknown, sizeGroup: SizeGroupPricing | undefined) {
+  const base = Number(basePrice);
+  if (!sizeGroup || sizeGroup.options.length === 0) return base;
+  const min = Math.min(...sizeGroup.options.map((o) => Number(o.price)));
+  return sizeGroup.priceMode === "ABSOLUTE" ? min : base + min;
+}
+
+/**
+ * Sale price as a fraction of the starting price. The storefront multiplies
+ * every configured price (size, pounds, flavour, crust) by it. Null unless
+ * 0 < discountedPrice < starting price.
+ */
+function priceFactor(actualStart: number, discountedPrice: unknown): number | null {
+  if (discountedPrice == null) return null;
+  const discounted = Number(discountedPrice);
+  if (!(discounted > 0) || !(actualStart > 0) || discounted >= actualStart) return null;
+  return discounted / actualStart;
+}
+
 const PUBLIC_CARD_SELECT = {
   id: true,
   slug: true,
   name: true,
   shortDescription: true,
   basePrice: true,
+  discountedPrice: true,
   template: true,
   images: true,
   isAvailable: true,
@@ -244,6 +273,7 @@ type PublicCardRow = {
   name: string;
   shortDescription: string | null;
   basePrice: unknown;
+  discountedPrice: unknown;
   template: "CAKE" | "PIZZA" | "OTHER";
   images: string[];
   isAvailable: boolean;
@@ -287,13 +317,9 @@ export type PublicCatalogFilters = {
 };
 
 /** Parse storefront catalog query params (flavor / price / sort / dessert & savory chips). */
-export function parsePublicCatalogFilters(
-  query: Record<string, unknown>,
-): PublicCatalogFilters {
+export function parsePublicCatalogFilters(query: Record<string, unknown>): PublicCatalogFilters {
   const flavor =
-    typeof query.flavor === "string" && query.flavor.trim()
-      ? query.flavor.trim()
-      : undefined;
+    typeof query.flavor === "string" && query.flavor.trim() ? query.flavor.trim() : undefined;
 
   const minRaw = query.minPrice != null ? Number(query.minPrice) : NaN;
   const maxRaw = query.maxPrice != null ? Number(query.maxPrice) : NaN;
@@ -306,10 +332,8 @@ export function parsePublicCatalogFilters(
       ? sortRaw
       : undefined;
 
-  const noCream =
-    query.noCream === "1" || query.noCream === "true" || query.noCream === true;
-  const fixedDesign =
-    query.fixed === "1" || query.fixed === "true" || query.fixed === true;
+  const noCream = query.noCream === "1" || query.noCream === "true" || query.noCream === true;
+  const fixedDesign = query.fixed === "1" || query.fixed === "true" || query.fixed === true;
 
   const dietRaw = typeof query.diet === "string" ? query.diet : undefined;
   const diet: PublicCatalogDiet | undefined =
@@ -448,22 +472,17 @@ async function listDecoratedPublicProducts(
   };
 }
 
-// Adds a `startingPrice` string (min customer-visible price) for the card,
-// derived from the size group when priced by variant.
+// Adds `startingPrice` (min price the customer pays, after any discount) and
+// `originalStartingPrice` (the struck-through price, null when not discounted).
 function decorateCard(row: PublicCardRow) {
-  const base = Number(row.basePrice);
-  const sizeGroup = row.optionGroups[0];
-  let startingPrice = base;
-  if (sizeGroup && sizeGroup.options.length > 0) {
-    const prices = sizeGroup.options.map((o) => Number(o.price));
-    const min = Math.min(...prices);
-    startingPrice = sizeGroup.priceMode === "ABSOLUTE" ? min : base + min;
-  }
-  const { optionGroups: _drop, categoryLinks, ...rest } = row;
+  const actualStart = actualStartingPrice(row.basePrice, row.optionGroups[0]);
+  const factor = priceFactor(actualStart, row.discountedPrice);
+  const { optionGroups: _drop, categoryLinks, discountedPrice: _discounted, ...rest } = row;
   return {
     ...rest,
     categories: categoryLinks.map((l) => l.category),
-    startingPrice: startingPrice.toFixed(2),
+    startingPrice: (factor ? actualStart * factor : actualStart).toFixed(2),
+    originalStartingPrice: factor ? actualStart.toFixed(2) : null,
   };
 }
 
@@ -702,6 +721,7 @@ export async function getPublicProductBySlug(slug: string) {
       description: true,
       images: true,
       basePrice: true,
+      discountedPrice: true,
       productType: true,
       template: true,
       isCustomizable: true,
@@ -828,9 +848,18 @@ export async function getPublicProductBySlug(slug: string) {
 
   const { categoryLinks, addons: attachedAddons, ...rest } = product;
   const categoryAddons = await addonsDefaultedToCategories(categoryLinks.map((l) => l.category.id));
+  const factor = priceFactor(
+    actualStartingPrice(
+      product.basePrice,
+      product.optionGroups.find((g) => g.key === "size"),
+    ),
+    product.discountedPrice,
+  );
 
   return {
     ...rest,
+    discountedPrice: factor ? product.discountedPrice : null,
+    priceFactor: factor,
     categories: categoryLinks.map((l) => l.category),
     addons: mergeAddonsById(attachedAddons, categoryAddons),
     sizes,
@@ -1001,16 +1030,12 @@ function rowToCreateInput(
     tagIds: [],
     isCustomizable: false,
     allowCustomSize: row.template === "CAKE" ? (row.allowCustomSize ?? false) : false,
-    supportsMessageOnCake:
-      row.template === "CAKE" ? (row.supportsMessageOnCake ?? false) : false,
+    supportsMessageOnCake: row.template === "CAKE" ? (row.supportsMessageOnCake ?? false) : false,
     messageMaxLength: 40,
     leadTimeHours: 0,
     isHealthyTreat: false,
     allergens: [],
-    sizeOptions:
-      row.template === "PIZZA" || row.template === "OTHER"
-        ? row.sizeOptions
-        : undefined,
+    sizeOptions: row.template === "PIZZA" || row.template === "OTHER" ? row.sizeOptions : undefined,
     crustOptions: row.template === "PIZZA" ? row.crustOptions : undefined,
   };
 }
@@ -1078,8 +1103,7 @@ export async function bulkCreateProducts(
           isSpicy: row.isSpicy,
           sellByPound: row.template === "CAKE" ? row.sellByPound : false,
           allowCustomSize: row.template === "CAKE" ? row.allowCustomSize : false,
-          supportsMessageOnCake:
-            row.template === "CAKE" ? row.supportsMessageOnCake : false,
+          supportsMessageOnCake: row.template === "CAKE" ? row.supportsMessageOnCake : false,
           supportsSameDayDelivery: row.supportsSameDayDelivery,
           canBeDeliveredPanIndia: row.canBeDeliveredPanIndia,
           isActive: row.isActive,
@@ -1087,9 +1111,7 @@ export async function bulkCreateProducts(
           isFeatured: row.isFeatured,
           sortOrder: row.sortOrder,
           sizeOptions:
-            row.template === "PIZZA" || row.template === "OTHER"
-              ? row.sizeOptions
-              : undefined,
+            row.template === "PIZZA" || row.template === "OTHER" ? row.sizeOptions : undefined,
           crustOptions: row.template === "PIZZA" ? row.crustOptions : undefined,
         });
         result.updated += 1;
@@ -1230,16 +1252,18 @@ function stripOptionIds(
     sortOrder: number;
   }>,
 ) {
-  return options.map(({ key, label, price, weightGrams, diameterMm, isDefault, isActive, sortOrder }) => ({
-    key,
-    label,
-    price,
-    weightGrams: weightGrams ?? null,
-    diameterMm: diameterMm ?? null,
-    isDefault,
-    isActive,
-    sortOrder,
-  }));
+  return options.map(
+    ({ key, label, price, weightGrams, diameterMm, isDefault, isActive, sortOrder }) => ({
+      key,
+      label,
+      price,
+      weightGrams: weightGrams ?? null,
+      diameterMm: diameterMm ?? null,
+      isDefault,
+      isActive,
+      sortOrder,
+    }),
+  );
 }
 
 /** Clone a product as a Draft with a unique slug. Reuses createProduct. */
@@ -1256,6 +1280,7 @@ export async function duplicateProduct(id: string) {
     categoryIds: source.categoryIds,
     images: source.images,
     basePrice: Number(source.basePrice),
+    discountedPrice: source.discountedPrice != null ? Number(source.discountedPrice) : null,
     productType: source.productType,
     template: source.template,
     isCustomizable: source.isCustomizable,
@@ -1288,10 +1313,8 @@ export async function duplicateProduct(id: string) {
     tagIds: source.tagIds,
     toppingIds: source.toppingIds,
     addonIds: source.addonIds,
-    sizeOptions:
-      source.template !== "CAKE" ? stripOptionIds(source.sizeOptions) : undefined,
-    crustOptions:
-      source.template === "PIZZA" ? stripOptionIds(source.crustOptions) : undefined,
+    sizeOptions: source.template !== "CAKE" ? stripOptionIds(source.sizeOptions) : undefined,
+    crustOptions: source.template === "PIZZA" ? stripOptionIds(source.crustOptions) : undefined,
   });
 
   return createProduct(input);

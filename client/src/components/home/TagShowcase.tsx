@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { VegMark } from "@/components/product/VegMark";
+import { Price } from "@/components/product/Price";
 import { Reveal } from "@/components/motion/Reveal";
 import { SlideCarousel } from "@/components/ui/SlideCarousel";
 import {
@@ -12,9 +13,14 @@ import {
 import { HOME_COPY } from "@/content/home";
 import { cn } from "@/lib/cn";
 
-function priceLabel(product: ProductCard) {
-  const value = `₹${Number(product.startingPrice).toFixed(0)}`;
-  return product.template === "CAKE" ? value : `from ${value}`;
+function CardPrice({ product }: { product: ProductCard }) {
+  return (
+    <Price
+      amount={product.startingPrice}
+      original={product.originalStartingPrice}
+      prefix={product.template === "CAKE" ? undefined : "from"}
+    />
+  );
 }
 
 function Sheen() {
@@ -89,7 +95,9 @@ function PhotoTile({
       <Sheen />
       <div className="absolute top-2 left-2 z-10 flex flex-wrap items-start gap-1">
         {product.isEggless && <VegMark />}
-        {tags.length > 0 && <ProductCardTags tags={tags} max={1} className="flex flex-wrap gap-1" />}
+        {tags.length > 0 && (
+          <ProductCardTags tags={tags} max={1} className="flex flex-wrap gap-1" />
+        )}
       </div>
       {soldOut && <SoldOut />}
 
@@ -108,14 +116,8 @@ function PhotoTile({
         >
           {product.name}
         </h3>
-        <p
-          className={
-            large
-              ? "text-sm font-semibold text-white"
-              : "text-[11px] font-semibold text-white/90 sm:text-xs"
-          }
-        >
-          {priceLabel(product)}
+        <p className={large ? "text-sm text-white" : "text-[11px] text-white/90 sm:text-xs"}>
+          <CardPrice product={product} />
         </p>
       </div>
     </Link>
@@ -141,12 +143,18 @@ function RailCard({ product, omitTagSlug }: { product: ProductCard; omitTagSlug?
       <Sheen />
       <div className="absolute top-2 left-2 z-10 flex flex-wrap items-start gap-1">
         {product.isEggless && <VegMark />}
-        {tags.length > 0 && <ProductCardTags tags={tags} max={1} className="flex flex-wrap gap-1" />}
+        {tags.length > 0 && (
+          <ProductCardTags tags={tags} max={1} className="flex flex-wrap gap-1" />
+        )}
       </div>
       {soldOut && <SoldOut />}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-3 pt-12">
-        <h3 className="line-clamp-2 font-display text-sm leading-snug text-white">{product.name}</h3>
-        <p className="mt-0.5 text-xs font-semibold text-white">{priceLabel(product)}</p>
+        <h3 className="line-clamp-2 font-display text-sm leading-snug text-white">
+          {product.name}
+        </h3>
+        <p className="mt-0.5 text-xs text-white">
+          <CardPrice product={product} />
+        </p>
       </div>
     </Link>
   );
@@ -187,8 +195,8 @@ function SoloBanner({ product, accent }: { product: ProductCard; accent: string 
             {product.shortDescription}
           </p>
         )}
-        <p className={cn("mt-0.5 text-sm font-semibold", soldOut ? "text-ink-500" : "text-ink-900")}>
-          {priceLabel(product)}
+        <p className={cn("mt-0.5 text-sm", soldOut ? "text-ink-500" : "text-ink-900")}>
+          <CardPrice product={product} />
         </p>
       </div>
       <span
@@ -306,17 +314,9 @@ function TagColumn({ section }: { section: TagShowcaseSection }) {
 
       {/* Mobile: one short horizontal rail of portrait cards */}
       <div className="sm:hidden">
-        <SlideCarousel
-          ariaLabel={section.tag.name}
-          slideClassName="w-[72%]"
-          autoPlayMs={0}
-        >
+        <SlideCarousel ariaLabel={section.tag.name} slideClassName="w-[72%]" autoPlayMs={0}>
           {section.products.map((product) => (
-            <RailCard
-              key={product.id}
-              product={product}
-              omitTagSlug={section.tag.slug}
-            />
+            <RailCard key={product.id} product={product} omitTagSlug={section.tag.slug} />
           ))}
         </SlideCarousel>
       </div>

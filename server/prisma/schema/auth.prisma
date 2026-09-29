@@ -69,13 +69,13 @@ model User {
   passwordHash      String?
   passwordUpdatedAt DateTime?
 
-  addresses      Address[]
-  refreshTokens  RefreshToken[]
+  addresses           Address[]
+  refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
-  assignedQuotes QuoteRequest[] @relation("QuoteAssignee")
-  orders         Order[]
-  pushSubscriptions PushSubscription[]
-  productReviews ProductReview[]
+  assignedQuotes      QuoteRequest[]       @relation("QuoteAssignee")
+  orders              Order[]
+  pushSubscriptions   PushSubscription[]
+  productReviews      ProductReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -85,21 +85,21 @@ model User {
 
 // Saved addresses for registered users. Guests have their address snapshotted onto the Order.
 model Address {
-  id            String  @id @default(cuid())
-  userId        String
-  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label         String? // "Home", "Office"
-  recipientName String
-  phone         String
-  line1         String
-  line2         String?
-  landmark      String?
+  id             String  @id @default(cuid())
+  userId         String
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label          String? // "Home", "Office"
+  recipientName  String
+  phone          String
+  line1          String
+  line2          String?
+  landmark       String?
   mapSearchQuery String // mandatory search text for Uber / Rapido / delivery app lookup
-  city          String
-  state         String
-  stateCode     String // "19" for West Bengal — drives CGST/SGST vs IGST
-  pincode       String // soft-ref to DeliveryPincode.pincode
-  isDefault     Boolean @default(false)
+  city           String
+  state          String
+  stateCode      String // "19" for West Bengal — drives CGST/SGST vs IGST
+  pincode        String // soft-ref to DeliveryPincode.pincode
+  isDefault      Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -12,6 +12,7 @@ import { SAMEDAY_COPY } from "@/content/sameday";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { CatalogFilters } from "@/components/product/CatalogFilters";
+import { Price } from "@/components/product/Price";
 import { applyCatalogFilters, catalogFiltersFromSearchParams } from "@/lib/catalogFilters";
 
 const SAME_DAY_PAGE_SIZE = 12;
@@ -106,7 +107,9 @@ export function SameDayPage() {
                   : "border-cream-200 bg-cream-100 text-ink-500",
               )}
             >
-              <span className={cn("h-2 w-2 rounded-full", isOpen ? "bg-brand-500" : "bg-ink-500")} />
+              <span
+                className={cn("h-2 w-2 rounded-full", isOpen ? "bg-brand-500" : "bg-ink-500")}
+              />
               {statusMessage}
             </span>
           )}
@@ -504,7 +507,6 @@ function collectIds(node: CategoryNode): Set<string> {
 // -------- card + skeleton --------
 
 function ProductCardView({ product, disabled }: { product: ProductCard; disabled: boolean }) {
-  const priceValue = `₹${Number(product.startingPrice).toFixed(0)}`;
   const showsRange = product.template !== "CAKE";
   const soldOut = !product.isAvailable;
   const ctaDisabled = disabled || soldOut;
@@ -517,7 +519,7 @@ function ProductCardView({ product, disabled }: { product: ProductCard; disabled
       )}
     >
       <Link to={`/product/${product.slug}`} className="block">
-      <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-cream-100">
+        <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-cream-100">
           {product.isEggless && <VegMark className="absolute top-2 left-2 z-10" />}
           {product.tags.length > 0 && (
             <ProductCardTags
@@ -553,10 +555,12 @@ function ProductCardView({ product, disabled }: { product: ProductCard; disabled
           <p className="mt-1 line-clamp-2 text-xs text-ink-500">{product.shortDescription}</p>
         )}
         <div className="mt-2 flex items-center justify-between">
-          <span className={cn("text-sm font-semibold", soldOut ? "text-ink-500" : "text-ink-900")}>
-            {showsRange && <span className="mr-1 text-[10px] font-normal text-ink-500">from</span>}
-            {priceValue}
-          </span>
+          <Price
+            amount={product.startingPrice}
+            original={product.originalStartingPrice}
+            prefix={showsRange ? "from" : undefined}
+            className={cn("text-sm", soldOut ? "text-ink-500" : "text-ink-900")}
+          />
           {!soldOut && (
             <LeadTimeChip
               leadTimeHours={product.leadTimeHours}

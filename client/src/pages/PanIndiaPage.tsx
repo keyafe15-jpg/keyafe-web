@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { CatalogFilters } from "@/components/product/CatalogFilters";
+import { Price } from "@/components/product/Price";
 import { applyCatalogFilters, catalogFiltersFromSearchParams } from "@/lib/catalogFilters";
 
 const PAGE_SIZE = 12;
@@ -21,7 +22,10 @@ const PAGE_SIZE = 12;
 export function PanIndiaPage() {
   const { data: products = [], isLoading } = usePanIndiaProducts();
   const [searchParams] = useSearchParams();
-  const catalogFilters = useMemo(() => catalogFiltersFromSearchParams(searchParams), [searchParams]);
+  const catalogFilters = useMemo(
+    () => catalogFiltersFromSearchParams(searchParams),
+    [searchParams],
+  );
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
   const categories = useMemo(() => {
@@ -91,11 +95,7 @@ export function PanIndiaPage() {
       )}
 
       {!isLoading && visibleProducts.length > 0 && (
-        <ClientPagination
-          items={visibleProducts}
-          pageSize={PAGE_SIZE}
-          resetKey={filterResetKey}
-        >
+        <ClientPagination items={visibleProducts} pageSize={PAGE_SIZE} resetKey={filterResetKey}>
           {({ items, page, pageCount, setPage }) => (
             <>
               <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3">
@@ -141,7 +141,6 @@ function PillButton({
 }
 
 function PanIndiaProductCard({ product }: { product: ProductCard }) {
-  const priceValue = `₹${Number(product.startingPrice).toFixed(0)}`;
   const showsRange = product.template !== "CAKE";
   const soldOut = !product.isAvailable;
   return (
@@ -199,19 +198,13 @@ function PanIndiaProductCard({ product }: { product: ProductCard }) {
           </p>
         )}
         <div className="mt-2 flex items-center justify-between gap-1 sm:mt-3">
-          <span
-            className={cn(
-              "text-sm font-semibold sm:text-lg",
-              soldOut ? "text-ink-500" : "text-ink-900",
-            )}
-          >
-            {showsRange && (
-              <span className="mr-1 hidden text-xs font-normal text-ink-500 sm:inline">
-                starts from
-              </span>
-            )}
-            {priceValue}
-          </span>
+          <Price
+            amount={product.startingPrice}
+            original={product.originalStartingPrice}
+            prefix={showsRange ? <span className="hidden sm:inline">starts from</span> : undefined}
+            showBadge
+            className={cn("text-sm sm:text-lg", soldOut ? "text-ink-500" : "text-ink-900")}
+          />
           {!soldOut && (
             <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 sm:px-2 sm:text-xs">
               Ships Pan-India

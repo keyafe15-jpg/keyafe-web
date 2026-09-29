@@ -7,6 +7,8 @@ import { ProductReviews } from "@/components/product/ProductReviews";
 import { PincodeChecker } from "@/components/product/PincodeChecker";
 import { SameDayDeliveryPicker } from "@/components/product/SameDayDeliveryPicker";
 import { ProductTagBadge } from "@/components/product/ProductTagBadge";
+import { Price } from "@/components/product/Price";
+import { applyFactor } from "@/lib/price";
 import type { PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import {
   useProduct,
@@ -113,15 +115,23 @@ function PdpContent({ product }: { product: ProductDetail }) {
   );
 
   const flavourDelta = pickedFlavour ? Number(pickedFlavour.additionalAmount) : 0;
+  const factor = product.priceFactor;
   const cakePrice = effectiveGrams
     ? computeCakeUnitPrice(basePrice, effectiveGrams, flavourDelta)
     : basePrice + flavourDelta;
   const volumeOff = effectiveGrams ? cakeVolumeDiscount(effectiveGrams) : 0;
-  const unitPrice = cakePrice + addonsDelta + slotSurcharge;
+  const extras = addonsDelta + slotSurcharge;
+  const unitPrice = applyFactor(cakePrice, factor) + extras;
+  const originalUnitPrice = factor ? cakePrice + extras : null;
 
   const deliveryFee =
     fulfillment === "delivery" && pincodeResult?.serviceable ? pincodeResult.deliveryFee : 0;
   const total = unitPrice * qty + deliveryFee;
+  const originalTotal = originalUnitPrice != null ? originalUnitPrice * qty + deliveryFee : null;
+  const customPrice =
+    customGrams && !customOutOfRange
+      ? computeCakeUnitPrice(basePrice, customGrams, flavourDelta)
+      : null;
 
   const canOrder =
     product.isAvailable &&
@@ -160,7 +170,8 @@ function PdpContent({ product }: { product: ProductDetail }) {
       slotKey: product.canBeDeliveredPanIndia ? undefined : slotKey,
       slotLabel: product.canBeDeliveredPanIndia ? undefined : slotLabel,
       isPanIndia: product.canBeDeliveredPanIndia,
-      unitPrice: unitPrice,
+      unitPrice,
+      originalUnitPrice: originalUnitPrice ?? undefined,
       qty,
     });
     navigate("/cart");
@@ -278,9 +289,14 @@ function PdpContent({ product }: { product: ProductDetail }) {
           </div>
 
           <div>
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-semibold text-ink-900">₹{unitPrice.toFixed(0)}</span>
-              {effectiveGrams && effectiveGrams !== CAKE_BASE_GRAMS && (
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <Price
+                amount={unitPrice}
+                original={originalUnitPrice}
+                showBadge
+                className="text-3xl text-ink-900"
+              />
+              {!factor && effectiveGrams && effectiveGrams !== CAKE_BASE_GRAMS && (
                 <span className="text-xs text-ink-500">
                   base ₹{basePrice.toFixed(0)}
                   {flavourDelta > 0 && ` + ₹${flavourDelta.toFixed(0)}`} ×{" "}
@@ -324,7 +340,11 @@ function PdpContent({ product }: { product: ProductDetail }) {
                       {s.servesText && (
                         <span className="block text-xs text-ink-500">{s.servesText}</span>
                       )}
-                      <span className="mt-1 block text-xs text-ink-700">₹{price.toFixed(0)}</span>
+                      <Price
+                        amount={applyFactor(price, factor)}
+                        original={price}
+                        className="mt-1 flex text-xs text-ink-700"
+                      />
                     </button>
                   );
                 })}
@@ -350,10 +370,10 @@ function PdpContent({ product }: { product: ProductDetail }) {
                       className="w-24 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
                     />
                     <span className="text-sm text-ink-700">pounds</span>
-                    {customGrams && !customOutOfRange && (
+                    {customGrams && customPrice != null && (
                       <span className="text-xs text-ink-500">
-                        · {customGrams} g · ₹
-                        {((basePrice + flavourDelta) * (customGrams / CAKE_BASE_GRAMS)).toFixed(0)}
+                        · {customGrams} g ·{" "}
+                        <Price amount={applyFactor(customPrice, factor)} original={customPrice} />
                       </span>
                     )}
                   </div>
@@ -401,7 +421,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
                   className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
                 >
                   {pickerFlavours.map((f) => {
-                    const delta = Number(f.additionalAmount);
+                    const delta = applyFactor(Number(f.additionalAmount), factor);
                     return (
                       <option key={f.id} value={f.id}>
                         {f.name}
@@ -517,7 +537,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
             </div>
             <div className="mb-3 flex items-center justify-between border-t border-cream-200 pt-3">
               <span className="text-sm text-ink-700">{PRODUCT_COPY.labels.total}</span>
-              <span className="text-xl font-semibold text-ink-900">₹{total.toFixed(2)}</span>
+              <Price amount={total} original={originalTotal} className="text-xl text-ink-900" />
             </div>
             <button
               type="button"
@@ -749,11 +769,16 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
   const crustDelta = pickedCrust ? Number(pickedCrust.price) : 0;
   const toppingsDelta = pickedToppings.reduce((s, t) => s + Number(t.priceDelta), 0);
   const addonsDelta = pickedAddons.reduce((s, a) => s + Number(a.priceDelta), 0);
-  const unitPrice = sizePrice + crustDelta + toppingsDelta + addonsDelta + slotSurcharge;
+  const factor = product.priceFactor;
+  const extras = toppingsDelta + addonsDelta + slotSurcharge;
+  // Size and crust are discounted separately so the total matches the chips.
+  const unitPrice = applyFactor(sizePrice, factor) + applyFactor(crustDelta, factor) + extras;
+  const originalUnitPrice = factor ? sizePrice + crustDelta + extras : null;
 
   const deliveryFee =
     fulfillment === "delivery" && pincodeResult?.serviceable ? pincodeResult.deliveryFee : 0;
   const total = unitPrice * qty + deliveryFee;
+  const originalTotal = originalUnitPrice != null ? originalUnitPrice * qty + deliveryFee : null;
 
   const canOrder =
     product.isAvailable &&
@@ -821,6 +846,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
       slotLabel: product.canBeDeliveredPanIndia ? undefined : slotLabel,
       isPanIndia: product.canBeDeliveredPanIndia,
       unitPrice,
+      originalUnitPrice: originalUnitPrice ?? undefined,
       qty,
     });
     navigate("/cart");
@@ -887,7 +913,12 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
           </div>
 
           <div>
-            <span className="text-3xl font-semibold text-ink-900">₹{unitPrice.toFixed(0)}</span>
+            <Price
+              amount={unitPrice}
+              original={originalUnitPrice}
+              showBadge
+              className="text-3xl text-ink-900"
+            />
             <p className="mt-1 text-xs text-ink-500">
               {product.priceIsGstInclusive
                 ? PRODUCT_COPY.labels.priceIncludesGst
@@ -916,9 +947,11 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
                       )}
                     >
                       <span className="block font-medium">{o.label}</span>
-                      <span className="mt-1 block text-xs text-ink-700">
-                        ₹{Number(o.price).toFixed(0)}
-                      </span>
+                      <Price
+                        amount={applyFactor(Number(o.price), factor)}
+                        original={Number(o.price)}
+                        className="mt-1 flex text-xs text-ink-700"
+                      />
                     </button>
                   );
                 })}
@@ -934,7 +967,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
               <div className="flex flex-wrap gap-2">
                 {crustGroup.options.map((o) => {
                   const active = o.id === crustId;
-                  const delta = Number(o.price);
+                  const delta = applyFactor(Number(o.price), factor);
                   return (
                     <button
                       key={o.id}
@@ -1057,7 +1090,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
             </div>
             <div className="mb-3 flex items-center justify-between border-t border-cream-200 pt-3">
               <span className="text-sm text-ink-700">{PRODUCT_COPY.labels.total}</span>
-              <span className="text-xl font-semibold text-ink-900">₹{total.toFixed(2)}</span>
+              <Price amount={total} original={originalTotal} className="text-xl text-ink-900" />
             </div>
             <button
               type="button"

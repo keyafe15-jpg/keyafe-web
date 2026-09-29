@@ -12,9 +12,11 @@ export interface ProductCard {
   name: string;
   shortDescription: string | null;
   basePrice: string;
-  // Minimum customer-visible price. For variant-priced products (pizzas etc.)
-  // this reflects the cheapest size; for cakes it equals basePrice.
+  // Minimum price the customer pays (after any discount). For variant-priced
+  // products (pizzas etc.) this reflects the cheapest size.
   startingPrice: string;
+  /** Struck-through starting price; null when the product isn't discounted. */
+  originalStartingPrice: string | null;
   template: "CAKE" | "PIZZA" | "OTHER";
   images: string[];
   isAvailable: boolean;
@@ -253,6 +255,9 @@ export interface ProductDetail {
   description: string | null;
   images: string[];
   basePrice: string;
+  discountedPrice: string | null;
+  /** Multiply size / pound / flavour / crust prices by this; null = no discount. */
+  priceFactor: number | null;
   productType: "FIXED_VARIANTS" | "CONFIGURABLE";
   template: ProductTemplate;
   isCustomizable: boolean;

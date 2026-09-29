@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { categoryNames, type ProductCard } from "@/hooks/useProducts";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { VegMark } from "@/components/product/VegMark";
+import { Price } from "@/components/product/Price";
 import { cn } from "@/lib/cn";
 
 interface CatalogProductCardProps {
@@ -15,7 +16,6 @@ interface CatalogProductCardProps {
 }
 
 export function CatalogProductCard({ product, className, omitTagSlug }: CatalogProductCardProps) {
-  const priceValue = `₹${Number(product.startingPrice).toFixed(0)}`;
   const showsRange = product.template !== "CAKE";
   const tags = omitTagSlug ? product.tags.filter((t) => t.slug !== omitTagSlug) : product.tags;
   const soldOut = !product.isAvailable;
@@ -77,19 +77,13 @@ export function CatalogProductCard({ product, className, omitTagSlug }: CatalogP
           </p>
         )}
         <div className="mt-auto flex items-center justify-between gap-1 pt-2 sm:pt-3">
-          <span
-            className={cn(
-              "text-sm font-semibold sm:text-lg",
-              soldOut ? "text-ink-500" : "text-ink-900",
-            )}
-          >
-            {showsRange && (
-              <span className="mr-1 hidden text-xs font-normal text-ink-500 sm:inline">
-                starts from
-              </span>
-            )}
-            {priceValue}
-          </span>
+          <Price
+            amount={product.startingPrice}
+            original={product.originalStartingPrice}
+            prefix={showsRange ? <span className="hidden sm:inline">starts from</span> : undefined}
+            showBadge
+            className={cn("text-sm sm:text-lg", soldOut ? "text-ink-500" : "text-ink-900")}
+          />
           {!soldOut && product.supportsSameDayDelivery ? (
             <span className="rounded-md bg-brand-100 px-1.5 py-0.5 text-[10px] text-brand-700 sm:px-2 sm:text-xs">
               Same-day
