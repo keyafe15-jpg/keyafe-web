@@ -10,7 +10,7 @@ import { CategoriesMenu } from "@/components/categories/CategoriesMenu";
 import { StoresMenu } from "@/components/categories/StoresMenu";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { BRAND } from "@/content/brand";
-import { SAMEDAY_NAV, HEALTHY_NAV, PANINDIA_NAV, CORPORATE_NAV, storeNavItem } from "@/content/nav";
+import { SAMEDAY_NAV, HEALTHY_NAV, PANINDIA_NAV, QUOTE_NAV, storeNavItem } from "@/content/nav";
 import { AUTH_COPY } from "@/content/auth";
 import {
   groupCategoriesByDepartment,
@@ -218,8 +218,8 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
                 }
               />
               <FeaturePill
-                to={CORPORATE_NAV.to}
-                label={CORPORATE_NAV.label}
+                to={QUOTE_NAV.to}
+                label={QUOTE_NAV.label}
                 accent="indigo"
                 icon={
                   <svg
@@ -233,9 +233,9 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
                     strokeLinejoin="round"
                     aria-hidden="true"
                   >
-                    <path d="M3 21h18" />
-                    <path d="M5 21V7l7-4 7 4v14" />
-                    <path d="M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01" />
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 2v6h6" />
+                    <path d="M8 13h8M8 17h5" />
                   </svg>
                 }
               />
@@ -492,7 +492,7 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
                     </span>
                   </NavLink>
                   <NavLink
-                    to={CORPORATE_NAV.to}
+                    to={QUOTE_NAV.to}
                     onClick={closeMobileMenu}
                     className={({ isActive }) =>
                       cn(
@@ -502,10 +502,10 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
                     }
                   >
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-base shadow-sm">
-                      🏢
+                      📝
                     </span>
                     <span className="text-xs leading-tight font-semibold text-indigo-700">
-                      Corporate
+                      {QUOTE_NAV.label}
                     </span>
                   </NavLink>
                   <NavLink

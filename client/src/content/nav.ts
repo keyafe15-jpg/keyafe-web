@@ -18,9 +18,9 @@ export const PANINDIA_NAV = {
 } as const;
 
 // Corporate, party and custom orders all funnel through the quote page.
-export const CORPORATE_NAV = {
+export const QUOTE_NAV = {
   to: "/get-quote",
-  label: "Corporate",
+  label: "Get a Quote",
 } as const;
 
 export const UTILITY_LINKS = [{ to: "/get-quote", label: "Get a Quote" }] as const;
