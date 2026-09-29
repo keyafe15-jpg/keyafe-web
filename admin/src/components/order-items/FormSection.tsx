@@ -1,5 +1,3 @@
-import { cn } from "@/lib/cn";
-
 export function FormSection({
   title,
   subtitle,
@@ -20,7 +18,7 @@ export function FormSection({
         </div>
         {action}
       </div>
-      <div className={cn(subtitle || action ? "mt-4" : "mt-3")}>{children}</div>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }

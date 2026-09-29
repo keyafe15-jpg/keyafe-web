@@ -101,6 +101,8 @@ export function AddressPlacesSearch({
           placeholder,
         });
         element.style.width = "100%";
+        element.style.maxWidth = "100%";
+        element.style.minWidth = "0";
         (element.style as CSSProperties & { colorScheme?: string }).colorScheme = "light";
         if (disabled) element.disabled = true;
         if (value) element.value = value;
@@ -157,7 +159,7 @@ export function AddressPlacesSearch({
   const showFallback = status === "fallback" || status === "error";
 
   return (
-    <div className={cx("relative", className)}>
+    <div className={cx("relative max-w-full min-w-0", className)}>
       {status === "loading" && <p className={hintClassName}>Loading address search…</p>}
 
       <div

@@ -13,8 +13,8 @@ export function ManualDiscountFields({
   onValue: (v: string) => void;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Discount type">
+    <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:gap-4">
+      <Field label="Discount">
         <select
           value={type}
           onChange={(e) => onType(e.target.value as ManualDiscountType)}
@@ -24,10 +24,7 @@ export function ManualDiscountFields({
           <option value="PERCENT">Percent (%)</option>
         </select>
       </Field>
-      <Field
-        label={type === "FLAT" ? "Amount (₹)" : "Percent"}
-        hint="Optional. Applied on items only — not delivery."
-      >
+      <Field label={type === "FLAT" ? "Amount (₹)" : "Percent"}>
         <input
           type="number"
           min={0}
@@ -35,7 +32,7 @@ export function ManualDiscountFields({
           step={type === "FLAT" ? "1" : "0.01"}
           value={value}
           onChange={(e) => onValue(e.target.value)}
-          placeholder={type === "FLAT" ? "0" : "0"}
+          placeholder="0"
           className={inputClass}
         />
       </Field>

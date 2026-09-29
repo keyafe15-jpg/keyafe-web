@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Store, Truck } from "lucide-react";
+import { ArrowLeft, Hourglass, ImagePlus, Store, Truck, Wallet, X } from "lucide-react";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
 import { TIME_SLOTS } from "@/content/slots";
 import { api } from "@/lib/api";
@@ -310,16 +310,16 @@ export function OfflineOrderDirectFormPage() {
       >
         <ArrowLeft className="h-3 w-3" /> Back to offline orders
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold text-slate-900">
+      <h1 className="mt-2 text-xl font-semibold text-slate-900 sm:mt-3 sm:text-2xl">
         New offline order — full details
       </h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="mt-1 hidden text-sm text-slate-500 sm:block">
         Enter one or more items and the customer's details. Order is placed straight away — no
         customer link needed.
       </p>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-6">
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-4 sm:space-y-6">
           <OrderItemsEditor
             items={items}
             patchItem={patchItem}
@@ -327,8 +327,8 @@ export function OfflineOrderDirectFormPage() {
             addItem={addItem}
           />
 
-          <Section title="Customer (buyer)">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <Section title="Customer">
+            <div className={pairGrid}>
               <Field label="Name" required>
                 <input
                   value={customerName}
@@ -337,45 +337,34 @@ export function OfflineOrderDirectFormPage() {
                   className={inputClass}
                 />
               </Field>
-              <Field label="Phone" required hint="Buyer contact — WhatsApp preferred">
+              <Field label="Phone" required>
                 <input
+                  type="tel"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="9876543210"
                   className={inputClass}
                 />
               </Field>
-              <Field
-                label="Email"
-                hint="Optional. Confirmation email will be sent."
-                className="sm:col-span-2"
-              >
+              <Field label="Email" className="col-span-2">
                 <input
                   type="email"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="aarav@example.com"
+                  placeholder="Optional — gets the confirmation email"
                   className={inputClass}
                 />
               </Field>
 
-              <div className="sm:col-span-2">
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={isBusinessOrder}
-                    onChange={(e) => setIsBusinessOrder(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
-                  />
-                  <span className="text-sm font-medium text-slate-700">
-                    Business order — needs a GST invoice
-                  </span>
-                </label>
-              </div>
+              <CheckboxRow
+                checked={isBusinessOrder}
+                onChange={setIsBusinessOrder}
+                title="Business order — needs a GST invoice"
+              />
 
               {isBusinessOrder && (
                 <>
-                  <Field label="Company name" required>
+                  <Field label="Company name" required className="col-span-2 sm:col-span-1">
                     <input
                       value={customerCompanyName}
                       onChange={(e) => setCustomerCompanyName(e.target.value)}
@@ -386,7 +375,8 @@ export function OfflineOrderDirectFormPage() {
                   <Field
                     label="GSTIN"
                     required
-                    hint={gstinError ?? "15 characters, e.g. 27AAACR5055K1Z7"}
+                    error={gstinError ?? undefined}
+                    className="col-span-2 sm:col-span-1"
                   >
                     <input
                       value={customerGstin}
@@ -403,217 +393,32 @@ export function OfflineOrderDirectFormPage() {
             </div>
           </Section>
 
-          <Section title="Fulfillment">
-            <div className="grid grid-cols-2 gap-3">
-              <KindButton
+          <Section title={fulfillment === "DELIVERY" ? "Delivery" : "Pickup"}>
+            <div className="grid grid-cols-2 gap-2">
+              <ToggleButton
                 active={fulfillment === "DELIVERY"}
                 onClick={() => setFulfillment("DELIVERY")}
-                icon={<Truck className="h-5 w-5" />}
+                icon={<Truck className="h-4 w-4" />}
                 title="Delivery"
-                subtitle="We deliver to their address"
+                subtitle="To their address"
               />
-              <KindButton
+              <ToggleButton
                 active={fulfillment === "PICKUP"}
                 onClick={() => setFulfillment("PICKUP")}
-                icon={<Store className="h-5 w-5" />}
+                icon={<Store className="h-4 w-4" />}
                 title="Pickup"
-                subtitle="Customer picks up from store"
+                subtitle="From the store"
               />
             </div>
 
-            {fulfillment === "DELIVERY" && (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Field label="Recipient name" hint="Who receives the cake">
-                  <input
-                    value={recipientName}
-                    onChange={(e) => setRecipientName(e.target.value)}
-                    placeholder={customerName.trim() || "Recipient"}
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label="Delivery phone" required>
-                  <input
-                    value={deliveryPhone}
-                    onChange={(e) => {
-                      setDeliveryPhoneTouched(true);
-                      setDeliveryPhone(e.target.value);
-                    }}
-                    placeholder={customerPhone.trim() || "9876543210"}
-                    className={inputClass}
-                  />
-                </Field>
-                <label className="flex cursor-pointer items-start gap-2 sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={isSurpriseGift}
-                    onChange={(e) => setIsSurpriseGift(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
-                  />
-                  <span>
-                    <span className="text-sm font-medium text-slate-800">Surprise gift</span>
-                    <span className="mt-0.5 block text-xs text-slate-500">
-                      Do not SMS/WhatsApp the recipient — contact the buyer only
-                    </span>
-                  </span>
-                </label>
-                <Field
-                  label="Search address"
-                  required
-                  className="sm:col-span-2"
-                  hint="Search a building, society, or landmark for riders (Uber / Rapido). Flat / house details go in the lines below — all fields stay editable."
-                >
-                  <AddressPlacesSearch
-                    value={mapSearchQuery}
-                    onChange={setMapSearchQuery}
-                    onPlaceSelect={(place) => {
-                      if (place.line1) setLine1(place.line1);
-                      if (place.pincode) setPincode(place.pincode);
-                    }}
-                    placeholder="Start typing building, society, or area"
-                  />
-                </Field>
-                <Field label="Pincode" required className="sm:col-span-1">
-                  <input
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="700001"
-                    className={inputClass}
-                  />
-                  {pincodeChecking && <p className="mt-1 text-xs text-slate-500">Checking…</p>}
-                  {pincodeInfo?.serviceable && (
-                    <p className="mt-1 text-xs text-emerald-700">
-                      {pincodeInfo.city}
-                      {pincodeInfo.area ? ` · ${pincodeInfo.area}` : ""}
-                      {` · table rate ₹${Number(pincodeInfo.deliveryFee).toFixed(0)}`}
-                    </p>
-                  )}
-                  {pincodeError && <p className="mt-1 text-xs text-red-700">{pincodeError}</p>}
-                </Field>
-                <Field label="Address line 1" required className="sm:col-span-1">
-                  <input
-                    value={line1}
-                    onChange={(e) => setLine1(e.target.value)}
-                    placeholder="12A, Prince Anwar Shah Road"
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label="Address line 2" className="sm:col-span-1">
-                  <input
-                    value={line2}
-                    onChange={(e) => setLine2(e.target.value)}
-                    placeholder="Flat 3B, Rose Apartments"
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label="Landmark" className="sm:col-span-1">
-                  <input
-                    value={landmark}
-                    onChange={(e) => setLandmark(e.target.value)}
-                    placeholder="Near South City Mall"
-                    className={inputClass}
-                  />
-                </Field>
-                <Field
-                  label="Delivery charge"
-                  className="sm:col-span-1"
-                  hint="Prefilled from the pincode table — change if you’re charging a different amount for this order."
-                >
-                  <input
-                    inputMode="decimal"
-                    value={deliveryFeeInput}
-                    onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                    placeholder="0"
-                    className={inputClass}
-                    disabled={!pincodeInfo?.serviceable}
-                  />
-                </Field>
-
-                <label className="flex cursor-pointer items-start gap-2 sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={billingSameAsDelivery}
-                    onChange={(e) => setBillingSameAsDelivery(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
-                  />
-                  <span>
-                    <span className="text-sm font-medium text-slate-800">
-                      Billing same as delivery
-                    </span>
-                    <span className="mt-0.5 block text-xs text-slate-500">
-                      Uncheck to enter a separate billing address for the invoice
-                    </span>
-                  </span>
-                </label>
-
-                {!billingSameAsDelivery && (
-                  <>
-                    <Field
-                      label="Billing address search"
-                      required
-                      className="sm:col-span-2"
-                      hint="Same as delivery — search first, then edit lines if needed."
-                    >
-                      <AddressPlacesSearch
-                        value={billMapSearchQuery}
-                        onChange={setBillMapSearchQuery}
-                        onPlaceSelect={(place) => {
-                          if (place.line1) setBillLine1(place.line1);
-                          if (place.pincode) setBillPincode(place.pincode);
-                        }}
-                        placeholder="Start typing billing building or area"
-                      />
-                    </Field>
-                    <Field label="Billing pincode" required>
-                      <input
-                        inputMode="numeric"
-                        maxLength={6}
-                        value={billPincode}
-                        onChange={(e) =>
-                          setBillPincode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                        }
-                        placeholder="700001"
-                        className={inputClass}
-                      />
-                    </Field>
-                    <Field label="Billing address line 1" required>
-                      <input
-                        value={billLine1}
-                        onChange={(e) => setBillLine1(e.target.value)}
-                        placeholder="Registered / billing street"
-                        className={inputClass}
-                      />
-                    </Field>
-                    <Field label="Billing address line 2">
-                      <input
-                        value={billLine2}
-                        onChange={(e) => setBillLine2(e.target.value)}
-                        className={inputClass}
-                      />
-                    </Field>
-                    <Field label="Billing landmark">
-                      <input
-                        value={billLandmark}
-                        onChange={(e) => setBillLandmark(e.target.value)}
-                        className={inputClass}
-                      />
-                    </Field>
-                  </>
-                )}
-              </div>
-            )}
-          </Section>
-
-          <Section title="Delivery date & slot">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className={cn(pairGrid, "mt-3")}>
               <Field label="Date" required>
                 <input
                   type="date"
                   min={todayIso()}
                   value={deliveryDate}
                   onChange={(e) => setDeliveryDate(e.target.value)}
-                  className={inputClass}
+                  className={cn(inputClass, "min-w-0")}
                 />
               </Field>
               <Field label="Time slot" required>
@@ -629,58 +434,197 @@ export function OfflineOrderDirectFormPage() {
                   ))}
                 </select>
               </Field>
+
+              {fulfillment === "DELIVERY" && (
+                <>
+                  <Field label="Recipient">
+                    <input
+                      value={recipientName}
+                      onChange={(e) => setRecipientName(e.target.value)}
+                      placeholder={customerName.trim() || "Same as buyer"}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Delivery phone" required>
+                    <input
+                      type="tel"
+                      value={deliveryPhone}
+                      onChange={(e) => {
+                        setDeliveryPhoneTouched(true);
+                        setDeliveryPhone(e.target.value);
+                      }}
+                      placeholder={customerPhone.trim() || "9876543210"}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <CheckboxRow
+                    checked={isSurpriseGift}
+                    onChange={setIsSurpriseGift}
+                    title="Surprise gift"
+                    subtitle="Contact the buyer only, not the recipient"
+                  />
+                  <Field label="Search address" required className="col-span-2">
+                    <AddressPlacesSearch
+                      value={mapSearchQuery}
+                      onChange={setMapSearchQuery}
+                      onPlaceSelect={(place) => {
+                        if (place.line1) setLine1(place.line1);
+                        if (place.pincode) setPincode(place.pincode);
+                      }}
+                      placeholder="Building, society, or area"
+                    />
+                  </Field>
+                  <Field label="Address line 1" required className="col-span-2">
+                    <input
+                      value={line1}
+                      onChange={(e) => setLine1(e.target.value)}
+                      placeholder="12A, Prince Anwar Shah Road"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Line 2">
+                    <input
+                      value={line2}
+                      onChange={(e) => setLine2(e.target.value)}
+                      placeholder="Flat 3B"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Landmark">
+                    <input
+                      value={landmark}
+                      onChange={(e) => setLandmark(e.target.value)}
+                      placeholder="Near South City"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Pincode" required>
+                    <input
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="700001"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Delivery ₹">
+                    <input
+                      inputMode="decimal"
+                      value={deliveryFeeInput}
+                      onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
+                      placeholder="From pincode"
+                      className={inputClass}
+                      disabled={!pincodeInfo?.serviceable}
+                    />
+                  </Field>
+                  {(pincodeChecking || pincodeInfo?.serviceable || pincodeError) && (
+                    <p
+                      className={cn(
+                        "col-span-2 -mt-1 text-xs",
+                        pincodeError ? "text-red-700" : "text-emerald-700",
+                        pincodeChecking && "text-slate-500",
+                      )}
+                    >
+                      {pincodeChecking
+                        ? "Checking pincode…"
+                        : pincodeError
+                          ? pincodeError
+                          : `${pincodeInfo?.city ?? ""}${pincodeInfo?.area ? ` · ${pincodeInfo.area}` : ""} · table rate ₹${Number(pincodeInfo?.deliveryFee ?? 0).toFixed(0)} — edit if charging differently`}
+                    </p>
+                  )}
+
+                  <CheckboxRow
+                    checked={billingSameAsDelivery}
+                    onChange={setBillingSameAsDelivery}
+                    title="Billing address same as delivery"
+                  />
+
+                  {!billingSameAsDelivery && (
+                    <>
+                      <Field label="Billing address search" required className="col-span-2">
+                        <AddressPlacesSearch
+                          value={billMapSearchQuery}
+                          onChange={setBillMapSearchQuery}
+                          onPlaceSelect={(place) => {
+                            if (place.line1) setBillLine1(place.line1);
+                            if (place.pincode) setBillPincode(place.pincode);
+                          }}
+                          placeholder="Billing building or area"
+                        />
+                      </Field>
+                      <Field label="Billing line 1" required className="col-span-2">
+                        <input
+                          value={billLine1}
+                          onChange={(e) => setBillLine1(e.target.value)}
+                          placeholder="Registered / billing street"
+                          className={inputClass}
+                        />
+                      </Field>
+                      <Field label="Line 2">
+                        <input
+                          value={billLine2}
+                          onChange={(e) => setBillLine2(e.target.value)}
+                          className={inputClass}
+                        />
+                      </Field>
+                      <Field label="Landmark">
+                        <input
+                          value={billLandmark}
+                          onChange={(e) => setBillLandmark(e.target.value)}
+                          className={inputClass}
+                        />
+                      </Field>
+                      <Field label="Billing pincode" required>
+                        <input
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={billPincode}
+                          onChange={(e) =>
+                            setBillPincode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                          }
+                          placeholder="700001"
+                          className={inputClass}
+                        />
+                      </Field>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </Section>
 
-          <Section
-            title="Discount"
-            subtitle="Optional. Flat rupees or a percent off the items — not delivery."
-          >
-            <ManualDiscountFields
-              type={discountType}
-              value={discountValue}
-              onType={setDiscountType}
-              onValue={setDiscountValue}
-            />
-          </Section>
-
-          <Section
-            title="Customer notes"
-            subtitle="Anything the kitchen or delivery partner should know."
-          >
-            <textarea
-              rows={3}
-              value={customerNotes}
-              onChange={(e) => setCustomerNotes(e.target.value)}
-              placeholder="Handle gently, ring bell twice…"
-              className={textareaClass}
-            />
-          </Section>
-
-          <Section
-            title="Payment"
-            subtitle="How much is being collected right now, and proof of it."
-          >
-            <div className="grid grid-cols-2 gap-3">
-              <KindButton
+          <Section title="Payment">
+            <div className="grid grid-cols-2 gap-2">
+              <ToggleButton
                 active={paymentMode === "FULL"}
                 onClick={() => setPaymentMode("FULL")}
-                icon={<Store className="h-5 w-5" />}
+                icon={<Wallet className="h-4 w-4" />}
                 title="Full payment"
                 subtitle="Entire total collected now"
               />
-              <KindButton
+              <ToggleButton
                 active={paymentMode === "ADVANCE"}
                 onClick={() => setPaymentMode("ADVANCE")}
-                icon={<Truck className="h-5 w-5" />}
-                title="Advance only"
+                icon={<Hourglass className="h-4 w-4" />}
+                title="Advance"
                 subtitle="Rest stays pending"
               />
             </div>
 
-            {paymentMode === "ADVANCE" && (
-              <div className="mt-4">
-                <Field label="Advance amount" required hint={`Max ₹${grandTotal.toFixed(0)}.`}>
+            <div className={cn(pairGrid, "mt-3")}>
+              {paymentMode === "ADVANCE" && (
+                <Field
+                  label="Advance amount"
+                  required
+                  error={
+                    advanceAmount.trim() !== "" && !advanceValid
+                      ? `Between ₹1 and ₹${grandTotal.toFixed(0)}`
+                      : undefined
+                  }
+                  hint={`Max ₹${grandTotal.toFixed(0)}`}
+                  className="col-span-2"
+                >
                   <input
                     inputMode="decimal"
                     value={advanceAmount}
@@ -688,50 +632,88 @@ export function OfflineOrderDirectFormPage() {
                     placeholder="0"
                     className={inputClass}
                   />
-                  {!advanceValid && (
-                    <p className="mt-1 text-xs text-red-700">
-                      Enter an advance between ₹1 and ₹{grandTotal.toFixed(0)}.
-                    </p>
-                  )}
                 </Field>
-              </div>
-            )}
-
-            <div className="mt-4">
-              <Field
-                label="Payment screenshot"
-                hint="Optional. Upload proof of the UPI/bank transfer, if any."
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setScreenshotFile(e.target.files?.[0] ?? null)}
-                  className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+              )}
+              <div className="col-span-2">
+                <ManualDiscountFields
+                  type={discountType}
+                  value={discountValue}
+                  onType={setDiscountType}
+                  onValue={setDiscountValue}
                 />
-                {screenshotPreview && (
-                  <img
-                    src={screenshotPreview}
-                    alt="Payment screenshot preview"
-                    className="mt-2 h-32 w-32 rounded-md border border-slate-200 object-cover"
+              </div>
+              <div className="col-span-2 flex items-center gap-3">
+                <label className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition group-hover:border-brand-500 group-hover:text-brand-600">
+                    {screenshotPreview ? (
+                      <img
+                        src={screenshotPreview}
+                        alt="Payment screenshot"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <ImagePlus className="h-5 w-5" />
+                    )}
+                  </span>
+                  <span className="min-w-0 text-xs">
+                    <span className="block font-medium text-slate-700">
+                      {screenshotFile ? "Payment screenshot" : "Add payment screenshot"}
+                    </span>
+                    <span className="block truncate text-slate-500">
+                      {screenshotFile?.name ?? "Optional — UPI / bank transfer proof"}
+                    </span>
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      e.target.value = "";
+                      if (file) setScreenshotFile(file);
+                    }}
+                    className="sr-only"
                   />
+                </label>
+                {screenshotFile && (
+                  <button
+                    type="button"
+                    onClick={() => setScreenshotFile(null)}
+                    className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                    aria-label="Remove screenshot"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 )}
-              </Field>
+              </div>
             </div>
           </Section>
 
-          <Section title="Admin notes" subtitle="Internal only. Never shown to customer.">
-            <textarea
-              rows={3}
-              value={adminNotes}
-              onChange={(e) => setAdminNotes(e.target.value)}
-              placeholder="Called on WhatsApp, paid ₹500 advance…"
-              className={textareaClass}
-            />
+          <Section title="Notes">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <Field label="For kitchen / delivery">
+                <textarea
+                  rows={2}
+                  value={customerNotes}
+                  onChange={(e) => setCustomerNotes(e.target.value)}
+                  placeholder="Handle gently, ring bell twice…"
+                  className={cn(textareaClass, "min-h-0")}
+                />
+              </Field>
+              <Field label="Internal (admin only)">
+                <textarea
+                  rows={2}
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Called on WhatsApp, paid ₹500 advance…"
+                  className={cn(textareaClass, "min-h-0")}
+                />
+              </Field>
+            </div>
           </Section>
         </div>
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-card border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-card border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h2 className="text-sm font-semibold text-slate-900">Summary</h2>
             <div className="mt-3 space-y-1.5 text-sm">
               {items.map((it, idx) => (
@@ -794,7 +776,7 @@ export function OfflineOrderDirectFormPage() {
               type="button"
               onClick={submit}
               disabled={!canSubmit || create.isPending}
-              className={cn(submitClass, "mt-5 w-full")}
+              className={cn(submitClass, "mt-4 w-full sm:mt-5")}
             >
               {uploading ? "Uploading…" : create.isPending ? "Placing order…" : "Place order"}
             </button>
@@ -811,32 +793,46 @@ export function OfflineOrderDirectFormPage() {
   );
 }
 
-function Section({
-  title,
-  subtitle,
-  action,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
+/** Two columns even on phones, so short fields pair up instead of stacking. */
+const pairGrid = "grid grid-cols-2 gap-x-2 gap-y-3 sm:gap-x-4";
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-card border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
-        </div>
-        {action}
-      </div>
+      <h2 className="mb-3 text-sm font-semibold text-slate-900">{title}</h2>
       {children}
     </section>
   );
 }
 
-function KindButton({
+function CheckboxRow({
+  checked,
+  onChange,
+  title,
+  subtitle,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <label className="col-span-2 flex cursor-pointer items-start gap-2">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
+      />
+      <span className="text-sm text-slate-700">
+        <span className="font-medium">{title}</span>
+        {subtitle && <span className="text-xs text-slate-500"> — {subtitle}</span>}
+      </span>
+    </label>
+  );
+}
+
+function ToggleButton({
   active,
   onClick,
   icon,
@@ -853,8 +849,9 @@ function KindButton({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition",
+        "flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition",
         active
           ? "bg-brand-50/50 border-brand-500 ring-1 ring-brand-500/30"
           : "hover:border-brand-300 border-slate-200 bg-white",
@@ -862,14 +859,16 @@ function KindButton({
     >
       <span
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-md",
+          "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
           active ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-500",
         )}
       >
         {icon}
       </span>
-      <span className="text-sm font-medium text-slate-900">{title}</span>
-      <span className="text-xs text-slate-500">{subtitle}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-medium text-slate-900">{title}</span>
+        <span className="hidden truncate text-xs text-slate-500 sm:block">{subtitle}</span>
+      </span>
     </button>
   );
 }

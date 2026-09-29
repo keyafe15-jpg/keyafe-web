@@ -158,54 +158,51 @@ export function OrderLinkFormPage() {
       >
         <ArrowLeft className="h-3 w-3" /> Back to offline orders
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold text-slate-900">
+      <h1 className="mt-2 text-xl font-semibold text-slate-900 sm:mt-3 sm:text-2xl">
         {isEdit ? "Edit offline order" : "New offline order"}
       </h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="mt-1 hidden text-sm text-slate-500 sm:block">
         {isEdit
           ? "Update the items, spec, or price. Customer fills their contact & address."
           : "Lock the reference image, size, flavour and agreed price for one or more items. Customer fills their contact & address."}
       </p>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-6">
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-4 sm:space-y-6">
           <OrderItemsEditor
             items={items}
             patchItem={patchItem}
             removeItem={removeItem}
             addItem={addItem}
-            listClassName="space-y-4"
           />
 
-          <Section title="Discount" subtitle="Optional. Locked on the items total — not delivery.">
-            <ManualDiscountFields
-              type={discountType}
-              value={discountValue}
-              onType={setDiscountType}
-              onValue={setDiscountValue}
-            />
-          </Section>
-
           <Section
-            title="Delivery charge"
-            subtitle="Optional. Lock a fee when you’ve already agreed the address (e.g. on WhatsApp). Leave blank so the customer’s pincode sets the table rate. The customer only sees the amount — not that it was overridden."
+            title="Pricing (optional)"
+            subtitle="Discount is on items only. Leave delivery blank to use the customer’s pincode rate."
           >
-            <Field label="Delivery charge (₹)" hint="Blank = pincode table when they order.">
-              <input
-                inputMode="decimal"
-                value={deliveryFeeInput}
-                onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                placeholder="e.g. 80"
-                className={inputClass}
+            <div className="space-y-3">
+              <ManualDiscountFields
+                type={discountType}
+                value={discountValue}
+                onType={setDiscountType}
+                onValue={setDiscountValue}
               />
-            </Field>
+              <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4">
+                <Field label="Delivery ₹">
+                  <input
+                    inputMode="decimal"
+                    value={deliveryFeeInput}
+                    onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
+                    placeholder="From pincode"
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+            </div>
           </Section>
 
-          <Section
-            title="Customer (optional)"
-            subtitle="If you already know it from WhatsApp — helps pre-fill the WhatsApp share message."
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
+          <Section title="Customer (optional)" subtitle="Pre-fills the WhatsApp message.">
+            <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:gap-x-4">
               <Field label="Name">
                 <input
                   value={customerName}
@@ -214,30 +211,30 @@ export function OrderLinkFormPage() {
                   className={inputClass}
                 />
               </Field>
-              <Field label="Phone" hint="WhatsApp number">
+              <Field label="WhatsApp">
                 <input
+                  type="tel"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="9876543210"
                   className={inputClass}
                 />
               </Field>
+              <Field label="Admin notes (internal)" className="col-span-2">
+                <textarea
+                  rows={2}
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Black icing, gold drip, edible pearls…"
+                  className={cn(textareaClass, "min-h-0")}
+                />
+              </Field>
             </div>
-          </Section>
-
-          <Section title="Admin notes" subtitle="Internal only. Never shown to customer.">
-            <textarea
-              rows={3}
-              value={adminNotes}
-              onChange={(e) => setAdminNotes(e.target.value)}
-              placeholder="Black icing, gold drip, edible pearls…"
-              className={textareaClass}
-            />
           </Section>
         </div>
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-card border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-card border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h2 className="text-sm font-semibold text-slate-900">Summary</h2>
             <div className="mt-3 space-y-1.5 text-sm">
               {items.map((it, idx) => (
@@ -283,18 +280,20 @@ export function OrderLinkFormPage() {
               </p>
             )}
 
-            <div className="mt-4">
-              <Field label="Expires in (days)" hint="Link stops working after this. Blank = never.">
-                <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={expiresInDays}
-                  onChange={(e) => setExpiresInDays(e.target.value)}
-                  className={inputClass}
-                />
-              </Field>
-            </div>
+            <label className="mt-4 flex items-center justify-between gap-3">
+              <span className="text-sm text-slate-700">
+                Link expires after
+                <span className="block text-[11px] text-slate-500">Days. Blank = never.</span>
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={expiresInDays}
+                onChange={(e) => setExpiresInDays(e.target.value)}
+                className={cn(inputClass, "w-20 text-right")}
+              />
+            </label>
 
             {error && (
               <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
@@ -304,7 +303,7 @@ export function OrderLinkFormPage() {
               type="button"
               onClick={submit}
               disabled={!canSubmit || create.isPending || update.isPending}
-              className={cn(submitClass, "mt-5 w-full")}
+              className={cn(submitClass, "mt-4 w-full sm:mt-5")}
             >
               {uploading
                 ? "Uploading…"
@@ -347,7 +346,7 @@ function Section({
         </div>
         {action}
       </div>
-      <div className={cn(subtitle || action ? "mt-4" : "mt-3")}>{children}</div>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
