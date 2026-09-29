@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { HeroSlider, type HeroSlideView } from "@/components/hero/HeroSlider";
 import { HeroStaticBanner } from "@/components/hero/HeroStaticBanner";
@@ -14,14 +14,8 @@ import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { BakeryJsonLd, Seo } from "@/components/seo/Seo";
 import { SlideCarousel } from "@/components/ui/SlideCarousel";
 import { HOME_COPY, HOME_SEO, KEYAFE_OFFERINGS } from "@/content/home";
-import { cn } from "@/lib/cn";
 import { useHeroSlides } from "@/hooks/useHeroSlides";
-import {
-  groupCategoriesByDepartment,
-  useCategories,
-  useDepartments,
-  type CategoryDepartmentGroup,
-} from "@/hooks/useCategories";
+import { groupCategoriesByDepartment, useCategories, useDepartments } from "@/hooks/useCategories";
 
 const promiseCards = [
   {
@@ -132,7 +126,7 @@ export function HomePage() {
 
       <section className="relative z-10 mx-auto max-w-6xl px-4 pt-5 pb-6 md:pt-7 md:pb-8">
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.15fr)] lg:items-stretch lg:gap-4 xl:gap-6">
-          <div className="home-rise flex h-full flex-col rounded-2xl border border-white/50 bg-white/40 px-5 py-6 text-center shadow-sm backdrop-blur-md sm:px-6 sm:py-7 lg:text-left">
+          <div className="home-rise flex h-full flex-col rounded-2xl border border-white/50 bg-white/40 px-5 py-5 text-center shadow-sm backdrop-blur-md sm:px-6 sm:py-7 lg:text-left">
             <div
               className="home-rise border-brand-200/80 mb-3 inline-flex items-center gap-2 rounded-md border bg-white/50 px-3 py-1.5 text-[11px] font-medium tracking-[0.22em] text-brand-700 uppercase backdrop-blur-sm"
               style={{ animationDelay: "0.05s" }}
@@ -152,7 +146,7 @@ export function HomePage() {
             </h1>
 
             <p
-              className="home-rise mx-auto mt-3 max-w-xl text-sm leading-6 text-ink-700 md:mt-4 md:text-base md:leading-7 lg:mx-0"
+              className="home-rise mx-auto mt-3 hidden max-w-xl text-sm leading-6 text-ink-700 sm:block md:mt-4 md:text-base md:leading-7 lg:mx-0"
               style={{ animationDelay: "0.55s" }}
             >
               {HOME_COPY.hero.sub}
@@ -172,32 +166,13 @@ export function HomePage() {
             </p>
 
             <div
-              className="home-rise mx-auto mt-5 w-full max-w-md lg:mt-auto lg:mx-0 lg:pt-6"
+              className="home-rise mx-auto mt-4 w-full max-w-md sm:mt-5 lg:mx-0 lg:mt-auto lg:pt-6"
               style={{ animationDelay: "0.82s" }}
             >
               <CatalogSearchBar
                 placeholder={HOME_COPY.search.placeholder}
                 className="border-white/60 bg-white/55 backdrop-blur-sm"
               />
-            </div>
-
-            {/* Phone-only store buttons — from sm up the illustrated doors handle entry. */}
-            <div
-              className="home-rise mt-4 flex flex-wrap justify-center gap-3 sm:hidden"
-              style={{ animationDelay: "0.95s" }}
-            >
-              <Link
-                to={HOME_COPY.hero.primaryCta.to}
-                className="home-cta-glow rounded-md bg-brand-500 px-5 py-2.5 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-brand-700"
-              >
-                {HOME_COPY.hero.primaryCta.label}
-              </Link>
-              <Link
-                to={HOME_COPY.hero.secondaryCta.to}
-                className="rounded-md border border-ink-700 bg-white/50 px-5 py-2.5 text-sm font-medium text-ink-700 backdrop-blur-sm transition hover:bg-white/70"
-              >
-                {HOME_COPY.hero.secondaryCta.label}
-              </Link>
             </div>
           </div>
 
@@ -215,7 +190,7 @@ export function HomePage() {
 
           <div className="flex flex-col">
             <Reveal>
-              <div className="mb-4 text-center lg:mb-5 lg:text-left">
+              <div className="mb-3 text-center sm:mb-4 lg:mb-5 lg:text-left">
                 <p className="mb-1 text-center text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase lg:text-left">
                   {HOME_COPY.storeDoors.eyebrow}
                 </p>
@@ -224,8 +199,7 @@ export function HomePage() {
                 </h2>
               </div>
             </Reveal>
-            <StoreDoorsMobileTabs groups={storeGroups} />
-            <div className="store-pair hidden flex-1 items-end justify-center gap-5 sm:flex lg:justify-start lg:gap-6">
+            <div className="store-pair grid flex-1 grid-cols-2 items-end gap-3 sm:flex sm:justify-center sm:gap-5 lg:justify-start lg:gap-6">
               {storeGroups.map((group, index) => (
                 <Reveal key={group.department!.id} delay={index * 100} from="scale">
                   <StoreDoor
@@ -357,53 +331,6 @@ export function HomePage() {
           </Reveal>
         </div>
       </section>
-    </div>
-  );
-}
-
-function StoreDoorsMobileTabs({ groups }: { groups: CategoryDepartmentGroup[] }) {
-  const [active, setActive] = useState(0);
-  const safeActive = Math.min(active, Math.max(0, groups.length - 1));
-  const current = groups[safeActive];
-
-  if (groups.length === 0 || !current?.department) return null;
-
-  return (
-    <div className="sm:hidden">
-      <div
-        role="tablist"
-        aria-label="Stores"
-        className="mx-auto mb-5 flex max-w-sm rounded-full border border-cream-200 bg-white/70 p-1 shadow-sm backdrop-blur-md"
-      >
-        {groups.map((group, index) => {
-          const dept = group.department!;
-          const selected = index === safeActive;
-          return (
-            <button
-              key={dept.id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => setActive(index)}
-              className={cn(
-                "flex-1 rounded-full px-3 py-2 text-xs font-semibold tracking-wide transition",
-                selected
-                  ? "bg-brand-500 text-white shadow-sm"
-                  : "text-ink-600 hover:text-brand-700",
-              )}
-            >
-              {dept.name} store
-            </button>
-          );
-        })}
-      </div>
-
-      <StoreDoor
-        name={current.department.name}
-        slug={current.department.slug}
-        categories={current.categories}
-        palette={current.department}
-      />
     </div>
   );
 }
