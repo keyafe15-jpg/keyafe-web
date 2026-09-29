@@ -24,8 +24,7 @@ export type BirthdayCelebration = {
 export const KEYAFE_FOUNDED_YEAR = 2019;
 
 export const ABOUT_BANNER = {
-  image:
-    "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=2000&q=80",
+  image: "/team.jpg",
   alt: "Team Keyafe together",
   caption: "Team Keyafe",
   /** CSS object-position — keep faces in frame when the banner crops. */

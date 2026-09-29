@@ -27,14 +27,14 @@ const makers = [
   {
     name: "Srijita Thakur",
     role: "Founder • Full-stack developer • dreamer",
-    image: "/srijitathakur.jpg",
+    image: "/srijita2.jpg",
     description:
       "I am Srijita Thakur — the founder, builder of this website, and a full-stack developer who wanted Keyafe to feel as warm and personal as the food itself.",
   },
   {
     name: "Subrata Thakur",
     role: "The backbone of our logistics & delivery",
-    image: "/subratathakur.jpg",
+    image: "/subratathakur2.jpg",
     description:
       "At 68, my father is the pillar of this business — he manages delivery, operations, and the unseen chaos behind every smooth order.",
   },
@@ -54,17 +54,15 @@ const makers = [
   },
   {
     name: "Alpana Manna",
-    role: "Home chef • cake artist",
-    image:
-      "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=900&q=80",
+    role: "Home chef • Cake artist and dessert specialist",
+    image: "/alpana.jpg",
     description:
       "A self-taught home cook who grew with us over the years, now creating beautiful bakes with skill, consistency and devotion.",
   },
   {
     name: "Tamasha Ghosh",
-    role: "Home chef • dessert specialist",
-    image:
-      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80",
+    role: "Home chef • Savoury and fondant work specialist",
+    image: "/tamasha.jpg",
     description:
       "Tamasha came from humble beginnings and grew stronger with us — now a trusted part of our kitchen and a key reason our desserts feel so personal.",
   },

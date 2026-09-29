@@ -32,22 +32,22 @@ export function OrderItemsEditor({
   return (
     <FormSection
       title="Items"
-      subtitle="Same item editor for send-link and full order. Catalog picks a menu product; Custom is a one-off."
+      subtitle="Add a custom one-off, or pick from the menu."
       action={
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => addItem("CATALOG")}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
-          >
-            <Plus className="h-3 w-3" /> Catalog item
-          </button>
           <button
             type="button"
             onClick={() => addItem("CUSTOM")}
             className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
           >
             <Plus className="h-3 w-3" /> Custom item
+          </button>
+          <button
+            type="button"
+            onClick={() => addItem("CATALOG")}
+            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
+          >
+            <Plus className="h-3 w-3" /> Catalog item
           </button>
         </div>
       }

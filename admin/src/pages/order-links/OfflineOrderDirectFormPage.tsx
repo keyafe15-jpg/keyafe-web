@@ -50,7 +50,7 @@ export function OfflineOrderDirectFormPage() {
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
-  const { items, patchItem, removeItem, addItem, setItems } = useOrderItemsState("CATALOG");
+  const { items, patchItem, removeItem, addItem, setItems } = useOrderItemsState();
   const [uploading, setUploading] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
@@ -261,13 +261,9 @@ export function OfflineOrderDirectFormPage() {
               }
             : null,
         recipientName:
-          fulfillment === "DELIVERY"
-            ? recipientName.trim() || customerName.trim()
-            : null,
+          fulfillment === "DELIVERY" ? recipientName.trim() || customerName.trim() : null,
         deliveryPhone:
-          fulfillment === "DELIVERY"
-            ? deliveryPhone.trim() || customerPhone.trim()
-            : null,
+          fulfillment === "DELIVERY" ? deliveryPhone.trim() || customerPhone.trim() : null,
         billingAddress:
           fulfillment === "DELIVERY" && !billingSameAsDelivery
             ? {
@@ -322,7 +318,7 @@ export function OfflineOrderDirectFormPage() {
         customer link needed.
       </p>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <OrderItemsEditor
             items={items}
@@ -827,9 +823,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-card border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
+    <section className="rounded-card border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
           {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
         </div>

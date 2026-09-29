@@ -36,7 +36,7 @@ export interface OrderItemDraft {
   variantId: string;
 }
 
-export function newOrderItem(kind: OrderLinkKind = "CATALOG"): OrderItemDraft {
+export function newOrderItem(kind: OrderLinkKind = "CUSTOM"): OrderItemDraft {
   return {
     id: crypto.randomUUID(),
     kind,

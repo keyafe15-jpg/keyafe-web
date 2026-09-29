@@ -40,7 +40,7 @@ export function OrderLinkFormPage() {
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
-  const { items, setItems, patchItem, removeItem, addItem } = useOrderItemsState("CUSTOM");
+  const { items, setItems, patchItem, removeItem, addItem } = useOrderItemsState();
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
@@ -70,9 +70,7 @@ export function OrderLinkFormPage() {
         ? String(Number(existing.discountValue))
         : "",
     );
-    setDeliveryFeeInput(
-      existing.deliveryFee != null ? String(Number(existing.deliveryFee)) : "",
-    );
+    setDeliveryFeeInput(existing.deliveryFee != null ? String(Number(existing.deliveryFee)) : "");
     if (existing.expiresAt) {
       const daysLeft = Math.max(
         1,
@@ -169,7 +167,7 @@ export function OrderLinkFormPage() {
           : "Lock the reference image, size, flavour and agreed price for one or more items. Customer fills their contact & address."}
       </p>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <OrderItemsEditor
             items={items}
@@ -179,10 +177,7 @@ export function OrderLinkFormPage() {
             listClassName="space-y-4"
           />
 
-          <Section
-            title="Discount"
-            subtitle="Optional. Locked on the items total — not delivery."
-          >
+          <Section title="Discount" subtitle="Optional. Locked on the items total — not delivery.">
             <ManualDiscountFields
               type={discountType}
               value={discountValue}
@@ -344,9 +339,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-card border border-slate-200 bg-white p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+    <section className="rounded-card border border-slate-200 bg-white p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
           {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
         </div>

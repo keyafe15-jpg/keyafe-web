@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { ChevronDown, ChevronRight, Package, Sparkles, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ImagePlus, Package, Sparkles, Trash2, X } from "lucide-react";
 import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
@@ -350,66 +350,209 @@ export function OrderItemRow({
       : null;
 
   const showCustomDetails = item.kind === "CUSTOM" && item.expanded;
+  const refImage = item.refPreview ?? item.keptImageUrl;
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase",
-                item.kind === "CATALOG" ? "bg-sky-100 text-sky-700" : "bg-brand-100 text-brand-700",
-              )}
-            >
-              {item.kind === "CATALOG" ? (
-                <Package className="h-3 w-3" />
-              ) : (
-                <Sparkles className="h-3 w-3" />
-              )}
-              {item.kind === "CATALOG" ? "Catalog" : "Custom"}
-            </span>
-            <span className="text-xs text-slate-400">#{index + 1}</span>
-          </div>
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase",
+            item.kind === "CATALOG" ? "bg-sky-100 text-sky-700" : "bg-brand-100 text-brand-700",
+          )}
+        >
+          {item.kind === "CATALOG" ? (
+            <Package className="h-3 w-3" />
+          ) : (
+            <Sparkles className="h-3 w-3" />
+          )}
+          {item.kind === "CATALOG" ? "Catalog" : "Custom"}
+        </span>
+        <span className="text-xs text-slate-400">#{index + 1}</span>
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={!canRemove}
+          className="-my-1 ml-auto rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+          aria-label="Remove item"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
 
-          {item.kind === "CATALOG" && (
-            <div className="mt-3 space-y-3">
-              <Field label="Product" required>
+      <div>
+        {item.kind === "CATALOG" && (
+          <div className="mt-3 space-y-3">
+            <Field label="Product" required>
+              <SearchableSelect
+                value={item.productId}
+                onChange={(productId) => onPatch({ productId, ...resetCatalogProductPick() })}
+                searchPlaceholder="Search products…"
+                options={products.map((p) => ({
+                  value: p.id,
+                  label: formatCatalogProductLabel(p),
+                  keywords: p.name,
+                }))}
+              />
+            </Field>
+
+            {item.productId && productDetail && hasFixedSkus && (
+              <Field label="Variant (SKU)" required>
                 <SearchableSelect
-                  value={item.productId}
-                  onChange={(productId) => onPatch({ productId, ...resetCatalogProductPick() })}
-                  searchPlaceholder="Search products…"
-                  options={products.map((p) => ({
-                    value: p.id,
-                    label: formatCatalogProductLabel(p),
-                    keywords: p.name,
+                  value={item.variantId}
+                  onChange={(variantId) => onPatch({ variantId })}
+                  searchPlaceholder="Search SKUs…"
+                  allowEmpty={false}
+                  placeholder="— Pick SKU —"
+                  options={fixedSkus.map((v) => ({
+                    value: v.id,
+                    label: `${v.label} · ₹${v.price.toFixed(0)}`,
+                    keywords: `${v.label} ${v.sku}`,
                   }))}
                 />
               </Field>
+            )}
 
-              {item.productId && productDetail && hasFixedSkus && (
-                <Field label="Variant (SKU)" required>
-                  <SearchableSelect
-                    value={item.variantId}
-                    onChange={(variantId) => onPatch({ variantId })}
-                    searchPlaceholder="Search SKUs…"
-                    allowEmpty={false}
-                    placeholder="— Pick SKU —"
-                    options={fixedSkus.map((v) => ({
-                      value: v.id,
-                      label: `${v.label} · ₹${v.price.toFixed(0)}`,
-                      keywords: `${v.label} ${v.sku}`,
-                    }))}
-                  />
-                </Field>
-              )}
+            {item.productId && productDetail && hasOptionGroupSize && (
+              <Field label={sizeGroup?.label ?? "Size"} required hint="From product option groups">
+                <SearchableSelect
+                  value={item.sizeOptionId}
+                  onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
+                  searchPlaceholder="Search sizes…"
+                  allowEmpty={false}
+                  placeholder="— Pick size —"
+                  options={sizeOptions.map((o) => ({
+                    value: o.id!,
+                    label: formatOptionSelectLabel(
+                      o,
+                      Number(productDetail.basePrice),
+                      sizePriceMode,
+                    ),
+                    keywords: o.label,
+                  }))}
+                />
+              </Field>
+            )}
+          </div>
+        )}
 
-              {item.productId && productDetail && hasOptionGroupSize && (
-                <Field
-                  label={sizeGroup?.label ?? "Size"}
-                  required
-                  hint="From product option groups"
-                >
+        <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-[2fr_1fr_1fr] sm:gap-3">
+          <Field
+            label={item.kind === "CATALOG" ? "Name (override)" : "Name"}
+            required
+            className="col-span-2 sm:col-span-1"
+          >
+            <input
+              value={item.productName}
+              onChange={(e) => onPatch({ productName: e.target.value })}
+              placeholder={
+                item.kind === "CATALOG"
+                  ? "Uses product name if blank"
+                  : item.customTemplate === "PIZZA"
+                    ? "e.g. Chicken BBQ pizza"
+                    : item.customTemplate === "OTHER"
+                      ? "Item name"
+                      : "1 pound chocolate cake"
+              }
+              className={inputClass}
+            />
+          </Field>
+          <Field label={autoPriced ? "Price (auto)" : "Price"} required>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={item.unitPrice}
+              onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
+              placeholder="500"
+              disabled={autoPriced}
+              className={cn(inputClass, autoPriced && "bg-slate-100 text-slate-600")}
+            />
+          </Field>
+          <Field label="Qty" required>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={item.qty}
+              onChange={(e) => onPatch({ qty: e.target.value.replace(/\D/g, "") })}
+              placeholder="1"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+
+        {isCakeConfigurator && productDetail && (
+          <div className="mt-3 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-2 gap-y-3 sm:grid-cols-[5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)] sm:gap-2">
+            <Field
+              label="Pounds"
+              required
+              error={
+                customOutOfRange
+                  ? `Between ${productDetail.minGrams != null ? (productDetail.minGrams / 500).toFixed(1) : "0.1"}–${productDetail.maxGrams != null ? (productDetail.maxGrams / 500).toFixed(1) : "any"} lb`
+                  : undefined
+              }
+            >
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={productDetail.minGrams ? productDetail.minGrams / 500 : 0.1}
+                  max={productDetail.maxGrams ? productDetail.maxGrams / 500 : undefined}
+                  step={0.1}
+                  value={item.customPounds}
+                  onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
+                  placeholder="1"
+                  className={cn(inputClass, "w-full")}
+                />
+                <span className="shrink-0 text-xs text-slate-500">lb</span>
+              </div>
+            </Field>
+            {pickerFlavours.length > 0 ? (
+              <Field label="Flavour" required={!hasAttachedFlavours}>
+                <SearchableSelect
+                  value={item.flavourId}
+                  onChange={(flavourId) => onPatch({ flavourId })}
+                  searchPlaceholder="Search flavours…"
+                  allowEmpty={hasAttachedFlavours}
+                  placeholder="— Pick flavour —"
+                  options={pickerFlavours.map((f) => {
+                    const delta = Number(f.additionalAmount);
+                    return {
+                      value: f.id,
+                      label: hasAttachedFlavours
+                        ? f.name
+                        : delta > 0
+                          ? `${f.name} (+₹${delta.toFixed(0)}/lb)`
+                          : f.name,
+                      keywords: f.name,
+                    };
+                  })}
+                />
+              </Field>
+            ) : (
+              <div />
+            )}
+            <Field label="Message on cake" className="col-span-2 sm:col-span-1">
+              <input
+                value={item.messageOnCake}
+                onChange={(e) => onPatch({ messageOnCake: e.target.value })}
+                placeholder="Happy Birthday Aarav"
+                className={inputClass}
+              />
+            </Field>
+            {customPreviewPrice != null && (
+              <p className="col-span-2 -mt-1 text-[11px] text-slate-500 sm:col-span-3">
+                ₹{cakeBasePrice.toFixed(0)}/lb
+                {customGrams != null ? ` · ${customGrams}g` : ""}
+                {hasAttachedFlavours ? " · flavour in recipe" : ""}
+              </p>
+            )}
+          </div>
+        )}
+
+        {isPizza && productDetail && (
+          <div className="mt-3 space-y-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(9rem,14rem)_minmax(8rem,1fr)]">
+              {sizeOptions.length > 0 && (
+                <Field label="Size" required>
                   <SearchableSelect
                     value={item.sizeOptionId}
                     onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
@@ -428,329 +571,190 @@ export function OrderItemRow({
                   />
                 </Field>
               )}
-            </div>
-          )}
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
-            <Field label={item.kind === "CATALOG" ? "Name (override)" : "Name"} required>
-              <input
-                value={item.productName}
-                onChange={(e) => onPatch({ productName: e.target.value })}
-                placeholder={
-                  item.kind === "CATALOG"
-                    ? "Uses product name if blank"
-                    : item.customTemplate === "PIZZA"
-                      ? "e.g. Chicken BBQ pizza"
-                      : item.customTemplate === "OTHER"
-                        ? "Item name"
-                        : "1 pound chocolate cake"
-                }
-                className={inputClass}
-              />
-            </Field>
-            <Field label={autoPriced ? "Price (auto)" : "Price"} required>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={item.unitPrice}
-                onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
-                placeholder="500"
-                disabled={autoPriced}
-                className={cn(inputClass, autoPriced && "bg-slate-100 text-slate-600")}
-              />
-            </Field>
-            <Field label="Qty" required>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={item.qty}
-                onChange={(e) => onPatch({ qty: e.target.value.replace(/\D/g, "") })}
-                placeholder="1"
-                className={inputClass}
-              />
-            </Field>
-          </div>
-
-          {isCakeConfigurator && productDetail && (
-            <div className="mt-3 grid gap-2 sm:grid-cols-[5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)]">
-              <Field
-                label="Pounds"
-                required
-                error={
-                  customOutOfRange
-                    ? `Between ${productDetail.minGrams != null ? (productDetail.minGrams / 500).toFixed(1) : "0.1"}–${productDetail.maxGrams != null ? (productDetail.maxGrams / 500).toFixed(1) : "any"} lb`
-                    : undefined
-                }
-              >
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min={productDetail.minGrams ? productDetail.minGrams / 500 : 0.1}
-                    max={productDetail.maxGrams ? productDetail.maxGrams / 500 : undefined}
-                    step={0.1}
-                    value={item.customPounds}
-                    onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
-                    placeholder="1"
-                    className={cn(inputClass, "w-full")}
-                  />
-                  <span className="shrink-0 text-xs text-slate-500">lb</span>
-                </div>
-              </Field>
-              {pickerFlavours.length > 0 ? (
-                <Field label="Flavour" required={!hasAttachedFlavours}>
-                  <SearchableSelect
-                    value={item.flavourId}
-                    onChange={(flavourId) => onPatch({ flavourId })}
-                    searchPlaceholder="Search flavours…"
-                    allowEmpty={hasAttachedFlavours}
-                    placeholder="— Pick flavour —"
-                    options={pickerFlavours.map((f) => {
-                      const delta = Number(f.additionalAmount);
-                      return {
-                        value: f.id,
-                        label: hasAttachedFlavours
-                          ? f.name
-                          : delta > 0
-                            ? `${f.name} (+₹${delta.toFixed(0)}/lb)`
-                            : f.name,
-                        keywords: f.name,
-                      };
+              {crustOptions.length > 0 && (
+                <Field label="Crust">
+                  <select
+                    value={item.crustOptionId}
+                    onChange={(e) => onPatch({ crustOptionId: e.target.value })}
+                    className={selectClass}
+                  >
+                    {crustOptions.map((o) => {
+                      const delta = Number(o.price);
+                      return (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                          {delta === 0 ? "" : ` (+₹${delta.toFixed(0)})`}
+                        </option>
+                      );
                     })}
-                  />
+                  </select>
                 </Field>
-              ) : (
-                <div />
-              )}
-              <Field label="Message on cake">
-                <input
-                  value={item.messageOnCake}
-                  onChange={(e) => onPatch({ messageOnCake: e.target.value })}
-                  placeholder="Happy Birthday Aarav"
-                  className={inputClass}
-                />
-              </Field>
-              {customPreviewPrice != null && (
-                <p className="text-[11px] text-slate-500 sm:col-span-3">
-                  ₹{cakeBasePrice.toFixed(0)}/lb
-                  {customGrams != null ? ` · ${customGrams}g` : ""}
-                  {hasAttachedFlavours ? " · flavour in recipe" : ""}
-                </p>
               )}
             </div>
-          )}
+            {availToppings.length > 0 && (
+              <div>
+                <p className="mb-1 text-[11px] font-medium text-slate-500">Toppings</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {availToppings.map((t) => {
+                    const on = item.toppingSelections.includes(t.id);
+                    const delta = Number(t.priceDelta);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => toggleTopping(t.id)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-xs font-medium transition",
+                          on
+                            ? "border-brand-500 bg-brand-100 text-brand-700"
+                            : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
+                        )}
+                      >
+                        {t.name}
+                        {delta > 0 && (
+                          <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {availCondiments.length > 0 && (
+              <div>
+                <p className="mb-1 text-[11px] font-medium text-slate-500">Condiments</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {availCondiments.map((t) => {
+                    const on = item.toppingSelections.includes(t.id);
+                    const delta = Number(t.priceDelta);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => toggleTopping(t.id)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-xs font-medium transition",
+                          on
+                            ? "border-brand-500 bg-brand-100 text-brand-700"
+                            : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
+                        )}
+                      >
+                        {t.name}
+                        {delta > 0 && (
+                          <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
-          {isPizza && productDetail && (
-            <div className="mt-3 space-y-2">
-              <div className="grid gap-2 sm:grid-cols-[minmax(9rem,14rem)_minmax(8rem,1fr)]">
-                {sizeOptions.length > 0 && (
-                  <Field label="Size" required>
-                    <SearchableSelect
-                      value={item.sizeOptionId}
-                      onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
-                      searchPlaceholder="Search sizes…"
-                      allowEmpty={false}
-                      placeholder="— Pick size —"
-                      options={sizeOptions.map((o) => ({
-                        value: o.id!,
-                        label: formatOptionSelectLabel(
-                          o,
-                          Number(productDetail.basePrice),
-                          sizePriceMode,
-                        ),
-                        keywords: o.label,
-                      }))}
-                    />
-                  </Field>
-                )}
-                {crustOptions.length > 0 && (
-                  <Field label="Crust">
+        {item.kind === "CATALOG" && catalogAddons.length > 0 && (
+          <div className="mt-3">
+            <AddonGroupPicker
+              addons={catalogAddons}
+              selected={item.addonSelections}
+              onToggle={toggleAddon}
+            />
+          </div>
+        )}
+
+        {item.kind === "CUSTOM" && (
+          <button
+            type="button"
+            onClick={() => onPatch({ expanded: !item.expanded })}
+            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-brand-700"
+          >
+            {item.expanded ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+            {item.expanded
+              ? "Hide details"
+              : isCustomCake
+                ? "Add pounds, flavour, message…"
+                : isCustomPizza
+                  ? "Add size, crust, toppings…"
+                  : "Add size, notes…"}
+          </button>
+        )}
+
+        {showCustomDetails && (
+          <div className="mt-2 space-y-2">
+            {isCustomCake ? (
+              <>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-[7rem_5rem_minmax(9rem,1fr)_minmax(9rem,1fr)] sm:gap-2">
+                  <Field label="Category">
                     <select
-                      value={item.crustOptionId}
-                      onChange={(e) => onPatch({ crustOptionId: e.target.value })}
+                      value={item.customTemplate}
+                      onChange={(e) =>
+                        onPatch({
+                          customTemplate: e.target.value as OrderItemDraft["customTemplate"],
+                          cakeSizeId: "",
+                          customPounds: e.target.value === "CAKE" ? item.customPounds || "1" : "",
+                          customPizzaSize: "",
+                          flavourId: "",
+                          customFlavour: "",
+                          sizeLabel: "",
+                          sizeGrams: "",
+                          sizeOptionId: "",
+                          crustOptionId: "",
+                          crustLabel: "",
+                          toppingSelections: [],
+                          addonSelections: [],
+                        })
+                      }
                       className={selectClass}
                     >
-                      {crustOptions.map((o) => {
-                        const delta = Number(o.price);
-                        return (
-                          <option key={o.id} value={o.id}>
-                            {o.label}
-                            {delta === 0 ? "" : ` (+₹${delta.toFixed(0)})`}
-                          </option>
-                        );
-                      })}
+                      <option value="CAKE">Cake</option>
+                      <option value="PIZZA">Pizza</option>
+                      <option value="OTHER">Other</option>
                     </select>
                   </Field>
-                )}
-              </div>
-              {availToppings.length > 0 && (
-                <div>
-                  <p className="mb-1 text-[11px] font-medium text-slate-500">Toppings</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availToppings.map((t) => {
-                      const on = item.toppingSelections.includes(t.id);
-                      const delta = Number(t.priceDelta);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => toggleTopping(t.id)}
-                          className={cn(
-                            "rounded-full border px-2.5 py-1 text-xs font-medium transition",
-                            on
-                              ? "border-brand-500 bg-brand-100 text-brand-700"
-                              : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
-                          )}
-                        >
-                          {t.name}
-                          {delta > 0 && (
-                            <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {availCondiments.length > 0 && (
-                <div>
-                  <p className="mb-1 text-[11px] font-medium text-slate-500">Condiments</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availCondiments.map((t) => {
-                      const on = item.toppingSelections.includes(t.id);
-                      const delta = Number(t.priceDelta);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => toggleTopping(t.id)}
-                          className={cn(
-                            "rounded-full border px-2.5 py-1 text-xs font-medium transition",
-                            on
-                              ? "border-brand-500 bg-brand-100 text-brand-700"
-                              : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
-                          )}
-                        >
-                          {t.name}
-                          {delta > 0 && (
-                            <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {item.kind === "CATALOG" && catalogAddons.length > 0 && (
-            <div className="mt-3">
-              <AddonGroupPicker
-                addons={catalogAddons}
-                selected={item.addonSelections}
-                onToggle={toggleAddon}
-              />
-            </div>
-          )}
-
-          {item.kind === "CUSTOM" && (
-            <button
-              type="button"
-              onClick={() => onPatch({ expanded: !item.expanded })}
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-brand-700"
-            >
-              {item.expanded ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
-              {item.expanded ? "Hide" : "Show"} details
-            </button>
-          )}
-
-          {showCustomDetails && (
-            <div className="mt-2 space-y-2">
-              {isCustomCake ? (
-                <>
-                  <div className="grid gap-2 sm:grid-cols-[7rem_5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)]">
-                    <Field label="Category">
-                      <select
-                        value={item.customTemplate}
-                        onChange={(e) =>
+                  <Field label="Pounds" required>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0.1}
+                        step={0.1}
+                        value={item.customPounds}
+                        onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
+                        placeholder="1"
+                        className={cn(inputClass, "w-full")}
+                      />
+                      <span className="shrink-0 text-xs text-slate-500">lb</span>
+                    </div>
+                  </Field>
+                  {flavours.length > 0 ? (
+                    <Field label="Flavour">
+                      <SearchableSelect
+                        value={item.flavourId}
+                        onChange={(flavourId) =>
                           onPatch({
-                            customTemplate: e.target.value as OrderItemDraft["customTemplate"],
-                            cakeSizeId: "",
-                            customPounds: e.target.value === "CAKE" ? item.customPounds || "1" : "",
-                            customPizzaSize: "",
-                            flavourId: "",
-                            customFlavour: "",
-                            sizeLabel: "",
-                            sizeGrams: "",
-                            sizeOptionId: "",
-                            crustOptionId: "",
-                            crustLabel: "",
-                            toppingSelections: [],
-                            addonSelections: [],
+                            flavourId,
+                            customFlavour: flavourId ? "" : item.customFlavour,
                           })
                         }
-                        className={selectClass}
-                      >
-                        <option value="CAKE">Cake</option>
-                        <option value="PIZZA">Pizza</option>
-                        <option value="OTHER">Other</option>
-                      </select>
-                    </Field>
-                    <Field label="Pounds" required>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          min={0.1}
-                          step={0.1}
-                          value={item.customPounds}
-                          onChange={(e) =>
-                            onPatch({ customPounds: e.target.value, cakeSizeId: "" })
-                          }
-                          placeholder="1"
-                          className={cn(inputClass, "w-full")}
-                        />
-                        <span className="shrink-0 text-xs text-slate-500">lb</span>
-                      </div>
-                    </Field>
-                    {flavours.length > 0 ? (
-                      <Field label="Flavour">
-                        <SearchableSelect
-                          value={item.flavourId}
-                          onChange={(flavourId) =>
-                            onPatch({
-                              flavourId,
-                              customFlavour: flavourId ? "" : item.customFlavour,
-                            })
-                          }
-                          searchPlaceholder="Search flavours…"
-                          allowEmpty
-                          placeholder="— Pick flavour —"
-                          options={flavours.map((f) => {
-                            const delta = Number(f.additionalAmount);
-                            return {
-                              value: f.id,
-                              label: delta > 0 ? `${f.name} (+₹${delta.toFixed(0)}/lb)` : f.name,
-                              keywords: f.name,
-                            };
-                          })}
-                        />
-                      </Field>
-                    ) : (
-                      <div />
-                    )}
-                    <Field label="Message on cake">
-                      <input
-                        value={item.messageOnCake}
-                        onChange={(e) => onPatch({ messageOnCake: e.target.value })}
-                        placeholder="Happy Birthday Aarav"
-                        className={inputClass}
+                        searchPlaceholder="Search flavours…"
+                        allowEmpty
+                        placeholder="— Pick flavour —"
+                        options={flavours.map((f) => {
+                          const delta = Number(f.additionalAmount);
+                          return {
+                            value: f.id,
+                            label: delta > 0 ? `${f.name} (+₹${delta.toFixed(0)}/lb)` : f.name,
+                            keywords: f.name,
+                          };
+                        })}
                       />
                     </Field>
-                  </div>
+                  ) : (
+                    <div />
+                  )}
                   <Field label="Custom flavour">
                     <input
                       value={item.customFlavour}
@@ -760,173 +764,23 @@ export function OrderItemRow({
                           flavourId: e.target.value.trim() ? "" : item.flavourId,
                         })
                       }
-                      placeholder="If not in the list — e.g. Ferrero Rocher"
+                      placeholder="Not in list?"
                       className={inputClass}
                     />
                   </Field>
-                </>
-              ) : isCustomPizza ? (
-                <>
-                  <div className="grid gap-2 sm:grid-cols-[7rem_minmax(8rem,11rem)_minmax(7rem,9rem)_minmax(8rem,1fr)]">
-                    <Field label="Category">
-                      <select
-                        value={item.customTemplate}
-                        onChange={(e) =>
-                          onPatch({
-                            customTemplate: e.target.value as OrderItemDraft["customTemplate"],
-                            cakeSizeId: "",
-                            customPounds: e.target.value === "CAKE" ? "1" : "",
-                            customPizzaSize: "",
-                            flavourId: "",
-                            customFlavour: "",
-                            sizeLabel: "",
-                            sizeGrams: "",
-                            sizeOptionId: "",
-                            crustOptionId: "",
-                            crustLabel: "",
-                            toppingSelections: [],
-                            addonSelections: [],
-                          })
-                        }
-                        className={selectClass}
-                      >
-                        <option value="CAKE">Cake</option>
-                        <option value="PIZZA">Pizza</option>
-                        <option value="OTHER">Other</option>
-                      </select>
-                    </Field>
-                    {pizzaSizePresets.length > 0 ? (
-                      <Field label="Size" required={!item.customPizzaSize.trim()}>
-                        <SearchableSelect
-                          value={item.customPizzaSize.trim() ? "" : item.sizeOptionId}
-                          onChange={(sizeKey) =>
-                            onPatch({
-                              sizeOptionId: sizeKey,
-                              customPizzaSize: "",
-                              sizeLabel: pizzaSizeLabelForKey(pizzaSizePresets, sizeKey),
-                            })
-                          }
-                          searchPlaceholder="Search sizes…"
-                          allowEmpty
-                          placeholder={
-                            item.customPizzaSize.trim()
-                              ? item.customPizzaSize.trim()
-                              : "— Pick size —"
-                          }
-                          options={pizzaSizePresets.map((s) => ({
-                            value: s.key,
-                            label: s.label,
-                            keywords: s.label,
-                          }))}
-                        />
-                      </Field>
-                    ) : (
-                      <div />
-                    )}
-                    <Field label="Custom size">
-                      <input
-                        value={item.customPizzaSize}
-                        onChange={(e) =>
-                          onPatch({
-                            customPizzaSize: e.target.value,
-                            sizeOptionId: e.target.value.trim() ? "" : item.sizeOptionId,
-                            sizeLabel: e.target.value.trim() || item.sizeLabel,
-                          })
-                        }
-                        placeholder="e.g. 7 inch"
-                        className={inputClass}
-                      />
-                    </Field>
-                    {pizzaCrustPresets.length > 0 ? (
-                      <Field label="Crust">
-                        <select
-                          value={item.crustOptionId}
-                          onChange={(e) => {
-                            const crust = pizzaCrustPresets.find((c) => c.id === e.target.value);
-                            onPatch({
-                              crustOptionId: e.target.value,
-                              crustLabel: crust?.label ?? "",
-                            });
-                          }}
-                          className={selectClass}
-                        >
-                          <option value="">— Optional —</option>
-                          {pizzaCrustPresets.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.label}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                    ) : (
-                      <div />
-                    )}
-                  </div>
-                  {(customPizzaToppings.length > 0 || customPizzaCondiments.length > 0) && (
-                    <div className="space-y-2">
-                      {customPizzaToppings.length > 0 && (
-                        <div>
-                          <p className="mb-1 text-[11px] font-medium text-slate-500">Toppings</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {customPizzaToppings.map((t) => {
-                              const on = item.toppingSelections.includes(t.id);
-                              const delta = Number(t.priceDelta);
-                              return (
-                                <button
-                                  key={t.id}
-                                  type="button"
-                                  onClick={() => toggleTopping(t.id)}
-                                  className={cn(
-                                    "rounded-full border px-2.5 py-1 text-xs font-medium transition",
-                                    on
-                                      ? "border-brand-500 bg-brand-100 text-brand-700"
-                                      : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
-                                  )}
-                                >
-                                  {t.name}
-                                  {delta > 0 && (
-                                    <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      {customPizzaCondiments.length > 0 && (
-                        <div>
-                          <p className="mb-1 text-[11px] font-medium text-slate-500">Condiments</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {customPizzaCondiments.map((t) => {
-                              const on = item.toppingSelections.includes(t.id);
-                              const delta = Number(t.priceDelta);
-                              return (
-                                <button
-                                  key={t.id}
-                                  type="button"
-                                  onClick={() => toggleTopping(t.id)}
-                                  className={cn(
-                                    "rounded-full border px-2.5 py-1 text-xs font-medium transition",
-                                    on
-                                      ? "border-brand-500 bg-brand-100 text-brand-700"
-                                      : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
-                                  )}
-                                >
-                                  {t.name}
-                                  {delta > 0 && (
-                                    <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="grid gap-2 sm:grid-cols-[7rem_minmax(12rem,1fr)]">
+                  <Field label="Message on cake" className="col-span-2 sm:col-span-4">
+                    <input
+                      value={item.messageOnCake}
+                      onChange={(e) => onPatch({ messageOnCake: e.target.value })}
+                      placeholder="Happy Birthday Aarav"
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
+              </>
+            ) : isCustomPizza ? (
+              <>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-[7rem_minmax(8rem,11rem)_minmax(7rem,9rem)_minmax(8rem,1fr)] sm:gap-2">
                   <Field label="Category">
                     <select
                       value={item.customTemplate}
@@ -943,7 +797,6 @@ export function OrderItemRow({
                           sizeOptionId: "",
                           crustOptionId: "",
                           crustLabel: "",
-                          messageOnCake: "",
                           toppingSelections: [],
                           addonSelections: [],
                         })
@@ -955,113 +808,245 @@ export function OrderItemRow({
                       <option value="OTHER">Other</option>
                     </select>
                   </Field>
-                  <Field label="Size / variant">
+                  {pizzaSizePresets.length > 0 ? (
+                    <Field label="Size" required={!item.customPizzaSize.trim()}>
+                      <SearchableSelect
+                        value={item.customPizzaSize.trim() ? "" : item.sizeOptionId}
+                        onChange={(sizeKey) =>
+                          onPatch({
+                            sizeOptionId: sizeKey,
+                            customPizzaSize: "",
+                            sizeLabel: pizzaSizeLabelForKey(pizzaSizePresets, sizeKey),
+                          })
+                        }
+                        searchPlaceholder="Search sizes…"
+                        allowEmpty
+                        placeholder={
+                          item.customPizzaSize.trim()
+                            ? item.customPizzaSize.trim()
+                            : "— Pick size —"
+                        }
+                        options={pizzaSizePresets.map((s) => ({
+                          value: s.key,
+                          label: s.label,
+                          keywords: s.label,
+                        }))}
+                      />
+                    </Field>
+                  ) : (
+                    <div />
+                  )}
+                  <Field label="Custom size">
                     <input
-                      value={item.sizeLabel}
-                      onChange={(e) => onPatch({ sizeLabel: e.target.value, sizeGrams: "" })}
-                      placeholder="Optional — e.g. half tray, 500ml"
+                      value={item.customPizzaSize}
+                      onChange={(e) =>
+                        onPatch({
+                          customPizzaSize: e.target.value,
+                          sizeOptionId: e.target.value.trim() ? "" : item.sizeOptionId,
+                          sizeLabel: e.target.value.trim() || item.sizeLabel,
+                        })
+                      }
+                      placeholder="e.g. 7 inch"
                       className={inputClass}
                     />
                   </Field>
-                </div>
-              )}
-
-              {isCustomCake && customAddons.length > 0 && (
-                <AddonGroupPicker
-                  addons={customAddons}
-                  selected={item.addonSelections}
-                  onToggle={toggleAddon}
-                />
-              )}
-
-              <Field label="Instructions">
-                <input
-                  value={item.instructions}
-                  onChange={(e) => onPatch({ instructions: e.target.value })}
-                  placeholder={
-                    isCustomPizza
-                      ? "Well done, light cheese…"
-                      : isCustomCake
-                        ? "Extra frosting, no nuts…"
-                        : "Any special notes…"
-                  }
-                  className={inputClass}
-                />
-              </Field>
-            </div>
-          )}
-
-          {item.kind === "CUSTOM" && (
-            <Field
-              label="Reference image"
-              hint="Upload the photo the customer sent."
-              className="mt-3"
-            >
-              <div className="flex flex-col items-start gap-3 sm:flex-row">
-                {item.refPreview ? (
-                  <img
-                    src={item.refPreview}
-                    alt="Reference"
-                    className="h-24 w-24 shrink-0 rounded-lg object-cover ring-1 ring-slate-200"
-                  />
-                ) : item.keptImageUrl ? (
-                  <div className="relative h-24 w-24 shrink-0">
-                    <img
-                      src={item.keptImageUrl}
-                      alt="Reference"
-                      className="h-full w-full rounded-lg object-cover ring-1 ring-slate-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => onPatch({ keptImageUrl: null })}
-                      className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white transition hover:bg-slate-900"
-                      aria-label="Remove image"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
-                    No image
-                  </div>
-                )}
-                <div className="flex-1">
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null;
-                      onPatch({
-                        refFile: file,
-                        keptImageUrl: file ? null : item.keptImageUrl,
-                      });
-                    }}
-                    className="block text-xs text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-50"
-                  />
-                  {(item.refFile || item.keptImageUrl) && (
-                    <button
-                      type="button"
-                      onClick={() => onPatch({ refFile: null, keptImageUrl: null })}
-                      className="mt-2 text-xs text-slate-500 hover:text-brand-500"
-                    >
-                      Remove image
-                    </button>
+                  {pizzaCrustPresets.length > 0 ? (
+                    <Field label="Crust">
+                      <select
+                        value={item.crustOptionId}
+                        onChange={(e) => {
+                          const crust = pizzaCrustPresets.find((c) => c.id === e.target.value);
+                          onPatch({
+                            crustOptionId: e.target.value,
+                            crustLabel: crust?.label ?? "",
+                          });
+                        }}
+                        className={selectClass}
+                      >
+                        <option value="">— Optional —</option>
+                        {pizzaCrustPresets.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  ) : (
+                    <div />
                   )}
                 </div>
+                {(customPizzaToppings.length > 0 || customPizzaCondiments.length > 0) && (
+                  <div className="space-y-2">
+                    {customPizzaToppings.length > 0 && (
+                      <div>
+                        <p className="mb-1 text-[11px] font-medium text-slate-500">Toppings</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {customPizzaToppings.map((t) => {
+                            const on = item.toppingSelections.includes(t.id);
+                            const delta = Number(t.priceDelta);
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => toggleTopping(t.id)}
+                                className={cn(
+                                  "rounded-full border px-2.5 py-1 text-xs font-medium transition",
+                                  on
+                                    ? "border-brand-500 bg-brand-100 text-brand-700"
+                                    : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
+                                )}
+                              >
+                                {t.name}
+                                {delta > 0 && (
+                                  <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {customPizzaCondiments.length > 0 && (
+                      <div>
+                        <p className="mb-1 text-[11px] font-medium text-slate-500">Condiments</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {customPizzaCondiments.map((t) => {
+                            const on = item.toppingSelections.includes(t.id);
+                            const delta = Number(t.priceDelta);
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => toggleTopping(t.id)}
+                                className={cn(
+                                  "rounded-full border px-2.5 py-1 text-xs font-medium transition",
+                                  on
+                                    ? "border-brand-500 bg-brand-100 text-brand-700"
+                                    : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
+                                )}
+                              >
+                                {t.name}
+                                {delta > 0 && (
+                                  <span className="ml-1 text-slate-500">+₹{delta.toFixed(0)}</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[7rem_minmax(12rem,1fr)]">
+                <Field label="Category">
+                  <select
+                    value={item.customTemplate}
+                    onChange={(e) =>
+                      onPatch({
+                        customTemplate: e.target.value as OrderItemDraft["customTemplate"],
+                        cakeSizeId: "",
+                        customPounds: e.target.value === "CAKE" ? "1" : "",
+                        customPizzaSize: "",
+                        flavourId: "",
+                        customFlavour: "",
+                        sizeLabel: "",
+                        sizeGrams: "",
+                        sizeOptionId: "",
+                        crustOptionId: "",
+                        crustLabel: "",
+                        messageOnCake: "",
+                        toppingSelections: [],
+                        addonSelections: [],
+                      })
+                    }
+                    className={selectClass}
+                  >
+                    <option value="CAKE">Cake</option>
+                    <option value="PIZZA">Pizza</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </Field>
+                <Field label="Size / variant">
+                  <input
+                    value={item.sizeLabel}
+                    onChange={(e) => onPatch({ sizeLabel: e.target.value, sizeGrams: "" })}
+                    placeholder="e.g. half tray, 500ml"
+                    className={inputClass}
+                  />
+                </Field>
               </div>
-            </Field>
-          )}
-        </div>
+            )}
 
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={!canRemove}
-          className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-          aria-label="Remove item"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+            {isCustomCake && customAddons.length > 0 && (
+              <AddonGroupPicker
+                addons={customAddons}
+                selected={item.addonSelections}
+                onToggle={toggleAddon}
+              />
+            )}
+
+            <Field label="Instructions">
+              <input
+                value={item.instructions}
+                onChange={(e) => onPatch({ instructions: e.target.value })}
+                placeholder={
+                  isCustomPizza
+                    ? "Well done, light cheese…"
+                    : isCustomCake
+                      ? "Extra frosting, no nuts…"
+                      : "Any special notes…"
+                }
+                className={inputClass}
+              />
+            </Field>
+          </div>
+        )}
+
+        {item.kind === "CUSTOM" && (
+          <div className="mt-3 flex items-center gap-3">
+            <label className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition group-hover:border-brand-500 group-hover:text-brand-600">
+                {refImage ? (
+                  <img src={refImage} alt="Reference" className="h-full w-full object-cover" />
+                ) : (
+                  <ImagePlus className="h-5 w-5" />
+                )}
+              </span>
+              <span className="min-w-0 text-xs">
+                <span className="block font-medium text-slate-700">
+                  {refImage ? "Reference image" : "Add reference image"}
+                </span>
+                <span className="block truncate text-slate-500">
+                  {refImage
+                    ? (item.refFile?.name ?? "Tap to change")
+                    : "The photo the customer sent"}
+                </span>
+              </span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  e.target.value = "";
+                  if (file) onPatch({ refFile: file, keptImageUrl: null });
+                }}
+                className="sr-only"
+              />
+            </label>
+            {refImage && (
+              <button
+                type="button"
+                onClick={() => onPatch({ refFile: null, keptImageUrl: null })}
+                className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                aria-label="Remove image"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
