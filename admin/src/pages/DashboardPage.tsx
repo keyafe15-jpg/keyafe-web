@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, CalendarRange, Package, ShoppingBag, TrendingUp } from "lucide-react";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { useAdminAuth } from "@/store/adminAuth";
 import { staffHasPermission } from "@/lib/permissions";
 import { GstExportPanel } from "@/pages/orders/GstExportPanel";
@@ -37,6 +38,18 @@ function formatCurrency(value: number) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-IN").format(value);
+}
+
+const COMPACT_FROM = 10_00_000;
+
+/** ₹12.5L / ₹1.2Cr — used on narrow screens where full figures don't fit two-up. */
+function formatCompact(value: number, currency: boolean) {
+  if (Math.abs(value) < COMPACT_FROM) return null;
+  return new Intl.NumberFormat("en-IN", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+    ...(currency && { style: "currency", currency: "INR" }),
+  }).format(value);
 }
 
 function toInputDate(value: Date) {
@@ -91,6 +104,7 @@ export function DashboardPage() {
     {
       label: "Total orders received",
       value: formatNumber(summary.totalOrdersReceived),
+      compact: formatCompact(summary.totalOrdersReceived, false),
       icon: ShoppingBag,
       accent: "text-slate-700",
       tone: "bg-slate-100",
@@ -98,6 +112,7 @@ export function DashboardPage() {
     {
       label: "Orders this month",
       value: formatNumber(summary.ordersThisMonth),
+      compact: formatCompact(summary.ordersThisMonth, false),
       icon: Package,
       accent: "text-brand-600",
       tone: "bg-brand-100",
@@ -105,23 +120,26 @@ export function DashboardPage() {
     {
       label: "Overall sales",
       value: formatCurrency(summary.totalSales),
+      compact: formatCompact(summary.totalSales, true),
       icon: TrendingUp,
       accent: "text-emerald-600",
       tone: "bg-emerald-100",
     },
     {
-      label: "GST received",
-      value: formatCurrency(summary.totalGstReceived),
-      icon: ArrowUpRight,
-      accent: "text-violet-600",
-      tone: "bg-violet-100",
-    },
-    {
       label: "Monthly sales",
       value: formatCurrency(summary.monthlySales),
+      compact: formatCompact(summary.monthlySales, true),
       icon: ArrowUpRight,
       accent: "text-indigo-600",
       tone: "bg-indigo-100",
+    },
+    {
+      label: "GST received",
+      value: formatCurrency(summary.totalGstReceived),
+      compact: formatCompact(summary.totalGstReceived, true),
+      icon: ArrowUpRight,
+      accent: "text-violet-600",
+      tone: "bg-violet-100",
     },
   ];
 
@@ -129,58 +147,81 @@ export function DashboardPage() {
     <div>
       <PageHeader title="Dashboard" subtitle="Sales and order performance." />
 
-      <div className="mb-5 flex flex-col gap-3 rounded-card border border-slate-200 bg-white p-4 md:flex-row md:items-end md:justify-between">
-        <div>
+      <div className="mb-4 flex flex-col gap-2.5 rounded-card border border-slate-200 bg-white p-3 sm:mb-5 sm:gap-3 sm:p-4 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0">
           <p className="mb-1 text-xs font-medium tracking-wide text-slate-500 uppercase">
             Reporting range
           </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <CalendarRange className="h-4 w-4 text-slate-400" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-slate-600 sm:flex-none">
+              <CalendarRange className="hidden h-4 w-4 text-slate-400 sm:block" />
               <input
                 type="date"
                 value={from}
                 onChange={(event) => setFrom(event.target.value)}
-                className="focus:border-brand-300 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 ring-0 transition outline-none"
+                aria-label="From date"
+                className="focus:border-brand-300 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 ring-0 transition outline-none sm:w-auto"
               />
             </label>
-            <span className="text-xs tracking-[0.2em] text-slate-400 uppercase">to</span>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <span className="shrink-0 text-xs tracking-[0.2em] text-slate-400 uppercase">to</span>
+            <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-slate-600 sm:flex-none">
               <input
                 type="date"
                 value={to}
                 onChange={(event) => setTo(event.target.value)}
-                className="focus:border-brand-300 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 ring-0 transition outline-none"
+                aria-label="To date"
+                className="focus:border-brand-300 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 ring-0 transition outline-none sm:w-auto"
               />
             </label>
           </div>
         </div>
 
-        <div className="bg-brand-50 rounded-full px-3 py-2 text-sm font-medium text-brand-700">
+        <div className="bg-brand-50 self-start rounded-full px-3 py-1.5 text-sm font-medium text-brand-700 sm:py-2 md:self-auto">
           Range sales: {formatCurrency(summary.rangeSales)}
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {kpis.map((kpi) => {
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
+        {kpis.map((kpi, index) => {
           const Icon = kpi.icon;
+          const isLastOdd = index === kpis.length - 1 && kpis.length % 2 === 1;
           return (
-            <div key={kpi.label} className="rounded-card border border-slate-200 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+            <div
+              key={kpi.label}
+              className={cn(
+                "min-w-0 rounded-card border border-slate-200 bg-white p-3 sm:p-4",
+                isLastOdd && "col-span-2 xl:col-span-1",
+              )}
+            >
+              <div className="mb-1.5 flex items-start justify-between gap-2 sm:mb-3 sm:items-center">
+                <span className="line-clamp-2 text-[11px] leading-tight font-medium tracking-wide text-slate-500 uppercase sm:text-xs">
                   {kpi.label}
                 </span>
-                <span className={`rounded-md p-1.5 ${kpi.tone} ${kpi.accent}`}>
-                  <Icon className="h-4 w-4" />
+                <span className={cn("shrink-0 rounded-md p-1 sm:p-1.5", kpi.tone, kpi.accent)}>
+                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </span>
               </div>
-              <p className="text-2xl font-semibold text-slate-900">{isLoading ? "—" : kpi.value}</p>
+              <p
+                className="truncate text-xl font-semibold text-slate-900 tabular-nums sm:text-2xl"
+                title={kpi.value}
+              >
+                {isLoading ? (
+                  "—"
+                ) : kpi.compact ? (
+                  <>
+                    <span className="sm:hidden">{kpi.compact}</span>
+                    <span className="hidden sm:inline">{kpi.value}</span>
+                  </>
+                ) : (
+                  kpi.value
+                )}
+              </p>
             </div>
           );
         })}
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.5fr_0.8fr]">
+      <div className="mt-4 grid gap-3 sm:mt-6 sm:gap-4 lg:grid-cols-[1.5fr_0.8fr]">
         <PanelCard title="Sales over time" description="Daily sales for the selected period.">
           {chart.length === 0 ? (
             <EmptyState label="No sales recorded for this range." />
@@ -190,7 +231,7 @@ export function DashboardPage() {
         </PanelCard>
 
         <PanelCard title="Range summary" description="Selected window totals.">
-          <div className="space-y-4">
+          <div className="-my-1.5 divide-y divide-slate-100">
             <StatLine label="Orders in range" value={formatNumber(summary.rangeOrders)} />
             <StatLine label="Sales in range" value={formatCurrency(summary.rangeSales)} />
             <StatLine label="GST in range" value={formatCurrency(summary.rangeGstReceived)} />
@@ -229,11 +270,11 @@ function PanelCard({
 }) {
   return (
     <section className="rounded-card border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 px-4 py-3">
+      <div className="border-b border-slate-100 px-3 py-2.5 sm:px-4 sm:py-3">
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
         {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-3 sm:p-4">{children}</div>
     </section>
   );
 }
@@ -261,8 +302,8 @@ function SalesLineChart({
     .join(" ")} ${width - padding},${height - padding} ${padding},${height - padding}`;
 
   return (
-    <div className="h-64 w-full overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full">
+    <div className="w-full overflow-hidden sm:h-64">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full sm:h-full">
         {[0, 25, 50, 75, 100].map((step) => {
           const y = padding + ((100 - step) / 100) * (height - padding * 2);
           return (
@@ -321,9 +362,9 @@ function SalesLineChart({
 
 function StatLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+    <div className="flex items-center justify-between gap-3 py-2 sm:py-2.5">
       <span className="text-sm text-slate-500">{label}</span>
-      <span className="text-sm font-semibold text-slate-900">{value}</span>
+      <span className="text-sm font-semibold text-slate-900 tabular-nums">{value}</span>
     </div>
   );
 }
