@@ -13,6 +13,7 @@ import { UpiQrCode } from "@/components/UpiQrCode";
 import { cn } from "@/lib/cn";
 import { manualDiscountRupees } from "@/lib/manualDiscount";
 import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
+import { gstAddedOnTop } from "@keyafe/shared";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
 type PayChoice = "FULL" | "ADVANCE" | "COD";
@@ -131,7 +132,15 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
     fulfillment === "DELIVERY" && pincodeResult?.serviceable
       ? (lockedDeliveryFee ?? pincodeResult.deliveryFee)
       : 0;
-  const total = subtotal - discount + deliveryFee;
+  const gstOnTop = gstAddedOnTop(
+    link.items.map((it) => ({
+      amount: Number(it.unitPrice) * it.qty,
+      gstRate: it.product?.gstRate,
+      priceIsGstInclusive: it.product?.priceIsGstInclusive,
+    })),
+    discount,
+  );
+  const total = subtotal - discount + deliveryFee + gstOnTop;
 
   const payNowAmount =
     payChoice === "FULL" ? total : payChoice === "ADVANCE" ? Number(advanceAmount) || 0 : 0;
@@ -762,6 +771,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
               hint={pincodeResult?.serviceable ? undefined : "Enter pincode"}
             />
           )}
+          {gstOnTop > 0 && <SummaryRow label="GST" value={gstOnTop} />}
           <hr className="my-3 border-cream-200" />
           <div className="flex items-baseline justify-between">
             <span className="text-sm text-ink-700">Total</span>

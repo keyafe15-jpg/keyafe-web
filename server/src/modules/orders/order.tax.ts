@@ -119,6 +119,20 @@ export function computeLineTax(input: LineTaxInput): LineTax {
   };
 }
 
+/**
+ * GST the customer pays on top of the listed prices. Lines priced inclusive of
+ * GST already contain theirs, so only exclusive lines add to the order total.
+ */
+export function gstAddedOnTop(lines: LineTax[], priceIsGstInclusive: boolean[]): number {
+  return roundMoney(
+    lines.reduce(
+      (s, l, idx) =>
+        priceIsGstInclusive[idx] ? s : s + l.cgstAmount + l.sgstAmount + l.igstAmount,
+      0,
+    ),
+  );
+}
+
 /** Order-level GST snapshot, summed from the per-line values. */
 export function sumLineTax(lines: LineTax[]): {
   taxableAmount: number;

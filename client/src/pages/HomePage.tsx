@@ -15,6 +15,7 @@ import { BakeryJsonLd, Seo } from "@/components/seo/Seo";
 import { SlideCarousel } from "@/components/ui/SlideCarousel";
 import { HOME_COPY, HOME_SEO, KEYAFE_OFFERINGS } from "@/content/home";
 import { useHeroSlides } from "@/hooks/useHeroSlides";
+import { cn } from "@/lib/cn";
 import { groupCategoriesByDepartment, useCategories, useDepartments } from "@/hooks/useCategories";
 
 const promiseCards = [
@@ -99,6 +100,7 @@ export function HomePage() {
     () => groupCategoriesByDepartment(categories, departments).filter((g) => g.department),
     [categories, departments],
   );
+  const stacked = storeGroups.length > 2;
 
   return (
     <div className="relative isolate overflow-x-clip">
@@ -125,81 +127,109 @@ export function HomePage() {
       <DeliveryReel />
 
       <section className="relative z-10 mx-auto max-w-6xl px-4 pt-5 pb-6 md:pt-7 md:pb-8">
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.15fr)] lg:items-stretch lg:gap-4 xl:gap-6">
-          <div className="home-rise flex h-full flex-col rounded-2xl border border-white/50 bg-white/40 px-5 py-5 text-center shadow-sm backdrop-blur-md sm:px-6 sm:py-7 lg:text-left">
-            <div
-              className="home-rise border-brand-200/80 mb-3 inline-flex items-center gap-2 rounded-md border bg-white/50 px-3 py-1.5 text-[11px] font-medium tracking-[0.22em] text-brand-700 uppercase backdrop-blur-sm"
-              style={{ animationDelay: "0.05s" }}
-            >
-              <span className="inline-block h-2 w-2 rounded-sm bg-brand-500" />
-              <span>{HOME_COPY.hero.eyebrow}</span>
+        <div
+          className={cn(
+            "grid items-start gap-6",
+            stacked
+              ? "lg:gap-8"
+              : "lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.15fr)] lg:items-stretch lg:gap-4 xl:gap-6",
+          )}
+        >
+          <div
+            className={cn(
+              "home-rise flex h-full flex-col rounded-2xl border border-white/50 bg-white/40 px-5 py-5 text-center shadow-sm backdrop-blur-md sm:px-6 sm:py-7 lg:text-left",
+              stacked &&
+                "lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-center lg:gap-x-12 lg:px-10 lg:py-8",
+            )}
+          >
+            <div className={stacked ? "contents lg:block" : "contents"}>
+              <div
+                className="home-rise border-brand-200/80 mb-3 inline-flex items-center gap-2 rounded-md border bg-white/50 px-3 py-1.5 text-[11px] font-medium tracking-[0.22em] text-brand-700 uppercase backdrop-blur-sm"
+                style={{ animationDelay: "0.05s" }}
+              >
+                <span className="inline-block h-2 w-2 rounded-sm bg-brand-500" />
+                <span>{HOME_COPY.hero.eyebrow}</span>
+              </div>
+
+              <h1 className="hero-headline font-bold text-ink-900">
+                <span className="hero-word hero-word-1 block">{HOME_COPY.hero.heading[0]}</span>
+                <span className="hero-word hero-word-4 block text-brand-500">
+                  {HOME_COPY.hero.heading[1]}
+                </span>
+                <span className="hero-offering mt-2 block text-ink-700">
+                  {HOME_COPY.hero.offering}
+                </span>
+              </h1>
             </div>
 
-            <h1 className="hero-headline font-bold text-ink-900">
-              <span className="hero-word hero-word-1 block">{HOME_COPY.hero.heading[0]}</span>
-              <span className="hero-word hero-word-4 block text-brand-500">
-                {HOME_COPY.hero.heading[1]}
-              </span>
-              <span className="hero-offering mt-2 block text-ink-700">
-                {HOME_COPY.hero.offering}
-              </span>
-            </h1>
-
-            <p
-              className="home-rise mx-auto mt-3 hidden max-w-xl text-sm leading-6 text-ink-700 sm:block md:mt-4 md:text-base md:leading-7 lg:mx-0"
-              style={{ animationDelay: "0.55s" }}
-            >
-              {HOME_COPY.hero.sub}
-            </p>
-            <p
-              className="home-rise mx-auto mt-2 max-w-xl text-xs leading-5 text-ink-500 md:text-sm md:leading-6 lg:mx-0"
-              style={{ animationDelay: "0.68s" }}
-            >
-              {HOME_COPY.hero.coverage.beforeLink}
-              <Link
-                to={HOME_COPY.hero.coverage.to}
-                className="text-brand-600 decoration-brand-200 font-medium underline underline-offset-2 hover:text-brand-700"
+            <div className={stacked ? "contents lg:flex lg:flex-col" : "contents"}>
+              <p
+                className="home-rise mx-auto mt-3 hidden max-w-xl text-sm leading-6 text-ink-700 sm:block md:mt-4 md:text-base md:leading-7 lg:mx-0"
+                style={{ animationDelay: "0.55s" }}
               >
-                {HOME_COPY.hero.coverage.linkLabel}
-              </Link>
-              {HOME_COPY.hero.coverage.afterLink}
-            </p>
+                {HOME_COPY.hero.sub}
+              </p>
+              <p
+                className="home-rise mx-auto mt-2 max-w-xl text-xs leading-5 text-ink-500 md:text-sm md:leading-6 lg:mx-0"
+                style={{ animationDelay: "0.68s" }}
+              >
+                {HOME_COPY.hero.coverage.beforeLink}
+                <Link
+                  to={HOME_COPY.hero.coverage.to}
+                  className="text-brand-600 decoration-brand-200 font-medium underline underline-offset-2 hover:text-brand-700"
+                >
+                  {HOME_COPY.hero.coverage.linkLabel}
+                </Link>
+                {HOME_COPY.hero.coverage.afterLink}
+              </p>
 
-            <div
-              className="home-rise mx-auto mt-4 w-full max-w-md sm:mt-5 lg:mx-0 lg:mt-auto lg:pt-6"
-              style={{ animationDelay: "0.82s" }}
-            >
-              <CatalogSearchBar
-                placeholder={HOME_COPY.search.placeholder}
-                className="border-white/60 bg-white/55 backdrop-blur-sm"
-              />
+              <div
+                className={cn(
+                  "home-rise mx-auto mt-4 w-full max-w-md sm:mt-5 lg:mx-0",
+                  stacked ? "lg:mt-6" : "lg:mt-auto lg:pt-6",
+                )}
+                style={{ animationDelay: "0.82s" }}
+              >
+                <CatalogSearchBar
+                  placeholder={HOME_COPY.search.placeholder}
+                  className="border-white/60 bg-white/55 backdrop-blur-sm"
+                />
+              </div>
             </div>
           </div>
 
           {/* Desktop bridge — draws the eye from copy to the doors */}
-          <div
-            className="home-rise hidden flex-col items-center justify-center self-center lg:flex"
-            style={{ animationDelay: "0.9s" }}
-            aria-hidden="true"
-          >
-            <span className="text-[10px] font-semibold tracking-[0.28em] text-ink-500 uppercase">
-              or
-            </span>
-            <span className="store-bridge-pulse mt-2 text-brand-500">→</span>
-          </div>
+          {!stacked && (
+            <div
+              className="home-rise hidden flex-col items-center justify-center self-center lg:flex"
+              style={{ animationDelay: "0.9s" }}
+              aria-hidden="true"
+            >
+              <span className="text-[10px] font-semibold tracking-[0.28em] text-ink-500 uppercase">
+                or
+              </span>
+              <span className="store-bridge-pulse mt-2 text-brand-500">→</span>
+            </div>
+          )}
 
           <div className="flex flex-col">
             <Reveal>
-              <div className="mb-3 text-center sm:mb-4 lg:mb-5 lg:text-left">
-                <p className="mb-1 text-center text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase lg:text-left">
+              <div className={cn("mb-3 text-center sm:mb-4 lg:mb-5", !stacked && "lg:text-left")}>
+                <p className="mb-1 text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
                   {HOME_COPY.storeDoors.eyebrow}
                 </p>
-                <h2 className="text-center font-display text-xl text-ink-900 sm:text-2xl lg:text-left">
+                <h2 className="font-display text-xl text-ink-900 sm:text-2xl">
                   {HOME_COPY.storeDoors.heading}
                 </h2>
               </div>
             </Reveal>
-            <div className="store-pair grid flex-1 grid-cols-2 items-end gap-3 sm:flex sm:justify-center sm:gap-5 lg:justify-start lg:gap-6">
+            <div
+              className={
+                stacked
+                  ? "store-pair mx-auto grid w-full max-w-5xl grid-cols-2 items-start gap-3 sm:grid-cols-4 sm:gap-4 lg:gap-8"
+                  : "store-pair grid flex-1 grid-cols-2 items-end gap-3 sm:flex sm:justify-center sm:gap-5 lg:justify-start lg:gap-6"
+              }
+            >
               {storeGroups.map((group, index) => (
                 <Reveal key={group.department!.id} delay={index * 100} from="scale">
                   <StoreDoor

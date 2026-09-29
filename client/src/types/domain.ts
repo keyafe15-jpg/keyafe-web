@@ -60,5 +60,8 @@ export interface CartLine {
   unitPrice: Money;
   /** Pre-discount unit price, shown struck through. Absent when not discounted. */
   originalUnitPrice?: Money;
+  gstRate?: number;
+  /** False when GST is added on top at checkout. Absent on lines saved before this existed. */
+  priceIsGstInclusive?: boolean;
   qty: number;
 }

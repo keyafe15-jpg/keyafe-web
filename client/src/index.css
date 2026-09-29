@@ -802,6 +802,14 @@ gmp-place-autocomplete:focus-within {
     animation-delay: 3s;
   }
 
+  .store-pair > :nth-child(3) .storefront-door {
+    animation-delay: 1.5s;
+  }
+
+  .store-pair > :nth-child(4) .storefront-door {
+    animation-delay: 4.5s;
+  }
+
   .store-pair:hover .store-pair-door {
     opacity: 1;
   }

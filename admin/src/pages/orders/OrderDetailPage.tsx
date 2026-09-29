@@ -25,6 +25,7 @@ import {
   type PaymentStatus,
 } from "@/hooks/useAdminOrders";
 import { stateNameFromCode } from "@/lib/indiaStates";
+import { orderGstOnTop } from "@keyafe/shared";
 import { StatusPill, STATUS_FLOW, SurpriseGiftBadge } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
 import { textareaClass, inputClass, selectClass } from "@/components/form/Field";
@@ -273,7 +274,10 @@ export function OrderDetailPage() {
                   <div className="my-1 border-t border-dashed border-slate-200" />
                 </>
               )}
-              <Row label="Subtotal (incl. GST)" value={Number(order.subtotal)} />
+              <Row
+                label={orderGstOnTop(order) > 0 ? "Subtotal" : "Subtotal (incl. GST)"}
+                value={Number(order.subtotal)}
+              />
               {isDelivery && <Row label="Delivery fee" value={Number(order.deliveryFee)} />}
               {Number(order.discount) > 0 && (
                 <Row
@@ -281,6 +285,7 @@ export function OrderDetailPage() {
                   value={-Number(order.discount)}
                 />
               )}
+              {orderGstOnTop(order) > 0 && <Row label="GST (added)" value={orderGstOnTop(order)} />}
               <div className="my-2 border-t-2 border-slate-900" />
               <div className="flex items-baseline justify-between">
                 <span className="text-sm font-semibold text-slate-900">Total</span>

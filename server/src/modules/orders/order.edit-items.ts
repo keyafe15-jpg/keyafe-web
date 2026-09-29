@@ -6,6 +6,7 @@ import {
   allocateCartDiscount,
   computeLineTax,
   getSellerStateCode,
+  gstAddedOnTop,
   sumLineTax,
 } from "./order.tax.js";
 import { getOrderById } from "./order.service.js";
@@ -115,7 +116,13 @@ export async function editOrderItems(
   ];
   const productMeta = new Map<
     string,
-    { gstRate: number; hsnCode: string; priceIsGstInclusive: boolean; slug: string; images: string[] }
+    {
+      gstRate: number;
+      hsnCode: string;
+      priceIsGstInclusive: boolean;
+      slug: string;
+      images: string[];
+    }
   >();
   if (catalogIds.length) {
     const products = await prisma.product.findMany({
@@ -229,8 +236,6 @@ export async function editOrderItems(
   const discount = roundMoney(Number(existing.discount));
   const appliedDiscount = Math.min(discount, subtotal);
   const deliveryFee = roundMoney(Number(existing.deliveryFee));
-  const newTotal = roundMoney(subtotal - appliedDiscount + deliveryFee);
-
   const chargedLines = allocateCartDiscount(
     resolved.map((r) => r.lineTotal),
     appliedDiscount,
@@ -244,6 +249,11 @@ export async function editOrderItems(
     }),
   );
   const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax(lineTaxes);
+  const gstOnTop = gstAddedOnTop(
+    lineTaxes,
+    resolved.map((r) => r.inclusive),
+  );
+  const newTotal = roundMoney(subtotal - appliedDiscount + deliveryFee + gstOnTop);
 
   const previousTotal = roundMoney(Number(existing.total));
   const paidBefore = roundMoney(Number(existing.advanceAmount));
@@ -318,8 +328,7 @@ export async function editOrderItems(
         igstAmount,
         advanceAmount: advanceAfter,
         paymentStatus,
-        paymentMode:
-          advanceAfter > 0 && advanceAfter < newTotal ? "ADVANCE" : existing.paymentMode,
+        paymentMode: advanceAfter > 0 && advanceAfter < newTotal ? "ADVANCE" : existing.paymentMode,
       },
     });
   });

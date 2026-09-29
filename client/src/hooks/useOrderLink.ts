@@ -18,6 +18,8 @@ export interface PublicOrderLinkItem {
   messageHint: string | null;
   unitPrice: string;
   qty: number;
+  /** Null for custom items, which are always priced inclusive of GST. */
+  product: { gstRate: string; priceIsGstInclusive: boolean } | null;
 }
 
 export interface PublicOrderLink {

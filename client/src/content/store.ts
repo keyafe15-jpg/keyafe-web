@@ -15,6 +15,16 @@ export const STORE_COPY = {
       title: "The Savoury Store",
       sub: "Pizzas, panuozzo, focaccia and house snacks from our kitchen.",
     },
+    "gift-hamper": {
+      eyebrow: "Gifting",
+      title: "The Gift Hamper Store",
+      sub: "Curated hampers of cakes, cookies and treats — packed and ready to gift.",
+    },
+    festive: {
+      eyebrow: "Seasonal",
+      title: "The Festive Store",
+      sub: "Limited-run bakes and treats for Diwali, Christmas and every celebration in between.",
+    },
   },
   fallbackSub: "Browse everything in this shop.",
 } as const;

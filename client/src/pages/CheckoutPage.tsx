@@ -162,7 +162,8 @@ export function CheckoutPage() {
     (Boolean(appliedCoupon?.waivesDelivery) || Boolean(freeDelivery.data?.active));
   const deliveryFee = deliveryIsFree ? 0 : listedDeliveryFee;
   const discount = appliedCoupon?.discount ?? 0;
-  const total = Math.max(0, subtotal - discount + deliveryFee);
+  const gstOnTop = useCart((s) => s.gstOnTop(discount));
+  const total = Math.max(0, subtotal - discount + deliveryFee + gstOnTop);
 
   // Auto-lookup pincode as soon as it's 6 digits.
   useEffect(() => {
@@ -996,6 +997,7 @@ export function CheckoutPage() {
                 }
               />
             )}
+            {gstOnTop > 0 && <SummaryRow label="GST" value={gstOnTop} />}
             <div className="mt-3">
               {appliedCoupon ? (
                 <div className="flex items-center justify-between gap-2 text-sm">

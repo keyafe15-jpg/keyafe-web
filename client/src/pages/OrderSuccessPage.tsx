@@ -1,4 +1,5 @@
 import { Link, useParams } from "react-router-dom";
+import { orderGstOnTop } from "@keyafe/shared";
 import { useOrder } from "@/hooks/useOrders";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
@@ -34,6 +35,7 @@ export function OrderSuccessPage() {
   }
 
   const isDelivery = order.fulfillment === "DELIVERY";
+  const gstOnTop = orderGstOnTop(order);
   const cancelled = order.status === "CANCELLED";
   const deliverToName = order.recipientName?.trim() || order.customerName;
   const deliverToPhone = order.isSurpriseGift
@@ -188,7 +190,10 @@ export function OrderSuccessPage() {
           </div>
         )}
 
-        <SummaryRow label="Subtotal (incl. GST)" value={Number(order.subtotal)} />
+        <SummaryRow
+          label={gstOnTop > 0 ? "Subtotal" : "Subtotal (incl. GST)"}
+          value={Number(order.subtotal)}
+        />
         {Number(order.discount) > 0 && (
           <SummaryRow
             label={order.couponCode ? `Discount (${order.couponCode})` : "Discount"}
@@ -201,6 +206,7 @@ export function OrderSuccessPage() {
             value={Number(order.deliveryFee)}
           />
         )}
+        {gstOnTop > 0 && <SummaryRow label="GST (added)" value={gstOnTop} />}
         <hr className="my-3 border-cream-200" />
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-ink-700">Total</span>

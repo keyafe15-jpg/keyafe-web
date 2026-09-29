@@ -18,6 +18,7 @@ import {
   resolveReferenceImageUrl,
   toOrderLinkItemPayload,
   useOrderItemRefPreviews,
+  useOrderItemsGstOnTop,
   useOrderItemsState,
   validateOrderItems,
 } from "@/components/order-items";
@@ -92,7 +93,8 @@ export function OrderLinkFormPage() {
   const discount = manualDiscountRupees(itemsTotal, discountType, discountValue);
   const lockedDeliveryFee =
     deliveryFeeInput.trim() !== "" ? Math.max(0, Number(deliveryFeeInput) || 0) : null;
-  const grandTotal = itemsTotal - discount + (lockedDeliveryFee ?? 0);
+  const gstOnTop = useOrderItemsGstOnTop(items, discount);
+  const grandTotal = itemsTotal - discount + (lockedDeliveryFee ?? 0) + gstOnTop;
 
   const discountPayload = {
     discountType: discount > 0 ? discountType : null,
@@ -266,12 +268,18 @@ export function OrderLinkFormPage() {
                 <span className="tabular-nums">₹{lockedDeliveryFee.toFixed(0)}</span>
               </div>
             )}
+            {gstOnTop > 0 && (
+              <div className="mb-2 flex justify-between text-sm text-slate-700">
+                <span>GST (added)</span>
+                <span className="tabular-nums">₹{gstOnTop.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-slate-700">
                 {lockedDeliveryFee != null ? "Items + delivery" : "Locked items price"}
               </span>
               <span className="text-2xl font-semibold text-slate-900 tabular-nums">
-                ₹{grandTotal.toFixed(0)}
+                ₹{grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}
               </span>
             </div>
             {lockedDeliveryFee == null && (

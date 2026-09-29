@@ -89,6 +89,8 @@ const ADMIN_LIST_SELECT = {
   name: true,
   basePrice: true,
   discountedPrice: true,
+  gstRate: true,
+  priceIsGstInclusive: true,
   productType: true,
   template: true,
   isActive: true,

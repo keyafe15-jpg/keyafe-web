@@ -7,6 +7,7 @@ import { AuthDialog } from "@/components/auth/AuthDialog";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
 import { CategoriesMenu } from "@/components/categories/CategoriesMenu";
+import { StoresMenu } from "@/components/categories/StoresMenu";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { BRAND } from "@/content/brand";
 import { SAMEDAY_NAV, HEALTHY_NAV, PANINDIA_NAV, CORPORATE_NAV, storeNavItem } from "@/content/nav";
@@ -154,20 +155,7 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
               )}
             >
               <CategoriesMenu />
-              {departments.map((store) => (
-                <NavLink
-                  key={store.id}
-                  to={storePath(store.slug)}
-                  className={({ isActive }) =>
-                    cn(
-                      "rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap text-ink-700 transition hover:bg-cream-100",
-                      isActive && "bg-cream-100 text-ink-900",
-                    )
-                  }
-                >
-                  {store.name}
-                </NavLink>
-              ))}
+              <StoresMenu />
               <span className="mx-1 h-5 w-px shrink-0 bg-cream-200" aria-hidden="true" />
               <FeaturePill
                 to={SAMEDAY_NAV.to}

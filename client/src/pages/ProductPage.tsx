@@ -171,6 +171,8 @@ function PdpContent({ product }: { product: ProductDetail }) {
       isPanIndia: product.canBeDeliveredPanIndia,
       unitPrice,
       originalUnitPrice: originalUnitPrice ?? undefined,
+      gstRate: Number(product.gstRate),
+      priceIsGstInclusive: product.priceIsGstInclusive,
       qty,
     });
     navigate("/cart");
@@ -307,7 +309,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
             <p className="mt-1 text-xs text-ink-500">
               {product.priceIsGstInclusive
                 ? PRODUCT_COPY.labels.priceIncludesGst
-                : "Exclusive of GST"}
+                : `+ ${Number(product.gstRate)}% GST added at checkout`}
             </p>
           </div>
 
@@ -844,6 +846,8 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
       isPanIndia: product.canBeDeliveredPanIndia,
       unitPrice,
       originalUnitPrice: originalUnitPrice ?? undefined,
+      gstRate: Number(product.gstRate),
+      priceIsGstInclusive: product.priceIsGstInclusive,
       qty,
     });
     navigate("/cart");
@@ -919,7 +923,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
             <p className="mt-1 text-xs text-ink-500">
               {product.priceIsGstInclusive
                 ? PRODUCT_COPY.labels.priceIncludesGst
-                : "Exclusive of GST"}
+                : `+ ${Number(product.gstRate)}% GST added at checkout`}
             </p>
           </div>
 

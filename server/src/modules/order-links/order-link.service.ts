@@ -20,6 +20,7 @@ import {
   allocateCartDiscount,
   computeLineTax,
   getSellerStateCode,
+  gstAddedOnTop,
   resolvePlaceOfSupply,
   sumLineTax,
 } from "../orders/order.tax.js";
@@ -284,6 +285,7 @@ export async function getOrderLinkByToken(token: string) {
           messageHint: true,
           unitPrice: true,
           qty: true,
+          product: { select: { gstRate: true, priceIsGstInclusive: true } },
         },
       },
       linkedOrder: { select: { orderNumber: true } },
@@ -427,8 +429,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
         "We don't currently deliver to this pincode. Choose pickup or a different address.",
       );
     }
-    deliveryFee =
-      link.deliveryFee != null ? Number(link.deliveryFee) : Number(info.deliveryFee);
+    deliveryFee = link.deliveryFee != null ? Number(link.deliveryFee) : Number(info.deliveryFee);
     isLocalZone = true;
   }
 
@@ -494,7 +495,11 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
     };
   });
 
-  const total = subtotal - discount + deliveryFee;
+  const gstOnTop = gstAddedOnTop(
+    lineTaxes,
+    link.items.map((item) => item.product?.priceIsGstInclusive ?? CUSTOM_GST_INCLUSIVE),
+  );
+  const total = roundMoney(subtotal - discount + deliveryFee + gstOnTop);
 
   const payingNow = input.paymentMode === "FULL" ? total : (input.advanceAmount ?? 0);
   if (payingNow > 0 && !input.paymentScreenshotUrl) {
@@ -778,8 +783,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
         "We don't currently deliver to this pincode. Choose pickup or a different address.",
       );
     }
-    deliveryFee =
-      input.deliveryFee != null ? Number(input.deliveryFee) : Number(info.deliveryFee);
+    deliveryFee = input.deliveryFee != null ? Number(input.deliveryFee) : Number(info.deliveryFee);
     isLocalZone = true;
   }
 
@@ -913,7 +917,11 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     };
   });
 
-  const total = subtotal - discount + deliveryFee;
+  const gstOnTop = gstAddedOnTop(
+    lineTaxes,
+    resolvedItems.map((r) => r.inclusive),
+  );
+  const total = roundMoney(subtotal - discount + deliveryFee + gstOnTop);
   const orderNumber = buildOrderNumber();
 
   const { advanceAmount, paymentStatus, paymentMethod } = resolvePayment(

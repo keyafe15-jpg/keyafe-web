@@ -11,6 +11,7 @@ export function CartPage() {
   const updateQty = useCart((s) => s.updateQty);
   const subtotal = useCart((s) => s.subtotal());
   const savings = useCart((s) => s.savings());
+  const gstOnTop = useCart((s) => s.gstOnTop());
   const clear = useCart((s) => s.clear);
 
   if (lines.length === 0) return <EmptyCart />;
@@ -57,14 +58,17 @@ export function CartPage() {
                 <span className="tabular-nums">{formatINR(savings)}</span>
               </div>
             )}
+            {gstOnTop > 0 && <SummaryRow label="GST" value={gstOnTop} />}
             <SummaryRow label="Delivery" value={null} hint="Calculated at checkout" />
             <hr className="my-4 border-cream-200" />
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-ink-700">Total</span>
-              <span className="text-2xl font-semibold text-ink-900">₹{subtotal.toFixed(2)}</span>
+              <span className="text-2xl font-semibold text-ink-900">
+                ₹{(subtotal + gstOnTop).toFixed(2)}
+              </span>
             </div>
             <p className="mt-1 text-[11px] text-ink-500">
-              Inclusive of GST · Delivery added at checkout.
+              {gstOnTop > 0 ? "Including GST" : "Inclusive of GST"} · Delivery added at checkout.
             </p>
 
             <Link

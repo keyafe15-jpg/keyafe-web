@@ -13,21 +13,19 @@ import {
   getPublicFreeDelivery,
   quoteCoupon,
   redeemCouponInTx,
+  roundMoney,
 } from "../coupons/coupon.service.js";
 import { ensureCustomerForOrder } from "../customers/customer.service.js";
 import {
   computeLineTax,
   getSellerStateCode,
+  gstAddedOnTop,
   resolvePlaceOfSupply,
   sumLineTax,
 } from "./order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
 import { invoiceAttachmentIfPaid } from "./invoice.service.js";
-import {
-  giftBillingFieldsSchema,
-  orderAddressSchema,
-  resolveGiftBilling,
-} from "./order.gift.js";
+import { giftBillingFieldsSchema, orderAddressSchema, resolveGiftBilling } from "./order.gift.js";
 
 const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
 
@@ -208,8 +206,6 @@ export async function createOrder(input: CreateOrderInput) {
     discount,
   );
 
-  const total = subtotal - discount + deliveryFee;
-
   // GST breakup — computed per line so the tax invoice can rebuild an HSN
   // rate-wise summary, then aggregated. Supply inside the seller's state is
   // CGST + SGST; anywhere else is IGST.
@@ -233,6 +229,11 @@ export async function createOrder(input: CreateOrderInput) {
     });
   });
   const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax(lineTaxes);
+  const gstOnTop = gstAddedOnTop(
+    lineTaxes,
+    input.items.map((i) => productMap.get(i.productId)!.priceIsGstInclusive),
+  );
+  const total = roundMoney(subtotal - discount + deliveryFee + gstOnTop);
 
   const orderNumber = buildOrderNumber();
 

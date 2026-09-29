@@ -23,5 +23,8 @@ export {
   discountPercent,
   actualStartingPrice,
   priceFactorFor,
+  gstAddedOnTop,
+  orderGstOnTop,
+  type GstLine,
 } from "./priceMath";
 export { Price, type PriceProps } from "./Price";

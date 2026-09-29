@@ -324,6 +324,22 @@ async function seedDepartments() {
       softHex: "#F3E0C4",
       deepHex: "#7A4A1E",
     },
+    {
+      slug: "gift-hamper",
+      name: "Gift Hamper",
+      sortOrder: 30,
+      accentHex: "#0F766E",
+      softHex: "#CCEBE6",
+      deepHex: "#134E4A",
+    },
+    {
+      slug: "festive",
+      name: "Festive",
+      sortOrder: 40,
+      accentHex: "#B91C1C",
+      softHex: "#FBE3C8",
+      deepHex: "#7F1D1D",
+    },
   ];
   for (const store of stores) {
     await prisma.department.upsert({
@@ -343,7 +359,7 @@ async function seedCategories() {
     name: string;
     description?: string;
     sortOrder: number;
-    departmentSlug: "dessert" | "savory";
+    departmentSlug: "dessert" | "savory" | "gift-hamper" | "festive";
     children?: { slug: string; name: string; sortOrder: number }[];
   }[] = [
     {
@@ -402,6 +418,20 @@ async function seedCategories() {
       description: "Savoury specials from our kitchen.",
       sortOrder: 70,
       departmentSlug: "savory",
+    },
+    {
+      slug: "gift-hampers",
+      name: "Gift Hampers",
+      description: "Curated boxes of our bakes, ready to gift.",
+      sortOrder: 80,
+      departmentSlug: "gift-hamper",
+    },
+    {
+      slug: "festive-specials",
+      name: "Festive Specials",
+      description: "Seasonal bakes for every celebration.",
+      sortOrder: 90,
+      departmentSlug: "festive",
     },
   ];
 

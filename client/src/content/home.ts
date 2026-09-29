@@ -72,12 +72,14 @@ export const HOME_COPY = {
   },
   storeDoors: {
     eyebrow: "Browse",
-    heading: "Two stores, one kitchen",
+    heading: "Our stores, one kitchen",
     enter: "Enter store",
     fallbackLine: "See everything in this shop.",
     bySlug: {
       dessert: "Cakes, tubs, cookies and everyday sweets.",
       savory: "Pizzas, panuozzo, focaccia and house snacks.",
+      "gift-hamper": "Curated boxes of our bakes, ready to gift.",
+      festive: "Seasonal bakes for every celebration.",
     },
   },
   // Shoppable shortcuts under the hero. Every one of these points at a real

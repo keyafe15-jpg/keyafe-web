@@ -14,4 +14,5 @@ export {
 } from "./payload";
 export { newOrderItem, orderLinkItemToDraft, type OrderItemDraft } from "./types";
 export { useOrderItemRefPreviews } from "./useOrderItemRefPreviews";
+export { useOrderItemsGstOnTop } from "./useOrderItemsGstOnTop";
 export { useOrderItemsState } from "./useOrderItemsState";

@@ -49,6 +49,8 @@ export interface AdminProduct {
   discountedPrice: number | null;
   /** discountedPrice / starting price; multiply any configured price by it. Null = no discount. */
   priceFactor: number | null;
+  gstRate: string;
+  priceIsGstInclusive: boolean;
   productType: "FIXED_VARIANTS" | "CONFIGURABLE";
   template: ProductTemplate;
   isActive: boolean;

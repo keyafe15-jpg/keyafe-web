@@ -119,13 +119,20 @@ function shell(title: string, bodyHtml: string): string {
 </body></html>`;
 }
 
-// Aggregated totals rows including the CGST+SGST / IGST breakup. Bakery is
-// GST-inclusive by default so `taxableAmount + gst = subtotal`.
+// Aggregated totals rows including the CGST+SGST / IGST breakup. Products
+// priced exclusive of GST have it added on top, which is whatever the total
+// carries beyond subtotal − discount + delivery.
 function totalsBlock(order: OrderWithItems): string {
   const cgst = Number(order.cgstAmount);
   const sgst = Number(order.sgstAmount);
   const igst = Number(order.igstAmount);
   const taxable = Number(order.taxableAmount);
+  const gstOnTop =
+    Math.round(
+      (Number(order.total) -
+        (Number(order.subtotal) - Number(order.discount) + Number(order.deliveryFee))) *
+        100,
+    ) / 100;
   const hasIntraGst = cgst > 0 || sgst > 0;
   const hasInterGst = igst > 0;
   const row = (label: string, value: string, small = true) => `
@@ -139,7 +146,7 @@ function totalsBlock(order: OrderWithItems): string {
       ${hasIntraGst ? row("CGST", money(cgst)) : ""}
       ${hasIntraGst ? row("SGST", money(sgst)) : ""}
       ${hasInterGst ? row("IGST", money(igst)) : ""}
-      ${row("Subtotal (incl. GST)", money(order.subtotal))}
+      ${row(gstOnTop > 0 ? "Subtotal" : "Subtotal (incl. GST)", money(order.subtotal))}
       ${
         Number(order.discount) > 0
           ? row(
@@ -156,6 +163,7 @@ function totalsBlock(order: OrderWithItems): string {
             )
           : ""
       }
+      ${gstOnTop > 0 ? row("GST (added)", money(gstOnTop)) : ""}
       <tr>
         <td style="padding:12px 0 0;font-weight:600;border-top:1px solid #f0e6d5;">Total</td>
         <td style="padding:12px 0 0;font-weight:700;font-size:18px;text-align:right;border-top:1px solid #f0e6d5;">${money(order.total)}</td>

@@ -20,6 +20,7 @@ import {
   resolveReferenceImageUrl,
   toOfflineOrderItemPayload,
   useOrderItemRefPreviews,
+  useOrderItemsGstOnTop,
   useOrderItemsState,
   validateOrderItems,
 } from "@/components/order-items";
@@ -173,7 +174,8 @@ export function OfflineOrderDirectFormPage() {
     () => manualDiscountRupees(subtotal, discountType, discountValue),
     [subtotal, discountType, discountValue],
   );
-  const grandTotal = subtotal - discount + deliveryFee;
+  const gstOnTop = useOrderItemsGstOnTop(items, discount);
+  const grandTotal = subtotal - discount + deliveryFee + gstOnTop;
 
   const advanceValid =
     paymentMode === "FULL" ||
@@ -619,10 +621,10 @@ export function OfflineOrderDirectFormPage() {
                   required
                   error={
                     advanceAmount.trim() !== "" && !advanceValid
-                      ? `Between ₹1 and ₹${grandTotal.toFixed(0)}`
+                      ? `Between ₹1 and ₹${grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}`
                       : undefined
                   }
-                  hint={`Max ₹${grandTotal.toFixed(0)}`}
+                  hint={`Max ₹${grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}`}
                   className="col-span-2"
                 >
                   <input
@@ -750,9 +752,15 @@ export function OfflineOrderDirectFormPage() {
                       : "—"}
                 </span>
               </div>
+              {gstOnTop > 0 && (
+                <div className="flex justify-between text-slate-700">
+                  <span>GST (added)</span>
+                  <span className="tabular-nums">₹{gstOnTop.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-semibold text-slate-900">
                 <span>Total</span>
-                <span className="tabular-nums">₹{grandTotal.toFixed(0)}</span>
+                <span className="tabular-nums">₹{grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}</span>
               </div>
               {paymentMode === "ADVANCE" && Number(advanceAmount) > 0 && (
                 <>

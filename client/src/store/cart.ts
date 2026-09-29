@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { gstAddedOnTop } from "@keyafe/shared";
 import type { CartLine } from "@/types/domain";
 
 interface CartState {
@@ -9,6 +10,8 @@ interface CartState {
   removeLine: (id: string) => void;
   clear: () => void;
   subtotal: () => number;
+  /** GST added on top for lines priced exclusive of GST, after `discount`. */
+  gstOnTop: (discount?: number) => number;
   /** Total saved versus original prices across discounted lines. */
   savings: () => number;
   itemCount: () => number;
@@ -35,6 +38,15 @@ export const useCart = create<CartState>()(
       removeLine: (id) => set((s) => ({ lines: s.lines.filter((l) => l.id !== id) })),
       clear: () => set({ lines: [] }),
       subtotal: () => get().lines.reduce((sum, l) => sum + l.unitPrice * l.qty, 0),
+      gstOnTop: (discount = 0) =>
+        gstAddedOnTop(
+          get().lines.map((l) => ({
+            amount: l.unitPrice * l.qty,
+            gstRate: l.gstRate,
+            priceIsGstInclusive: l.priceIsGstInclusive,
+          })),
+          discount,
+        ),
       savings: () =>
         get().lines.reduce(
           (sum, l) =>
