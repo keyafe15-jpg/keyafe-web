@@ -3,11 +3,13 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/store/auth";
 import { cn } from "@/lib/cn";
 import { AUTH_COPY } from "@/content/auth";
+import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
 
 export function UserMenu() {
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
   const [open, setOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   if (!user) return null;
 
@@ -55,6 +57,17 @@ export function UserMenu() {
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
+            setOpen(false);
+            setPasswordOpen(true);
+          }}
+          className="block w-full rounded-lg px-3 py-2 text-left text-sm text-ink-700 transition hover:bg-cream-100"
+        >
+          {user.hasPassword ? AUTH_COPY.menu.changePassword : AUTH_COPY.menu.setPassword}
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
             void logout();
             setOpen(false);
           }}
@@ -63,6 +76,8 @@ export function UserMenu() {
           {AUTH_COPY.menu.logout}
         </button>
       </div>
+
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </div>
   );
 }

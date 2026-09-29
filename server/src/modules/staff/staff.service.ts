@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { normalizeCustomerPhone, phoneLookupVariants } from "../../lib/phone.js";
+import { hashPassword } from "../../lib/password.js";
+import { revokeUserSessions } from "../auth/sessions.js";
 import { CUSTOMER_ROLE_SLUG } from "./rbac.catalog.js";
 import { syncPermissionCatalog } from "./rbac.seed.js";
 
@@ -20,6 +22,7 @@ function serializeStaffUser(user: {
   email: string | null;
   isActive: boolean;
   lastLoginAt: Date | null;
+  passwordHash: string | null;
   createdAt: Date;
   role: { id: string; slug: string; name: string; isSuperuser: boolean };
 }) {
@@ -29,6 +32,7 @@ function serializeStaffUser(user: {
     phone: user.phone,
     email: user.email,
     isActive: user.isActive,
+    hasPassword: user.passwordHash != null,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
     role: user.role,
@@ -76,6 +80,7 @@ export async function listStaffUsers(opts: {
         email: true,
         isActive: true,
         lastLoginAt: true,
+        passwordHash: true,
         createdAt: true,
         role: {
           select: { id: true, slug: true, name: true, isSuperuser: true },
@@ -118,11 +123,13 @@ export async function createStaffUser(input: {
   email?: string | null;
   roleId: string;
   promote?: boolean;
+  password?: string;
 }) {
   const role = await assertStaffRole(input.roleId);
   const phone = normalizeCustomerPhone(input.phone);
   const email = input.email?.trim() || null;
   const existing = await findUserByPhone(phone);
+  const passwordHash = input.password ? await hashPassword(input.password) : null;
 
   if (existing) {
     const existingRole = await prisma.role.findUnique({
@@ -137,6 +144,12 @@ export async function createStaffUser(input: {
         "A customer account exists with this phone. Confirm to promote them to staff.",
       );
     }
+    // A password set on a never-verified number came from an unverified sign-up and
+    // must not carry over into staff access.
+    const dropUnverifiedPassword = !existing.phoneVerifiedAt && existing.passwordHash != null;
+    if (passwordHash || dropUnverifiedPassword) {
+      await revokeUserSessions(existing.id);
+    }
     const updated = await prisma.user.update({
       where: { id: existing.id },
       data: {
@@ -146,6 +159,11 @@ export async function createStaffUser(input: {
         isActive: true,
         phoneVerifiedAt: existing.phoneVerifiedAt ?? new Date(),
         ...(email && !existing.email ? { email } : {}),
+        ...(passwordHash
+          ? { passwordHash, passwordUpdatedAt: new Date() }
+          : dropUnverifiedPassword
+            ? { passwordHash: null, passwordUpdatedAt: null }
+            : {}),
       },
       select: {
         id: true,
@@ -154,6 +172,7 @@ export async function createStaffUser(input: {
         email: true,
         isActive: true,
         lastLoginAt: true,
+        passwordHash: true,
         createdAt: true,
         role: {
           select: { id: true, slug: true, name: true, isSuperuser: true },
@@ -178,6 +197,7 @@ export async function createStaffUser(input: {
         email,
         roleId: role.id,
         phoneVerifiedAt: new Date(),
+        ...(passwordHash ? { passwordHash, passwordUpdatedAt: new Date() } : {}),
       },
       select: {
         id: true,
@@ -186,6 +206,7 @@ export async function createStaffUser(input: {
         email: true,
         isActive: true,
         lastLoginAt: true,
+        passwordHash: true,
         createdAt: true,
         role: {
           select: { id: true, slug: true, name: true, isSuperuser: true },
@@ -268,6 +289,7 @@ export async function updateStaffUser(
       email: true,
       isActive: true,
       lastLoginAt: true,
+      passwordHash: true,
       createdAt: true,
       role: {
         select: { id: true, slug: true, name: true, isSuperuser: true },
@@ -275,6 +297,33 @@ export async function updateStaffUser(
     },
   });
   return serializeStaffUser(updated);
+}
+
+// Used by the admin Users page and the set-password CLI. Signs the user out
+// everywhere so the new password is the only way back in.
+export async function setStaffPassword(id: string, password: string) {
+  const existing = await prisma.user.findUnique({
+    where: { id },
+    include: { role: true },
+  });
+  if (!existing) throw HttpError.notFound("Staff user not found");
+  if (existing.role.slug === CUSTOMER_ROLE_SLUG) {
+    throw HttpError.badRequest("This user is a customer, not staff");
+  }
+
+  const passwordHash = await hashPassword(password);
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id },
+      data: {
+        passwordHash,
+        passwordUpdatedAt: new Date(),
+        phoneVerifiedAt: existing.phoneVerifiedAt ?? new Date(),
+      },
+    });
+    await revokeUserSessions(id, { db: tx });
+  });
+  return { message: "Password updated" };
 }
 
 export async function deleteStaffUser(id: string, actorId: string) {

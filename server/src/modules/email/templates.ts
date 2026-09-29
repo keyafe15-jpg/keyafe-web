@@ -367,6 +367,30 @@ export function renderInvoiceEmail(args: {
   };
 }
 
+export function renderPasswordReset(args: {
+  name: string;
+  link: string;
+  expiresInMinutes: number;
+}) {
+  const firstName = args.name.split(" ")[0] || args.name;
+  const html = shell(
+    "Reset your Keyafe password",
+    `
+    <h1 style="margin:0 0 8px;font-size:22px;color:#2c3540;">Reset your password</h1>
+    <p style="margin:0 0 20px;color:#7d8590;">
+      Hi ${escapeHtml(firstName)}, we received a request to reset the password for your Keyafe account.
+      This link works once and expires in ${args.expiresInMinutes} minutes.
+    </p>
+    <a href="${escapeHtml(args.link)}" style="display:inline-block;padding:12px 22px;background:#e31c79;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:600;">
+      Choose a new password
+    </a>
+    <p style="margin:20px 0 0;color:#7d8590;font-size:13px;">
+      If you didn't ask for this, you can ignore this email. Your password won't change.
+    </p>`,
+  );
+  return { subject: "Reset your Keyafe password", html };
+}
+
 export function renderCouponShare(coupon: {
   code: string;
   type: "PERCENT" | "FLAT";

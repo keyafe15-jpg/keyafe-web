@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAlerts, type PendingOrderAlert } from "@/store/alerts";
 import { useAdminAuth } from "@/store/adminAuth";
+import { renewSessionIfExpiring } from "@/lib/api";
 
 interface NewOrderEvent {
   id: string;
@@ -19,9 +20,11 @@ export function useOrderStream() {
   const qc = useQueryClient();
   const enqueue = useAlerts((s) => s.enqueue);
   const enqueueCancelled = useAlerts((s) => s.enqueueCancelled);
+  // EventSource keeps reconnecting with the URL it was opened with, so a renewed
+  // token has to reopen the stream or alerts stop once the old token expires.
+  const token = useAdminAuth((s) => s.accessToken);
 
   useEffect(() => {
-    const token = useAdminAuth.getState().accessToken;
     const url = token
       ? `/api/admin/orders/stream?access_token=${encodeURIComponent(token)}`
       : "/api/admin/orders/stream";
@@ -85,12 +88,13 @@ export function useOrderStream() {
     });
 
     es.onerror = () => {
-      // EventSource auto-reconnects; auth expiry is handled by the shared
-      // API 401 handler on the next normal request.
+      // EventSource auto-reconnects on its own. If the failure is an expired token
+      // (e.g. a kitchen tablet idle for days), renewing it changes `token` and reopens the stream.
+      void renewSessionIfExpiring();
     };
 
     return () => {
       es.close();
     };
-  }, [qc, enqueue, enqueueCancelled]);
+  }, [qc, enqueue, enqueueCancelled, token]);
 }

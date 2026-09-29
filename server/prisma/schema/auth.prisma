@@ -1,5 +1,5 @@
 // Auth + customer profile + RBAC.
-// OTP-only customer authentication; no password-based login path remains.
+// Staff and customers sign in with a phone OTP or with phone + password.
 // Roles + Permissions are DB-driven so admin can configure them from the UI.
 
 model Role {
@@ -65,8 +65,13 @@ model User {
   lastLoginAt     DateTime?
   isActive        Boolean   @default(true) // admin can disable / mark spam
 
+  // scrypt hash (see src/lib/password.ts). Null = OTP-only account.
+  passwordHash      String?
+  passwordUpdatedAt DateTime?
+
   addresses      Address[]
   refreshTokens  RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
   assignedQuotes QuoteRequest[] @relation("QuoteAssignee")
   orders         Order[]
   pushSubscriptions PushSubscription[]
@@ -116,4 +121,17 @@ model RefreshToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// Single-use "forgot password" links sent by email. Hashed at rest like refresh tokens.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // sha256 of the raw token in the emailed link
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }

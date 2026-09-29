@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { Router } from "express";
+import { Router, type Request } from "express";
 import jwt from "jsonwebtoken";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -8,10 +8,19 @@ import { env } from "../../config/env.js";
 import { HttpError } from "../../utils/httpError.js";
 import { normalizeCustomerPhone, phoneLookupVariants, phonesMatch } from "../../lib/phone.js";
 import { isIndianMobile, isMsg91Configured, sendOtpSms } from "../../lib/msg91.js";
+import {
+  burnPasswordCheck,
+  hashPassword,
+  passwordSchema,
+  verifyPassword,
+} from "../../lib/password.js";
 import { ensureCustomerRole } from "../customers/customer.service.js";
-import { isStaffRole } from "../../middleware/auth.js";
+import { sendEmail } from "../email/email.service.js";
+import { renderPasswordReset } from "../email/templates.js";
+import { isStaffRole, requireAuth, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { CUSTOMER_ROLE_SLUG } from "../staff/rbac.catalog.js";
 import { logger } from "../../utils/logger.js";
+import { hashToken, revokeUserSessions } from "./sessions.js";
 
 export const authRouter = Router();
 
@@ -115,9 +124,24 @@ async function completeRegistration(
   });
 }
 
-function hashRefreshToken(token: string): string {
-  return crypto.createHash("sha256").update(token).digest("hex");
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Staff sessions slide forward on every refresh, so an admin stays signed in until they log out.
+const STAFF_REFRESH_TTL_MS = 365 * DAY_MS;
+const CUSTOMER_REFRESH_TTL_MS = 30 * DAY_MS;
+
+function isStaffUser(role: { slug: string; isSuperuser: boolean }): boolean {
+  return isStaffRole(role) && role.slug !== CUSTOMER_ROLE_SLUG;
 }
+
+function refreshExpiryFor(role: { slug: string; isSuperuser: boolean }): Date {
+  return new Date(
+    Date.now() + (isStaffUser(role) ? STAFF_REFRESH_TTL_MS : CUSTOMER_REFRESH_TTL_MS),
+  );
+}
+
+const refreshTokenSchema = z.object({
+  refreshToken: z.string().trim().min(1),
+});
 
 function signAccessToken(userId: string, phone: string): string {
   return jwt.sign({ sub: userId, type: "access", phone }, env.JWT_SECRET, {
@@ -134,6 +158,7 @@ function serializeUser(user: {
   name: string;
   phone: string;
   email: string | null;
+  passwordHash: string | null;
   role: {
     slug: string;
     isSuperuser: boolean;
@@ -145,6 +170,7 @@ function serializeUser(user: {
     name: user.name,
     phone: user.phone,
     email: user.email ?? undefined,
+    hasPassword: user.passwordHash != null,
     role: {
       slug: user.role.slug,
       isSuperuser: user.role.isSuperuser,
@@ -152,6 +178,97 @@ function serializeUser(user: {
     },
   };
 }
+
+type SessionUser = Prisma.UserGetPayload<{ include: typeof userInclude }>;
+
+async function issueSession(user: SessionUser, req: Request) {
+  const accessToken = signAccessToken(user.id, user.phone);
+  const refreshToken = crypto.randomBytes(32).toString("hex");
+
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashToken(refreshToken),
+      expiresAt: refreshExpiryFor(user.role),
+      ip: req.ip ?? null,
+      userAgent: req.headers["user-agent"] ?? null,
+    },
+  });
+
+  return {
+    user: serializeUser(user),
+    accessToken,
+    refreshToken,
+    tokenType: "Bearer" as const,
+  };
+}
+
+function assertAdminAudience(user: SessionUser | null): asserts user is SessionUser {
+  if (!user) {
+    throw HttpError.forbidden("No staff account for this phone. Ask an admin to add you.");
+  }
+  if (!user.isActive) {
+    throw HttpError.forbidden("This staff account is disabled");
+  }
+  if (!isStaffUser(user.role)) {
+    throw HttpError.forbidden("This phone is a customer account, not staff");
+  }
+}
+
+// A password set on a number nobody has proven they own (password sign-up) is dropped
+// the first time the real owner signs in with OTP, along with the unverified email a
+// reset link could be sent to.
+async function reclaimUnverifiedAccount(user: SessionUser): Promise<SessionUser> {
+  logger.info({ userId: user.id }, "OTP sign-in reclaimed an unverified password account");
+  return prisma.$transaction(async (tx) => {
+    await revokeUserSessions(user.id, { db: tx });
+    await tx.passwordResetToken.deleteMany({ where: { userId: user.id } });
+    return tx.user.update({
+      where: { id: user.id },
+      data: { passwordHash: null, passwordUpdatedAt: null, email: null, emailVerifiedAt: null },
+      include: userInclude,
+    });
+  });
+}
+
+// In-memory attempt counters, like the OTP limiter above. Each key allows `max`
+// events per window, then locks until the window ends.
+const ATTEMPT_WINDOW_MS = 15 * 60_000;
+const attemptStore = new Map<string, { count: number; windowStart: number }>();
+
+function isAttemptLocked(key: string, max: number): boolean {
+  const entry = attemptStore.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.windowStart > ATTEMPT_WINDOW_MS) {
+    attemptStore.delete(key);
+    return false;
+  }
+  return entry.count >= max;
+}
+
+function assertAttemptsAllowed(key: string, max: number) {
+  if (!isAttemptLocked(key, max)) return;
+  const entry = attemptStore.get(key)!;
+  const waitMin = Math.ceil((ATTEMPT_WINDOW_MS - (Date.now() - entry.windowStart)) / 60_000);
+  throw HttpError.tooManyRequests(`Too many attempts. Please try again in ${waitMin} min.`);
+}
+
+function recordAttempt(key: string) {
+  const now = Date.now();
+  const entry = attemptStore.get(key);
+  if (!entry || now - entry.windowStart > ATTEMPT_WINDOW_MS) {
+    attemptStore.set(key, { count: 1, windowStart: now });
+  } else {
+    entry.count += 1;
+  }
+}
+
+const LOGIN_FAILURES_PER_PHONE = 5;
+const LOGIN_FAILURES_PER_IP = 30;
+const REGISTRATIONS_PER_IP = 10;
+const RESET_REQUESTS_PER_PHONE = 3;
+const PASSWORD_CHANGE_FAILURES = 5;
+const RESET_TOKEN_TTL_MS = 30 * 60_000;
 
 function issueOtp(phone: string) {
   const normalizedPhone = normalizePhone(phone);
@@ -239,15 +356,11 @@ authRouter.post("/verify-otp", async (req, res) => {
   let user = await findUserByPhone(normalizedPhone);
 
   if (isAdminAudience) {
-    if (!user) {
-      throw HttpError.forbidden("No staff account for this phone. Ask an admin to add you.");
-    }
-    if (!user.isActive) {
-      throw HttpError.forbidden("This staff account is disabled");
-    }
-    if (!isStaffRole(user.role) || user.role.slug === CUSTOMER_ROLE_SLUG) {
-      throw HttpError.forbidden("This phone is a customer account, not staff");
-    }
+    assertAdminAudience(user);
+  }
+
+  if (user && !user.phoneVerifiedAt && user.passwordHash) {
+    user = await reclaimUnverifiedAccount(user);
   }
 
   if (!user && !isAdminAudience) {
@@ -322,23 +435,301 @@ authRouter.post("/verify-otp", async (req, res) => {
     throw HttpError.unauthorized("Invalid or expired OTP");
   }
 
-  const accessToken = signAccessToken(user.id, user.phone);
-  const refreshToken = crypto.randomBytes(32).toString("hex");
+  res.json(await issueSession(user, req));
+});
 
-  await prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      tokenHash: hashRefreshToken(refreshToken),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      ip: req.ip ?? null,
-      userAgent: req.headers["user-agent"] ?? null,
-    },
+const loginPasswordSchema = z.object({
+  phone: phoneSchema,
+  password: z.string().min(1, "Enter your password").max(256),
+  audience: z.enum(["storefront", "admin"]).optional(),
+});
+
+const INVALID_LOGIN_MESSAGE = "Incorrect phone number or password";
+
+authRouter.post("/login-password", async (req, res) => {
+  const parsed = loginPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid sign-in request", parsed.error.flatten());
+  }
+
+  const { phone, password, audience } = parsed.data;
+  const normalizedPhone = normalizePhone(phone);
+  const phoneKey = `login-phone:${normalizedPhone}`;
+  const ipKey = `login-ip:${req.ip ?? "unknown"}`;
+  assertAttemptsAllowed(phoneKey, LOGIN_FAILURES_PER_PHONE);
+  assertAttemptsAllowed(ipKey, LOGIN_FAILURES_PER_IP);
+
+  const user = await findUserByPhone(normalizedPhone);
+  let valid = false;
+  if (user?.passwordHash) {
+    valid = await verifyPassword(password, user.passwordHash);
+  } else {
+    await burnPasswordCheck(password);
+  }
+
+  if (!user || !valid) {
+    recordAttempt(phoneKey);
+    recordAttempt(ipKey);
+    throw HttpError.unauthorized(INVALID_LOGIN_MESSAGE);
+  }
+  attemptStore.delete(phoneKey);
+
+  if (audience === "admin") {
+    assertAdminAudience(user);
+  } else if (!user.isActive) {
+    throw HttpError.forbidden("This account is disabled");
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+    include: userInclude,
   });
+
+  res.json(await issueSession(updated, req));
+});
+
+const registerPasswordSchema = z.object({
+  name: z.string().trim().min(2, "Please enter your name"),
+  phone: phoneSchema,
+  password: passwordSchema,
+  email: z
+    .string()
+    .trim()
+    .email("Enter a valid email")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+});
+
+// Only brand-new numbers can sign up with a password. An existing profile (including
+// the guest profile created at checkout) may hold someone else's orders, and nothing
+// here proves the caller owns the phone.
+authRouter.post("/register-password", async (req, res) => {
+  const parsed = registerPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid sign-up request", parsed.error.flatten());
+  }
+
+  const ipKey = `register-ip:${req.ip ?? "unknown"}`;
+  assertAttemptsAllowed(ipKey, REGISTRATIONS_PER_IP);
+
+  const { name, phone, password, email } = parsed.data;
+  const normalizedPhone = normalizePhone(phone);
+  const existsMessage =
+    "An account already exists for this number. Sign in with OTP, or use Forgot password if you added an email.";
+
+  if (await findUserByPhone(normalizedPhone)) {
+    throw HttpError.conflict(existsMessage);
+  }
+  if (email && (await prisma.user.findUnique({ where: { email } }))) {
+    throw HttpError.conflict("An account with this email already exists");
+  }
+
+  const role = await ensureCustomerRoleForAuth();
+  let user: SessionUser;
+  try {
+    user = await prisma.user.create({
+      data: {
+        name,
+        phone: normalizedPhone,
+        email: email ?? null,
+        roleId: role.id,
+        passwordHash: await hashPassword(password),
+        passwordUpdatedAt: new Date(),
+        lastLoginAt: new Date(),
+      },
+      include: userInclude,
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw HttpError.conflict(existsMessage);
+    }
+    throw err;
+  }
+  recordAttempt(ipKey);
+
+  res.status(201).json(await issueSession(user, req));
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().max(256).optional(),
+  newPassword: passwordSchema,
+  refreshToken: z.string().trim().min(1).optional(),
+});
+
+authRouter.post("/password", requireAuth, async (req, res) => {
+  const parsed = changePasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid password change", parsed.error.flatten());
+  }
+
+  const userId = (req as AuthenticatedRequest).user!.id;
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.isActive) {
+    throw HttpError.unauthorized("Invalid or expired session");
+  }
+
+  const { currentPassword, newPassword, refreshToken } = parsed.data;
+  if (user.passwordHash) {
+    const failKey = `change-password:${user.id}`;
+    assertAttemptsAllowed(failKey, PASSWORD_CHANGE_FAILURES);
+    if (!currentPassword || !(await verifyPassword(currentPassword, user.passwordHash))) {
+      recordAttempt(failKey);
+      throw HttpError.badRequest("Current password is incorrect");
+    }
+    attemptStore.delete(failKey);
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await hashPassword(newPassword), passwordUpdatedAt: new Date() },
+  });
+  await revokeUserSessions(user.id, { exceptRefreshToken: refreshToken });
+
+  res.json({ message: "Password updated" });
+});
+
+const forgotPasswordSchema = z.object({
+  phone: phoneSchema,
+  audience: z.enum(["storefront", "admin"]).optional(),
+});
+
+const FORGOT_PASSWORD_MESSAGE =
+  "If this account has an email address, we've sent it a link to reset the password.";
+
+authRouter.post("/forgot-password", async (req, res) => {
+  const parsed = forgotPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid phone number", parsed.error.flatten());
+  }
+
+  const { phone, audience } = parsed.data;
+  const normalizedPhone = normalizePhone(phone);
+  const limitKey = `reset-phone:${normalizedPhone}`;
+
+  // Same response in every case, so this can't be used to probe which numbers exist.
+  const respond = () => res.json({ message: FORGOT_PASSWORD_MESSAGE });
+
+  if (isAttemptLocked(limitKey, RESET_REQUESTS_PER_PHONE)) return respond();
+  recordAttempt(limitKey);
+
+  const user = await findUserByPhone(normalizedPhone);
+  const isAdmin = audience === "admin";
+  if (!user || !user.isActive || !user.email || (isAdmin && !isStaffUser(user.role))) {
+    return respond();
+  }
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  await prisma.$transaction([
+    prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } }),
+    prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(rawToken),
+        expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+      },
+    }),
+  ]);
+
+  const origin = isAdmin ? env.ADMIN_ORIGIN : env.CLIENT_ORIGIN;
+  const { subject, html } = renderPasswordReset({
+    name: user.name,
+    link: `${origin}/reset-password?token=${rawToken}`,
+    expiresInMinutes: RESET_TOKEN_TTL_MS / 60_000,
+  });
+  void sendEmail({ to: user.email, subject, html });
+
+  respond();
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().trim().min(1),
+  password: passwordSchema,
+});
+
+authRouter.post("/reset-password", async (req, res) => {
+  const parsed = resetPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid reset request", parsed.error.flatten());
+  }
+
+  const invalid = () => HttpError.badRequest("This reset link is invalid or has expired");
+  const { token, password } = parsed.data;
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashToken(token) },
+    include: { user: true },
+  });
+  if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) throw invalid();
+  if (!record.user.isActive) throw invalid();
+
+  const passwordHash = await hashPassword(password);
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.passwordResetToken.updateMany({
+      where: { id: record.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (claimed.count === 0) throw invalid();
+    await tx.user.update({
+      where: { id: record.userId },
+      data: {
+        passwordHash,
+        passwordUpdatedAt: new Date(),
+        emailVerifiedAt: record.user.emailVerifiedAt ?? new Date(),
+      },
+    });
+    await tx.passwordResetToken.deleteMany({
+      where: { userId: record.userId, usedAt: null },
+    });
+    await revokeUserSessions(record.userId, { db: tx });
+  });
+
+  res.json({ message: "Password updated. You can now sign in." });
+});
+
+// The same refresh token is returned rather than rotated: several open admin tabs
+// refresh concurrently, and rotation would make them revoke each other.
+authRouter.post("/refresh", async (req, res) => {
+  const parsed = refreshTokenSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.unauthorized("Invalid or expired session");
+  }
+
+  const { refreshToken } = parsed.data;
+  const record = await prisma.refreshToken.findUnique({
+    where: { tokenHash: hashToken(refreshToken) },
+    include: { user: { include: userInclude } },
+  });
+
+  if (!record || record.revokedAt || record.expiresAt.getTime() <= Date.now()) {
+    throw HttpError.unauthorized("Invalid or expired session");
+  }
+  const { user } = record;
+  if (!user.isActive) {
+    throw HttpError.unauthorized("Invalid or expired session");
+  }
+
+  if (isStaffUser(user.role)) {
+    await prisma.refreshToken.update({
+      where: { id: record.id },
+      data: { expiresAt: refreshExpiryFor(user.role) },
+    });
+  }
 
   res.json({
     user: serializeUser(user),
-    accessToken,
+    accessToken: signAccessToken(user.id, user.phone),
     refreshToken,
     tokenType: "Bearer",
   });
+});
+
+authRouter.post("/logout", async (req, res) => {
+  const parsed = refreshTokenSchema.safeParse(req.body);
+  if (parsed.success) {
+    await prisma.refreshToken.updateMany({
+      where: { tokenHash: hashToken(parsed.data.refreshToken), revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+  res.json({ message: "Logged out" });
 });

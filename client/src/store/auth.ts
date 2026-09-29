@@ -8,6 +8,7 @@ export interface AuthUser {
   name: string;
   phone: string;
   email?: string;
+  hasPassword?: boolean;
   role: {
     slug: string;
     isSuperuser: boolean;
@@ -39,6 +40,17 @@ interface AuthState {
     email?: string;
     otp: string;
   }) => Promise<AuthApiResponse | RequiresProfileResponse | void>;
+  loginWithPassword: (input: { phone: string; password: string }) => Promise<boolean>;
+  registerWithPassword: (input: {
+    name: string;
+    phone: string;
+    email?: string;
+    password: string;
+  }) => Promise<boolean>;
+  /** Throws with a user-facing message on failure. */
+  changePassword: (input: { currentPassword?: string; newPassword: string }) => Promise<void>;
+  /** Resolves with the server's (deliberately generic) confirmation message. */
+  requestPasswordReset: (phone: string) => Promise<string>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -54,6 +66,16 @@ interface RequiresProfileResponse {
   requiresProfile: true;
   phone: string;
   message: string;
+}
+
+function sessionFrom(data: AuthApiResponse) {
+  return {
+    user: data.user,
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    isSubmitting: false,
+    error: null,
+  };
 }
 
 export const useAuth = create<AuthState>()(
@@ -125,6 +147,67 @@ export const useAuth = create<AuthState>()(
 
       async register({ name, phone, email, otp }) {
         return this.continueWithOtp({ name, phone, email, otp });
+      },
+
+      async loginWithPassword({ phone, password }) {
+        set({ isSubmitting: true, error: null });
+        try {
+          const data = await api.post<AuthApiResponse>("/auth/login-password", {
+            phone: normalizePhone(phone),
+            password,
+            audience: "storefront",
+          });
+          set(sessionFrom(data));
+          return true;
+        } catch (err) {
+          set({
+            isSubmitting: false,
+            error: err instanceof Error ? err.message : "Log in failed",
+          });
+          return false;
+        }
+      },
+
+      async registerWithPassword({ name, phone, email, password }) {
+        set({ isSubmitting: true, error: null });
+        try {
+          const data = await api.post<AuthApiResponse>("/auth/register-password", {
+            name,
+            phone: normalizePhone(phone),
+            email,
+            password,
+          });
+          set(sessionFrom(data));
+          return true;
+        } catch (err) {
+          set({
+            isSubmitting: false,
+            error: err instanceof Error ? err.message : "Could not create the account",
+          });
+          return false;
+        }
+      },
+
+      async changePassword({ currentPassword, newPassword }) {
+        const { accessToken, refreshToken, user } = useAuth.getState();
+        await api.post(
+          "/auth/password",
+          {
+            currentPassword: currentPassword || undefined,
+            newPassword,
+            refreshToken: refreshToken ?? undefined,
+          },
+          { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined },
+        );
+        if (user) set({ user: { ...user, hasPassword: true } });
+      },
+
+      async requestPasswordReset(phone) {
+        const data = await api.post<{ message: string }>("/auth/forgot-password", {
+          phone: normalizePhone(phone),
+          audience: "storefront",
+        });
+        return data.message;
       },
 
       async logout() {

@@ -52,6 +52,40 @@ export const otpAuthSchema = z.object({
 });
 export type OtpAuthInput = z.infer<typeof otpAuthSchema>;
 
+export const PASSWORD_MIN_LENGTH = 8;
+
+export const newPasswordSchema = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
+  .max(128, "Password must be at most 128 characters");
+
+export const passwordLoginSchema = z.object({
+  countryCode: countryCodeSchema.default("+91"),
+  phone: phoneNumberSchema,
+  password: z.string().min(1, "Enter your password"),
+});
+export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;
+
+export const passwordRegisterSchema = z.object({
+  countryCode: countryCodeSchema.default("+91"),
+  name: z.string().trim().min(2, "Please enter your name"),
+  phone: phoneNumberSchema,
+  email: z
+    .string()
+    .trim()
+    .email("Enter a valid email")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  password: newPasswordSchema,
+});
+export type PasswordRegisterInput = z.infer<typeof passwordRegisterSchema>;
+
+export const forgotPasswordSchema = z.object({
+  countryCode: countryCodeSchema.default("+91"),
+  phone: phoneNumberSchema,
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
 export const loginSchema = z.object({
   phone: phoneSchema,
   otp: otpSchema,

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Menu, Volume2, VolumeX, Bell, BellOff, LogOut, User } from "lucide-react";
+import { Menu, Volume2, VolumeX, Bell, BellOff, LogOut, KeyRound } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { useAdminAuth } from "@/store/adminAuth";
+import { PasswordDialog } from "@/components/PasswordDialog";
 import { useAlerts } from "@/store/alerts";
 import { useListSearch } from "@/store/listSearch";
 import { DebouncedSearchInput } from "@/components/form/DebouncedSearchInput";
@@ -32,6 +33,8 @@ function searchConfigForPath(pathname: string): { placeholder: string } | null {
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const user = useAdminAuth((s) => s.user);
   const logout = useAdminAuth((s) => s.logout);
+  const changePassword = useAdminAuth((s) => s.changePassword);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const clearSearch = useListSearch((s) => s.clear);
@@ -93,7 +96,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       {searchConfig && (
         <DebouncedSearchInput
           key={pathname}
-          className="min-w-0 max-w-md flex-1"
+          className="max-w-md min-w-0 flex-1"
           placeholder={searchConfig.placeholder}
           onDebouncedChange={setQuery}
         />
@@ -143,7 +146,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
         </button>
 
-        <Dropdown.Root>
+        <Dropdown.Root modal={false}>
           <Dropdown.Trigger asChild>
             <button
               type="button"
@@ -170,9 +173,11 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
               <Dropdown.Item asChild>
                 <button
                   type="button"
+                  onClick={() => setPasswordOpen(true)}
                   className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
                 >
-                  <User className="h-4 w-4" /> Profile
+                  <KeyRound className="h-4 w-4" />
+                  {user?.hasPassword ? "Change password" : "Set a password"}
                 </button>
               </Dropdown.Item>
               <Dropdown.Item asChild>
@@ -191,6 +196,20 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           </Dropdown.Portal>
         </Dropdown.Root>
       </div>
+
+      <PasswordDialog
+        open={passwordOpen}
+        onOpenChange={setPasswordOpen}
+        title={user?.hasPassword ? "Change password" : "Set a password"}
+        description={
+          user?.hasPassword
+            ? "You'll stay signed in here. Other devices will be signed out."
+            : "Sign in with your phone number and this password when OTP isn't available."
+        }
+        requireCurrent={Boolean(user?.hasPassword)}
+        submitLabel="Save password"
+        onSubmit={changePassword}
+      />
     </header>
   );
 }

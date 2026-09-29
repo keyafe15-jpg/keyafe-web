@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { api, setAdminAccessToken, setUnauthorizedHandler } from "@/lib/api";
+import { api, setAdminAccessToken, setSessionRefresher, setUnauthorizedHandler } from "@/lib/api";
 
 export interface AdminUser {
   id: string;
   name: string;
   phone: string;
   email?: string;
+  hasPassword?: boolean;
   role: {
     slug: string;
     isSuperuser: boolean;
@@ -28,6 +29,11 @@ interface AdminAuthState {
   error: string | null;
   sendOtp: (phone: string) => Promise<string | null>;
   verifyOtp: (input: { phone: string; otp: string }) => Promise<boolean>;
+  loginWithPassword: (input: { phone: string; password: string }) => Promise<boolean>;
+  /** Throws with a user-facing message on failure. */
+  changePassword: (input: { currentPassword?: string; newPassword: string }) => Promise<void>;
+  /** Resolves with the server's (deliberately generic) confirmation message. */
+  requestPasswordReset: (phone: string) => Promise<string>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -94,8 +100,49 @@ export const useAdminAuth = create<AdminAuthState>()(
         }
       },
 
+      async loginWithPassword({ phone, password }) {
+        set({ isSubmitting: true, error: null });
+        try {
+          const data = await api.post<AuthApiResponse>("/auth/login-password", {
+            phone,
+            password,
+            audience: "admin",
+          });
+          set(applySession(data.user, data.accessToken, data.refreshToken));
+          return true;
+        } catch (err) {
+          set({
+            isSubmitting: false,
+            error: err instanceof Error ? err.message : "Sign-in failed",
+          });
+          return false;
+        }
+      },
+
+      async changePassword({ currentPassword, newPassword }) {
+        const { refreshToken, user } = useAdminAuth.getState();
+        await api.post("/auth/password", {
+          currentPassword: currentPassword || undefined,
+          newPassword,
+          refreshToken: refreshToken ?? undefined,
+        });
+        if (user) set({ user: { ...user, hasPassword: true } });
+      },
+
+      async requestPasswordReset(phone) {
+        const data = await api.post<{ message: string }>("/auth/forgot-password", {
+          phone,
+          audience: "admin",
+        });
+        return data.message;
+      },
+
       async logout() {
+        const { refreshToken } = useAdminAuth.getState();
         set(clearSession());
+        if (refreshToken) {
+          await api.post("/auth/logout", { refreshToken }).catch(() => undefined);
+        }
       },
 
       clearError: () => set({ error: null }),
@@ -121,4 +168,22 @@ export const useAdminAuth = create<AdminAuthState>()(
 // session so the login screen is the next thing the user sees — not an error toast.
 setUnauthorizedHandler(() => {
   useAdminAuth.setState(clearSession());
+});
+
+// An expired access token is renewed silently with the long-lived refresh token,
+// so staff stay signed in until they log out.
+setSessionRefresher(async () => {
+  const { refreshToken } = useAdminAuth.getState();
+  if (!refreshToken) return null;
+  const res = await fetch("/api/auth/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ refreshToken }),
+  });
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`Session refresh failed: ${res.status}`);
+  const data = (await res.json()) as AuthApiResponse;
+  useAdminAuth.setState(applySession(data.user, data.accessToken, data.refreshToken));
+  return data.accessToken;
 });

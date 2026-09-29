@@ -39,10 +39,21 @@ async function findCustomerByPhone(db: DbClient, phone: string) {
 }
 
 /**
+ * A real account someone signs in to: OTP-verified, or protected by a password.
+ * Anything else is a guest profile created at checkout.
+ */
+export function isRegisteredAccount(user: {
+  phoneVerifiedAt: Date | null;
+  passwordHash: string | null;
+}): boolean {
+  return user.phoneVerifiedAt != null || user.passwordHash != null;
+}
+
+/**
  * Resolve a customer id for an order.
  *
  * - Logged-in checkout (`userId`) always links to that account.
- * - Guest checkout does NOT attach to a registered account (phoneVerifiedAt set)
+ * - Guest checkout does NOT attach to a registered account (see isRegisteredAccount)
  *   even when phone/email match — the order keeps its own name/address snapshot.
  * - True guest profiles (no OTP yet) are created/updated and linked.
  *
@@ -66,7 +77,7 @@ export async function ensureCustomerForOrder(
   if (input.userId) {
     const linked = await db.user.findUnique({ where: { id: input.userId } });
     if (linked) {
-      if (!linked.phoneVerifiedAt) {
+      if (!isRegisteredAccount(linked)) {
         await db.user.update({
           where: { id: linked.id },
           data: {
@@ -84,7 +95,7 @@ export async function ensureCustomerForOrder(
     (email ? await db.user.findUnique({ where: { email } }) : null);
 
   if (existing) {
-    const isRegistered = existing.phoneVerifiedAt != null;
+    const isRegistered = isRegisteredAccount(existing);
     if (isRegistered && !allowRegisteredLink) {
       return null;
     }
@@ -117,7 +128,7 @@ export async function ensureCustomerForOrder(
         (await findCustomerByPhone(db, input.phone)) ??
         (email ? await db.user.findUnique({ where: { email } }) : null);
       if (retry) {
-        if (retry.phoneVerifiedAt && !allowRegisteredLink) return null;
+        if (isRegisteredAccount(retry) && !allowRegisteredLink) return null;
         return retry.id;
       }
     }
@@ -370,8 +381,10 @@ export async function listCustomers(
     role: { slug: "customer" },
     ...buildAdminCustomerSearchWhere(search),
     ...(active !== null && active !== undefined ? { isActive: active } : {}),
-    ...(registered === true ? { phoneVerifiedAt: { not: null } } : {}),
-    ...(registered === false ? { phoneVerifiedAt: null } : {}),
+    ...(registered === true
+      ? { AND: [{ OR: [{ phoneVerifiedAt: { not: null } }, { passwordHash: { not: null } }] }] }
+      : {}),
+    ...(registered === false ? { phoneVerifiedAt: null, passwordHash: null } : {}),
   };
 
   const [total, users] = await Promise.all([
@@ -388,6 +401,7 @@ export async function listCustomers(
         email: true,
         isActive: true,
         phoneVerifiedAt: true,
+        passwordHash: true,
         emailVerifiedAt: true,
         lastLoginAt: true,
         createdAt: true,
@@ -405,7 +419,7 @@ export async function listCustomers(
         phone: u.phone,
         email: u.email,
         isActive: u.isActive,
-        isRegistered: u.phoneVerifiedAt != null,
+        isRegistered: isRegisteredAccount(u),
         phoneVerifiedAt: u.phoneVerifiedAt,
         emailVerifiedAt: u.emailVerifiedAt,
         lastLoginAt: u.lastLoginAt,
@@ -527,7 +541,7 @@ export async function getCustomerDetail(key: string) {
       phone: user.phone,
       email: user.email,
       isActive: user.isActive,
-      isRegistered: user.phoneVerifiedAt != null,
+      isRegistered: isRegisteredAccount(user),
       phoneVerifiedAt: user.phoneVerifiedAt?.toISOString() ?? null,
       emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,

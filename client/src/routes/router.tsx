@@ -18,6 +18,7 @@ import { MyOrdersPage } from "@/pages/MyOrdersPage";
 import { AboutPage } from "@/pages/AboutPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OrderLinkPage } from "@/pages/OrderLinkPage";
+import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 
 export const router = createBrowserRouter([
   {
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
       { path: "saved-addresses", element: <SavedAddressesPage /> },
       { path: "my-orders", element: <MyOrdersPage /> },
       { path: "o/:token", element: <OrderLinkPage /> },
+      { path: "reset-password", element: <ResetPasswordPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

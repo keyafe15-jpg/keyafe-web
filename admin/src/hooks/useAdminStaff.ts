@@ -7,6 +7,7 @@ export interface StaffUser {
   phone: string;
   email: string | null;
   isActive: boolean;
+  hasPassword: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   role: {
@@ -87,9 +88,21 @@ export function useCreateStaffUser() {
       email?: string;
       roleId: string;
       promote?: boolean;
+      password?: string;
     }) => api.post<StaffUser>("/admin/staff/users", body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+  });
+}
+
+export function useSetStaffPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) =>
+      api.post<{ message: string }>(`/admin/staff/users/${id}/password`, { password }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "staff", "users"] });
     },
   });
 }

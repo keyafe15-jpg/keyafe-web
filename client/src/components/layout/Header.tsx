@@ -5,6 +5,7 @@ import { useAuth } from "@/store/auth";
 import { cn } from "@/lib/cn";
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { UserMenu } from "@/components/auth/UserMenu";
+import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
 import { CategoriesMenu } from "@/components/categories/CategoriesMenu";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { BRAND } from "@/content/brand";
@@ -93,6 +94,7 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
   const { data: departments = [] } = useDepartments();
   const categoryGroups = groupCategoriesByDepartment(categories, departments);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const overlay = isHome && !scrolled;
@@ -383,12 +385,22 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
                   <button
                     type="button"
                     onClick={() => {
+                      closeMobileMenu();
+                      setPasswordOpen(true);
+                    }}
+                    className="mt-2 w-full rounded-xl bg-white px-3 py-2 text-center text-xs font-medium text-ink-700 shadow-sm transition hover:text-brand-500"
+                  >
+                    {user.hasPassword ? AUTH_COPY.menu.changePassword : AUTH_COPY.menu.setPassword}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       void logout();
                       closeMobileMenu();
                     }}
                     className="mt-2 w-full rounded-xl px-3 py-2 text-center text-xs font-medium text-ink-500 transition hover:bg-white hover:text-brand-500"
                   >
-                    Log out
+                    {AUTH_COPY.menu.logout}
                   </button>
                 </div>
               ) : (
@@ -625,6 +637,8 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
           </div>
         </div>
       )}
+
+      {user && <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />}
     </>
   );
 }

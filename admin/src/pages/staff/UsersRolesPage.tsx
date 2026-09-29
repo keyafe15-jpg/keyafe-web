@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { KeyRound, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { inputClass, selectClass, submitClass } from "@/components/form/Field";
+import { PasswordDialog } from "@/components/PasswordDialog";
 import { PaginationControls } from "@/components/ClientPagination";
 import { useStaffPermission } from "@/lib/permissions";
 import { useAdminAuth } from "@/store/adminAuth";
@@ -10,6 +11,7 @@ import {
   useCreateStaffRole,
   useCreateStaffUser,
   useDeleteStaffUser,
+  useSetStaffPassword,
   useStaffPermissions,
   useStaffRoles,
   useStaffUsers,
@@ -33,7 +35,7 @@ export function UsersRolesPage() {
           <h1 className="text-2xl font-semibold text-slate-900">Users & Roles</h1>
           <p className="mt-1 text-sm text-slate-500">
             {tab === "staff"
-              ? "Create kitchen and office staff. They sign in with OTP on this admin app. You can delete other staff accounts, but not your own."
+              ? "Create kitchen and office staff. They sign in on this admin app with their phone and a password, or with OTP. You can delete other staff accounts, but not your own."
               : "Choose what each role can do. Super-admin always has full access."}
           </p>
         </div>
@@ -99,8 +101,8 @@ function StaffTab() {
                 <th className="px-4 py-2 font-medium">Role</th>
                 <th className="px-4 py-2 font-medium">Last login</th>
                 <th className="w-28 px-4 py-2 text-center font-medium">Active</th>
-                <th className="w-14 px-4 py-2 text-right font-medium">
-                  <span className="sr-only">Delete</span>
+                <th className="w-24 px-4 py-2 text-right font-medium">
+                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
@@ -131,6 +133,7 @@ function NewStaffForm({ roles }: { roles: StaffRole[] }) {
   const create = useCreateStaffUser();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [roleId, setRoleId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const defaultRoleId = roles.find((r) => r.slug === "chef")?.id ?? roles[0]?.id;
@@ -141,15 +144,21 @@ function NewStaffForm({ roles }: { roles: StaffRole[] }) {
 
   const submit = async (promote = false) => {
     setError(null);
+    if (password && password.length < 8) {
+      setError("Password must be at least 8 characters, or leave it empty for OTP only.");
+      return;
+    }
     try {
       await create.mutateAsync({
         name: name.trim(),
         phone: phone.trim(),
         roleId,
         promote,
+        password: password || undefined,
       });
       setName("");
       setPhone("");
+      setPassword("");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create";
       if (!promote && message.toLowerCase().includes("promote")) {
@@ -163,7 +172,7 @@ function NewStaffForm({ roles }: { roles: StaffRole[] }) {
 
   return (
     <div className="rounded-card border border-slate-200 bg-white p-4">
-      <div className="grid gap-3 sm:grid-cols-[2fr_2fr_1.5fr_auto]">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_2fr_1.5fr_2fr_auto]">
         <label>
           <span className="mb-1 block text-xs font-medium text-slate-500">Name</span>
           <input
@@ -196,6 +205,19 @@ function NewStaffForm({ roles }: { roles: StaffRole[] }) {
             ))}
           </select>
         </label>
+        <label>
+          <span className="mb-1 block text-xs font-medium text-slate-500">
+            Password <span className="font-normal text-slate-400">(optional)</span>
+          </span>
+          <input
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
+            placeholder="Leave empty for OTP only"
+          />
+        </label>
         <div className="self-end">
           <button
             type="button"
@@ -215,9 +237,12 @@ function NewStaffForm({ roles }: { roles: StaffRole[] }) {
 function StaffRow({ user, roles }: { user: StaffUser; roles: StaffRole[] }) {
   const update = useUpdateStaffUser();
   const del = useDeleteStaffUser();
+  const setStaffPassword = useSetStaffPassword();
   const currentUserId = useAdminAuth((s) => s.user?.id);
   const isSelf = user.id === currentUserId;
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const onDelete = async () => {
     setError(null);
@@ -243,9 +268,18 @@ function StaffRow({ user, roles }: { user: StaffUser; roles: StaffRole[] }) {
               You
             </span>
           )}
+          <span
+            className={cn(
+              "ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase",
+              user.hasPassword ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700",
+            )}
+          >
+            {user.hasPassword ? "Password set" : "OTP only"}
+          </span>
         </p>
         {user.email && <p className="text-xs text-slate-500">{user.email}</p>}
         {error && <p className="mt-1 text-xs text-brand-700">{error}</p>}
+        {notice && <p className="mt-1 text-xs text-emerald-700">{notice}</p>}
       </td>
       <td className="mt-2 block text-slate-700 tabular-nums md:mt-0 md:table-cell md:px-4 md:py-3">
         <div className="flex items-center justify-between gap-2 md:justify-start">
@@ -296,7 +330,41 @@ function StaffRow({ user, roles }: { user: StaffUser; roles: StaffRole[] }) {
           />
         </label>
       </td>
-      <td className="mt-3 block text-right md:mt-0 md:table-cell md:px-4 md:py-3">
+      <td className="mt-3 block text-right whitespace-nowrap md:mt-0 md:table-cell md:px-4 md:py-3">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setNotice(null);
+            setPasswordOpen(true);
+          }}
+          disabled={isSelf}
+          title={
+            isSelf
+              ? "Use Change password in the top-right menu for your own account"
+              : `Set a password for “${user.name}”`
+          }
+          aria-label={`Set a password for ${user.name}`}
+          className={cn(
+            "mr-1 inline-flex h-8 w-8 items-center justify-center rounded-md transition disabled:opacity-50",
+            isSelf
+              ? "cursor-not-allowed text-slate-300"
+              : "text-slate-500 hover:bg-slate-100 hover:text-slate-800",
+          )}
+        >
+          <KeyRound className="h-4 w-4" />
+        </button>
+        <PasswordDialog
+          open={passwordOpen}
+          onOpenChange={setPasswordOpen}
+          title={`Set password for ${user.name}`}
+          description="They'll be signed out on all devices and can sign in with their phone number and this password."
+          submitLabel="Set password"
+          onSubmit={async ({ newPassword }) => {
+            await setStaffPassword.mutateAsync({ id: user.id, password: newPassword });
+            setNotice("Password updated. Share it with them securely.");
+          }}
+        />
         <button
           type="button"
           onClick={() => void onDelete()}

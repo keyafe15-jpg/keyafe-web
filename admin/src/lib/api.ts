@@ -7,6 +7,14 @@ let sessionEnding = false;
 type UnauthorizedHandler = () => void;
 let unauthorizedHandler: UnauthorizedHandler | null = null;
 
+/**
+ * Exchanges the stored refresh token for a new access token. Resolves null only when
+ * the server rejects the session; throws on network/server errors so a blip never logs staff out.
+ */
+type SessionRefresher = () => Promise<string | null>;
+let sessionRefresher: SessionRefresher | null = null;
+let refreshInFlight: Promise<string | null> | null = null;
+
 export function setAdminAccessToken(token: string | null) {
   accessToken = token;
   if (token) sessionEnding = false;
@@ -18,6 +26,10 @@ export function getAdminAccessToken(): string | null {
 
 export function setUnauthorizedHandler(handler: UnauthorizedHandler) {
   unauthorizedHandler = handler;
+}
+
+export function setSessionRefresher(refresher: SessionRefresher) {
+  sessionRefresher = refresher;
 }
 
 /** Thrown after a 401 so callers don't treat the request as successful. Message is empty so UIs don't flash "Invalid or expired session". */
@@ -39,7 +51,11 @@ export function isSessionExpiredError(err: unknown): boolean {
   );
 }
 
+// Auth routes that need a signed-in user still get the refresh-and-retry treatment.
+const SIGNED_IN_AUTH_PATHS = new Set(["/auth/password"]);
+
 function isAuthPath(path: string): boolean {
+  if (SIGNED_IN_AUTH_PATHS.has(path)) return false;
   return path === "/auth" || path.startsWith("/auth/");
 }
 
@@ -55,22 +71,80 @@ function endExpiredSession(): never {
   throw new SessionExpiredError();
 }
 
+/** Concurrent 401s share one refresh call. */
+function refreshSession(): Promise<string | null> {
+  if (!sessionRefresher) return Promise.resolve(null);
+  refreshInFlight ??= sessionRefresher().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+function tokenExpiresWithin(token: string, ms: number): boolean {
+  try {
+    const payload = token.split(".")[1]!.replace(/-/g, "+").replace(/_/g, "/");
+    const { exp } = JSON.parse(atob(payload)) as { exp?: number };
+    return typeof exp === "number" && exp * 1000 - Date.now() < ms;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Renews the access token if it has expired (or is about to). For long-lived
+ * connections like the order stream, which never see a 401 from `request`.
+ */
+export async function renewSessionIfExpiring(): Promise<void> {
+  if (!accessToken || !tokenExpiresWithin(accessToken, 60_000)) return;
+  let fresh: string | null;
+  try {
+    fresh = await refreshSession();
+  } catch {
+    return;
+  }
+  if (fresh === null) {
+    try {
+      endExpiredSession();
+    } catch {
+      // endExpiredSession always throws; the redirect is what matters here.
+    }
+  }
+}
+
+function authHeader(): Record<string, string> {
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
+
+/**
+ * Sends the request; on a 401 from a non-auth route, refreshes the session once and
+ * retries. Only when the refresh fails does the user get sent to /login.
+ */
+async function fetchWithSession(path: string, buildInit: () => RequestInit): Promise<Response> {
+  const sentWith = accessToken;
+  const res = await fetch(`${BASE}${path}`, buildInit());
+  if (res.status !== 401 || isAuthPath(path)) return res;
+
+  // Another request may already have refreshed while this one was in flight.
+  const fresh = accessToken && accessToken !== sentWith ? accessToken : await refreshSession();
+  if (!fresh) endExpiredSession();
+
+  const retry = await fetch(`${BASE}${path}`, buildInit());
+  if (retry.status === 401) endExpiredSession();
+  return retry;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchWithSession(path, () => ({
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...authHeader(),
       ...(init?.headers ?? {}),
     },
     credentials: "include",
-  });
+  }));
 
   if (!res.ok) {
-    // Login OTP failures are also 401 — leave those alone so the form can show them.
-    if (res.status === 401 && !isAuthPath(path)) {
-      endExpiredSession();
-    }
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `Request failed: ${res.status}`);
   }
@@ -87,17 +161,12 @@ export interface BlobResponse {
 // Separate from `request` because that one always parses JSON, and file
 // downloads need the raw body plus the response headers.
 async function requestBlob(path: string): Promise<BlobResponse> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
+  const res = await fetchWithSession(path, () => ({
+    headers: authHeader(),
     credentials: "include",
-  });
+  }));
 
   if (!res.ok) {
-    if (res.status === 401 && !isAuthPath(path)) {
-      endExpiredSession();
-    }
     // Errors still come back as JSON even on a blob endpoint.
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `Request failed: ${res.status}`);
@@ -114,19 +183,14 @@ async function requestBlob(path: string): Promise<BlobResponse> {
 }
 
 async function requestForm<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchWithSession(path, () => ({
     method: "POST",
-    headers: {
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
+    headers: authHeader(),
     credentials: "include",
     body: form,
-  });
+  }));
 
   if (!res.ok) {
-    if (res.status === 401 && !isAuthPath(path)) {
-      endExpiredSession();
-    }
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `Request failed: ${res.status}`);
   }

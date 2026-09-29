@@ -3,6 +3,7 @@ import { z } from "zod";
 import { HttpError } from "../../utils/httpError.js";
 import { requirePermission, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { normalizeCustomerPhone } from "../../lib/phone.js";
+import { passwordSchema } from "../../lib/password.js";
 import {
   createRole,
   createStaffUser,
@@ -10,6 +11,7 @@ import {
   listPermissions,
   listRoles,
   listStaffUsers,
+  setStaffPassword,
   updateRole,
   updateStaffUser,
 } from "./staff.service.js";
@@ -53,6 +55,7 @@ const createUserSchema = z.object({
     .or(z.literal("").transform(() => undefined)),
   roleId: z.string().min(1),
   promote: z.boolean().optional(),
+  password: passwordSchema.optional().or(z.literal("").transform(() => undefined)),
 });
 
 adminStaffRouter.post("/users", requirePermission("users.manage"), async (req, res) => {
@@ -80,6 +83,25 @@ adminStaffRouter.patch("/users/:id", requirePermission("users.manage"), async (r
   if (!actorId) throw HttpError.unauthorized("Authentication required");
   res.json(await updateStaffUser(req.params.id ?? "", parsed.data, actorId));
 });
+
+const setPasswordSchema = z.object({ password: passwordSchema });
+
+adminStaffRouter.post(
+  "/users/:id/password",
+  requirePermission("users.manage"),
+  async (req, res) => {
+    const parsed = setPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw HttpError.badRequest("Invalid password", parsed.error.flatten());
+    }
+    const actorId = (req as AuthenticatedRequest).staff?.id;
+    if (!actorId) throw HttpError.unauthorized("Authentication required");
+    if (req.params.id === actorId) {
+      throw HttpError.badRequest("Use Change password in the top-right menu for your own account");
+    }
+    res.json(await setStaffPassword(req.params.id ?? "", parsed.data.password));
+  },
+);
 
 adminStaffRouter.delete("/users/:id", requirePermission("users.manage"), async (req, res) => {
   const actorId = (req as AuthenticatedRequest).staff?.id;
