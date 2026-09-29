@@ -36,8 +36,8 @@ export function StorePage() {
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10">
-      <nav className="mb-4 text-xs text-ink-500">
+    <section className="mx-auto max-w-7xl px-4 pt-5 pb-10 sm:py-10">
+      <nav className="mb-2 text-xs text-ink-500 sm:mb-4">
         <Link to="/" className="hover:text-brand-500">
           Home
         </Link>
@@ -45,13 +45,13 @@ export function StorePage() {
         <span className="text-ink-700">{title}</span>
       </nav>
 
-      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-4 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <p className="mb-2 text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
+          <p className="mb-1 text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase sm:mb-2">
             {eyebrow}
           </p>
-          <h1 className="text-3xl text-ink-900">{title}</h1>
-          <p className="mt-2 max-w-2xl text-ink-500">{sub}</p>
+          <h1 className="text-2xl text-ink-900 sm:text-3xl">{title}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-ink-500 sm:mt-2 sm:text-base">{sub}</p>
         </div>
         <CatalogSearchBar className="w-full max-w-md shrink-0 sm:w-80" />
       </header>

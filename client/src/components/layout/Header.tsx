@@ -127,7 +127,7 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
             : "border-b border-cream-200 bg-cream-50/85 shadow-sm backdrop-blur",
         )}
       >
-        <div className="max-w-8xl mx-auto flex items-center justify-between gap-3 px-4 py-2">
+        <div className="max-w-8xl relative mx-auto flex items-center justify-between gap-3 px-4 py-2">
           <Link
             to="/"
             className={cn(

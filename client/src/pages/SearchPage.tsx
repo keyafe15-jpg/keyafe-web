@@ -89,7 +89,7 @@ export function SearchPage() {
   const total = data?.total ?? 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 pt-5 pb-10 sm:py-10">
       <Seo
         title={searching ? `Search “${debouncedQ}”` : "Search treats"}
         description="Find cakes, cookies, pizzas and more in the Keyafe catalogue."
@@ -97,41 +97,46 @@ export function SearchPage() {
       />
 
       <Reveal>
-        <div className="mx-auto mb-6 max-w-xl">
-          <p className="mb-2 text-center text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
+        <div className="mx-auto mb-4 max-w-xl sm:mb-8">
+          <p className="mb-1 text-center text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase sm:mb-2">
             Search
           </p>
-          <h1 className="mb-4 text-center font-display text-2xl text-ink-900 sm:text-3xl">
+          <h1 className="mb-3 text-center font-display text-2xl text-ink-900 sm:mb-4 sm:text-3xl">
             Find a treat
           </h1>
 
-          <label className="relative block">
-            <span className="sr-only">Search products</span>
-            <Search
-              className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-ink-500"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Search cakes, cookies, pizzas…"
-              autoFocus
-              className="w-full rounded-full border border-cream-200 bg-white py-3 pr-10 pl-10 text-sm text-ink-900 shadow-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/20 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
-            />
-            {input && (
-              <button
-                type="button"
-                onClick={leaveSearch}
-                className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-1 text-ink-500 hover:bg-cream-100 hover:text-ink-700"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </label>
+          <CatalogFilters
+            onChange={() => setPage(1)}
+            leading={
+              <label className="relative block">
+                <span className="sr-only">Search products</span>
+                <Search
+                  className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-ink-500"
+                  aria-hidden="true"
+                />
+                <input
+                  type="search"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Search cakes, cookies, pizzas…"
+                  autoFocus
+                  className="w-full rounded-full border border-cream-200 bg-white py-2.5 pr-10 pl-10 text-sm text-ink-900 shadow-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/20 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                />
+                {input && (
+                  <button
+                    type="button"
+                    onClick={leaveSearch}
+                    className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-1 text-ink-500 hover:bg-cream-100 hover:text-ink-700"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </label>
+            }
+          />
 
-          <p className="mt-3 text-center text-sm text-ink-500">
+          <p className="mt-2 text-center text-xs text-ink-500 sm:mt-3 sm:text-sm">
             {!searching && "Type at least 2 characters to search."}
             {searching && isLoading && "Searching…"}
             {searching && !isLoading && !isError && (
@@ -143,8 +148,6 @@ export function SearchPage() {
           </p>
         </div>
       </Reveal>
-
-      {searching && <CatalogFilters className="mb-8" onChange={() => setPage(1)} />}
 
       {searching && isLoading && <ProductGridSkeleton />}
 

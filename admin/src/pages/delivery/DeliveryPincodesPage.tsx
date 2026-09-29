@@ -118,7 +118,7 @@ export function DeliveryPincodesPage() {
             same-day or express eligibility.
           </p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2">
           <Stat label="Active" value={activeCount} />
           <Stat label="Express" value={expressCount} />
           <Stat label="Avg fee" value={`₹${averageFee}`} />
@@ -153,7 +153,7 @@ export function DeliveryPincodesPage() {
                 </div>
               )}
               {!isLoading && filtered.length > 0 && (
-                <table className="w-full text-left text-sm">
+                <table className="block w-full text-left text-sm md:table">
                   <thead className="hidden border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase md:table-header-group">
                     <tr>
                       <th className="px-4 py-2 font-medium">Area</th>
@@ -166,7 +166,7 @@ export function DeliveryPincodesPage() {
                       <th className="w-24 px-4 py-2 text-right font-medium">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="block divide-y divide-slate-100 md:table-row-group">
                     {items.map((row) => (
                       <PincodeRow key={row.pincode} row={row} />
                     ))}
@@ -197,6 +197,7 @@ function BulkImportPanel() {
 
   return (
     <BulkSpreadsheetImport<DeliveryPincodePayload>
+      collapsible
       title="Bulk import delivery pincodes"
       description="Upload CSV, XLS, or XLSX. Duplicate pincodes in the file are de-duplicated by the backend."
       columnsHint={IMPORT_COLUMNS}
@@ -234,9 +235,11 @@ function BulkImportPanel() {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-card border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-slate-900">{value}</p>
+    <div className="rounded-card border border-slate-200 bg-white px-3 py-2 shadow-sm sm:px-4 sm:py-3">
+      <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase sm:text-xs">
+        {label}
+      </p>
+      <p className="mt-0.5 text-lg font-semibold text-slate-900 sm:mt-1 sm:text-xl">{value}</p>
     </div>
   );
 }
@@ -273,7 +276,7 @@ function NewPincodeForm() {
 
   return (
     <div className="rounded-card border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
         <Field label="Pincode" required>
           <input
             value={form.pincode}
@@ -330,26 +333,7 @@ function NewPincodeForm() {
         </Field>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-        <Field label="Notes">
-          <input
-            value={form.notes ?? ""}
-            onChange={(event) => update("notes", event.target.value)}
-            placeholder="Rider availability, local caveats, etc."
-            className={inputClass}
-          />
-        </Field>
-        <button
-          type="button"
-          disabled={create.isPending}
-          onClick={submit}
-          className={cn(submitClass, "inline-flex items-center justify-center gap-1.5")}
-        >
-          <Plus className="h-4 w-4" /> Add pincode
-        </button>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
         <Checkbox
           label="Active"
           checked={form.isActive}
@@ -385,6 +369,25 @@ function NewPincodeForm() {
             className="w-20 rounded-md border border-slate-200 px-2 py-1 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
           />
         </label>
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+        <Field label="Notes">
+          <input
+            value={form.notes ?? ""}
+            onChange={(event) => update("notes", event.target.value)}
+            placeholder="Rider availability, local caveats, etc."
+            className={inputClass}
+          />
+        </Field>
+        <button
+          type="button"
+          disabled={create.isPending}
+          onClick={submit}
+          className={cn(submitClass, "inline-flex items-center justify-center gap-1.5")}
+        >
+          <Plus className="h-4 w-4" /> Add pincode
+        </button>
       </div>
 
       {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
@@ -444,8 +447,8 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
     return (
       <tr className="bg-brand-50/40 block align-top md:table-row">
         <td className="block px-4 py-3 md:table-cell" colSpan={8}>
-          <div className="grid gap-3 lg:grid-cols-6">
-            <Field label="Area">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+            <Field label="Area" className="col-span-2 lg:col-span-1">
               <input
                 value={draft.area ?? ""}
                 onChange={(event) => updateDraft("area", event.target.value)}
@@ -567,82 +570,100 @@ function PincodeRow({ row }: { row: AdminDeliveryPincode }) {
     );
   }
 
+  const confirmDelete = () => {
+    if (confirm(`Delete delivery pincode ${row.pincode}?`)) {
+      del.mutate(row.pincode, {
+        onError: (err) => alert(err instanceof Error ? err.message : "Delete failed"),
+      });
+    }
+  };
+  const actions = <RowActions onEdit={() => setEditing(true)} onDelete={confirmDelete} />;
+
   return (
-    <tr className="block p-4 hover:bg-slate-50 md:table-row md:p-0">
-      <td className="block md:table-cell md:px-4 md:py-3">
+    <tr className="block px-4 py-3 hover:bg-slate-50 md:table-row md:p-0">
+      <td className="block md:hidden">
+        <div className={cn("flex items-start gap-3", !row.isActive && "opacity-60")}>
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 font-medium break-words text-slate-900">
+              {row.area || "Unnamed area"}
+            </p>
+            <p className="text-xs text-slate-500">
+              {row.pincode} · {row.city}
+              {row.minOrderAmount ? ` · Min ₹${Number(row.minOrderAmount)}` : ""}
+            </p>
+          </div>
+          <span className="pt-0.5 font-semibold text-slate-900 tabular-nums">
+            ₹{Number(row.deliveryFee)}
+          </span>
+          {actions}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {!row.isActive && <StatusPill active={false} label="Off" />}
+          {row.sameDayEligible && <StatusPill active label="Same day" />}
+          {row.expressEligible && <StatusPill active label="Express" />}
+          {row.extraLeadHours > 0 && (
+            <StatusPill active={false} label={`+${row.extraLeadHours}h lead`} />
+          )}
+        </div>
+      </td>
+      <td className="hidden md:table-cell md:px-4 md:py-3">
         <p className="font-medium text-slate-900">{row.area || "Unnamed area"}</p>
         <p className="text-xs text-slate-500">
           {row.pincode} · {row.city} · {row.district}
         </p>
-        {row.notes && <p className="mt-1 text-xs text-slate-400">{row.notes}</p>}
+        {row.notes && (
+          <p className="mt-1 line-clamp-1 text-xs text-slate-400" title={row.notes}>
+            {row.notes}
+          </p>
+        )}
       </td>
-      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
-        <div className="flex items-center justify-between gap-2 md:justify-end">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Fee</span>
-          <span className="font-semibold text-slate-900 tabular-nums">
-            ₹{Number(row.deliveryFee)}
-          </span>
-        </div>
+      <td className="hidden md:table-cell md:px-4 md:py-3 md:text-right">
+        <span className="font-semibold text-slate-900 tabular-nums">
+          ₹{Number(row.deliveryFee)}
+        </span>
       </td>
-      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
-        <div className="flex items-center justify-between gap-2 md:justify-end">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Min order</span>
-          <span className="text-slate-700 tabular-nums">
-            {row.minOrderAmount ? `₹${Number(row.minOrderAmount)}` : "—"}
-          </span>
-        </div>
+      <td className="hidden md:table-cell md:px-4 md:py-3 md:text-right">
+        <span className="text-slate-700 tabular-nums">
+          {row.minOrderAmount ? `₹${Number(row.minOrderAmount)}` : "—"}
+        </span>
       </td>
-      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
-        <div className="flex items-center justify-between gap-2 md:justify-center">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Same day</span>
-          <StatusPill active={row.sameDayEligible} label={row.sameDayEligible ? "Yes" : "No"} />
-        </div>
+      <td className="hidden md:table-cell md:px-4 md:py-3 md:text-center">
+        <StatusPill active={row.sameDayEligible} label={row.sameDayEligible ? "Yes" : "No"} />
       </td>
-      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
-        <div className="flex items-center justify-between gap-2 md:justify-center">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Express</span>
-          <StatusPill active={row.expressEligible} label={row.expressEligible ? "Yes" : "No"} />
-        </div>
+      <td className="hidden md:table-cell md:px-4 md:py-3 md:text-center">
+        <StatusPill active={row.expressEligible} label={row.expressEligible ? "Yes" : "No"} />
       </td>
-      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
-        <div className="flex items-center justify-between gap-2 md:justify-center">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Lead</span>
-          <span className="text-slate-700 tabular-nums">+{row.extraLeadHours}h</span>
-        </div>
+      <td className="hidden md:table-cell md:px-4 md:py-3 md:text-center">
+        <span className="text-slate-700 tabular-nums">+{row.extraLeadHours}h</span>
       </td>
-      <td className="mt-1 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
-        <div className="flex items-center justify-between gap-2 md:justify-center">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Active</span>
-          <StatusPill active={row.isActive} label={row.isActive ? "Active" : "Off"} />
-        </div>
+      <td className="hidden md:table-cell md:px-4 md:py-3 md:text-center">
+        <StatusPill active={row.isActive} label={row.isActive ? "Active" : "Off"} />
       </td>
-      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
-        <div className="flex gap-1 md:inline-flex">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-brand-500 hover:text-brand-500"
-            title="Edit"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm(`Delete delivery pincode ${row.pincode}?`)) {
-                del.mutate(row.pincode, {
-                  onError: (err) => alert(err instanceof Error ? err.message : "Delete failed"),
-                });
-              }
-            }}
-            className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-red-500 hover:text-red-600"
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </td>
+      <td className="hidden md:table-cell md:px-4 md:py-3 md:text-right">{actions}</td>
     </tr>
+  );
+}
+
+function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  return (
+    <div className="inline-flex shrink-0 gap-1">
+      <button
+        type="button"
+        onClick={onEdit}
+        className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-brand-500 hover:text-brand-500"
+        title="Edit"
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="rounded-md border border-slate-200 p-1.5 text-slate-500 transition hover:border-red-500 hover:text-red-600"
+        title="Delete"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
 

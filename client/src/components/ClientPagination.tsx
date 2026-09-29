@@ -56,28 +56,32 @@ export function PaginationControls({
   };
 
   return (
-    <div className={cn("mt-8 flex items-center justify-center gap-2", className)}>
-      <button
-        type="button"
-        onClick={() => goToPage(page - 1)}
-        disabled={page <= 1}
-        className="hover:border-brand-200 hover:text-brand-600 disabled:text-ink-300 h-8 min-w-[72px] rounded-full border border-cream-200 bg-white px-2.5 text-xs font-medium text-ink-700 transition disabled:cursor-not-allowed disabled:border-cream-100"
-      >
-        Prev
-      </button>
+    <div
+      className={cn("pointer-events-none sticky bottom-4 z-20 mt-8 flex justify-center", className)}
+    >
+      <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-cream-200 bg-white/95 p-1.5 shadow-[0_10px_28px_rgba(26,33,42,0.16)] backdrop-blur">
+        <button
+          type="button"
+          onClick={() => goToPage(page - 1)}
+          disabled={page <= 1}
+          className="hover:border-brand-200 hover:text-brand-600 disabled:text-ink-300 h-8 min-w-[72px] rounded-full border border-cream-200 bg-white px-2.5 text-xs font-medium text-ink-700 transition disabled:cursor-not-allowed disabled:border-cream-100"
+        >
+          Prev
+        </button>
 
-      <div className="rounded-full border border-cream-200 bg-cream-50 px-3 py-1.5 text-[11px] font-medium tracking-[0.2em] text-ink-500 uppercase">
-        {page}/{pageCount}
+        <div className="rounded-full border border-cream-200 bg-cream-50 px-3 py-1.5 text-[11px] font-medium tracking-[0.2em] text-ink-500 uppercase">
+          {page}/{pageCount}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => goToPage(page + 1)}
+          disabled={page >= pageCount}
+          className="border-brand-200 bg-brand-50 disabled:text-ink-300 h-8 min-w-[72px] rounded-full border px-2.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:border-cream-100 disabled:bg-cream-50"
+        >
+          Next
+        </button>
       </div>
-
-      <button
-        type="button"
-        onClick={() => goToPage(page + 1)}
-        disabled={page >= pageCount}
-        className="border-brand-200 bg-brand-50 disabled:text-ink-300 h-8 min-w-[72px] rounded-full border px-2.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:border-cream-100 disabled:bg-cream-50"
-      >
-        Next
-      </button>
     </div>
   );
 }

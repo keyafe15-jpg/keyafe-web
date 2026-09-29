@@ -87,56 +87,59 @@ export function SameDayPage() {
   const filterResetKey = `${activeSlug}|${catalogFilters.flavor}|${catalogFilters.minPrice}|${catalogFilters.maxPrice}|${catalogFilters.sort}|${catalogFilters.noCream}|${catalogFilters.fixedDesign}|${catalogFilters.diet}|${catalogFilters.heat}`;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">
+    <section className="mx-auto max-w-6xl px-4 pt-5 pb-16 sm:pt-8">
       {/* Header + hours banner */}
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div className="mb-3 flex flex-col gap-2 sm:mb-6 md:flex-row md:items-end md:justify-between md:gap-4">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-sm tracking-widest text-brand-500 uppercase">
+          <p className="mb-1 flex items-center gap-2 text-xs tracking-widest text-brand-500 uppercase sm:mb-2 sm:text-sm">
             <BoltIcon /> {SAMEDAY_COPY.eyebrow}
           </p>
-          <h1 className="font-display text-3xl text-ink-900 md:text-4xl">{SAMEDAY_COPY.title}</h1>
-          <p className="mt-2 max-w-xl text-sm text-ink-500">{SAMEDAY_COPY.sub}</p>
+          <h1 className="font-display text-2xl text-ink-900 sm:text-3xl md:text-4xl">
+            {SAMEDAY_COPY.title}
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-ink-500 sm:mt-2">{SAMEDAY_COPY.sub}</p>
         </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
-          {!statusLoading && (
-            <span
-              className={cn(
-                "inline-flex shrink-0 items-center gap-2 self-start rounded-full border px-3 py-1.5 text-xs font-medium sm:self-end",
-                isOpen
-                  ? "border-brand-300 bg-brand-100 text-brand-700"
-                  : "border-cream-200 bg-cream-100 text-ink-500",
-              )}
-            >
-              <span
-                className={cn("h-2 w-2 rounded-full", isOpen ? "bg-brand-500" : "bg-ink-500")}
-              />
-              {statusMessage}
-            </span>
-          )}
-          <CatalogSearchBar className="w-full max-w-md sm:w-80" />
-        </div>
+        {!statusLoading && (
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-2 self-start rounded-full border px-3 py-1.5 text-xs font-medium md:self-end",
+              isOpen
+                ? "border-brand-300 bg-brand-100 text-brand-700"
+                : "border-cream-200 bg-cream-100 text-ink-500 max-md:hidden",
+            )}
+          >
+            <span className={cn("h-2 w-2 rounded-full", isOpen ? "bg-brand-500" : "bg-ink-500")} />
+            {statusMessage}
+          </span>
+        )}
       </div>
 
       {!statusLoading && !isOpen && (
-        <div className="mb-6 flex flex-col items-center gap-3 rounded-card border border-cream-200 bg-cream-50 p-8 text-center">
-          <div className="rounded-full bg-cream-100 p-3 text-ink-500">
+        <div className="mb-3 flex items-center gap-3 rounded-card border border-cream-200 bg-cream-50 p-3 sm:mb-6 md:flex-col md:p-8 md:text-center">
+          <div className="shrink-0 rounded-full bg-cream-100 p-2 text-ink-500 md:p-3">
             <ClockIcon />
           </div>
-          <h2 className="font-display text-xl text-ink-900">Same-day store is closed</h2>
-          <p className="max-w-md text-sm text-ink-500">{statusMessage}</p>
-          <p className="text-xs text-ink-500">
-            You can still browse our full catalogue and pre-order celebration cakes for later.
-          </p>
+          <div className="min-w-0 md:flex md:flex-col md:items-center md:gap-3">
+            <h2 className="font-display text-base text-ink-900 md:text-xl">
+              Same-day store is closed
+            </h2>
+            <p className="max-w-md text-xs font-medium text-ink-700 md:text-sm md:font-normal md:text-ink-500">
+              {statusMessage}
+            </p>
+            <p className="mt-0.5 text-xs text-ink-500 md:mt-0">
+              You can still browse our full catalogue and pre-order celebration cakes for later.
+            </p>
+          </div>
         </div>
       )}
 
-      <CatalogFilters className="mb-6" />
+      <CatalogFilters className="mb-3 max-w-2xl sm:mb-6" leading={<CatalogSearchBar />} />
       {/* Mobile category picker */}
-      <div className="mb-4 md:hidden">
+      <div className="mb-3 md:hidden">
         <button
           type="button"
           onClick={() => setMobileNavOpen((v) => !v)}
-          className="border-brand-200 flex w-full items-center justify-between rounded-2xl border bg-gradient-to-r from-white to-[#fff5f9] px-4 py-3 text-sm shadow-sm transition active:scale-[0.99]"
+          className="border-brand-200 flex w-full items-center justify-between rounded-2xl border bg-gradient-to-r from-white to-[#fff5f9] px-3 py-2 text-sm shadow-sm transition active:scale-[0.99]"
         >
           <span className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-white shadow-[0_6px_14px_rgba(227,28,121,0.3)]">
@@ -212,7 +215,7 @@ export function SameDayPage() {
 
         {/* Products grid */}
         <div className={cn(!isOpen && "opacity-60")}>
-          <h2 className="mb-1 text-xl text-ink-900">{activeLabel}</h2>
+          <h2 className="mb-1 hidden text-xl text-ink-900 md:block">{activeLabel}</h2>
           {activeNode?.description && (
             <p className="mb-4 text-sm text-ink-500">{activeNode.description}</p>
           )}

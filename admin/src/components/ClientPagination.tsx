@@ -74,16 +74,18 @@ export function PaginationControls({
   return (
     <div
       className={cn(
-        "mt-4 flex flex-col gap-3 rounded-card border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between",
+        "sticky bottom-3 z-10 mt-4 flex items-center justify-between gap-3 rounded-card border border-slate-200 bg-white/95 px-3 py-2 text-sm text-slate-600 shadow-[0_6px_20px_rgba(15,23,42,0.12)] backdrop-blur sm:px-4 sm:py-3",
         className,
       )}
     >
-      <p>
-        Showing <span className="font-medium text-slate-900">{firstItem}</span>-
+      <p className="min-w-0 text-xs sm:text-sm">
+        <span className="hidden sm:inline">Showing </span>
+        <span className="font-medium text-slate-900">{firstItem}</span>-
         <span className="font-medium text-slate-900">{lastItem}</span> of{" "}
-        <span className="font-medium text-slate-900">{total}</span> {noun}
+        <span className="font-medium text-slate-900">{total}</span>
+        <span className="hidden sm:inline"> {noun}</span>
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <button
           type="button"
           disabled={page === 1}

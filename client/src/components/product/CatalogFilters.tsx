@@ -26,6 +26,11 @@ type CatalogFiltersProps = {
   onChange?: (filters: CatalogFilterState) => void;
   /** Start expanded. Defaults to collapsed (better on mobile). */
   defaultOpen?: boolean;
+  /**
+   * Toolbar mode: renders this (usually the search bar) with a compact Filters
+   * button beside it on one row; the panel opens full-width underneath.
+   */
+  leading?: ReactNode;
 };
 
 /**
@@ -38,6 +43,7 @@ export function CatalogFilters({
   departmentSlug,
   onChange,
   defaultOpen = false,
+  leading,
 }: CatalogFiltersProps) {
   const panelId = useId();
   const [open, setOpen] = useState(defaultOpen);
@@ -97,6 +103,211 @@ export function CatalogFilters({
     onChange?.(EMPTY_CATALOG_FILTERS);
   }
 
+  const countBadge = summary.count > 0 && (
+    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500 px-1.5 text-[10px] font-semibold text-white">
+      {summary.count}
+    </span>
+  );
+
+  const clearButton = active && (
+    <button
+      type="button"
+      onClick={clearAll}
+      className="hover:border-brand-200 hover:text-brand-600 inline-flex shrink-0 items-center gap-1 rounded-full border border-cream-200 bg-cream-50 px-2.5 py-1 text-xs font-medium text-ink-700 transition"
+      aria-label="Clear filters"
+    >
+      <X className="h-3.5 w-3.5" aria-hidden="true" />
+      Clear
+    </button>
+  );
+
+  const chevron = (
+    <ChevronDown
+      className={cn(
+        "h-4 w-4 shrink-0 text-ink-500 transition-transform duration-200",
+        open && "rotate-180",
+      )}
+      aria-hidden="true"
+    />
+  );
+
+  const controls = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+      {preset.flavor && (
+        <FilterField label="Flavour">
+          <div className="relative">
+            <select
+              value={filters.flavor}
+              onChange={(e) => patch({ flavor: e.target.value })}
+              className={selectClass}
+            >
+              <option value="">All flavours</option>
+              {flavours.map((f) => (
+                <option key={f.id} value={f.slug}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className={chevronClass} aria-hidden="true" />
+          </div>
+        </FilterField>
+      )}
+
+      {preset.sort && (
+        <FilterField label="Sort">
+          <div className="relative">
+            <select
+              value={filters.sort}
+              onChange={(e) => patch({ sort: e.target.value as CatalogSort })}
+              className={selectClass}
+            >
+              <option value="featured">Featured</option>
+              <option value="price_asc">Price: low to high</option>
+              <option value="price_desc">Price: high to low</option>
+            </select>
+            <ChevronDown className={chevronClass} aria-hidden="true" />
+          </div>
+        </FilterField>
+      )}
+
+      {preset.price && (
+        <div className="flex min-w-0 flex-col gap-1 sm:max-w-xs sm:min-w-[220px] sm:flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[11px] font-medium tracking-wide text-ink-500 uppercase">
+              Price
+            </span>
+            <span className="text-xs text-ink-700 tabular-nums">
+              ₹{localMin.toLocaleString("en-IN")} – ₹{localMax.toLocaleString("en-IN")}
+              {localMax >= CATALOG_PRICE_CEILING ? "+" : ""}
+            </span>
+          </div>
+          <PriceRangeSlider
+            min={localMin}
+            max={localMax}
+            onChange={(nextMin, nextMax) => {
+              setLocalMin(nextMin);
+              setLocalMax(nextMax);
+            }}
+            onCommit={commitPrice}
+          />
+        </div>
+      )}
+
+      {preset.shape && (
+        <FilterField label="Shape">
+          <div className="relative">
+            <select disabled className={cn(selectClass, "cursor-not-allowed opacity-60")} value="">
+              <option value="">Coming soon</option>
+            </select>
+            <ChevronDown className={chevronClass} aria-hidden="true" />
+          </div>
+        </FilterField>
+      )}
+
+      {(preset.noCream || preset.fixedDesign) && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium tracking-wide text-ink-500 uppercase">
+            Style
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {preset.noCream && (
+              <ToggleChip
+                label="No cream"
+                active={filters.noCream}
+                onClick={() => patch({ noCream: !filters.noCream })}
+              />
+            )}
+            {preset.fixedDesign && (
+              <ToggleChip
+                label="Fixed design"
+                active={filters.fixedDesign}
+                onClick={() => patch({ fixedDesign: !filters.fixedDesign })}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {preset.diet && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium tracking-wide text-ink-500 uppercase">Diet</span>
+          <Segmented
+            value={filters.diet}
+            onChange={(diet) => patch({ diet: diet as CatalogDiet })}
+            options={[
+              { value: "", label: "All" },
+              { value: "veg", label: "Veg" },
+              { value: "nonveg", label: "Non-veg" },
+            ]}
+          />
+        </div>
+      )}
+
+      {preset.heat && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium tracking-wide text-ink-500 uppercase">Heat</span>
+          <Segmented
+            value={filters.heat}
+            onChange={(heat) => patch({ heat: heat as CatalogHeat })}
+            options={[
+              { value: "", label: "All" },
+              { value: "spicy", label: "Spicy" },
+              { value: "mild", label: "Mild" },
+            ]}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  if (leading) {
+    return (
+      <div className={className}>
+        <div className="flex items-stretch gap-2">
+          <div className="flex min-w-0 flex-1 flex-col">{leading}</div>
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => setOpen((v) => !v)}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium shadow-sm transition",
+              open || active
+                ? "border-brand-300 bg-brand-100/60 text-brand-700"
+                : "hover:border-brand-200 border-cream-200 bg-white text-ink-700",
+            )}
+          >
+            <SlidersHorizontal className="h-4 w-4 shrink-0 text-brand-500" aria-hidden="true" />
+            Filters
+            {countBadge}
+            {chevron}
+          </button>
+        </div>
+
+        {active && !open && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-xs text-ink-500">{summary.label}</span>
+            {clearButton}
+          </div>
+        )}
+
+        <div
+          id={panelId}
+          hidden={!open}
+          className="mt-2 rounded-2xl border border-cream-200 bg-white/70 p-3 shadow-sm"
+        >
+          {active && (
+            <div className="mb-3 flex items-center gap-2 border-b border-cream-200 pb-2.5">
+              <span className="min-w-0 flex-1 truncate text-xs text-ink-500">{summary.label}</span>
+              {clearButton}
+            </div>
+          )}
+          {controls}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -116,170 +327,17 @@ export function CatalogFilters({
           <span className="text-xs font-semibold tracking-[0.18em] text-ink-700 uppercase">
             Filters
           </span>
-          {summary.count > 0 && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500 px-1.5 text-[10px] font-semibold text-white">
-              {summary.count}
-            </span>
-          )}
+          {countBadge}
           {!open && summary.label && (
             <span className="min-w-0 truncate text-xs text-ink-500">{summary.label}</span>
           )}
-          <ChevronDown
-            className={cn(
-              "ml-auto h-4 w-4 shrink-0 text-ink-500 transition-transform duration-200",
-              open && "rotate-180",
-            )}
-            aria-hidden="true"
-          />
+          <span className="ml-auto">{chevron}</span>
         </button>
-        {active && (
-          <button
-            type="button"
-            onClick={clearAll}
-            className="hover:border-brand-200 hover:text-brand-600 inline-flex shrink-0 items-center gap-1 rounded-full border border-cream-200 bg-cream-50 px-2.5 py-1 text-xs font-medium text-ink-700 transition"
-            aria-label="Clear filters"
-          >
-            <X className="h-3.5 w-3.5" aria-hidden="true" />
-            Clear
-          </button>
-        )}
+        {clearButton}
       </div>
 
       <div id={panelId} hidden={!open} className="border-t border-cream-200 px-3 pt-3 pb-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          {preset.flavor && (
-            <FilterField label="Flavour">
-              <div className="relative">
-                <select
-                  value={filters.flavor}
-                  onChange={(e) => patch({ flavor: e.target.value })}
-                  className={selectClass}
-                >
-                  <option value="">All flavours</option>
-                  {flavours.map((f) => (
-                    <option key={f.id} value={f.slug}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className={chevronClass} aria-hidden="true" />
-              </div>
-            </FilterField>
-          )}
-
-          {preset.sort && (
-            <FilterField label="Sort">
-              <div className="relative">
-                <select
-                  value={filters.sort}
-                  onChange={(e) => patch({ sort: e.target.value as CatalogSort })}
-                  className={selectClass}
-                >
-                  <option value="featured">Featured</option>
-                  <option value="price_asc">Price: low to high</option>
-                  <option value="price_desc">Price: high to low</option>
-                </select>
-                <ChevronDown className={chevronClass} aria-hidden="true" />
-              </div>
-            </FilterField>
-          )}
-
-          {preset.price && (
-            <div className="flex min-w-0 flex-col gap-1 sm:max-w-xs sm:min-w-[220px] sm:flex-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[11px] font-medium tracking-wide text-ink-500 uppercase">
-                  Price
-                </span>
-                <span className="text-xs text-ink-700 tabular-nums">
-                  ₹{localMin.toLocaleString("en-IN")} – ₹{localMax.toLocaleString("en-IN")}
-                  {localMax >= CATALOG_PRICE_CEILING ? "+" : ""}
-                </span>
-              </div>
-              <PriceRangeSlider
-                min={localMin}
-                max={localMax}
-                onChange={(nextMin, nextMax) => {
-                  setLocalMin(nextMin);
-                  setLocalMax(nextMax);
-                }}
-                onCommit={commitPrice}
-              />
-            </div>
-          )}
-
-          {preset.shape && (
-            <FilterField label="Shape">
-              <div className="relative">
-                <select
-                  disabled
-                  className={cn(selectClass, "cursor-not-allowed opacity-60")}
-                  value=""
-                >
-                  <option value="">Coming soon</option>
-                </select>
-                <ChevronDown className={chevronClass} aria-hidden="true" />
-              </div>
-            </FilterField>
-          )}
-
-          {(preset.noCream || preset.fixedDesign) && (
-            <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium tracking-wide text-ink-500 uppercase">
-                Style
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {preset.noCream && (
-                  <ToggleChip
-                    label="No cream"
-                    active={filters.noCream}
-                    onClick={() => patch({ noCream: !filters.noCream })}
-                  />
-                )}
-                {preset.fixedDesign && (
-                  <ToggleChip
-                    label="Fixed design"
-                    active={filters.fixedDesign}
-                    onClick={() => patch({ fixedDesign: !filters.fixedDesign })}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {preset.diet && (
-            <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium tracking-wide text-ink-500 uppercase">
-                Diet
-              </span>
-              <Segmented
-                value={filters.diet}
-                onChange={(diet) => patch({ diet: diet as CatalogDiet })}
-                options={[
-                  { value: "", label: "All" },
-                  { value: "veg", label: "Veg" },
-                  { value: "nonveg", label: "Non-veg" },
-                ]}
-              />
-            </div>
-          )}
-
-          {preset.heat && (
-            <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium tracking-wide text-ink-500 uppercase">
-                Heat
-              </span>
-              <Segmented
-                value={filters.heat}
-                onChange={(heat) => patch({ heat: heat as CatalogHeat })}
-                options={[
-                  { value: "", label: "All" },
-                  { value: "spicy", label: "Spicy" },
-                  { value: "mild", label: "Mild" },
-                ]}
-              />
-            </div>
-          )}
-        </div>
+        {controls}
       </div>
     </div>
   );

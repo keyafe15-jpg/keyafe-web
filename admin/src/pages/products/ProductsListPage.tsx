@@ -113,7 +113,7 @@ export function ProductsListPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
+      <div className="overflow-clip rounded-card border border-slate-200 bg-white">
         {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && products.length === 0 && (
           <div className="p-8 text-center text-sm text-slate-500">

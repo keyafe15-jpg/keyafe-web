@@ -54,22 +54,23 @@ export function HealthyPage() {
   const filterResetKey = `${activeCategoryId ?? "all"}|${catalogFilters.flavor}|${catalogFilters.minPrice}|${catalogFilters.maxPrice}|${catalogFilters.sort}|${catalogFilters.noCream}|${catalogFilters.fixedDesign}|${catalogFilters.diet}|${catalogFilters.heat}`;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 pt-8 pb-16">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <section className="mx-auto max-w-6xl px-4 pt-5 pb-16 sm:pt-8">
+      <div className="mb-3 sm:mb-6">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-sm tracking-widest text-brand-500 uppercase">
+          <p className="mb-1 flex items-center gap-2 text-xs tracking-widest text-brand-500 uppercase sm:mb-2 sm:text-sm">
             <LeafIcon /> {HEALTHY_COPY.eyebrow}
           </p>
-          <h1 className="font-display text-3xl text-ink-900 md:text-4xl">{HEALTHY_COPY.title}</h1>
-          <p className="mt-2 max-w-xl text-sm text-ink-500">{HEALTHY_COPY.sub}</p>
+          <h1 className="font-display text-2xl text-ink-900 sm:text-3xl md:text-4xl">
+            {HEALTHY_COPY.title}
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-ink-500 sm:mt-2">{HEALTHY_COPY.sub}</p>
         </div>
-        <CatalogSearchBar className="w-full max-w-md shrink-0 sm:w-80" />
       </div>
 
-      <CatalogFilters className="mb-6" />
+      <CatalogFilters className="mb-3 max-w-2xl sm:mb-6" leading={<CatalogSearchBar />} />
 
       {!isLoading && categories.length > 0 && (
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="-mx-4 mb-3 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 py-1 [-ms-overflow-style:none] sm:mx-0 sm:mb-6 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
           <PillButton
             label={HEALTHY_COPY.allFilterLabel}
             active={activeCategoryId === null}
@@ -129,9 +130,9 @@ function PillButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
+        "shrink-0 rounded-full border px-3 py-1 text-sm font-medium whitespace-nowrap transition sm:px-3.5 sm:py-1.5",
         active
-          ? "border-brand-500 bg-brand-500 text-white shadow-[0_8px_16px_rgba(227,28,121,0.2)]"
+          ? "border-brand-500 bg-brand-500 text-white shadow-[0_3px_8px_rgba(227,28,121,0.25)]"
           : "hover:border-brand-200 hover:text-brand-600 border-cream-200 bg-white text-ink-700",
       )}
     >

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { FileSpreadsheet, Upload } from "lucide-react";
+import { ChevronDown, ChevronUp, FileSpreadsheet, Upload } from "lucide-react";
 import {
   parseSpreadsheetFile,
   SPREADSHEET_ACCEPT,
@@ -27,6 +27,8 @@ type Props<T> = {
   maxPreview?: number;
   emptyFileMessage?: string;
   className?: string;
+  /** Start as a one-line bar that expands on click. */
+  collapsible?: boolean;
 };
 
 /**
@@ -44,7 +46,9 @@ export function BulkSpreadsheetImport<T>({
   maxPreview = 5,
   emptyFileMessage = "No valid rows found in this file.",
   className,
+  collapsible = false,
 }: Props<T>) {
+  const [open, setOpen] = useState(!collapsible);
   const [rows, setRows] = useState<T[]>([]);
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +90,24 @@ export function BulkSpreadsheetImport<T>({
     }
   };
 
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-expanded={false}
+        className={cn(
+          "mb-5 flex w-full items-center gap-2 rounded-card border border-dashed border-brand-300 bg-brand-50/40 px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:bg-brand-50",
+          className,
+        )}
+      >
+        <FileSpreadsheet className="h-4 w-4 shrink-0 text-brand-500" />
+        <span className="flex-1">{title}</span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -95,10 +117,23 @@ export function BulkSpreadsheetImport<T>({
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <FileSpreadsheet className="h-4 w-4 text-brand-500" />
-            {title}
-          </div>
+          {collapsible ? (
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-expanded
+              className="flex w-full items-center gap-2 text-left text-sm font-semibold text-slate-900"
+            >
+              <FileSpreadsheet className="h-4 w-4 shrink-0 text-brand-500" />
+              <span className="flex-1">{title}</span>
+              <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <FileSpreadsheet className="h-4 w-4 text-brand-500" />
+              {title}
+            </div>
+          )}
           <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
           <p className="mt-1 text-[11px] leading-4 text-slate-400">
             Expected columns: {columnsHint}

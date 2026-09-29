@@ -100,6 +100,7 @@ export function CatalogSearchBar({
         }}
         className={cn(
           "flex h-10 items-center gap-1 rounded-full border bg-white pr-1 pl-3 shadow-sm",
+          "max-sm:absolute max-sm:inset-x-4 max-sm:top-1/2 max-sm:z-10 max-sm:h-11 max-sm:-translate-y-1/2 max-sm:shadow-md",
           overlay ? "border-white/60" : "border-[#e7d6b4]",
           className,
         )}
@@ -115,7 +116,7 @@ export function CatalogSearchBar({
           }}
           placeholder="Search…"
           aria-label="Search products"
-          className="w-28 min-w-0 bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-500 sm:w-40"
+          className="min-w-0 flex-1 bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-500 sm:w-40 sm:flex-none"
         />
         <button
           type="button"

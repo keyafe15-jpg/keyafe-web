@@ -23,6 +23,7 @@ const slugify = (s: string) =>
 export function AddonsPage() {
   const { data: addons = [], isLoading } = useAdminAddons();
   const { data: categories = [] } = useAdminCategories();
+  const [adding, setAdding] = useState(false);
   const groups = useMemo(() => {
     const map = new Map<string, AdminAddon[]>();
     for (const addon of addons) {
@@ -37,17 +38,30 @@ export function AddonsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Add-ons</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Shared extras (candles, toppers, pizza extras). Assign default categories so new products
-          in those categories get the add-on pre-selected. Delete only works when no products offer
-          the add-on — otherwise deactivate it, or remove it from those products first.
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-semibold text-slate-900">Add-ons</h1>
+          {!adding && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className={cn(submitClass, "inline-flex shrink-0 items-center gap-1.5")}
+            >
+              <Plus className="h-4 w-4" /> Add add-on
+            </button>
+          )}
+        </div>
+        <p className="mt-1 max-w-3xl text-sm text-slate-500">
+          Extras like candles and toppers. Default categories pre-select them on new products.
         </p>
       </div>
 
-      <NewAddonRow categories={categories} />
+      {adding && (
+        <div className="mb-6">
+          <NewAddonRow categories={categories} onClose={() => setAdding(false)} />
+        </div>
+      )}
 
-      <div className="mt-4 space-y-6">
+      <div className="space-y-6">
         {isLoading && (
           <div className="rounded-card border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
             Loading…
@@ -93,7 +107,13 @@ export function AddonsPage() {
   );
 }
 
-function NewAddonRow({ categories }: { categories: AdminCategory[] }) {
+function NewAddonRow({
+  categories,
+  onClose,
+}: {
+  categories: AdminCategory[];
+  onClose: () => void;
+}) {
   const create = useCreateAddon();
   const [name, setName] = useState("");
   const [group, setGroup] = useState("Candles");
@@ -125,8 +145,30 @@ function NewAddonRow({ categories }: { categories: AdminCategory[] }) {
     }
   };
 
+  const addButton = (
+    <button
+      type="button"
+      disabled={!canSubmit || create.isPending || uploading}
+      onClick={submit}
+      className={cn(submitClass, "inline-flex w-full items-center justify-center gap-1 sm:w-auto")}
+    >
+      <Plus className="h-4 w-4" /> Add
+    </button>
+  );
+
   return (
-    <div className="rounded-card border border-slate-200 bg-white p-4">
+    <div className="rounded-card border border-slate-200 bg-white p-4 shadow-md">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-900">New add-on</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          aria-label="Close"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
       <div className="grid gap-3 sm:grid-cols-[auto_1.2fr_2fr_1fr_auto]">
         <div>
           <span className="mb-1 block text-xs font-medium tracking-wide text-slate-500 uppercase">
@@ -148,7 +190,7 @@ function NewAddonRow({ categories }: { categories: AdminCategory[] }) {
             className={inputClass}
           />
         </Field>
-        <Field label="New add-on">
+        <Field label="Name">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -166,16 +208,7 @@ function NewAddonRow({ categories }: { categories: AdminCategory[] }) {
             className={inputClass}
           />
         </Field>
-        <div className="self-end">
-          <button
-            type="button"
-            disabled={!canSubmit || create.isPending || uploading}
-            onClick={submit}
-            className={cn(submitClass, "inline-flex items-center gap-1")}
-          >
-            <Plus className="h-4 w-4" /> Add
-          </button>
-        </div>
+        <div className="hidden self-end sm:block">{addButton}</div>
       </div>
       <div className="mt-3">
         <span className="mb-1.5 block text-xs font-medium tracking-wide text-slate-500 uppercase">
@@ -187,6 +220,7 @@ function NewAddonRow({ categories }: { categories: AdminCategory[] }) {
           onChange={setCategoryIds}
         />
       </div>
+      <div className="mt-4 sm:hidden">{addButton}</div>
       {error && <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
     </div>
   );

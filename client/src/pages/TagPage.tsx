@@ -36,11 +36,11 @@ export function TagPage() {
   const products = data?.items ?? [];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 pt-5 pb-10 sm:py-10">
       <Reveal>
-        <div className="mx-auto mb-6 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-5 text-center shadow-sm backdrop-blur-md">
+        <div className="mx-auto mb-3 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-3 text-center shadow-sm backdrop-blur-md sm:mb-6 sm:py-5">
           {data && (
-            <div className="mb-3 flex justify-center">
+            <div className="mb-2 flex justify-center sm:mb-3">
               <ProductTagBadge tag={{ id: data.tag.slug, ...data.tag }} size="md" />
             </div>
           )}
@@ -55,11 +55,11 @@ export function TagPage() {
         </div>
       </Reveal>
 
-      <div className="mb-6 flex justify-center">
-        <CatalogSearchBar className="w-full max-w-md" />
-      </div>
-
-      <CatalogFilters className="mb-8" onChange={() => setPage(1)} />
+      <CatalogFilters
+        className="mx-auto mb-4 max-w-xl sm:mb-8"
+        leading={<CatalogSearchBar />}
+        onChange={() => setPage(1)}
+      />
 
       {isLoading && <ProductGridSkeleton />}
 

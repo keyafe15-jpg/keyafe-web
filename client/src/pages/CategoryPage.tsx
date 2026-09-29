@@ -1,5 +1,5 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCategories, type CategoryNode } from "@/hooks/useCategories";
 import { useProductsByCategory } from "@/hooks/useProducts";
 import { CATEGORY_PLACEHOLDER_COPY } from "@/content/misc";
@@ -45,6 +45,15 @@ export function CategoryPage() {
 
   const { current, parent } = useMemo(() => resolveCategory(tree, slug), [tree, slug]);
 
+  const pillRowRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const row = pillRowRef.current;
+    const active = row?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (row && active) {
+      row.scrollLeft = active.offsetLeft - (row.clientWidth - active.offsetWidth) / 2;
+    }
+  }, [current?.id]);
+
   if (!catsLoading && !current) {
     return (
       <section className="mx-auto max-w-6xl px-4 py-12">
@@ -66,8 +75,8 @@ export function CategoryPage() {
   const hasSubs = subcategories.length > 0;
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10">
-      <nav className="mb-4 text-xs text-ink-500">
+    <section className="mx-auto max-w-7xl px-4 pt-5 pb-10 sm:py-10">
+      <nav className="mb-2 text-xs text-ink-500 sm:mb-4">
         <Link to="/" className="hover:text-brand-500">
           Home
         </Link>
@@ -87,46 +96,45 @@ export function CategoryPage() {
         )}
       </nav>
 
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-3xl text-ink-900">{current?.name ?? "Loading…"}</h1>
-          {current?.description && (
-            <p className="mt-2 max-w-2xl text-ink-500">{current.description}</p>
-          )}
-        </div>
-        <CatalogSearchBar className="w-full max-w-md shrink-0 sm:w-80" />
+      <header className="mb-3 sm:mb-5">
+        <h1 className="text-2xl text-ink-900 sm:text-3xl">{current?.name ?? "Loading…"}</h1>
+        {current?.description && (
+          <p className="mt-1 max-w-2xl text-sm text-ink-500 sm:mt-2 sm:text-base">
+            {current.description}
+          </p>
+        )}
       </header>
 
       <CatalogFilters
-        className="mb-6"
+        className="mb-3 max-w-2xl sm:mb-6"
+        leading={<CatalogSearchBar />}
         departmentSlug={current?.department?.slug}
         onChange={() => setPage(1)}
       />
 
-      <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[220px_1fr] lg:gap-8">
         {hasSubs && (
           <>
-            {/* mobile/tablet: wrapped pill filter bar */}
-            <div className="lg:hidden">
-              <p className="mb-3 text-xs font-semibold tracking-[0.2em] text-ink-500 uppercase">
-                {container?.name}
-              </p>
-              <div className="flex flex-wrap gap-2">
+            {/* mobile/tablet: single scrollable pill row */}
+            <nav
+              ref={pillRowRef}
+              aria-label={`${container?.name ?? "Category"} subcategories`}
+              className="relative -mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 py-1 [-ms-overflow-style:none] lg:hidden [&::-webkit-scrollbar]:hidden"
+            >
+              <PillLink
+                to={`/category/${container!.slug}`}
+                active={current?.id === container!.id}
+                label="All"
+              />
+              {subcategories.map((sub) => (
                 <PillLink
-                  to={`/category/${container!.slug}`}
-                  active={current?.id === container!.id}
-                  label="All"
+                  key={sub.id}
+                  to={`/category/${sub.slug}`}
+                  active={current?.id === sub.id}
+                  label={sub.name}
                 />
-                {subcategories.map((sub) => (
-                  <PillLink
-                    key={sub.id}
-                    to={`/category/${sub.slug}`}
-                    active={current?.id === sub.id}
-                    label={sub.name}
-                  />
-                ))}
-              </div>
-            </div>
+              ))}
+            </nav>
 
             {/* desktop: sidebar with sliding active indicator */}
             <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
@@ -206,10 +214,11 @@ function PillLink({ to, active, label }: { to: string; active: boolean; label: s
   return (
     <Link
       to={to}
+      aria-current={active ? "page" : undefined}
       className={cn(
-        "rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
+        "shrink-0 rounded-full border px-3 py-1 text-sm font-medium whitespace-nowrap transition",
         active
-          ? "border-brand-500 bg-brand-500 text-white shadow-[0_8px_16px_rgba(227,28,121,0.2)]"
+          ? "border-brand-500 bg-brand-500 text-white shadow-[0_3px_8px_rgba(227,28,121,0.25)]"
           : "hover:border-brand-200 hover:text-brand-600 border-cream-200 bg-white text-ink-700",
       )}
     >
