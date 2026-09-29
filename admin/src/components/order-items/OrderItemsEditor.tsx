@@ -1,5 +1,8 @@
+import { useMemo } from "react";
 import { Plus } from "lucide-react";
-import { useAdminProducts } from "@/hooks/useAdminProducts";
+import { useAllAdminProducts, type AdminProduct } from "@/hooks/useAdminProducts";
+import { useCategoryTree, type CategoryNode } from "@/hooks/useCategories";
+import { buildCatalogPicker } from "@/lib/catalogProductOptions";
 import { useFlavours } from "@/hooks/useFlavours";
 import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
@@ -7,6 +10,9 @@ import type { OrderLinkKind } from "@/hooks/useAdminOrderLinks";
 import { FormSection } from "./FormSection";
 import { OrderItemRow } from "./OrderItemRow";
 import type { OrderItemDraft } from "./types";
+
+const EMPTY_PRODUCTS: AdminProduct[] = [];
+const EMPTY_TREE: CategoryNode[] = [];
 
 type Props = {
   items: OrderItemDraft[];
@@ -23,8 +29,12 @@ export function OrderItemsEditor({
   addItem,
   listClassName = "space-y-3",
 }: Props) {
-  const { data: productsPage } = useAdminProducts(1, 100);
-  const products = productsPage?.items ?? [];
+  const { data: products = EMPTY_PRODUCTS } = useAllAdminProducts();
+  const { data: categoryTree = EMPTY_TREE } = useCategoryTree();
+  const catalogPicker = useMemo(
+    () => buildCatalogPicker(products, categoryTree),
+    [products, categoryTree],
+  );
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
@@ -59,6 +69,7 @@ export function OrderItemsEditor({
             index={idx}
             item={item}
             products={products}
+            catalogPicker={catalogPicker}
             flavours={flavours}
             allToppings={allToppings}
             allAddons={allAddons}

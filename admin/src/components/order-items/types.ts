@@ -5,6 +5,8 @@ import type { ProductTemplate } from "@/hooks/useAdminProducts";
 export interface OrderItemDraft {
   id: string;
   kind: OrderLinkKind;
+  /** Catalog items only — narrows the product picker; "" means all categories. */
+  catalogCategoryId: string;
   productId: string;
   productName: string;
   sizeLabel: string;
@@ -40,6 +42,7 @@ export function newOrderItem(kind: OrderLinkKind = "CUSTOM"): OrderItemDraft {
   return {
     id: crypto.randomUUID(),
     kind,
+    catalogCategoryId: "",
     productId: "",
     productName: "",
     sizeLabel: "",
@@ -71,6 +74,7 @@ export function orderLinkItemToDraft(it: OrderLinkItem): OrderItemDraft {
   return {
     id: it.id,
     kind: it.kind,
+    catalogCategoryId: "",
     productId: it.productId ?? "",
     productName: it.productName,
     sizeLabel: it.sizeLabel ?? "",

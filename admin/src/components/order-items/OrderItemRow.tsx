@@ -5,7 +5,7 @@ import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
 import { Field, inputClass, selectClass } from "@/components/form/Field";
 import { SearchableSelect } from "@/components/form/SearchableSelect";
-import { formatCatalogProductLabel, resetCatalogProductPick } from "@/lib/catalogProductOptions";
+import { resetCatalogProductPick, type CatalogPicker } from "@/lib/catalogProductOptions";
 import {
   availableFixedSkus,
   computeCakeUnitPrice,
@@ -25,6 +25,7 @@ export function OrderItemRow({
   index,
   item,
   products,
+  catalogPicker,
   flavours,
   allToppings,
   allAddons,
@@ -35,6 +36,7 @@ export function OrderItemRow({
   index: number;
   item: OrderItemDraft;
   products: AdminProduct[];
+  catalogPicker: CatalogPicker;
   flavours: Array<{ id: string; name: string; additionalAmount: string }>;
   allToppings: AdminTopping[];
   allAddons: AdminAddon[];
@@ -383,18 +385,35 @@ export function OrderItemRow({
       <div>
         {item.kind === "CATALOG" && (
           <div className="mt-3 space-y-3">
-            <Field label="Product" required>
-              <SearchableSelect
-                value={item.productId}
-                onChange={(productId) => onPatch({ productId, ...resetCatalogProductPick() })}
-                searchPlaceholder="Search products…"
-                options={products.map((p) => ({
-                  value: p.id,
-                  label: formatCatalogProductLabel(p),
-                  keywords: p.name,
-                }))}
-              />
-            </Field>
+            <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2 sm:gap-3">
+              <Field label="Category">
+                <SearchableSelect
+                  value={item.catalogCategoryId}
+                  onChange={(catalogCategoryId) => {
+                    const keepProduct =
+                      !item.productId ||
+                      catalogPicker.inCategory(item.productId, catalogCategoryId);
+                    onPatch(
+                      keepProduct
+                        ? { catalogCategoryId }
+                        : { catalogCategoryId, productId: "", ...resetCatalogProductPick() },
+                    );
+                  }}
+                  searchPlaceholder="Search categories…"
+                  placeholder="All categories"
+                  options={catalogPicker.categoryOptions}
+                />
+              </Field>
+              <Field label="Product" required>
+                <SearchableSelect
+                  value={item.productId}
+                  onChange={(productId) => onPatch({ productId, ...resetCatalogProductPick() })}
+                  searchPlaceholder="Search products…"
+                  placeholder="— Pick product —"
+                  options={catalogPicker.productOptions(item.catalogCategoryId)}
+                />
+              </Field>
+            </div>
 
             {item.productId && productDetail && hasFixedSkus && (
               <Field label="Variant (SKU)" required>

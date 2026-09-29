@@ -90,6 +90,24 @@ export function useAdminProducts(
   });
 }
 
+/** Every product in the scope — walks all pages (the API caps pageSize at 100). */
+export function useAllAdminProducts(scope: AdminProductListScope = "catalog") {
+  return useQuery<AdminProduct[]>({
+    queryKey: ["admin", "products", "all", scope],
+    queryFn: async () => {
+      const items: AdminProduct[] = [];
+      for (let page = 1; ; page++) {
+        const params = new URLSearchParams({ page: String(page), pageSize: "100", scope });
+        const res = await api.get<AdminProductsPage>(`/admin/products?${params}`);
+        items.push(...res.items);
+        if (page >= res.totalPages || res.items.length === 0) break;
+      }
+      return items;
+    },
+    staleTime: 30_000,
+  });
+}
+
 export interface CreateProductPayload {
   name: string;
   slug: string;
@@ -219,9 +237,7 @@ export type ProductExportRow = {
 export function useExportProducts() {
   return useMutation({
     mutationFn: (scope: AdminProductListScope = "all") =>
-      api.get<{ rows: ProductExportRow[]; count: number }>(
-        `/admin/products/export?scope=${scope}`,
-      ),
+      api.get<{ rows: ProductExportRow[]; count: number }>(`/admin/products/export?scope=${scope}`),
   });
 }
 

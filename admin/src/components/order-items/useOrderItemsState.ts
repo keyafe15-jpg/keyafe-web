@@ -20,7 +20,7 @@ export function useOrderItemsState(initialKind: OrderLinkKind = "CUSTOM") {
   );
 
   const addItem = useCallback((kind: OrderLinkKind) => {
-    setItems((prev) => [...prev, newOrderItem(kind)]);
+    setItems((prev) => [newOrderItem(kind), ...prev]);
   }, []);
 
   return { items, setItems, patchItem, removeItem, addItem };

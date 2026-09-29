@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -9,6 +9,8 @@ export interface SearchableSelectOption {
   label: string;
   /** Extra text included in search (e.g. price). */
   keywords?: string;
+  /** Consecutive options sharing a group get a heading row above them. */
+  group?: string;
 }
 
 export function SearchableSelect({
@@ -44,7 +46,7 @@ export function SearchableSelect({
     return options.filter((o) => matches(o, q));
   }, [options, query]);
 
-  const rows = useMemo(() => {
+  const rows = useMemo<SearchableSelectOption[]>(() => {
     if (!allowEmpty) return filtered;
     if (query.trim()) return filtered;
     return [{ value: "", label: placeholder }, ...filtered];
@@ -147,28 +149,38 @@ export function SearchableSelect({
               rows.map((row, idx) => {
                 const active = row.value === value && row.value !== "";
                 const hi = idx === highlighted;
+                const heading = row.group && row.group !== rows[idx - 1]?.group ? row.group : null;
                 return (
-                  <button
-                    key={`${row.value || "empty"}-${idx}`}
-                    id={`${listId}-opt-${idx}`}
-                    ref={(el) => {
-                      itemRefs.current[idx] = el;
-                    }}
-                    type="button"
-                    role="option"
-                    aria-selected={active}
-                    onMouseEnter={() => setHighlighted(idx)}
-                    onClick={() => pick(row.value)}
-                    className={cn(
-                      "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
-                      hi ? "bg-brand-50 text-brand-800" : "text-slate-800",
+                  <Fragment key={`${row.value || "empty"}-${idx}`}>
+                    {heading && (
+                      <p
+                        role="presentation"
+                        className="px-3 pt-2.5 pb-1 text-[10px] font-semibold tracking-wide text-slate-400 uppercase"
+                      >
+                        {heading}
+                      </p>
                     )}
-                  >
-                    <Check
-                      className={cn("h-3.5 w-3.5 shrink-0", active ? "opacity-100" : "opacity-0")}
-                    />
-                    <span className="min-w-0 truncate">{row.label}</span>
-                  </button>
+                    <button
+                      id={`${listId}-opt-${idx}`}
+                      ref={(el) => {
+                        itemRefs.current[idx] = el;
+                      }}
+                      type="button"
+                      role="option"
+                      aria-selected={active}
+                      onMouseEnter={() => setHighlighted(idx)}
+                      onClick={() => pick(row.value)}
+                      className={cn(
+                        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
+                        hi ? "bg-brand-50 text-brand-800" : "text-slate-800",
+                      )}
+                    >
+                      <Check
+                        className={cn("h-3.5 w-3.5 shrink-0", active ? "opacity-100" : "opacity-0")}
+                      />
+                      <span className="min-w-0 truncate">{row.label}</span>
+                    </button>
+                  </Fragment>
                 );
               })
             )}
