@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/nav/Sidebar";
 import { TopBar } from "@/components/nav/TopBar";
@@ -15,13 +15,22 @@ export function AdminLayout() {
   // admin session exists; unmounts (and closes the stream) on logout.
   useOrderStream();
 
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar open={mobileNavOpen} />
+      <Sidebar open={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
 
       {/* Mobile sidebar backdrop */}
       {mobileNavOpen && (

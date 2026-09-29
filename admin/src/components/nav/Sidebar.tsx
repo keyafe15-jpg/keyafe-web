@@ -4,7 +4,7 @@ import { ADMIN_NAV } from "@/content/nav";
 import { useAdminAuth } from "@/store/adminAuth";
 import { staffHasPermission } from "@/lib/permissions";
 
-export function Sidebar({ open }: { open: boolean }) {
+export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate?: () => void }) {
   const user = useAdminAuth((s) => s.user);
 
   const groups = ADMIN_NAV.map((group) => ({
@@ -45,6 +45,7 @@ export function Sidebar({ open }: { open: boolean }) {
                     <NavLink
                       to={item.to}
                       end={item.to === "/"}
+                      onClick={onNavigate}
                       className={({ isActive }) =>
                         cn(
                           "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100",
