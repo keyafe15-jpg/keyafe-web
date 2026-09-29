@@ -188,6 +188,16 @@ export function ProductFormPage() {
   const slug = watch("slug");
   const template = watch("template");
   const pricedSizes = template === "CAKE" ? [] : sizeOptions.filter((o) => o.isActive);
+  const hasSeoOrNotes = Boolean(
+    watch("metaTitle") ||
+    watch("metaDescription") ||
+    watch("allergensCsv") ||
+    watch("kitchenNotes") ||
+    watch("adminNotes") ||
+    errors.metaTitle ||
+    errors.metaDescription ||
+    errors.allergensCsv,
+  );
   const startingPrice = actualStartingPrice(
     Number(watch("basePrice")) || 0,
     pricedSizes.map((o) => Number(o.price)),
@@ -417,12 +427,24 @@ export function ProductFormPage() {
   return (
     <form onSubmit={onSubmit} className="pb-24">
       {/* Sticky action bar */}
-      <div className="sticky top-14 z-10 -mx-4 mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/85 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">
+      <div className="sticky top-14 z-10 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/85 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
             {isEdit ? "Edit product" : "New product"}
+            {isEdit && (
+              <span className="bg-brand-50 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-brand-700">
+                {template === "PIZZA" ? (
+                  <Pizza className="h-3 w-3" />
+                ) : template === "OTHER" ? (
+                  <Sparkles className="h-3 w-3" />
+                ) : (
+                  <Cake className="h-3 w-3" />
+                )}
+                {template === "PIZZA" ? "Pizza" : template === "OTHER" ? "Other" : "Cake"}
+              </span>
+            )}
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="truncate text-xs text-slate-500">
             {isEdit
               ? loadingExisting
                 ? "Loading…"
@@ -432,13 +454,14 @@ export function ProductFormPage() {
               : "Fill in the details and save."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => navigate("/products")}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white"
+            title="Cancel"
+            className={barButtonClass}
           >
-            <X className="h-4 w-4" /> Cancel
+            <X className="h-4 w-4" /> <span className="hidden sm:inline">Cancel</span>
           </button>
           {isEdit && !openedFromDuplicate && !isArchived && (
             <button
@@ -446,10 +469,12 @@ export function ProductFormPage() {
               onClick={() => void onDuplicate()}
               disabled={busy || loadingExisting}
               title="Create a draft copy of this product"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-60"
+              className={barButtonClass}
             >
               <Copy className="h-4 w-4" />
-              {duplicateProduct.isPending ? "Duplicating…" : "Duplicate"}
+              <span className="hidden sm:inline">
+                {duplicateProduct.isPending ? "Duplicating…" : "Duplicate"}
+              </span>
             </button>
           )}
           {isEdit && !isArchived && (
@@ -457,10 +482,13 @@ export function ProductFormPage() {
               type="button"
               onClick={() => void onArchive()}
               disabled={busy || loadingExisting}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-60"
+              title="Archive"
+              className={barButtonClass}
             >
               <Archive className="h-4 w-4" />
-              {archiveProduct.isPending ? "Archiving…" : "Archive"}
+              <span className="hidden sm:inline">
+                {archiveProduct.isPending ? "Archiving…" : "Archive"}
+              </span>
             </button>
           )}
           {isEdit && isArchived && (
@@ -468,10 +496,13 @@ export function ProductFormPage() {
               type="button"
               onClick={() => void onUnarchive()}
               disabled={busy || loadingExisting}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-60"
+              title="Unarchive"
+              className={barButtonClass}
             >
               <ArchiveRestore className="h-4 w-4" />
-              {unarchiveProduct.isPending ? "Restoring…" : "Unarchive"}
+              <span className="hidden sm:inline">
+                {unarchiveProduct.isPending ? "Restoring…" : "Unarchive"}
+              </span>
             </button>
           )}
           {isEdit && (
@@ -479,16 +510,22 @@ export function ProductFormPage() {
               type="button"
               onClick={() => void onDelete()}
               disabled={busy || loadingExisting}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+              title="Delete"
+              className={cn(
+                barButtonClass,
+                "border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700",
+              )}
             >
               <Trash2 className="h-4 w-4" />
-              {deleteProduct.isPending ? "Deleting…" : "Delete"}
+              <span className="hidden sm:inline">
+                {deleteProduct.isPending ? "Deleting…" : "Delete"}
+              </span>
             </button>
           )}
           <button
             type="submit"
             disabled={busy}
-            className={cn(submitClass, "inline-flex items-center gap-1.5")}
+            className={cn(submitClass, "inline-flex items-center gap-1.5 py-1.5")}
           >
             <Save className="h-4 w-4" />
             {isUploading
@@ -503,72 +540,69 @@ export function ProductFormPage() {
       </div>
 
       {isEdit && isArchived && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           This product is archived and hidden from the storefront. Unarchive to restore it as a
           draft, then turn Active on when ready.
         </div>
       )}
 
       {submitError && (
-        <div className="mb-6 rounded-lg border border-brand-500/40 bg-brand-100/50 px-4 py-3 text-sm text-brand-700">
+        <div className="mb-4 rounded-lg border border-brand-500/40 bg-brand-100/50 px-4 py-3 text-sm text-brand-700">
           {submitError}
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* Left: main details */}
-        <div className="space-y-6 lg:col-span-2">
-          <Section
-            title="Template"
-            description={
-              isEdit
-                ? "Set when the product was created and cannot be changed."
-                : "Drives which extra sections show up below. Pick the closest match."
-            }
-          >
-            <div className="grid grid-cols-3 gap-3">
-              <TemplateChip
-                active={template === "CAKE"}
-                disabled={isEdit}
-                onClick={() => setValue("template", "CAKE")}
-                icon={<Cake className="h-5 w-5" />}
-                title="Cake"
-                subtitle="Flavours, pounds, message on cake"
-              />
-              <TemplateChip
-                active={template === "PIZZA"}
-                disabled={isEdit}
-                onClick={() => setValue("template", "PIZZA")}
-                icon={<Pizza className="h-5 w-5" />}
-                title="Pizza"
-                subtitle="Sizes, crust, toppings, condiments"
-              />
-              <TemplateChip
-                active={template === "OTHER"}
-                disabled={isEdit}
-                onClick={() => setValue("template", "OTHER")}
-                icon={<Sparkles className="h-5 w-5" />}
-                title="Other"
-                subtitle="No extras — plain product"
-              />
-            </div>
-          </Section>
+        <div className="space-y-4 lg:col-span-2">
+          {!isEdit && (
+            <Section
+              title="Template"
+              description="Drives which extra sections show up below. Can't be changed later."
+            >
+              <div className="grid grid-cols-3 gap-2">
+                <TemplateChip
+                  active={template === "CAKE"}
+                  onClick={() => setValue("template", "CAKE")}
+                  icon={<Cake className="h-4 w-4" />}
+                  title="Cake"
+                  subtitle="Flavours, pounds, message"
+                />
+                <TemplateChip
+                  active={template === "PIZZA"}
+                  onClick={() => setValue("template", "PIZZA")}
+                  icon={<Pizza className="h-4 w-4" />}
+                  title="Pizza"
+                  subtitle="Sizes, crust, toppings"
+                />
+                <TemplateChip
+                  active={template === "OTHER"}
+                  onClick={() => setValue("template", "OTHER")}
+                  icon={<Sparkles className="h-4 w-4" />}
+                  title="Other"
+                  subtitle="Plain product"
+                />
+              </div>
+            </Section>
+          )}
 
           <Section title="Basics">
-            <Field label="Name" required error={errors.name?.message}>
-              <input {...register("name")} className={inputClass} />
-            </Field>
-            <Field
-              label="Slug"
-              required
-              error={errors.slug?.message}
-              hint="Auto-generated from name. Edit to override."
-            >
-              <input
-                {...register("slug", { onChange: () => setSlugTouched(true) })}
-                className={inputClass}
-              />
-            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Name" required error={errors.name?.message}>
+                <input {...register("name")} className={inputClass} />
+              </Field>
+              <Field
+                label="Slug"
+                required
+                error={errors.slug?.message}
+                hint="Auto-generated from name."
+              >
+                <input
+                  {...register("slug", { onChange: () => setSlugTouched(true) })}
+                  className={inputClass}
+                />
+              </Field>
+            </div>
             <Field label="Short description" error={errors.shortDescription?.message}>
               <input
                 {...register("shortDescription")}
@@ -581,102 +615,120 @@ export function ProductFormPage() {
               error={errors.description?.message}
               hint="Markdown supported. Shown on product page."
             >
-              <textarea {...register("description")} rows={5} className={textareaClass} />
+              <textarea
+                {...register("description")}
+                rows={3}
+                className={cn(textareaClass, "min-h-0")}
+              />
             </Field>
           </Section>
 
           <Section title="Images">
             {keptImages.length > 0 && (
-              <div className="mb-3">
-                <p className="mb-2 text-xs text-slate-500">Current images — click × to remove</p>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                  {keptImages.map((url) => (
-                    <div
-                      key={url}
-                      className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white"
+              <div className="flex flex-wrap gap-2">
+                {keptImages.map((url) => (
+                  <div
+                    key={url}
+                    className="group relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200 bg-white"
+                  >
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setKeptImages(keptImages.filter((u) => u !== url))}
+                      className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-slate-900/70 text-white transition sm:opacity-0 sm:group-hover:opacity-100"
+                      aria-label="Remove image"
                     >
-                      <img src={url} alt="" className="aspect-square w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setKeptImages(keptImages.filter((u) => u !== url))}
-                        className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white opacity-0 transition group-hover:opacity-100"
-                        aria-label="Remove image"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
             <MultiImageUpload
               value={newImages}
               onChange={setNewImages}
               max={Math.max(1, 5 - keptImages.length)}
+              compact
             />
           </Section>
 
           <Section title="Customization" collapseOnMobile>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-x-4 gap-y-2.5 sm:grid-cols-2">
               <Checkbox
                 {...register("isCustomizable")}
                 label="Customizable product"
-                hint="Enable option pickers on the storefront."
+                hint="Option pickers on the storefront."
               />
               <Checkbox
                 {...register("isEggless")}
                 label="Eggless / vegetarian"
-                hint="Shown as the green veg mark on the storefront. Turn off for egg-based cakes or non-veg savoury."
+                hint="Green veg mark on the storefront."
               />
               <Checkbox
                 {...register("isSpicy")}
                 label="Spicy"
-                hint="Used by the savoury catalog heat filter (Spicy / Mild)."
+                hint="Savoury heat filter (Spicy / Mild)."
               />
               {template === "CAKE" && (
                 <>
                   <Checkbox
                     {...register("sellByPound")}
                     label="Sell by pound"
-                    hint="Show size picker on PDP. Price = (base + flavour) × pounds, minus ₹50 per half-lb above 1 lb."
+                    hint="(Base + flavour) × lb, −₹50 per extra half-lb."
                   />
                   <Checkbox
                     {...register("allowCustomSize")}
                     label="Allow custom pounds"
-                    hint="Adds a 'want more pounds?' input on the PDP."
+                    hint="'Want more pounds?' input on the PDP."
                   />
-                  <Field
-                    label="Min size (grams)"
-                    error={errors.minGrams?.message}
-                    hint="Blank = no minimum. e.g. 250 hides Bento/Mini for this product."
-                  >
-                    <input
-                      type="number"
-                      min={1}
-                      step={1}
-                      {...register("minGrams")}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field
-                    label="Max size (grams)"
-                    error={errors.maxGrams?.message}
-                    hint="Blank = no maximum. e.g. 1500 caps at 3 pounds."
-                  >
-                    <input
-                      type="number"
-                      min={1}
-                      step={1}
-                      {...register("maxGrams")}
-                      className={inputClass}
-                    />
-                  </Field>
                   <Checkbox
                     {...register("supportsMessageOnCake")}
                     label="Message on cake"
                     hint="Show the message-on-cake input."
                   />
-                  <Field label="Message max length" error={errors.messageMaxLength?.message}>
+                </>
+              )}
+              <Checkbox
+                {...register("supportsSameDayDelivery")}
+                label="Same-day delivery eligible"
+              />
+              <Checkbox
+                {...register("canBeDeliveredPanIndia")}
+                label="Pan-India courier delivery"
+                hint="Ships by courier; PDP skips date/slot."
+              />
+              <Checkbox
+                {...register("isHealthyTreat")}
+                label="Show in Healthy Treats"
+                hint="Listed on the Healthy Treats page."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
+              {template === "CAKE" && (
+                <>
+                  <Field label="Min grams" error={errors.minGrams?.message}>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      placeholder="No min"
+                      title="e.g. 250 hides Bento/Mini for this product"
+                      {...register("minGrams")}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Max grams" error={errors.maxGrams?.message}>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      placeholder="No max"
+                      title="e.g. 1500 caps at 3 pounds"
+                      {...register("maxGrams")}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Message chars" error={errors.messageMaxLength?.message}>
                     <input
                       type="number"
                       min={1}
@@ -687,7 +739,7 @@ export function ProductFormPage() {
                   </Field>
                 </>
               )}
-              <Field label="Lead time (hours)" error={errors.leadTimeHours?.message}>
+              <Field label="Lead time (h)" error={errors.leadTimeHours?.message}>
                 <input
                   type="number"
                   min={0}
@@ -695,26 +747,6 @@ export function ProductFormPage() {
                   className={inputClass}
                 />
               </Field>
-              <div className="sm:col-span-2">
-                <Checkbox
-                  {...register("supportsSameDayDelivery")}
-                  label="Same-day delivery eligible"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Checkbox
-                  {...register("canBeDeliveredPanIndia")}
-                  label="Pan-India courier delivery"
-                  hint="Ships nationwide via courier (Shiprocket/India Post). PDP skips local date/slot selection."
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Checkbox
-                  {...register("isHealthyTreat")}
-                  label="Show in Healthy Treats"
-                  hint="Lists this product on the Healthy Treats page. Independent of same-day and pan-India."
-                />
-              </div>
             </div>
           </Section>
 
@@ -753,68 +785,70 @@ export function ProductFormPage() {
                   keyPlaceholder="regular"
                 />
               </Section>
-              <Section
-                title="Toppings"
-                description="Which toppings can be added? Create new ones here without leaving this page."
-                collapseOnMobile
-              >
-                <ToppingQuickAdd
-                  kind="TOPPING"
-                  onCreated={(id) => setToppingIds((prev) => new Set(prev).add(id))}
-                />
-                <SearchableMultiSelect
-                  items={toppingsAll
-                    .filter((t) => t.kind === "TOPPING" && t.isActive)
-                    .map((t) => ({
-                      value: t.id,
-                      label: `${t.name} · +₹${Number(t.priceDelta).toFixed(0)}`,
-                    }))}
-                  selected={[...toppingIds].filter(
-                    (id) => toppingsAll.find((t) => t.id === id)?.kind === "TOPPING",
-                  )}
-                  onChange={(ids) => {
-                    const kept = [...toppingIds].filter(
-                      (id) => toppingsAll.find((t) => t.id === id)?.kind !== "TOPPING",
-                    );
-                    setToppingIds(new Set([...kept, ...ids]));
-                  }}
-                  placeholder="Search or pick toppings"
-                  searchPlaceholder="Search toppings…"
-                  allowSelectAll
-                  allowClearAll
-                />
-              </Section>
-              <Section
-                title="Condiments / Extras"
-                description="Things like hot honey, ranch, oregano packets."
-                collapseOnMobile
-              >
-                <ToppingQuickAdd
-                  kind="CONDIMENT"
-                  onCreated={(id) => setToppingIds((prev) => new Set(prev).add(id))}
-                />
-                <SearchableMultiSelect
-                  items={toppingsAll
-                    .filter((t) => t.kind === "CONDIMENT" && t.isActive)
-                    .map((t) => ({
-                      value: t.id,
-                      label: `${t.name} · +₹${Number(t.priceDelta).toFixed(0)}`,
-                    }))}
-                  selected={[...toppingIds].filter(
-                    (id) => toppingsAll.find((t) => t.id === id)?.kind === "CONDIMENT",
-                  )}
-                  onChange={(ids) => {
-                    const kept = [...toppingIds].filter(
-                      (id) => toppingsAll.find((t) => t.id === id)?.kind !== "CONDIMENT",
-                    );
-                    setToppingIds(new Set([...kept, ...ids]));
-                  }}
-                  placeholder="Search or pick condiments"
-                  searchPlaceholder="Search condiments…"
-                  allowSelectAll
-                  allowClearAll
-                />
-              </Section>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Section
+                  title="Toppings"
+                  description="Which toppings can be added?"
+                  collapseOnMobile
+                >
+                  <ToppingQuickAdd
+                    kind="TOPPING"
+                    onCreated={(id) => setToppingIds((prev) => new Set(prev).add(id))}
+                  />
+                  <SearchableMultiSelect
+                    items={toppingsAll
+                      .filter((t) => t.kind === "TOPPING" && t.isActive)
+                      .map((t) => ({
+                        value: t.id,
+                        label: `${t.name} · +₹${Number(t.priceDelta).toFixed(0)}`,
+                      }))}
+                    selected={[...toppingIds].filter(
+                      (id) => toppingsAll.find((t) => t.id === id)?.kind === "TOPPING",
+                    )}
+                    onChange={(ids) => {
+                      const kept = [...toppingIds].filter(
+                        (id) => toppingsAll.find((t) => t.id === id)?.kind !== "TOPPING",
+                      );
+                      setToppingIds(new Set([...kept, ...ids]));
+                    }}
+                    placeholder="Search or pick toppings"
+                    searchPlaceholder="Search toppings…"
+                    allowSelectAll
+                    allowClearAll
+                  />
+                </Section>
+                <Section
+                  title="Condiments / Extras"
+                  description="Hot honey, ranch, oregano packets…"
+                  collapseOnMobile
+                >
+                  <ToppingQuickAdd
+                    kind="CONDIMENT"
+                    onCreated={(id) => setToppingIds((prev) => new Set(prev).add(id))}
+                  />
+                  <SearchableMultiSelect
+                    items={toppingsAll
+                      .filter((t) => t.kind === "CONDIMENT" && t.isActive)
+                      .map((t) => ({
+                        value: t.id,
+                        label: `${t.name} · +₹${Number(t.priceDelta).toFixed(0)}`,
+                      }))}
+                    selected={[...toppingIds].filter(
+                      (id) => toppingsAll.find((t) => t.id === id)?.kind === "CONDIMENT",
+                    )}
+                    onChange={(ids) => {
+                      const kept = [...toppingIds].filter(
+                        (id) => toppingsAll.find((t) => t.id === id)?.kind !== "CONDIMENT",
+                      );
+                      setToppingIds(new Set([...kept, ...ids]));
+                    }}
+                    placeholder="Search or pick condiments"
+                    searchPlaceholder="Search condiments…"
+                    allowSelectAll
+                    allowClearAll
+                  />
+                </Section>
+              </div>
             </>
           )}
 
@@ -840,24 +874,50 @@ export function ProductFormPage() {
             </Section>
           )}
 
-          {template === "CAKE" && (
-            <Section
-              title="Flavours"
-              description={`Which of the ${flavours.length} master flavours does this product offer?`}
-              collapseOnMobile
-            >
-              <FlavourQuickAdd onCreated={(id) => setFlavorIds((prev) => new Set(prev).add(id))} />
-              <SearchableMultiSelect
-                items={flavours.map((f) => ({ value: f.id, label: f.name }))}
-                selected={[...flavorIds]}
-                onChange={(ids) => setFlavorIds(new Set(ids))}
-                placeholder="Search or pick flavours"
-                searchPlaceholder="Search flavours…"
-                allowSelectAll
-                allowClearAll
-              />
+          <div className={cn("grid gap-4", template === "CAKE" && "md:grid-cols-2")}>
+            {template === "CAKE" && (
+              <Section
+                title="Flavours"
+                description={`Pick from ${flavours.length} master flavours.`}
+                collapseOnMobile
+              >
+                <FlavourQuickAdd
+                  onCreated={(id) => setFlavorIds((prev) => new Set(prev).add(id))}
+                />
+                <SearchableMultiSelect
+                  items={flavours.map((f) => ({ value: f.id, label: f.name }))}
+                  selected={[...flavorIds]}
+                  onChange={(ids) => setFlavorIds(new Set(ids))}
+                  placeholder="Search or pick flavours"
+                  searchPlaceholder="Search flavours…"
+                  allowSelectAll
+                  allowClearAll
+                />
+              </Section>
+            )}
+            <Section title="Tags" description="Labels used in filters and badges." collapseOnMobile>
+              <TagQuickAdd onCreated={(id) => setTagIds((prev) => new Set(prev).add(id))} />
+              {tags.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  No tags yet — use Add tag above, or manage the full list under{" "}
+                  <Link to="/tags" className="text-brand-600 hover:underline">
+                    Tags
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <SearchableMultiSelect
+                  items={tags.map((t) => ({ value: t.id, label: t.name }))}
+                  selected={[...tagIds]}
+                  onChange={(ids) => setTagIds(new Set(ids))}
+                  placeholder="Search or pick tags"
+                  searchPlaceholder="Search tags…"
+                  allowSelectAll
+                  allowClearAll
+                />
+              )}
             </Section>
-          )}
+          </div>
 
           <Section
             title="Add-ons"
@@ -920,63 +980,52 @@ export function ProductFormPage() {
           </Section>
 
           <Section
-            title="Tags"
-            description="Cross-cutting labels used in filters and badges."
-            collapseOnMobile
+            title="SEO, allergens & notes"
+            description="Optional — meta tags, allergens, internal notes."
+            collapsed={!hasSeoOrNotes}
           >
-            <TagQuickAdd onCreated={(id) => setTagIds((prev) => new Set(prev).add(id))} />
-            {tags.length === 0 ? (
-              <p className="text-xs text-slate-500">
-                No tags yet — use Add tag above, or manage the full list under{" "}
-                <Link to="/tags" className="text-brand-600 hover:underline">
-                  Tags
-                </Link>
-                .
-              </p>
-            ) : (
-              <SearchableMultiSelect
-                items={tags.map((t) => ({ value: t.id, label: t.name }))}
-                selected={[...tagIds]}
-                onChange={(ids) => setTagIds(new Set(ids))}
-                placeholder="Search or pick tags"
-                searchPlaceholder="Search tags…"
-                allowSelectAll
-                allowClearAll
-              />
-            )}
-          </Section>
-
-          <Section title="SEO / Metadata" collapseOnMobile>
-            <div className="grid gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Meta title" error={errors.metaTitle?.message}>
                 <input {...register("metaTitle")} className={inputClass} />
               </Field>
-              <Field label="Meta description" error={errors.metaDescription?.message}>
-                <textarea {...register("metaDescription")} rows={2} className={textareaClass} />
-              </Field>
-              <Field
-                label="Allergens (comma-separated)"
-                error={errors.allergensCsv?.message}
-                hint="e.g., egg, dairy, gluten, nuts"
-              >
+              <Field label="Allergens (comma-separated)" error={errors.allergensCsv?.message}>
                 <input
                   {...register("allergensCsv")}
                   className={inputClass}
-                  placeholder="egg, dairy, gluten"
+                  placeholder="egg, dairy, gluten, nuts"
+                />
+              </Field>
+              <Field
+                label="Meta description"
+                error={errors.metaDescription?.message}
+                className="sm:col-span-2"
+              >
+                <textarea
+                  {...register("metaDescription")}
+                  rows={2}
+                  className={cn(textareaClass, "min-h-0")}
                 />
               </Field>
               <Field label="Kitchen notes" hint="Internal — never shown to customers.">
-                <textarea {...register("kitchenNotes")} rows={2} className={textareaClass} />
+                <textarea
+                  {...register("kitchenNotes")}
+                  rows={2}
+                  className={cn(textareaClass, "min-h-0")}
+                />
               </Field>
               <Field label="Admin notes" hint="Internal note for staff.">
-                <textarea {...register("adminNotes")} rows={2} className={textareaClass} />
+                <textarea
+                  {...register("adminNotes")}
+                  rows={2}
+                  className={cn(textareaClass, "min-h-0")}
+                />
               </Field>
             </div>
           </Section>
         </div>
 
         {/* Right: sidebar (pricing, status, meta) */}
-        <aside className="space-y-6">
+        <aside className="space-y-4">
           <Section title="Pricing">
             {template === "PIZZA" ? (
               <p className="text-xs text-slate-500">
@@ -1017,28 +1066,30 @@ export function ProductFormPage() {
               inputProps={register("discountedPrice")}
               error={errors.discountedPrice?.message}
             />
-            <Field label="GST rate (%)" error={errors.gstRate?.message}>
-              <input
-                type="number"
-                min={0}
-                max={28}
-                step="0.01"
-                {...register("gstRate")}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="HSN code" error={errors.hsnCode?.message}>
-              <input {...register("hsnCode")} className={inputClass} />
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="GST rate (%)" error={errors.gstRate?.message}>
+                <input
+                  type="number"
+                  min={0}
+                  max={28}
+                  step="0.01"
+                  {...register("gstRate")}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="HSN code" error={errors.hsnCode?.message}>
+                <input {...register("hsnCode")} className={inputClass} />
+              </Field>
+            </div>
             <Checkbox {...register("priceIsGstInclusive")} label="Price includes GST" />
           </Section>
 
-          <Section title="Category & type">
+          <Section title="Category & listing">
             <Field
               label="Categories"
               required
               error={errors.categoryIds?.message}
-              hint="A product can appear in more than one category or subcategory."
+              hint="Can appear in several categories."
             >
               <div className="mb-2">
                 <CategoryQuickAdd
@@ -1057,25 +1108,30 @@ export function ProductFormPage() {
                 placeholder="Search or pick categories"
               />
             </Field>
-            <Field
-              label="Product type"
-              error={errors.productType?.message}
-              hint="Configurable = customer picks options. Variants = pre-made SKUs (advanced)."
-            >
-              <select {...register("productType")} className={selectClass}>
-                <option value="CONFIGURABLE">Configurable</option>
-                <option value="FIXED_VARIANTS">Fixed Variants</option>
-              </select>
-            </Field>
-          </Section>
-
-          <Section
-            title="Listing"
-            description="Active, stock, and featured are toggled from the products table."
-          >
-            <Field label="Sort order" hint="Lower shows first." error={errors.sortOrder?.message}>
-              <input type="number" {...register("sortOrder")} className={inputClass} />
-            </Field>
+            <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3">
+              <Field label="Product type" error={errors.productType?.message}>
+                <select
+                  {...register("productType")}
+                  title="Configurable = customer picks options. Fixed variants = pre-made SKUs (advanced)."
+                  className={selectClass}
+                >
+                  <option value="CONFIGURABLE">Configurable</option>
+                  <option value="FIXED_VARIANTS">Fixed Variants</option>
+                </select>
+              </Field>
+              <Field label="Sort order" error={errors.sortOrder?.message}>
+                <input
+                  type="number"
+                  title="Lower shows first"
+                  {...register("sortOrder")}
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Active, stock and featured are toggled from the products table. Lower sort order shows
+              first.
+            </p>
           </Section>
         </aside>
       </div>
@@ -1083,51 +1139,69 @@ export function ProductFormPage() {
   );
 }
 
+const barButtonClass =
+  "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-60";
+
 function Section({
   title,
   description,
   children,
   /** On small screens, start collapsed so the form isn’t an endless scroll. Desktop stays open. */
   collapseOnMobile = false,
+  /** Collapsible on every screen size; starts closed while true, opens once it turns false. */
+  collapsed,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
   collapseOnMobile?: boolean;
+  collapsed?: boolean;
 }) {
-  const [open, setOpen] = useState(!collapseOnMobile);
+  const everywhere = collapsed !== undefined;
+  const [open, setOpen] = useState(everywhere ? !collapsed : !collapseOnMobile);
+  useEffect(() => {
+    if (collapsed === false) setOpen(true);
+  }, [collapsed]);
+  const hiddenWhenClosed = !open && (everywhere ? "hidden" : "hidden lg:block");
 
   return (
     <section className="rounded-card border border-slate-200 bg-white">
       <button
         type="button"
         onClick={() => {
-          if (window.matchMedia("(min-width: 1024px)").matches) return;
+          if (!everywhere && window.matchMedia("(min-width: 1024px)").matches) return;
           setOpen((v) => !v);
         }}
         className={cn(
-          "flex w-full items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left",
-          "lg:cursor-default",
+          "flex w-full items-start justify-between gap-3 px-3.5 py-2.5 text-left sm:px-4",
+          (open || !everywhere) && "border-b border-slate-100",
+          !everywhere && "lg:cursor-default",
         )}
         aria-expanded={open}
       >
         <span className="min-w-0">
           <span className="block text-sm font-semibold text-slate-900">{title}</span>
           {description && (
-            <span className={cn("mt-0.5 block text-xs text-slate-500", !open && "hidden lg:block")}>
+            <span
+              className={cn(
+                "block text-xs text-slate-500",
+                !open && !everywhere && "hidden lg:block",
+              )}
+            >
               {description}
             </span>
           )}
         </span>
         <ChevronDown
           className={cn(
-            "mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition lg:hidden",
+            "mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition",
+            !everywhere && "lg:hidden",
             open && "rotate-180",
           )}
           aria-hidden
         />
       </button>
-      <div className={cn("space-y-4 p-4", !open && "hidden lg:block")}>{children}</div>
+      <div className={cn("space-y-3 p-3.5 sm:p-4", hiddenWhenClosed)}>{children}</div>
     </section>
   );
 }
@@ -1149,9 +1223,9 @@ const Checkbox = (
           className,
         )}
       />
-      <span>
-        <span className="block text-sm text-slate-900">{label}</span>
-        {hint && <span className="block text-xs text-slate-500">{hint}</span>}
+      <span className="min-w-0">
+        <span className="block text-sm leading-tight text-slate-900">{label}</span>
+        {hint && <span className="block text-[11px] leading-snug text-slate-500">{hint}</span>}
       </span>
     </label>
   );
@@ -1159,14 +1233,12 @@ const Checkbox = (
 
 function TemplateChip({
   active,
-  disabled,
   onClick,
   icon,
   title,
   subtitle,
 }: {
   active: boolean;
-  disabled?: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   title: string;
@@ -1175,27 +1247,26 @@ function TemplateChip({
   return (
     <button
       type="button"
-      disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition",
+        "flex items-center gap-2 rounded-lg border p-2 text-left transition",
         active
           ? "bg-brand-50/50 border-brand-500 ring-1 ring-brand-500/30"
-          : "border-slate-200 bg-white",
-        disabled ? "cursor-not-allowed" : !active && "hover:border-brand-300",
-        disabled && !active && "opacity-50",
+          : "hover:border-brand-300 border-slate-200 bg-white",
       )}
     >
       <span
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-md",
+          "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
           active ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-500",
         )}
       >
         {icon}
       </span>
-      <span className="text-sm font-medium text-slate-900">{title}</span>
-      <span className="text-xs text-slate-500">{subtitle}</span>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-slate-900">{title}</span>
+        <span className="hidden truncate text-[11px] text-slate-500 sm:block">{subtitle}</span>
+      </span>
     </button>
   );
 }
@@ -1259,7 +1330,7 @@ function OptionRow({
   }, [opt.price]);
 
   return (
-    <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50/50 p-2 sm:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
+    <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5 rounded-md border border-slate-200 bg-slate-50/50 p-1.5 sm:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
       <input
         value={opt.label}
         onChange={(e) => {
@@ -1269,14 +1340,22 @@ function OptionRow({
           onPatch(patch);
         }}
         placeholder={labelPlaceholder}
-        className={inputClass}
+        className={cn(inputClass, "py-1.5")}
       />
       <input
         value={opt.key}
         onChange={(e) => onPatch({ key: e.target.value })}
         placeholder={keyPlaceholder}
-        className={cn(inputClass, "font-mono text-xs")}
+        className={cn(inputClass, "py-1.5 font-mono text-xs")}
       />
+      <button
+        type="button"
+        onClick={onRemove}
+        className="row-span-2 inline-flex h-8 w-8 items-center justify-center self-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600 sm:order-last sm:row-span-1"
+        aria-label="Remove"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
       <input
         type="text"
         inputMode="decimal"
@@ -1288,7 +1367,7 @@ function OptionRow({
           onPatch({ price: Number.isFinite(n) ? n : 0 });
         }}
         placeholder={priceMode === "ABSOLUTE" ? "e.g. 500" : "e.g. 50"}
-        className={inputClass}
+        className={cn(inputClass, "py-1.5")}
       />
       {showDiameter ? (
         <input
@@ -1301,19 +1380,11 @@ function OptionRow({
             })
           }
           placeholder="mm"
-          className={inputClass}
+          className={cn(inputClass, "py-1.5")}
         />
       ) : (
         <div />
       )}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="inline-flex h-9 w-9 items-center justify-center self-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"
-        aria-label="Remove"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
     </div>
   );
 }
