@@ -15,14 +15,6 @@ export function optionUnitPrice(
   return priceMode === "ABSOLUTE" ? optionPrice : basePrice + optionPrice;
 }
 
-export function formatOptionSelectLabel(
-  option: ProductOptionInput,
-  basePrice: number,
-  priceMode: AdminOptionGroup["priceMode"],
-): string {
-  return `${option.label} · ₹${optionUnitPrice(basePrice, option, priceMode).toFixed(0)}`;
-}
-
 export function activeOptions(options: ProductOptionInput[]): ProductOptionInput[] {
   return options.filter((o) => o.isActive !== false && o.id);
 }

@@ -11,12 +11,12 @@ import {
   computeCakeUnitPrice,
   customPoundsToGrams,
   formatCustomPoundLabel,
-  formatOptionSelectLabel,
   getSizeOptionGroup,
   isGramsWithinBounds,
   optionUnitPrice,
   parseCustomPounds,
 } from "@/lib/productConfiguration";
+import { Price, applyFactor, formatINR } from "@keyafe/shared";
 import { cn } from "@/lib/cn";
 import type { OrderItemDraft } from "./types";
 import { usePizzaCatalogOptions, pizzaSizeLabelForKey } from "./usePizzaCatalogOptions";
@@ -54,6 +54,10 @@ export function OrderItemRow({
   );
 
   const template = productDetail?.template ?? selectedProduct?.template;
+  const factor =
+    item.kind === "CATALOG"
+      ? (productDetail?.priceFactor ?? selectedProduct?.priceFactor ?? null)
+      : null;
 
   const isPizza = item.kind === "CATALOG" && template === "PIZZA";
   const isCakeCatalog = item.kind === "CATALOG" && (template ?? "CAKE") === "CAKE";
@@ -108,7 +112,7 @@ export function OrderItemRow({
     if (!item.productName) patch.productName = selectedProduct.name;
     const simpleProduct = !autoPriced;
     if (!item.unitPrice && simpleProduct) {
-      patch.unitPrice = Number(selectedProduct.basePrice).toFixed(0);
+      patch.unitPrice = applyFactor(Number(selectedProduct.basePrice), factor).toFixed(0);
     }
     if (Object.keys(patch).length) onPatch(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,7 +133,7 @@ export function OrderItemRow({
     if (!sku) return;
     const attrs = sku.attributes as { weightGrams?: number } | null;
     onPatch({
-      unitPrice: sku.price.toFixed(0),
+      unitPrice: applyFactor(sku.price, factor).toFixed(0),
       sizeLabel: sku.label,
       sizeGrams: attrs?.weightGrams ? String(attrs.weightGrams) : "",
     });
@@ -143,7 +147,7 @@ export function OrderItemRow({
     if (!picked) return;
     const base = Number(productDetail.basePrice);
     onPatch({
-      unitPrice: optionUnitPrice(base, picked, sizePriceMode).toFixed(0),
+      unitPrice: applyFactor(optionUnitPrice(base, picked, sizePriceMode), factor).toFixed(0),
       sizeLabel: picked.label,
       sizeGrams: picked.weightGrams ? String(picked.weightGrams) : "",
     });
@@ -202,7 +206,7 @@ export function OrderItemRow({
       .filter((a) => item.addonSelections.includes(a.id))
       .reduce((s, a) => s + Number(a.priceDelta), 0);
     onPatch({
-      unitPrice: (computed + addonsDelta).toFixed(0),
+      unitPrice: (applyFactor(computed, factor) + addonsDelta).toFixed(0),
       sizeGrams: String(grams),
       sizeLabel: formatCustomPoundLabel(parsedPounds),
       cakeSizeId: "",
@@ -225,7 +229,11 @@ export function OrderItemRow({
     const addonsDelta = allAddons
       .filter((a) => item.addonSelections.includes(a.id))
       .reduce((s, a) => s + Number(a.priceDelta), 0);
-    const computed = sizePrice + crustDelta + toppingsDelta + addonsDelta;
+    const computed =
+      applyFactor(sizePrice, factor) +
+      applyFactor(crustDelta, factor) +
+      toppingsDelta +
+      addonsDelta;
     const patch: Partial<OrderItemDraft> = { unitPrice: computed.toFixed(0) };
     if (pickedSize) patch.sizeLabel = pickedSize.label;
     patch.crustLabel = pickedCrust ? pickedCrust.label : "";
@@ -351,6 +359,40 @@ export function OrderItemRow({
       ? computeCakeUnitPrice(cakeBasePrice, customGrams, cakeFlavourAdditional, hasAttachedFlavours)
       : null;
 
+  const pickedAddonsDelta = allAddons
+    .filter((a) => item.addonSelections.includes(a.id))
+    .reduce((s, a) => s + Number(a.priceDelta), 0);
+  const originalUnitPrice = (() => {
+    if (!factor || !productDetail) return null;
+    if (isPizza) {
+      const toppings = pickedToppingsFull.reduce((s, t) => s + Number(t.priceDelta), 0);
+      return (
+        (pickedSize ? Number(pickedSize.price) : 0) +
+        (pickedCrust ? Number(pickedCrust.price) : 0) +
+        toppings +
+        pickedAddonsDelta
+      );
+    }
+    if (isCakeConfigurator) {
+      return customPreviewPrice != null ? customPreviewPrice + pickedAddonsDelta : null;
+    }
+    if (hasFixedSkus) {
+      const sku = fixedSkus.find((v) => v.id === item.variantId);
+      return sku ? sku.price + pickedAddonsDelta : null;
+    }
+    if (hasOptionGroupSize) {
+      const picked = sizeOptions.find((o) => o.id === item.sizeOptionId);
+      return picked
+        ? optionUnitPrice(Number(productDetail.basePrice), picked, sizePriceMode) +
+            pickedAddonsDelta
+        : null;
+    }
+    return Number(productDetail.basePrice) + pickedAddonsDelta;
+  })();
+  const unitPriceNum = Number(item.unitPrice);
+  const showWasHint =
+    originalUnitPrice != null && item.unitPrice !== "" && unitPriceNum < originalUnitPrice;
+
   const showCustomDetails = item.kind === "CUSTOM" && item.expanded;
   const refImage = item.refPreview ?? item.keptImageUrl;
 
@@ -425,7 +467,7 @@ export function OrderItemRow({
                   placeholder="— Pick SKU —"
                   options={fixedSkus.map((v) => ({
                     value: v.id,
-                    label: `${v.label} · ₹${v.price.toFixed(0)}`,
+                    label: `${v.label} · ${priceLabel(v.price, factor)}`,
                     keywords: `${v.label} ${v.sku}`,
                   }))}
                 />
@@ -442,11 +484,10 @@ export function OrderItemRow({
                   placeholder="— Pick size —"
                   options={sizeOptions.map((o) => ({
                     value: o.id!,
-                    label: formatOptionSelectLabel(
-                      o,
-                      Number(productDetail.basePrice),
-                      sizePriceMode,
-                    ),
+                    label: `${o.label} · ${priceLabel(
+                      optionUnitPrice(Number(productDetail.basePrice), o, sizePriceMode),
+                      factor,
+                    )}`,
                     keywords: o.label,
                   }))}
                 />
@@ -498,6 +539,16 @@ export function OrderItemRow({
             />
           </Field>
         </div>
+        {showWasHint && (
+          <p className="mt-1 text-[11px] text-slate-500">
+            <Price
+              prefix="Discounted"
+              amount={unitPriceNum}
+              original={originalUnitPrice}
+              showBadge
+            />
+          </p>
+        )}
 
         {isCakeConfigurator && productDetail && (
           <div className="mt-3 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-2 gap-y-3 sm:grid-cols-[5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)] sm:gap-2">
@@ -539,7 +590,7 @@ export function OrderItemRow({
                       label: hasAttachedFlavours
                         ? f.name
                         : delta > 0
-                          ? `${f.name} (+₹${delta.toFixed(0)}/lb)`
+                          ? `${f.name} (+${formatINR(applyFactor(delta, factor))}/lb)`
                           : f.name,
                       keywords: f.name,
                     };
@@ -559,7 +610,8 @@ export function OrderItemRow({
             </Field>
             {customPreviewPrice != null && (
               <p className="col-span-2 -mt-1 text-[11px] text-slate-500 sm:col-span-3">
-                ₹{cakeBasePrice.toFixed(0)}/lb
+                {formatINR(applyFactor(cakeBasePrice, factor))}/lb
+                {factor ? ` (was ${formatINR(cakeBasePrice)})` : ""}
                 {customGrams != null ? ` · ${customGrams}g` : ""}
                 {hasAttachedFlavours ? " · flavour in recipe" : ""}
               </p>
@@ -580,11 +632,10 @@ export function OrderItemRow({
                     placeholder="— Pick size —"
                     options={sizeOptions.map((o) => ({
                       value: o.id!,
-                      label: formatOptionSelectLabel(
-                        o,
-                        Number(productDetail.basePrice),
-                        sizePriceMode,
-                      ),
+                      label: `${o.label} · ${priceLabel(
+                        optionUnitPrice(Number(productDetail.basePrice), o, sizePriceMode),
+                        factor,
+                      )}`,
                       keywords: o.label,
                     }))}
                   />
@@ -602,7 +653,7 @@ export function OrderItemRow({
                       return (
                         <option key={o.id} value={o.id}>
                           {o.label}
-                          {delta === 0 ? "" : ` (+₹${delta.toFixed(0)})`}
+                          {delta === 0 ? "" : ` (+${priceLabel(delta, factor)})`}
                         </option>
                       );
                     })}
@@ -1069,6 +1120,12 @@ export function OrderItemRow({
       </div>
     </div>
   );
+}
+
+/** "₹200 (was ₹250)" when discounted — native options can't render a strike-through. */
+function priceLabel(actual: number, factor: number | null): string {
+  const now = applyFactor(actual, factor);
+  return now < actual ? `${formatINR(now)} (was ${formatINR(actual)})` : formatINR(actual);
 }
 
 function AddonGroupPicker({

@@ -1,13 +1,15 @@
+import { applyFactor, formatINR } from "@keyafe/shared";
 import type { AdminProduct } from "@/hooks/useAdminProducts";
 import type { CategoryNode } from "@/hooks/useCategories";
 import type { SearchableSelectOption } from "@/components/form/SearchableSelect";
 
 /** Label for the product SearchableSelect — hints when option-group sizes exist. */
 export function formatCatalogProductLabel(p: AdminProduct): string {
-  if (p.priceMin !== p.priceMax) {
-    return `${p.name} · from ₹${p.priceMin}`;
-  }
-  return `${p.name} · ₹${Number(p.basePrice).toFixed(0)}`;
+  const price = formatINR(applyFactor(p.priceMin, p.priceFactor));
+  const off = p.priceFactor ? ` (−${Math.round((1 - p.priceFactor) * 100)}%)` : "";
+  return p.priceMin !== p.priceMax
+    ? `${p.name} · from ${price}${off}`
+    : `${p.name} · ${price}${off}`;
 }
 
 export const UNCATEGORISED = "__uncategorised";

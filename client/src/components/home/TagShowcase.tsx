@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { VegMark } from "@/components/product/VegMark";
-import { Price } from "@/components/product/Price";
+import { Price } from "@keyafe/shared";
 import { Reveal } from "@/components/motion/Reveal";
 import { SlideCarousel } from "@/components/ui/SlideCarousel";
 import {

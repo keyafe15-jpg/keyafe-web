@@ -6,6 +6,7 @@ import {
   parsePlace,
   type ParsedPlace,
 } from "./places";
+import { cx } from "./cx";
 
 const defaultFallbackInputClass =
   "w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20";
@@ -22,10 +23,6 @@ export type AddressPlacesSearchProps = {
   hintClassName?: string;
   errorHintClassName?: string;
 };
-
-function cx(...parts: Array<string | false | null | undefined>): string {
-  return parts.filter(Boolean).join(" ");
-}
 
 /**
  * Google Places autocomplete for Uber/Rapido map search.

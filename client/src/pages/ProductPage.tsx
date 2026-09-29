@@ -7,8 +7,7 @@ import { ProductReviews } from "@/components/product/ProductReviews";
 import { PincodeChecker } from "@/components/product/PincodeChecker";
 import { SameDayDeliveryPicker } from "@/components/product/SameDayDeliveryPicker";
 import { ProductTagBadge } from "@/components/product/ProductTagBadge";
-import { Price } from "@/components/product/Price";
-import { applyFactor } from "@/lib/price";
+import { Price, applyFactor } from "@keyafe/shared";
 import type { PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import {
   useProduct,
@@ -340,11 +339,9 @@ function PdpContent({ product }: { product: ProductDetail }) {
                       {s.servesText && (
                         <span className="block text-xs text-ink-500">{s.servesText}</span>
                       )}
-                      <Price
-                        amount={applyFactor(price, factor)}
-                        original={price}
-                        className="mt-1 flex text-xs text-ink-700"
-                      />
+                      <span className="mt-1 block text-xs text-ink-700">
+                        <Price amount={applyFactor(price, factor)} original={price} />
+                      </span>
                     </button>
                   );
                 })}
@@ -947,11 +944,12 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
                       )}
                     >
                       <span className="block font-medium">{o.label}</span>
-                      <Price
-                        amount={applyFactor(Number(o.price), factor)}
-                        original={Number(o.price)}
-                        className="mt-1 flex text-xs text-ink-700"
-                      />
+                      <span className="mt-1 block text-xs text-ink-700">
+                        <Price
+                          amount={applyFactor(Number(o.price), factor)}
+                          original={Number(o.price)}
+                        />
+                      </span>
                     </button>
                   );
                 })}

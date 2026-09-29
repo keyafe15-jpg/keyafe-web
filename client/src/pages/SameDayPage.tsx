@@ -12,7 +12,7 @@ import { SAMEDAY_COPY } from "@/content/sameday";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { CatalogFilters } from "@/components/product/CatalogFilters";
-import { Price } from "@/components/product/Price";
+import { Price } from "@keyafe/shared";
 import { applyCatalogFilters, catalogFiltersFromSearchParams } from "@/lib/catalogFilters";
 
 const SAME_DAY_PAGE_SIZE = 12;

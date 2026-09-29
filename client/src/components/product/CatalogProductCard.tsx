@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { categoryNames, type ProductCard } from "@/hooks/useProducts";
 import { ProductCardTags } from "@/components/product/ProductTagBadge";
 import { VegMark } from "@/components/product/VegMark";
-import { Price } from "@/components/product/Price";
+import { Price } from "@keyafe/shared";
 import { cn } from "@/lib/cn";
 
 interface CatalogProductCardProps {

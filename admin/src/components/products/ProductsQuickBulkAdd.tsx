@@ -13,6 +13,7 @@ import {
 import { useAdminCategories } from "@/hooks/useAdminCategories";
 import { uploadImages } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
+import { actualStartingPrice, discountPercent } from "@keyafe/shared";
 
 type QuickRow = {
   key: string;
@@ -20,6 +21,7 @@ type QuickRow = {
   slug: string;
   categoryIds: string[];
   basePrice: string;
+  discountedPrice: string;
   template: ProductTemplate;
   productType: "FIXED_VARIANTS" | "CONFIGURABLE";
   shortDescription: string;
@@ -66,6 +68,7 @@ function newRow(): QuickRow {
     slug: "",
     categoryIds: [],
     basePrice: "",
+    discountedPrice: "",
     template: "CAKE",
     productType: "CONFIGURABLE",
     shortDescription: "",
@@ -173,6 +176,7 @@ function patchForTemplate(template: ProductTemplate): Partial<QuickRow> {
       sizeOptions: [],
       crustOptions: [],
       basePrice: "",
+      discountedPrice: "",
     };
   }
   if (template === "PIZZA") {
@@ -185,6 +189,7 @@ function patchForTemplate(template: ProductTemplate): Partial<QuickRow> {
       sizeOptions: defaultPizzaSizes(),
       crustOptions: [],
       basePrice: "0",
+      discountedPrice: "",
     };
   }
   return {
@@ -327,6 +332,14 @@ function CompactOptions({
   );
 }
 
+function startingPriceOf(row: QuickRow): number {
+  const sizePrices =
+    row.template === "PIZZA"
+      ? row.sizeOptions.filter((o) => o.label.trim()).map((o) => Number(o.price) || 0)
+      : [];
+  return actualStartingPrice(Number(row.basePrice || 0), sizePrices);
+}
+
 function rowToImport(
   row: QuickRow,
   imageUrls: string[],
@@ -359,11 +372,20 @@ function rowToImport(
   if (isPizza && (!sizeOptions || sizeOptions.length === 0)) {
     return { error: "Add at least one pizza size" };
   }
+  let discountedPrice: number | null = null;
+  if (row.discountedPrice.trim()) {
+    discountedPrice = Number(row.discountedPrice);
+    const start = startingPriceOf(row);
+    if (!(discountedPrice > 0) || discountedPrice >= start) {
+      return { error: `Discounted price must be between 0 and ₹${start.toFixed(0)}` };
+    }
+  }
   return {
     name,
     slug: slug || null,
     categorySlugs,
     basePrice,
+    discountedPrice,
     template: row.template,
     productType: row.productType,
     shortDescription: row.shortDescription.trim() || null,
@@ -383,6 +405,43 @@ function rowToImport(
     sizeOptions,
     crustOptions,
   };
+}
+
+function DiscountedPriceField({
+  row,
+  onChange,
+}: {
+  row: QuickRow;
+  onChange: (value: string) => void;
+}) {
+  const start = startingPriceOf(row);
+  const value = Number(row.discountedPrice);
+  const pct = row.discountedPrice.trim() ? discountPercent(value, start) : 0;
+  const invalid = row.discountedPrice.trim() !== "" && pct === 0;
+  return (
+    <Field
+      label="Discounted ₹"
+      className="col-span-1 lg:col-span-2"
+      hint={
+        pct > 0
+          ? `${pct}% off${row.template === "PIZZA" ? " every size" : ""}`
+          : row.template === "PIZZA"
+            ? "For the smallest size"
+            : undefined
+      }
+      error={invalid && start > 0 ? `Below ₹${start.toFixed(0)}` : undefined}
+    >
+      <input
+        type="number"
+        min={0}
+        step="1"
+        className={cn(inputClass, "py-1.5")}
+        value={row.discountedPrice}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Optional"
+      />
+    </Field>
+  );
 }
 
 export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
@@ -510,7 +569,7 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
             </div>
 
             <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-12">
-              <Field label="Name" required className="col-span-2 lg:col-span-5">
+              <Field label="Name" required className="col-span-2 lg:col-span-4">
                 <input
                   className={cn(inputClass, "py-1.5")}
                   value={row.name}
@@ -531,7 +590,7 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
                   }
                 />
               </Field>
-              <Field label="Slug" className="col-span-1 lg:col-span-3">
+              <Field label="Slug" className="col-span-2 lg:col-span-2">
                 <input
                   className={cn(inputClass, "py-1.5")}
                   value={row.slug}
@@ -554,6 +613,10 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
                   placeholder={row.template === "PIZZA" ? "0" : "799"}
                 />
               </Field>
+              <DiscountedPriceField
+                row={row}
+                onChange={(discountedPrice) => update(row.key, { discountedPrice })}
+              />
               <Field label="GST %" className="col-span-1 lg:col-span-2">
                 <input
                   type="number"

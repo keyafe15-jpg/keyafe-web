@@ -2,8 +2,7 @@ import { Link } from "react-router-dom";
 import { useCart } from "@/store/cart";
 import { CART_COPY } from "@/content/misc";
 import { cn } from "@/lib/cn";
-import { formatINR } from "@/lib/price";
-import { Price } from "@/components/product/Price";
+import { Price, formatINR } from "@keyafe/shared";
 import type { CartLine } from "@/types/domain";
 
 export function CartPage() {

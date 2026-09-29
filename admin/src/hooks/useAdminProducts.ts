@@ -46,6 +46,9 @@ export interface AdminProduct {
   // (e.g. pizzas with basePrice = 0). Equal to basePrice otherwise.
   priceMin: number;
   priceMax: number;
+  discountedPrice: number | null;
+  /** discountedPrice / starting price; multiply any configured price by it. Null = no discount. */
+  priceFactor: number | null;
   productType: "FIXED_VARIANTS" | "CONFIGURABLE";
   template: ProductTemplate;
   isActive: boolean;
@@ -116,6 +119,8 @@ export interface CreateProductPayload {
   categoryIds: string[];
   images: string[];
   basePrice: number;
+  /** Sale price for the starting price (base, or smallest size). Null clears it. */
+  discountedPrice?: number | null;
   productType: "FIXED_VARIANTS" | "CONFIGURABLE";
   template: ProductTemplate;
   isCustomizable: boolean;
@@ -168,6 +173,8 @@ export type BulkProductImportRow = {
   slug?: string | null;
   categorySlugs: string[];
   basePrice: number;
+  /** Omitted = keep existing (upsert); null = clear. */
+  discountedPrice?: number | null;
   template?: ProductTemplate;
   productType?: "FIXED_VARIANTS" | "CONFIGURABLE";
   shortDescription?: string | null;
@@ -217,6 +224,7 @@ export type ProductExportRow = {
   slug: string;
   categorySlugs: string;
   basePrice: number;
+  discountedPrice: number | "";
   template: string;
   productType: string;
   shortDescription: string;
@@ -248,6 +256,8 @@ export interface AdminProductDetail extends CreateProductPayload {
   updatedAt: string;
   archivedAt: string | null;
   categories: { id: string; name: string; slug: string }[];
+  discountedPrice: number | null;
+  priceFactor: number | null;
   /** From OptionGroup rows (size, crust, tier, …). */
   optionGroups: AdminOptionGroup[];
   /** From ProductVariant table — only for FIXED_VARIANTS SKUs. */

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../packages/shared/src";
 
 @theme {
   /* Admin tokens — light, dense, dashboardy. Keep brand pink as the primary CTA. */

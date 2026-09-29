@@ -3,7 +3,18 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Cake, Pizza, Sparkles, Save, Trash2, X, Copy, Archive, ArchiveRestore, ChevronDown } from "lucide-react";
+import {
+  Cake,
+  Pizza,
+  Sparkles,
+  Save,
+  Trash2,
+  X,
+  Copy,
+  Archive,
+  ArchiveRestore,
+  ChevronDown,
+} from "lucide-react";
 import {
   Field,
   inputClass,
@@ -38,6 +49,8 @@ import {
 } from "@/hooks/useAdminProducts";
 import { uploadImages } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
+import { DiscountFields } from "@/components/products/DiscountFields";
+import { actualStartingPrice } from "@keyafe/shared";
 
 const formSchema = z.object({
   name: z.string().trim().min(2, "Name is required"),
@@ -49,6 +62,9 @@ const formSchema = z.object({
   description: z.string().trim().optional(),
   categoryIds: z.array(z.string()).min(1, "Pick at least one category"),
   basePrice: z.coerce.number().nonnegative("Enter a valid price"),
+  discountedPrice: z
+    .union([z.coerce.number().positive("Enter a valid price"), z.literal("")])
+    .optional(),
   productType: z.enum(["FIXED_VARIANTS", "CONFIGURABLE"]),
   template: z.enum(["CAKE", "PIZZA", "OTHER"]),
   isCustomizable: z.boolean(),
@@ -125,6 +141,7 @@ export function ProductFormPage() {
     handleSubmit,
     watch,
     setValue,
+    setError,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
@@ -136,6 +153,7 @@ export function ProductFormPage() {
       description: "",
       categoryIds: [],
       basePrice: 0,
+      discountedPrice: "",
       productType: "CONFIGURABLE",
       template: "CAKE",
       isCustomizable: false,
@@ -169,6 +187,11 @@ export function ProductFormPage() {
   const name = watch("name");
   const slug = watch("slug");
   const template = watch("template");
+  const pricedSizes = template === "CAKE" ? [] : sizeOptions.filter((o) => o.isActive);
+  const startingPrice = actualStartingPrice(
+    Number(watch("basePrice")) || 0,
+    pricedSizes.map((o) => Number(o.price)),
+  );
 
   // Auto-populate slug from name while slug hasn't been manually edited.
   const [slugTouched, setSlugTouched] = useState(isEdit);
@@ -186,6 +209,7 @@ export function ProductFormPage() {
       description: existing.description ?? "",
       categoryIds: existing.categoryIds ?? [],
       basePrice: Number(existing.basePrice),
+      discountedPrice: existing.discountedPrice ?? "",
       productType: existing.productType,
       template: existing.template ?? "CAKE",
       isCustomizable: existing.isCustomizable,
@@ -259,6 +283,14 @@ export function ProductFormPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
+    const discountedPrice =
+      typeof values.discountedPrice === "number" ? values.discountedPrice : null;
+    if (discountedPrice != null && discountedPrice >= startingPrice) {
+      setError("discountedPrice", {
+        message: `Must be lower than the starting price (₹${startingPrice.toFixed(0)})`,
+      });
+      return;
+    }
     try {
       setIsUploading(true);
       const uploaded = newImages.length ? await uploadImages(newImages, "product") : [];
@@ -272,6 +304,7 @@ export function ProductFormPage() {
         categoryIds: values.categoryIds,
         images: [...keptImages, ...uploaded.map((u) => u.publicUrl)],
         basePrice: values.basePrice,
+        discountedPrice,
         productType: values.productType,
         template: values.template,
         isCustomizable: values.isCustomizable,
@@ -701,7 +734,11 @@ export function ProductFormPage() {
                   showDiameter
                 />
               </Section>
-              <Section title="Crust" description="Optional. Leave empty if only one crust." collapseOnMobile>
+              <Section
+                title="Crust"
+                description="Optional. Leave empty if only one crust."
+                collapseOnMobile
+              >
                 <OptionsEditor
                   options={crustOptions}
                   onChange={setCrustOptions}
@@ -809,9 +846,7 @@ export function ProductFormPage() {
               description={`Which of the ${flavours.length} master flavours does this product offer?`}
               collapseOnMobile
             >
-              <FlavourQuickAdd
-                onCreated={(id) => setFlavorIds((prev) => new Set(prev).add(id))}
-              />
+              <FlavourQuickAdd onCreated={(id) => setFlavorIds((prev) => new Set(prev).add(id))} />
               <SearchableMultiSelect
                 items={flavours.map((f) => ({ value: f.id, label: f.name }))}
                 selected={[...flavorIds]}
@@ -862,9 +897,7 @@ export function ProductFormPage() {
                             imageUrl: a.imageUrl,
                           }))}
                         selected={[...addonIds].filter((id) =>
-                          addonsAll.some(
-                            (a) => a.id === id && (a.group || "Other") === group,
-                          ),
+                          addonsAll.some((a) => a.id === id && (a.group || "Other") === group),
                         )}
                         onChange={(ids) => {
                           const groupIds = new Set(
@@ -886,7 +919,11 @@ export function ProductFormPage() {
             )}
           </Section>
 
-          <Section title="Tags" description="Cross-cutting labels used in filters and badges." collapseOnMobile>
+          <Section
+            title="Tags"
+            description="Cross-cutting labels used in filters and badges."
+            collapseOnMobile
+          >
             <TagQuickAdd onCreated={(id) => setTagIds((prev) => new Set(prev).add(id))} />
             {tags.length === 0 ? (
               <p className="text-xs text-slate-500">
@@ -969,6 +1006,17 @@ export function ProductFormPage() {
                 />
               </Field>
             )}
+            <DiscountFields
+              startingPrice={startingPrice}
+              sizes={pricedSizes.map((o) => ({ label: o.label, price: Number(o.price) }))}
+              perPound={template === "CAKE" && watch("sellByPound")}
+              value={watch("discountedPrice")}
+              onChange={(v) =>
+                setValue("discountedPrice", v, { shouldDirty: true, shouldValidate: true })
+              }
+              inputProps={register("discountedPrice")}
+              error={errors.discountedPrice?.message}
+            />
             <Field label="GST rate (%)" error={errors.gstRate?.message}>
               <input
                 type="number"
@@ -1066,12 +1114,7 @@ function Section({
         <span className="min-w-0">
           <span className="block text-sm font-semibold text-slate-900">{title}</span>
           {description && (
-            <span
-              className={cn(
-                "mt-0.5 block text-xs text-slate-500",
-                !open && "hidden lg:block",
-              )}
-            >
+            <span className={cn("mt-0.5 block text-xs text-slate-500", !open && "hidden lg:block")}>
               {description}
             </span>
           )}

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../packages/shared/src";
 
 @theme {
   /* Brand palette — Keyafe: hot pink + ink slate + cream. Sourced from logo. */

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { discountPercent, formatINR } from "@/lib/price";
-import { cn } from "@/lib/cn";
+import { cx } from "./cx";
+import { discountPercent, formatINR } from "./priceMath";
 
 const SIZE_CLASS = {
   xs: "text-xs",
@@ -10,7 +10,7 @@ const SIZE_CLASS = {
   xl: "text-2xl",
 } as const;
 
-interface PriceProps {
+export interface PriceProps {
   /** What the customer pays. */
   amount: number | string;
   /** Pre-discount price; struck through only when higher than `amount`. */
@@ -30,7 +30,7 @@ export function Price({ amount, original, size, prefix, showBadge, className }: 
 
   return (
     <span
-      className={cn(
+      className={cx(
         "inline-flex flex-wrap items-baseline gap-x-1.5",
         size && SIZE_CLASS[size],
         className,

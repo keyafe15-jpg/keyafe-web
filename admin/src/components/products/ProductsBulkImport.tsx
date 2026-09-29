@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Download, X } from "lucide-react";
+import { Price } from "@keyafe/shared";
 import {
   useBulkCreateProducts,
   useExportProducts,
@@ -7,24 +8,20 @@ import {
   type ProductTemplate,
 } from "@/hooks/useAdminProducts";
 import { BulkSpreadsheetImport } from "@/components/form/BulkSpreadsheetImport";
-import {
-  cellString,
-  parseBoolean,
-  splitList,
-  toNumberOrNull,
-} from "@/lib/spreadsheetImport";
+import { cellString, parseBoolean, splitList, toNumberOrNull } from "@/lib/spreadsheetImport";
 import { downloadSpreadsheet } from "@/lib/downloadSpreadsheet";
 import { ProductsQuickBulkAdd } from "@/components/products/ProductsQuickBulkAdd";
 import { cn } from "@/lib/cn";
 
 const COLUMNS_HINT =
-  "name, categorySlugs (comma/semicolon), basePrice; optional: slug, template, productType, shortDescription, images (URLs), gstRate, hsnCode, isEggless, isSpicy, sellByPound, supportsSameDayDelivery, canBeDeliveredPanIndia, isActive, isAvailable, isFeatured, sortOrder";
+  "name, categorySlugs (comma/semicolon), basePrice; optional: discountedPrice (blank clears it), slug, template, productType, shortDescription, images (URLs), gstRate, hsnCode, isEggless, isSpicy, sellByPound, supportsSameDayDelivery, canBeDeliveredPanIndia, isActive, isAvailable, isFeatured, sortOrder";
 
 const SAMPLE_TEMPLATE_ROW = {
   name: "Chocolate Truffle Cake",
   slug: "chocolate-truffle-cake",
   categorySlugs: "cakes; celebration",
   basePrice: 799,
+  discountedPrice: "",
   template: "CAKE",
   productType: "CONFIGURABLE",
   shortDescription: "Rich chocolate layers",
@@ -54,6 +51,13 @@ function parseProductType(value: unknown): "FIXED_VARIANTS" | "CONFIGURABLE" {
   return "CONFIGURABLE";
 }
 
+/** Missing column keeps the stored discount on upsert; a blank cell clears it. */
+function parseDiscountedPrice(value: unknown): number | null | undefined {
+  if (value === undefined) return undefined;
+  const parsed = toNumberOrNull(value);
+  return parsed != null && parsed > 0 ? parsed : null;
+}
+
 function isUrl(value: string): boolean {
   try {
     const u = new URL(value);
@@ -63,9 +67,7 @@ function isUrl(value: string): boolean {
   }
 }
 
-export function parseProductImportRow(
-  row: Record<string, unknown>,
-): BulkProductImportRow | null {
+export function parseProductImportRow(row: Record<string, unknown>): BulkProductImportRow | null {
   const name = cellString(row.name ?? row.productname);
   if (name.length < 2) return null;
 
@@ -85,6 +87,7 @@ export function parseProductImportRow(
     slug: slugRaw || null,
     categorySlugs,
     basePrice,
+    discountedPrice: parseDiscountedPrice(row.discountedprice),
     template: parseTemplate(row.template ?? row.producttemplate),
     productType: parseProductType(row.producttype),
     shortDescription: cellString(row.shortdescription ?? row.description) || null,
@@ -105,13 +108,7 @@ export function parseProductImportRow(
 
 type BulkTab = "quick" | "spreadsheet";
 
-export function ProductsBulkImport({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function ProductsBulkImport({ open, onClose }: { open: boolean; onClose: () => void }) {
   const bulk = useBulkCreateProducts();
   const exportProducts = useExportProducts();
   const [tab, setTab] = useState<BulkTab>("quick");
@@ -137,11 +134,7 @@ export function ProductsBulkImport({
   const downloadTemplate = async () => {
     setExportError(null);
     try {
-      await downloadSpreadsheet(
-        [SAMPLE_TEMPLATE_ROW],
-        "keyafe-products-import-template",
-        "xlsx",
-      );
+      await downloadSpreadsheet([SAMPLE_TEMPLATE_ROW], "keyafe-products-import-template", "xlsx");
     } catch (err) {
       setExportError(err instanceof Error ? err.message : "Could not download template");
     }
@@ -180,7 +173,7 @@ export function ProductsBulkImport({
             className={cn(
               "rounded-t-md px-3 py-2 text-xs font-medium transition",
               tab === t.id
-                ? "border-b-2 border-brand-500 text-brand-800"
+                ? "text-brand-800 border-b-2 border-brand-500"
                 : "text-slate-500 hover:text-slate-800",
             )}
           >
@@ -207,7 +200,7 @@ export function ProductsBulkImport({
                   <button
                     type="button"
                     onClick={() => void downloadTemplate()}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:border-brand-300 hover:text-brand-700"
+                    className="hover:border-brand-300 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:text-brand-700"
                   >
                     Template
                   </button>
@@ -215,7 +208,7 @@ export function ProductsBulkImport({
                     type="button"
                     disabled={exportProducts.isPending}
                     onClick={() => void runExport("csv")}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:border-brand-300 hover:text-brand-700 disabled:opacity-50"
+                    className="hover:border-brand-300 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:text-brand-700 disabled:opacity-50"
                   >
                     <Download className="h-3.5 w-3.5" />
                     {exportProducts.isPending ? "…" : "CSV"}
@@ -224,7 +217,7 @@ export function ProductsBulkImport({
                     type="button"
                     disabled={exportProducts.isPending}
                     onClick={() => void runExport("xlsx")}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-2 text-xs font-medium text-brand-800 hover:bg-brand-100 disabled:opacity-50"
+                    className="border-brand-300 bg-brand-50 text-brand-800 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium hover:bg-brand-100 disabled:opacity-50"
                   >
                     <Download className="h-3.5 w-3.5" />
                     {exportProducts.isPending ? "Exporting…" : "Excel backup"}
@@ -269,9 +262,7 @@ export function ProductsBulkImport({
                 {
                   id: "name",
                   header: "Name",
-                  cell: (row) => (
-                    <span className="font-medium text-slate-900">{row.name}</span>
-                  ),
+                  cell: (row) => <span className="font-medium text-slate-900">{row.name}</span>,
                 },
                 {
                   id: "categories",
@@ -287,7 +278,9 @@ export function ProductsBulkImport({
                   id: "price",
                   header: "Price",
                   align: "right",
-                  cell: (row) => `₹${row.basePrice}`,
+                  cell: (row) => (
+                    <Price amount={row.discountedPrice ?? row.basePrice} original={row.basePrice} />
+                  ),
                 },
               ]}
               onImport={async (rows) => {

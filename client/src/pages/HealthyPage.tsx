@@ -14,7 +14,7 @@ import { cn } from "@/lib/cn";
 import { ClientPagination, PaginationControls } from "@/components/ClientPagination";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
 import { CatalogFilters } from "@/components/product/CatalogFilters";
-import { Price } from "@/components/product/Price";
+import { Price } from "@keyafe/shared";
 import { applyCatalogFilters, catalogFiltersFromSearchParams } from "@/lib/catalogFilters";
 
 const PAGE_SIZE = 12;

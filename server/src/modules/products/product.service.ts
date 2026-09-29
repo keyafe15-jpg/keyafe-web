@@ -14,6 +14,11 @@ const optionSchema = z.object({
   sortOrder: z.coerce.number().int().default(0),
 });
 
+/** Omitted = leave as is; null or "" = no discount. */
+const discountedPriceField = z
+  .preprocess((v) => (v === "" ? null : v), z.coerce.number().positive().nullable())
+  .optional();
+
 export const createProductSchema = z.object({
   name: z.string().trim().min(2, "Name is required"),
   slug: z
@@ -28,9 +33,7 @@ export const createProductSchema = z.object({
   images: z.array(z.string().url()).max(10),
 
   basePrice: z.coerce.number().nonnegative(),
-  discountedPrice: z
-    .preprocess((v) => (v === "" ? null : v), z.coerce.number().positive().nullable())
-    .optional(),
+  discountedPrice: discountedPriceField,
   productType: z.enum(["FIXED_VARIANTS", "CONFIGURABLE"]).default("CONFIGURABLE"),
   template: z.enum(["CAKE", "PIZZA", "OTHER"]).default("CAKE"),
   isCustomizable: z.boolean().default(false),
@@ -85,6 +88,7 @@ const ADMIN_LIST_SELECT = {
   slug: true,
   name: true,
   basePrice: true,
+  discountedPrice: true,
   productType: true,
   template: true,
   isActive: true,
@@ -114,6 +118,7 @@ const ADMIN_LIST_SELECT = {
 function decorateAdminListRow<
   T extends {
     basePrice: unknown;
+    discountedPrice: unknown;
     categoryLinks: { category: { id: string; name: string; slug: string } }[];
     optionGroups: {
       priceMode: "ABSOLUTE" | "DELTA";
@@ -121,19 +126,22 @@ function decorateAdminListRow<
     }[];
   },
 >(row: T) {
-  const { optionGroups, categoryLinks, ...rest } = row;
+  const { optionGroups, categoryLinks, discountedPrice: rawDiscounted, ...rest } = row;
   const base = Number(rest.basePrice);
   const sizeGroup = optionGroups[0];
   const categories = categoryLinks.map((l) => l.category);
+  const discountedPrice = rawDiscounted != null ? Number(rawDiscounted) : null;
+  const factor = priceFactor(actualStartingPrice(rest.basePrice, sizeGroup), discountedPrice);
+  const pricing = { discountedPrice, priceFactor: factor };
   if (!sizeGroup || sizeGroup.options.length === 0) {
-    return { ...rest, categories, priceMin: base, priceMax: base };
+    return { ...rest, categories, priceMin: base, priceMax: base, ...pricing };
   }
   const prices = sizeGroup.options.map((o) => Number(o.price));
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   const priceMin = sizeGroup.priceMode === "ABSOLUTE" ? min : base + min;
   const priceMax = sizeGroup.priceMode === "ABSOLUTE" ? max : base + max;
-  return { ...rest, categories, priceMin, priceMax };
+  return { ...rest, categories, priceMin, priceMax, ...pricing };
 }
 
 function buildAdminProductSearchWhere(search?: string) {
@@ -964,6 +972,7 @@ export const bulkProductRowSchema = z.object({
     .nullable(),
   categorySlugs: z.array(z.string().trim().min(1)).min(1, "At least one category slug"),
   basePrice: z.coerce.number().nonnegative(),
+  discountedPrice: discountedPriceField,
   template: z.enum(["CAKE", "PIZZA", "OTHER"]).default("CAKE"),
   productType: z.enum(["FIXED_VARIANTS", "CONFIGURABLE"]).default("CONFIGURABLE"),
   shortDescription: z.string().trim().max(300).optional().nullable(),
@@ -1010,6 +1019,7 @@ function rowToCreateInput(
     slug,
     categoryIds,
     basePrice: row.basePrice,
+    discountedPrice: row.discountedPrice ?? null,
     template: row.template,
     productType: row.productType,
     shortDescription: row.shortDescription ?? null,
@@ -1093,6 +1103,7 @@ export async function bulkCreateProducts(
           name: row.name,
           categoryIds,
           basePrice: row.basePrice,
+          discountedPrice: row.discountedPrice,
           template: row.template,
           productType: row.productType,
           shortDescription: row.shortDescription ?? null,
@@ -1140,6 +1151,7 @@ export type ProductSpreadsheetRow = {
   slug: string;
   categorySlugs: string;
   basePrice: number;
+  discountedPrice: number | "";
   template: string;
   productType: string;
   shortDescription: string;
@@ -1174,6 +1186,7 @@ export async function exportProductsSpreadsheet(
       name: true,
       slug: true,
       basePrice: true,
+      discountedPrice: true,
       template: true,
       productType: true,
       shortDescription: true,
@@ -1200,6 +1213,7 @@ export async function exportProductsSpreadsheet(
     slug: p.slug,
     categorySlugs: p.categoryLinks.map((l) => l.category.slug).join("; "),
     basePrice: Number(p.basePrice),
+    discountedPrice: p.discountedPrice != null ? Number(p.discountedPrice) : "",
     template: p.template,
     productType: p.productType,
     shortDescription: p.shortDescription ?? "",
@@ -1440,9 +1454,12 @@ export async function getAdminProductById(id: string) {
   const categoryAddonIds = (
     await addonsDefaultedToCategories(categoryLinks.map((l) => l.category.id))
   ).map((a) => a.id);
+  const discountedPrice = rest.discountedPrice != null ? Number(rest.discountedPrice) : null;
 
   return {
     ...rest,
+    discountedPrice,
+    priceFactor: priceFactor(actualStartingPrice(rest.basePrice, sizeGroup), discountedPrice),
     categoryIds: categoryLinks.map((l) => l.category.id),
     categories: categoryLinks.map((l) => l.category),
     flavorIds: flavors.map((f) => f.id),

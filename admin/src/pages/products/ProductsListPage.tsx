@@ -12,6 +12,7 @@ import {
   Layers,
 } from "lucide-react";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
+import { applyFactor, discountPercent, formatINR } from "@keyafe/shared";
 import {
   useAdminProducts,
   useArchiveProduct,
@@ -73,7 +74,7 @@ export function ProductsListPage() {
               "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition",
               bulkOpen
                 ? "border-brand-400 bg-brand-50 text-brand-800"
-                : "border-slate-200 bg-white text-slate-700 hover:border-brand-300 hover:text-brand-700",
+                : "hover:border-brand-300 border-slate-200 bg-white text-slate-700 hover:text-brand-700",
             )}
           >
             <Layers className="h-4 w-4" /> Bulk upload
@@ -181,7 +182,11 @@ export function ProductsListPage() {
                       {p.categories.map((c) => c.name).join(" · ") || "—"}
                     </td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums">
-                      <PriceCell priceMin={p.priceMin} priceMax={p.priceMax} />
+                      <PriceCell
+                        priceMin={p.priceMin}
+                        priceMax={p.priceMax}
+                        priceFactor={p.priceFactor}
+                      />
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">
                       {p.productType === "CONFIGURABLE" ? "Configurable" : "Variants"}
@@ -237,7 +242,11 @@ export function ProductsListPage() {
                       <div className="flex items-start justify-between gap-2">
                         <p className="truncate font-medium text-slate-900">{p.name}</p>
                         <span className="shrink-0 text-sm font-semibold text-slate-900 tabular-nums">
-                          <PriceCell priceMin={p.priceMin} priceMax={p.priceMax} />
+                          <PriceCell
+                            priceMin={p.priceMin}
+                            priceMax={p.priceMax}
+                            priceFactor={p.priceFactor}
+                          />
                         </span>
                       </div>
                       <p className="truncate text-xs text-slate-500">/{p.slug}</p>
@@ -284,7 +293,36 @@ export function ProductsListPage() {
   );
 }
 
-function PriceCell({ priceMin, priceMax }: { priceMin: number; priceMax: number }) {
+function PriceCell({
+  priceMin,
+  priceMax,
+  priceFactor,
+}: {
+  priceMin: number;
+  priceMax: number;
+  priceFactor: number | null;
+}) {
+  if (priceFactor) {
+    const min = applyFactor(priceMin, priceFactor);
+    const max = applyFactor(priceMax, priceFactor);
+    return (
+      <span className="inline-flex flex-col items-end gap-0.5">
+        <span>
+          {formatINR(min)}
+          {min !== max && ` – ${formatINR(max)}`}
+        </span>
+        <span className="inline-flex items-center gap-1 text-xs font-normal text-slate-400">
+          <s>
+            {formatINR(priceMin)}
+            {priceMin !== priceMax && ` – ${formatINR(priceMax)}`}
+          </s>
+          <span className="rounded bg-emerald-50 px-1 py-px text-[10px] font-semibold text-emerald-700">
+            {discountPercent(min, priceMin)}% off
+          </span>
+        </span>
+      </span>
+    );
+  }
   if (priceMin !== priceMax) {
     return (
       <span>
@@ -502,7 +540,9 @@ function ProductRowActions({
           </Dropdown.Portal>
         </Dropdown.Root>
       </span>
-      {error && <span className="max-w-[12rem] text-right text-[10px] text-brand-700">{error}</span>}
+      {error && (
+        <span className="max-w-[12rem] text-right text-[10px] text-brand-700">{error}</span>
+      )}
     </span>
   );
 }
@@ -563,9 +603,7 @@ function StatusToggles({
         labelOn="In stock"
         labelOff="Out of stock"
         titleOn={
-          isActive
-            ? "Click to mark out of stock"
-            : "Activate the product before changing stock"
+          isActive ? "Click to mark out of stock" : "Activate the product before changing stock"
         }
         titleOff={
           isActive ? "Click to mark in stock" : "Activate the product before changing stock"
