@@ -111,6 +111,9 @@ importers:
 
   client:
     dependencies:
+      '@cashfreepayments/cashfree-js':
+        specifier: ^1.0.7
+        version: 1.0.7
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.10.0(react-hook-form@7.86.0(react@19.2.8))
@@ -314,6 +317,9 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@cashfreepayments/cashfree-js@1.0.7':
+    resolution: {integrity: sha512-WRhjGdUgkPdWbq0YoMsi6hRqyT4XTIGUMNnATQsfz0GIDFP2sjtVon/kcihDVtO6pzEZrjded62Do9xK2VkjPQ==}
 
   '@dnd-kit/accessibility@3.1.1':
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -2495,6 +2501,8 @@ packages:
         optional: true
 
 snapshots:
+
+  '@cashfreepayments/cashfree-js@1.0.7': {}
 
   '@dnd-kit/accessibility@3.1.1(react@19.2.8)':
     dependencies:

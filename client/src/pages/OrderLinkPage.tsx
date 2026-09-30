@@ -3,13 +3,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useOrderLink, usePlaceOrderLink } from "@/hooks/useOrderLink";
 import { usePincodeCheck, type PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import { PRODUCT_COPY } from "@/content/product";
-import { uploadImage } from "@/lib/uploads";
-import { usePaymentInfo } from "@/hooks/usePaymentInfo";
-import { buildUpiUri } from "@/lib/upi";
+import { usePaymentConfig } from "@/hooks/usePayments";
+import { payWithCashfree } from "@/lib/cashfree";
 import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
 import { BusinessGstFields } from "@/components/checkout/BusinessGstFields";
 import { gstinIssue } from "@/lib/gstin";
-import { UpiQrCode } from "@/components/UpiQrCode";
 import { cn } from "@/lib/cn";
 import { manualDiscountRupees } from "@/lib/manualDiscount";
 import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
@@ -81,16 +79,18 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
   const navigate = useNavigate();
   const place = usePlaceOrderLink({ token: link.token });
   const pincodeCheck = usePincodeCheck();
-  const { data: paymentInfo } = usePaymentInfo();
+  const { data: paymentConfig } = usePaymentConfig();
+  const onlinePaymentAvailable = paymentConfig?.cashfreeEnabled ?? false;
 
   const [fulfillment, setFulfillment] = useState<Fulfillment>("DELIVERY");
   const [name, setName] = useState(link.customerName ?? "");
   const [phone, setPhone] = useState(link.customerPhone ?? "");
   const [email, setEmail] = useState("");
-  const [recipientName, setRecipientName] = useState(link.customerName ?? "");
-  const [deliveryPhone, setDeliveryPhone] = useState(link.customerPhone ?? "");
-  const [deliveryPhoneTouched, setDeliveryPhoneTouched] = useState(false);
+  const [recipientIsMe, setRecipientIsMe] = useState(true);
+  const [recipientName, setRecipientName] = useState("");
+  const [deliveryPhone, setDeliveryPhone] = useState("");
   const [isSurpriseGift, setIsSurpriseGift] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
   const [billingSameAsDelivery, setBillingSameAsDelivery] = useState(true);
   const [billLine1, setBillLine1] = useState("");
   const [billLine2, setBillLine2] = useState("");
@@ -113,11 +113,10 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
     link.suggestedSlotKey ?? PRODUCT_COPY.timeSlots[0].key,
   );
   const [notes, setNotes] = useState("");
-  const [payChoice, setPayChoice] = useState<PayChoice>("FULL");
+  const [selectedPayChoice, setPayChoice] = useState<PayChoice>("FULL");
+  const payChoice: PayChoice = onlinePaymentAvailable ? selectedPayChoice : "COD";
   const [advanceAmount, setAdvanceAmount] = useState("");
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
-  const [screenshotUploading, setScreenshotUploading] = useState(false);
+  const [redirectingToPayment, setRedirectingToPayment] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const slot = PRODUCT_COPY.timeSlots.find((s) => s.key === slotKey) ?? PRODUCT_COPY.timeSlots[0];
@@ -144,34 +143,12 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
 
   const payNowAmount =
     payChoice === "FULL" ? total : payChoice === "ADVANCE" ? Number(advanceAmount) || 0 : 0;
-  const upiUri =
-    paymentInfo?.upiId && payNowAmount > 0
-      ? buildUpiUri({
-          payeeVpa: paymentInfo.upiId,
-          payeeName: paymentInfo.payeeName,
-          amount: payNowAmount,
-          note: `Order ${link.items.map((i) => i.productName).join(", ")}`.slice(0, 50),
-          refId: link.token,
-        })
-      : null;
+
+  const hasOtherRecipient = fulfillment === "DELIVERY" && !recipientIsMe;
 
   useEffect(() => {
-    if (!screenshotFile) {
-      setScreenshotPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(screenshotFile);
-    setScreenshotPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [screenshotFile]);
-
-  useEffect(() => {
-    if (!deliveryPhoneTouched) setDeliveryPhone(phone);
-  }, [phone, deliveryPhoneTouched]);
-
-  useEffect(() => {
-    if (fulfillment === "PICKUP") setIsSurpriseGift(false);
-  }, [fulfillment]);
+    if (!hasOtherRecipient) setIsSurpriseGift(false);
+  }, [hasOtherRecipient]);
 
   useEffect(() => {
     if (fulfillment !== "DELIVERY") {
@@ -188,7 +165,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pincode, fulfillment]);
 
-  const errors = useMemo(() => {
+  const allErrors = useMemo(() => {
     const e: Record<string, string> = {};
     if (name.trim().length < 2) e.name = "Enter your name";
     if (!PHONE_RE.test(phone.trim())) e.phone = "Enter a valid phone";
@@ -206,7 +183,10 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         e.pincode = "We may still deliver here, please call or WhatsApp us to confirm";
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
-      if (!PHONE_RE.test(deliveryPhone.trim())) e.deliveryPhone = "Enter a valid delivery phone";
+      if (!recipientIsMe) {
+        if (recipientName.trim().length < 2) e.recipientName = "Enter the recipient's name";
+        if (!PHONE_RE.test(deliveryPhone.trim())) e.deliveryPhone = "Enter a valid phone";
+      }
       if (!billingSameAsDelivery) {
         if (billLine1.trim().length < 3) e.billLine1 = "Billing street address is required";
         if (!PINCODE_RE.test(billPincode)) e.billPincode = "6-digit pincode";
@@ -214,8 +194,6 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
           e.billMapSearchQuery = "Tell us what to search on Uber / Rapido";
       }
     }
-    if (payChoice !== "COD" && !screenshotFile)
-      e.screenshot = "Upload a screenshot of your payment";
     if (
       payChoice === "ADVANCE" &&
       (!advanceAmount.trim() || Number(advanceAmount) <= 0 || Number(advanceAmount) > total)
@@ -235,31 +213,34 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
     pincode,
     pincodeResult,
     mapSearchQuery,
+    recipientIsMe,
+    recipientName,
     deliveryPhone,
     billingSameAsDelivery,
     billLine1,
     billPincode,
     billMapSearchQuery,
-    screenshotFile,
     payChoice,
     advanceAmount,
     total,
   ]);
-  const isValid = Object.keys(errors).length === 0;
+  const isValid = Object.keys(allErrors).length === 0;
+  // Errors stay hidden until the first submit attempt so a fresh form isn't all red.
+  const errors: Record<string, string> = showErrors ? allErrors : {};
 
   const submit = async () => {
-    if (!isValid) return;
-    if (payChoice !== "COD" && !screenshotFile) return;
+    if (!isValid) {
+      setShowErrors(true);
+      requestAnimationFrame(() => {
+        document
+          .querySelector("[data-field-error]")
+          ?.closest("label")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
     setSubmitError(null);
     try {
-      let publicUrl: string | null = null;
-      if (screenshotFile) {
-        setScreenshotUploading(true);
-        const res = await uploadImage(screenshotFile, "payment-screenshot");
-        publicUrl = res.publicUrl;
-        setScreenshotUploading(false);
-      }
-
       const deliveryAddress =
         fulfillment === "DELIVERY"
           ? {
@@ -300,11 +281,13 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         customerGstin: isBusinessOrder ? gstin : null,
         fulfillment,
         deliveryAddress,
-        recipientName: fulfillment === "DELIVERY" ? recipientName.trim() || name.trim() : null,
-        deliveryPhone: fulfillment === "DELIVERY" ? deliveryPhone.trim() || phone.trim() : null,
+        recipientName:
+          fulfillment === "DELIVERY" ? (recipientIsMe ? name : recipientName).trim() : null,
+        deliveryPhone:
+          fulfillment === "DELIVERY" ? (recipientIsMe ? phone : deliveryPhone).trim() : null,
         billingAddress,
         billingSameAsDelivery: fulfillment === "DELIVERY" ? billingSameAsDelivery : undefined,
-        isSurpriseGift: fulfillment === "DELIVERY" ? isSurpriseGift : false,
+        isSurpriseGift: hasOtherRecipient && isSurpriseGift,
         deliveryDate: date,
         deliverySlotKey: slotKey,
         deliverySlotLabel: slot.label,
@@ -316,14 +299,33 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
             : payChoice === "COD"
               ? 0
               : undefined,
-        paymentScreenshotUrl: publicUrl,
       });
+      if (order.payment) {
+        setRedirectingToPayment(true);
+        try {
+          await payWithCashfree(order.payment);
+          return;
+        } catch {
+          setRedirectingToPayment(false);
+        }
+      }
       navigate(`/order/${order.orderNumber}/success`, { replace: true });
     } catch (err) {
-      setScreenshotUploading(false);
       setSubmitError(err instanceof Error ? err.message : "Something went wrong");
     }
   };
+
+  if (redirectingToPayment) {
+    return (
+      <section className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 text-center">
+        <span className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500/20 border-t-brand-500" />
+        <p className="mt-4 font-display text-xl text-ink-900">Taking you to secure payment…</p>
+        <p className="mt-1 text-sm text-ink-500">
+          Please don't close this window. You'll come back here once the payment is done.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-8">
@@ -365,6 +367,11 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                     Your order
                   </p>
                   <h2 className="mt-1 font-display text-xl text-ink-900">{item.productName}</h2>
+                  {item.description && (
+                    <p className="mt-1 text-sm whitespace-pre-line text-ink-700">
+                      {item.description}
+                    </p>
+                  )}
                   <dl className="mt-2 space-y-0.5 text-sm text-ink-700">
                     {item.sizeLabel && (
                       <div className="flex gap-1.5">
@@ -404,37 +411,8 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
       </div>
 
       <div className="space-y-5">
-        <Section title="Your details">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Your name" required error={errors.name}>
-              <Input value={name} onChange={setName} placeholder="Aarav Sharma" />
-            </Field>
-            <Field label="Your phone" required error={errors.phone}>
-              <Input value={phone} onChange={setPhone} placeholder="9876543210" />
-            </Field>
-            <Field
-              label="Email"
-              hint="Optional — for the receipt"
-              error={errors.email}
-              className="sm:col-span-2"
-            >
-              <Input value={email} onChange={setEmail} placeholder="you@example.com" />
-            </Field>
-            <BusinessGstFields
-              enabled={isBusinessOrder}
-              onEnabledChange={setIsBusinessOrder}
-              companyName={companyName}
-              onCompanyNameChange={setCompanyName}
-              gstin={gstin}
-              onGstinChange={setGstin}
-              companyError={errors.companyName}
-              gstinError={errors.gstin}
-            />
-          </div>
-        </Section>
-
-        <Section title="How should we get it to you?">
-          <div className="grid grid-cols-2 gap-2">
+        <Section title="How and when?">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:gap-x-4">
             <FulfillmentButton
               active={fulfillment === "DELIVERY"}
               onClick={() => setFulfillment("DELIVERY")}
@@ -445,49 +423,130 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
               onClick={() => setFulfillment("PICKUP")}
               title="Store pickup"
             />
+            <Field
+              label={fulfillment === "DELIVERY" ? "Delivery date" : "Pickup date"}
+              required
+              error={errors.date}
+            >
+              <input
+                type="date"
+                value={date}
+                min={todayIso()}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full min-w-0 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
+              />
+            </Field>
+            <Field label="Time slot" required>
+              <select
+                value={slotKey}
+                onChange={(e) => setSlotKey(e.target.value)}
+                className="w-full min-w-0 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
+              >
+                {PRODUCT_COPY.timeSlots.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                    {s.surcharge > 0 && ` (+₹${s.surcharge})`}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        </Section>
+
+        <Section title="Your details">
+          <div
+            className={cn(
+              "grid gap-5",
+              fulfillment === "DELIVERY" &&
+                "sm:grid-cols-2 sm:gap-0 sm:divide-x sm:divide-cream-200",
+            )}
+          >
+            <div
+              className={cn(
+                "grid grid-cols-2 content-start gap-x-3 gap-y-3",
+                fulfillment === "DELIVERY" && "sm:pr-5",
+              )}
+            >
+              {fulfillment === "DELIVERY" && <ColumnLabel className="col-span-2">You</ColumnLabel>}
+              <Field label="Name" required error={errors.name}>
+                <Input value={name} onChange={setName} placeholder="Aarav Sharma" />
+              </Field>
+              <Field label="Phone" required error={errors.phone}>
+                <Input value={phone} onChange={setPhone} placeholder="9876543210" inputMode="tel" />
+              </Field>
+              <Field label="Email (optional)" error={errors.email} className="col-span-2">
+                <Input
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="For the receipt"
+                  inputMode="email"
+                />
+              </Field>
+              <div className="col-span-2">
+                <BusinessGstFields
+                  enabled={isBusinessOrder}
+                  onEnabledChange={setIsBusinessOrder}
+                  companyName={companyName}
+                  onCompanyNameChange={setCompanyName}
+                  gstin={gstin}
+                  onGstinChange={setGstin}
+                  companyError={errors.companyName}
+                  gstinError={errors.gstin}
+                />
+              </div>
+            </div>
+
+            {fulfillment === "DELIVERY" && (
+              <div className="grid grid-cols-2 content-start gap-x-3 gap-y-3 border-t border-cream-200 pt-4 sm:border-t-0 sm:pt-0 sm:pl-5">
+                <ColumnLabel className="col-span-2">Recipient</ColumnLabel>
+                <div className="col-span-2">
+                  <CheckRow
+                    checked={recipientIsMe}
+                    onChange={setRecipientIsMe}
+                    title="Same as me"
+                    subtitle="Uncheck if it's for someone else"
+                  />
+                </div>
+                {!recipientIsMe && (
+                  <>
+                    <Field label="Name" required error={errors.recipientName}>
+                      <Input
+                        value={recipientName}
+                        onChange={setRecipientName}
+                        placeholder="Who receives it"
+                      />
+                    </Field>
+                    <Field label="Phone" required error={errors.deliveryPhone}>
+                      <Input
+                        value={deliveryPhone}
+                        onChange={setDeliveryPhone}
+                        placeholder="9876543210"
+                        inputMode="tel"
+                      />
+                    </Field>
+                    <div className="col-span-2">
+                      <CheckRow
+                        checked={isSurpriseGift}
+                        onChange={setIsSurpriseGift}
+                        title="Surprise gift"
+                        subtitle="We'll confirm with you only, not the recipient"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </Section>
 
         {fulfillment === "DELIVERY" && (
-          <Section title="Delivery details">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Recipient name" hint="Leave blank if it’s you">
-                <Input
-                  value={recipientName}
-                  onChange={setRecipientName}
-                  placeholder={name.trim() || "Recipient name"}
-                />
-              </Field>
-              <Field label="Delivery phone" required error={errors.deliveryPhone}>
-                <Input
-                  value={deliveryPhone}
-                  onChange={(v) => {
-                    setDeliveryPhoneTouched(true);
-                    setDeliveryPhone(v);
-                  }}
-                  placeholder={phone.trim() || "9876543210"}
-                />
-              </Field>
-              <label className="flex cursor-pointer items-start gap-2.5 sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={isSurpriseGift}
-                  onChange={(e) => setIsSurpriseGift(e.target.checked)}
-                  className="border-cream-300 text-brand-600 mt-0.5 h-4 w-4 rounded focus:ring-brand-500/20"
-                />
-                <span>
-                  <span className="text-sm font-medium text-ink-900">Surprise gift</span>
-                  <span className="mt-0.5 block text-xs text-ink-500">
-                    We’ll confirm with you only — we won’t message the recipient
-                  </span>
-                </span>
-              </label>
+          <Section title="Delivery address">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-x-4">
               <Field
                 label="Find your address"
                 required
                 error={errors.mapSearchQuery}
-                hint="Search a building, society, or nearby landmark for riders (Uber / Rapido). Flat / house details stay editable in the fields below."
-                className="sm:col-span-2"
+                className="col-span-2"
               >
                 <AddressPlacesSearch
                   value={mapSearchQuery}
@@ -499,7 +558,20 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                   }}
                 />
               </Field>
-              <Field label="Pincode" required error={errors.pincode} className="sm:col-span-2">
+              <Field label="Address line 1" required error={errors.line1} className="col-span-2">
+                <Input value={line1} onChange={setLine1} placeholder="Flat / building / street" />
+              </Field>
+              <Field label="Area (optional)">
+                <Input value={line2} onChange={setLine2} placeholder="Area / locality" />
+              </Field>
+              <Field label="Landmark (optional)">
+                <Input
+                  value={landmark}
+                  onChange={setLandmark}
+                  placeholder="Near the metro station"
+                />
+              </Field>
+              <Field label="Pincode" required error={errors.pincode} className="col-span-2">
                 <div className="flex items-center gap-3">
                   <Input
                     value={pincode}
@@ -527,46 +599,23 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                     ) : null)}
                 </div>
               </Field>
-              <Field label="Address line 1" required error={errors.line1} className="sm:col-span-2">
-                <Input value={line1} onChange={setLine1} placeholder="Flat / building / street" />
-              </Field>
-              <Field label="Address line 2" className="sm:col-span-2">
-                <Input value={line2} onChange={setLine2} placeholder="Area / locality (optional)" />
-              </Field>
-              <Field label="Landmark" hint="Helps our delivery partner find you">
-                <Input
-                  value={landmark}
-                  onChange={setLandmark}
-                  placeholder="Near the metro station"
+              <div className="col-span-2">
+                <CheckRow
+                  checked={billingSameAsDelivery}
+                  onChange={setBillingSameAsDelivery}
+                  title="Billing address is the same"
+                  subtitle="Uncheck if the invoice should go elsewhere"
                 />
-              </Field>
+              </div>
             </div>
-          </Section>
-        )}
-
-        {fulfillment === "DELIVERY" && (
-          <Section title="Billing address">
-            <label className="mb-4 flex cursor-pointer items-start gap-2.5">
-              <input
-                type="checkbox"
-                checked={billingSameAsDelivery}
-                onChange={(e) => setBillingSameAsDelivery(e.target.checked)}
-                className="border-cream-300 text-brand-600 mt-0.5 h-4 w-4 rounded focus:ring-brand-500/20"
-              />
-              <span>
-                <span className="text-sm font-medium text-ink-900">Same as delivery address</span>
-                <span className="mt-0.5 block text-xs text-ink-500">
-                  Uncheck if the invoice should go elsewhere
-                </span>
-              </span>
-            </label>
             {!billingSameAsDelivery && (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4 border-t border-cream-200 pt-4 sm:gap-x-4">
+                <ColumnLabel className="col-span-2">Billing address</ColumnLabel>
                 <Field
                   label="Find billing address"
                   required
                   error={errors.billMapSearchQuery}
-                  className="sm:col-span-2"
+                  className="col-span-2"
                 >
                   <AddressPlacesSearch
                     value={billMapSearchQuery}
@@ -579,11 +628,28 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                   />
                 </Field>
                 <Field
-                  label="Pincode"
+                  label="Address line 1"
                   required
-                  error={errors.billPincode}
-                  className="sm:col-span-2"
+                  error={errors.billLine1}
+                  className="col-span-2"
                 >
+                  <Input
+                    value={billLine1}
+                    onChange={setBillLine1}
+                    placeholder="Flat / building / street"
+                  />
+                </Field>
+                <Field label="Area (optional)">
+                  <Input value={billLine2} onChange={setBillLine2} placeholder="Area / locality" />
+                </Field>
+                <Field label="Landmark (optional)">
+                  <Input
+                    value={billLandmark}
+                    onChange={setBillLandmark}
+                    placeholder="Near the metro station"
+                  />
+                </Field>
+                <Field label="Pincode" required error={errors.billPincode}>
                   <Input
                     value={billPincode}
                     onChange={(v) => setBillPincode(v.replace(/\D/g, "").slice(0, 6))}
@@ -592,68 +658,14 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                     inputMode="numeric"
                   />
                 </Field>
-                <Field
-                  label="Address line 1"
-                  required
-                  error={errors.billLine1}
-                  className="sm:col-span-2"
-                >
-                  <Input
-                    value={billLine1}
-                    onChange={setBillLine1}
-                    placeholder="Flat / building / street"
-                  />
-                </Field>
-                <Field label="Address line 2" className="sm:col-span-2">
-                  <Input
-                    value={billLine2}
-                    onChange={setBillLine2}
-                    placeholder="Area / locality (optional)"
-                  />
-                </Field>
-                <Field label="Landmark">
-                  <Input
-                    value={billLandmark}
-                    onChange={setBillLandmark}
-                    placeholder="Near the metro station"
-                  />
-                </Field>
               </div>
             )}
           </Section>
         )}
 
-        <Section title="When?">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Date" required error={errors.date}>
-              <input
-                type="date"
-                value={date}
-                min={todayIso()}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
-              />
-            </Field>
-            <Field label="Time slot" required>
-              <select
-                value={slotKey}
-                onChange={(e) => setSlotKey(e.target.value)}
-                className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
-              >
-                {PRODUCT_COPY.timeSlots.map((s) => (
-                  <option key={s.key} value={s.key}>
-                    {s.label}
-                    {s.surcharge > 0 && ` (+₹${s.surcharge})`}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-        </Section>
-
         <Section title="Anything else?" subtitle="Optional notes for the kitchen or delivery team">
           <textarea
-            rows={3}
+            rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Please call before arriving…"
@@ -661,8 +673,15 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
           />
         </Section>
 
-        <Section title="Payment" subtitle="Pay now via UPI, or pay when your order arrives.">
-          <div className="grid grid-cols-3 gap-2">
+        <Section
+          title="Payment"
+          subtitle={
+            onlinePaymentAvailable
+              ? "Pay now securely online, or pay when your order arrives."
+              : "Pay when your order is delivered or picked up."
+          }
+        >
+          <div className={cn("grid grid-cols-3 gap-2", !onlinePaymentAvailable && "hidden")}>
             <FulfillmentButton
               active={payChoice === "FULL"}
               onClick={() => setPayChoice("FULL")}
@@ -702,53 +721,10 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
               Pay the full amount in cash or UPI when your order is delivered or picked up.
             </p>
           ) : (
-            <>
-              {upiUri ? (
-                <div className="mt-4 flex flex-col items-center gap-3 rounded-lg border border-cream-200 bg-cream-50 p-4 text-center">
-                  <UpiQrCode uri={upiUri} />
-                  <p className="text-sm font-medium text-ink-900">
-                    Pay ₹{payNowAmount.toFixed(2)} to{" "}
-                    <span className="text-brand-700">{paymentInfo?.upiId}</span>
-                  </p>
-                  <a
-                    href={upiUri}
-                    className="w-full rounded-full bg-brand-500 py-2.5 text-center text-sm font-medium text-white transition hover:bg-brand-700"
-                  >
-                    Pay with UPI app
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      paymentInfo?.upiId && navigator.clipboard.writeText(paymentInfo.upiId)
-                    }
-                    className="text-xs text-ink-500 hover:text-brand-700 hover:underline"
-                  >
-                    Copy UPI ID
-                  </button>
-                </div>
-              ) : (
-                <p className="mt-4 rounded-md bg-cream-50 px-3 py-2 text-xs text-ink-500">
-                  Please transfer ₹{payNowAmount.toFixed(2)} via UPI/bank transfer as instructed,
-                  then upload the screenshot below.
-                </p>
-              )}
-
-              <Field label="Payment screenshot" required error={errors.screenshot} className="mt-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setScreenshotFile(e.target.files?.[0] ?? null)}
-                  className="block w-full text-xs text-ink-700 file:mr-3 file:rounded-md file:border-0 file:bg-cream-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink-700"
-                />
-                {screenshotPreview && (
-                  <img
-                    src={screenshotPreview}
-                    alt="Payment screenshot preview"
-                    className="mt-2 h-32 w-32 rounded-md border border-cream-200 object-cover"
-                  />
-                )}
-              </Field>
-            </>
+            <p className="mt-4 rounded-md bg-cream-50 px-3 py-2 text-xs text-ink-500">
+              After confirming, you'll be taken to Cashfree's secure page to pay
+              {payNowAmount > 0 ? ` ₹${payNowAmount.toFixed(2)}` : ""} by UPI, card or netbanking.
+            </p>
           )}
         </Section>
 
@@ -799,13 +775,13 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
           <button
             type="button"
             onClick={submit}
-            disabled={!isValid || place.isPending || screenshotUploading}
+            disabled={place.isPending}
             className="mt-4 block w-full rounded-full bg-brand-500 py-3 text-center text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {screenshotUploading
-              ? "Uploading screenshot…"
-              : place.isPending
-                ? "Placing order…"
+            {place.isPending
+              ? "Placing order…"
+              : payChoice !== "COD" && payNowAmount > 0
+                ? `Pay ₹${payNowAmount.toFixed(2)} securely`
                 : "Confirm order"}
           </button>
           <p className="mt-2 text-center text-[11px] text-ink-500">
@@ -835,6 +811,41 @@ function Section({
   );
 }
 
+function ColumnLabel({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <p className={cn("text-[11px] font-semibold tracking-wider text-ink-500 uppercase", className)}>
+      {children}
+    </p>
+  );
+}
+
+function CheckRow({
+  checked,
+  onChange,
+  title,
+  subtitle,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="border-cream-300 text-brand-600 mt-0.5 h-4 w-4 shrink-0 rounded focus:ring-brand-500/20"
+      />
+      <span>
+        <span className="text-sm font-medium text-ink-900">{title}</span>
+        {subtitle && <span className="mt-0.5 block text-xs text-ink-500">{subtitle}</span>}
+      </span>
+    </label>
+  );
+}
+
 function Field({
   label,
   hint,
@@ -851,14 +862,17 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className={cn("block", className)}>
+    <label className={cn("block min-w-0", className)}>
       <span className="mb-1 flex items-center gap-1 text-xs font-medium text-ink-700">
         {label}
         {required && <span className="text-brand-500">*</span>}
       </span>
       {children}
       {(hint || error) && (
-        <span className={cn("mt-1 block text-[11px]", error ? "text-brand-700" : "text-ink-500")}>
+        <span
+          data-field-error={error ? true : undefined}
+          className={cn("mt-1 block text-[11px]", error ? "text-brand-700" : "text-ink-500")}
+        >
           {error ?? hint}
         </span>
       )}

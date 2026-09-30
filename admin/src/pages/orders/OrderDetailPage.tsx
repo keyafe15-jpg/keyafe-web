@@ -18,15 +18,26 @@ import {
   useDownloadChallan,
   useDownloadInvoice,
   useEmailInvoice,
+  useRefreshPayment,
   useUpdateOrder,
   type AdminOrder,
+  type PaymentAttemptStatus,
   type InvoiceEmailResult,
   type OrderStatus,
   type PaymentStatus,
 } from "@/hooks/useAdminOrders";
 import { stateNameFromCode } from "@/lib/indiaStates";
 import { orderGstOnTop } from "@keyafe/shared";
-import { StatusPill, STATUS_FLOW, SurpriseGiftBadge } from "@/pages/orders/order-ui";
+import {
+  AwaitingPaymentBadge,
+  isAwaitingOnlinePayment,
+  OFFLINE_PAYMENT_METHODS,
+  paymentMethodLabel,
+  paymentPlanLabel,
+  StatusPill,
+  STATUS_FLOW,
+  SurpriseGiftBadge,
+} from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
 import { textareaClass, inputClass, selectClass } from "@/components/form/Field";
 import { uploadImage } from "@/lib/uploads";
@@ -201,6 +212,11 @@ export function OrderDetailPage() {
                     <p className="text-xs text-slate-500">
                       {[it.sizeLabel, it.flavourName].filter(Boolean).join(" · ")}
                     </p>
+                    {it.description && (
+                      <p className="mt-0.5 text-xs whitespace-pre-line text-slate-700">
+                        {it.description}
+                      </p>
+                    )}
                     {it.messageOnCake && (
                       <p className="text-xs text-slate-600 italic">Message: "{it.messageOnCake}"</p>
                     )}
@@ -294,7 +310,8 @@ export function OrderDetailPage() {
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-slate-500">
-                Payment: {order.paymentMethod.toUpperCase()} · {order.paymentStatus}
+                Payment: {paymentMethodLabel(order.paymentMethod)} ·{" "}
+                {isAwaitingOnlinePayment(order) ? "Awaiting online payment" : order.paymentStatus}
               </p>
               {Number(order.advanceAmount) > 0 && (
                 <>
@@ -472,12 +489,45 @@ export function OrderDetailPage() {
 
           <Card title="Payment">
             <p className="text-sm text-slate-900">
-              {order.paymentMethod.toUpperCase()} ·{" "}
-              {order.paymentMode === "ADVANCE" ? "Advance" : "Full"}
+              {order.paymentMethod === "cashfree"
+                ? "Online (Cashfree)"
+                : paymentMethodLabel(order.paymentMethod)}{" "}
+              · {paymentPlanLabel(order)}
             </p>
-            <div className="mt-1">
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <PaymentPill status={order.paymentStatus} />
+              {isAwaitingOnlinePayment(order) && <AwaitingPaymentBadge />}
             </div>
+            {(order.paymentMethod === "cashfree" || (order.paymentAttempts?.length ?? 0) > 0) && (
+              <OnlinePaymentPanel order={order} canRefresh={canUpdate} />
+            )}
+            {order.paymentMethod !== "cashfree" && (
+              <div className="mt-3">
+                <p className="mb-1.5 text-xs font-medium text-slate-700">
+                  Payment mode
+                  <span className="ml-1 font-normal text-slate-400">· for your records</span>
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {OFFLINE_PAYMENT_METHODS.map((m) => (
+                    <button
+                      key={m.value}
+                      type="button"
+                      aria-pressed={order.paymentMethod === m.value}
+                      onClick={() => update.mutate({ id: order.id, paymentMethod: m.value })}
+                      disabled={update.isPending || order.paymentMethod === m.value}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-medium transition disabled:cursor-default",
+                        order.paymentMethod === m.value
+                          ? "border-brand-500 bg-brand-500 text-white"
+                          : "hover:border-brand-300 border-slate-200 bg-white text-slate-700 disabled:opacity-50",
+                      )}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="mt-3 flex flex-wrap gap-1.5">
               {(["PENDING", "PARTIAL", "PAID", "FAILED", "REFUNDED"] as PaymentStatus[])
                 .filter((s) => s !== order.paymentStatus)
@@ -494,7 +544,7 @@ export function OrderDetailPage() {
             </div>
 
             <div className="mt-4 border-t border-slate-100 pt-3">
-              <label className="text-xs font-medium text-slate-700">Advance amount</label>
+              <label className="text-xs font-medium text-slate-700">Amount received</label>
               <div className="mt-1 flex items-center gap-2">
                 <input
                   inputMode="decimal"
@@ -527,37 +577,41 @@ export function OrderDetailPage() {
               </p>
             </div>
 
-            <div className="mt-4 border-t border-slate-100 pt-3">
-              <label className="text-xs font-medium text-slate-700">Payment screenshot</label>
-              {order.paymentScreenshotUrl && (
-                <a
-                  href={order.paymentScreenshotUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 block"
-                >
-                  <img
-                    src={order.paymentScreenshotUrl}
-                    alt="Payment proof"
-                    className="h-32 w-32 rounded-md border border-slate-200 object-cover"
-                  />
-                </a>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                disabled={screenshotUploading}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void uploadScreenshot(file);
-                }}
-                className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
-              />
-              {screenshotUploading && <p className="mt-1 text-[11px] text-slate-500">Uploading…</p>}
-              {screenshotError && (
-                <p className="mt-1 text-[11px] text-red-700">{screenshotError}</p>
-              )}
-            </div>
+            {order.paymentMethod !== "cashfree" && (
+              <div className="mt-4 border-t border-slate-100 pt-3">
+                <label className="text-xs font-medium text-slate-700">Payment screenshot</label>
+                {order.paymentScreenshotUrl && (
+                  <a
+                    href={order.paymentScreenshotUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 block"
+                  >
+                    <img
+                      src={order.paymentScreenshotUrl}
+                      alt="Payment proof"
+                      className="h-32 w-32 rounded-md border border-slate-200 object-cover"
+                    />
+                  </a>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={screenshotUploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadScreenshot(file);
+                  }}
+                  className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+                />
+                {screenshotUploading && (
+                  <p className="mt-1 text-[11px] text-slate-500">Uploading…</p>
+                )}
+                {screenshotError && (
+                  <p className="mt-1 text-[11px] text-red-700">{screenshotError}</p>
+                )}
+              </div>
+            )}
           </Card>
         </aside>
       </div>
@@ -1037,6 +1091,78 @@ function PaymentPill({ status }: { status: PaymentStatus }) {
     <span className={cn("inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium", map[status])}>
       {status}
     </span>
+  );
+}
+
+const ATTEMPT_LABEL: Record<PaymentAttemptStatus, { label: string; className: string }> = {
+  CREATED: { label: "Open", className: "text-slate-600" },
+  SUCCESS: { label: "Paid", className: "text-emerald-700" },
+  FAILED: { label: "Failed", className: "text-red-700" },
+  USER_DROPPED: { label: "Abandoned", className: "text-amber-700" },
+  EXPIRED: { label: "Closed", className: "text-slate-400" },
+};
+
+function OnlinePaymentPanel({ order, canRefresh }: { order: AdminOrder; canRefresh: boolean }) {
+  const refresh = useRefreshPayment();
+  const attempts = order.paymentAttempts ?? [];
+  const paid = attempts.find((a) => a.status === "SUCCESS");
+
+  return (
+    <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-2.5 text-xs">
+      {order.paidAt && (
+        <p className="text-slate-700">
+          Paid on{" "}
+          {new Date(order.paidAt).toLocaleString("en-IN", {
+            day: "numeric",
+            month: "short",
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </p>
+      )}
+      {paid?.gatewayPaymentId && (
+        <p className="mt-0.5 text-slate-500">
+          Cashfree payment ID{" "}
+          <span className="font-mono text-slate-700 select-all">{paid.gatewayPaymentId}</span>
+          {paid.paymentGroup && ` · ${paid.paymentGroup.replace(/_/g, " ")}`}
+        </p>
+      )}
+      {attempts.length > 0 && (
+        <ul className="mt-2 space-y-0.5">
+          {attempts.map((a) => (
+            <li key={a.id} className="flex items-center justify-between gap-2">
+              <span className="truncate font-mono text-[11px] text-slate-500">
+                {a.gatewayOrderId}
+              </span>
+              <span className="shrink-0 tabular-nums">
+                ₹{Number(a.amount).toFixed(0)} ·{" "}
+                <span className={ATTEMPT_LABEL[a.status].className}>
+                  {ATTEMPT_LABEL[a.status].label}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {attempts.length === 0 && !order.paidAt && (
+        <p className="text-slate-500">The customer hasn't opened the payment page yet.</p>
+      )}
+      {canRefresh && !order.paidAt && attempts.length > 0 && (
+        <button
+          type="button"
+          onClick={() => refresh.mutate({ id: order.id, orderNumber: order.orderNumber })}
+          disabled={refresh.isPending}
+          className="mt-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700 disabled:opacity-50"
+        >
+          {refresh.isPending ? "Checking with Cashfree…" : "Refresh payment status"}
+        </button>
+      )}
+      {refresh.error && (
+        <p className="mt-1 text-[11px] text-red-700">
+          {refresh.error instanceof Error ? refresh.error.message : "Couldn't reach Cashfree"}
+        </p>
+      )}
+    </div>
   );
 }
 

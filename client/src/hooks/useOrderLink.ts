@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Order } from "./useOrders";
+import type { PaymentSession } from "./usePayments";
 
 export type OrderLinkKind = "CUSTOM" | "CATALOG";
 export type OrderLinkStatus = "OPEN" | "ORDERED" | "EXPIRED" | "CANCELLED";
@@ -16,6 +17,7 @@ export interface PublicOrderLinkItem {
   flavourName: string | null;
   referenceImageUrl: string | null;
   messageHint: string | null;
+  description: string | null;
   unitPrice: string;
   qty: number;
   /** Null for custom items, which are always priced inclusive of GST. */
@@ -78,12 +80,12 @@ export interface PlaceOrderLinkPayload {
   deliverySlotLabel: string;
   customerNotes?: string | null;
 
-  // How much is being paid now, and proof of the transfer. Both are absent
-  // for COD (advanceAmount: 0, paymentScreenshotUrl: null).
+  // How much is being paid now online. COD sends ADVANCE with advanceAmount: 0.
   paymentMode: "FULL" | "ADVANCE";
   advanceAmount?: number;
-  paymentScreenshotUrl: string | null;
 }
+
+export type PlacedOrderLinkOrder = Order & { payment: PaymentSession | null };
 
 export interface UsePlaceOrderLinkArgs {
   token: string;
@@ -92,6 +94,6 @@ export interface UsePlaceOrderLinkArgs {
 export function usePlaceOrderLink({ token }: UsePlaceOrderLinkArgs) {
   return useMutation({
     mutationFn: (input: PlaceOrderLinkPayload) =>
-      api.post<Order>(`/order-links/${token}/place`, input),
+      api.post<PlacedOrderLinkOrder>(`/order-links/${token}/place`, input),
   });
 }

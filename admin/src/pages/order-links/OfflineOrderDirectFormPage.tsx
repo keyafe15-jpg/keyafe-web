@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Hourglass, ImagePlus, Store, Truck, Wallet, X } from "lucide-react";
+import { ArrowLeft, HandCoins, Hourglass, ImagePlus, Store, Truck, Wallet, X } from "lucide-react";
+import { OFFLINE_PAYMENT_METHODS, type OfflinePaymentMethod } from "@/pages/orders/order-ui";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
 import { TIME_SLOTS } from "@/content/slots";
 import { api } from "@/lib/api";
@@ -41,8 +42,7 @@ interface PincodeInfo {
 
 function todayIso(): string {
   const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function OfflineOrderDirectFormPage() {
@@ -57,9 +57,9 @@ export function OfflineOrderDirectFormPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
+  const [recipientIsCustomer, setRecipientIsCustomer] = useState(true);
   const [recipientName, setRecipientName] = useState("");
   const [deliveryPhone, setDeliveryPhone] = useState("");
-  const [deliveryPhoneTouched, setDeliveryPhoneTouched] = useState(false);
   const [isSurpriseGift, setIsSurpriseGift] = useState(false);
   const [billingSameAsDelivery, setBillingSameAsDelivery] = useState(true);
   const [billLine1, setBillLine1] = useState("");
@@ -86,8 +86,9 @@ export function OfflineOrderDirectFormPage() {
 
   const [customerNotes, setCustomerNotes] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
-  const [paymentMode, setPaymentMode] = useState<"FULL" | "ADVANCE">("FULL");
+  const [paymentPlan, setPaymentPlan] = useState<"FULL" | "ADVANCE" | "ON_DELIVERY">("FULL");
   const [advanceAmount, setAdvanceAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<OfflinePaymentMethod | null>(null);
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,13 +114,11 @@ export function OfflineOrderDirectFormPage() {
     setPincodeError(null);
   }, [pincode]);
 
-  useEffect(() => {
-    if (!deliveryPhoneTouched) setDeliveryPhone(customerPhone);
-  }, [customerPhone, deliveryPhoneTouched]);
+  const hasOtherRecipient = fulfillment === "DELIVERY" && !recipientIsCustomer;
 
   useEffect(() => {
-    if (fulfillment === "PICKUP") setIsSurpriseGift(false);
-  }, [fulfillment]);
+    if (!hasOtherRecipient) setIsSurpriseGift(false);
+  }, [hasOtherRecipient]);
 
   useEffect(() => {
     if (fulfillment !== "DELIVERY") return;
@@ -178,12 +177,16 @@ export function OfflineOrderDirectFormPage() {
   const grandTotal = subtotal - discount + deliveryFee + gstOnTop;
 
   const advanceValid =
-    paymentMode === "FULL" ||
+    paymentPlan !== "ADVANCE" ||
     (advanceAmount.trim() !== "" &&
       Number(advanceAmount) > 0 &&
       Number(advanceAmount) <= grandTotal);
   const pendingAmount =
-    paymentMode === "FULL" ? 0 : Math.max(grandTotal - (Number(advanceAmount) || 0), 0);
+    paymentPlan === "FULL"
+      ? 0
+      : paymentPlan === "ON_DELIVERY"
+        ? grandTotal
+        : Math.max(grandTotal - (Number(advanceAmount) || 0), 0);
 
   const addressValid =
     fulfillment === "PICKUP" ||
@@ -191,7 +194,8 @@ export function OfflineOrderDirectFormPage() {
       mapSearchQuery.trim().length >= 3 &&
       /^\d{6}$/.test(pincode) &&
       pincodeInfo?.serviceable === true &&
-      /^[0-9+\-\s]{7,15}$/.test(deliveryPhone.trim()) &&
+      (recipientIsCustomer ||
+        (recipientName.trim().length >= 2 && /^[0-9+\-\s]{7,15}$/.test(deliveryPhone.trim()))) &&
       (billingSameAsDelivery ||
         (billLine1.trim().length >= 3 &&
           billMapSearchQuery.trim().length >= 3 &&
@@ -263,9 +267,13 @@ export function OfflineOrderDirectFormPage() {
               }
             : null,
         recipientName:
-          fulfillment === "DELIVERY" ? recipientName.trim() || customerName.trim() : null,
+          fulfillment === "DELIVERY"
+            ? (recipientIsCustomer ? customerName : recipientName).trim()
+            : null,
         deliveryPhone:
-          fulfillment === "DELIVERY" ? deliveryPhone.trim() || customerPhone.trim() : null,
+          fulfillment === "DELIVERY"
+            ? (recipientIsCustomer ? customerPhone : deliveryPhone).trim()
+            : null,
         billingAddress:
           fulfillment === "DELIVERY" && !billingSameAsDelivery
             ? {
@@ -281,15 +289,21 @@ export function OfflineOrderDirectFormPage() {
               }
             : null,
         billingSameAsDelivery: fulfillment === "DELIVERY" ? billingSameAsDelivery : undefined,
-        isSurpriseGift: fulfillment === "DELIVERY" ? isSurpriseGift : false,
+        isSurpriseGift: hasOtherRecipient && isSurpriseGift,
         deliveryDate,
         deliverySlotKey: slot.key,
         deliverySlotLabel: slot.label,
 
         customerNotes: customerNotes.trim() || null,
         adminNotes: adminNotes.trim() || null,
-        paymentMode,
-        advanceAmount: paymentMode === "ADVANCE" ? Number(advanceAmount) || 0 : undefined,
+        paymentMode: paymentPlan === "FULL" ? ("FULL" as const) : ("ADVANCE" as const),
+        advanceAmount:
+          paymentPlan === "ADVANCE"
+            ? Number(advanceAmount) || 0
+            : paymentPlan === "ON_DELIVERY"
+              ? 0
+              : undefined,
+        paymentMethod: paymentMethod ?? undefined,
         paymentScreenshotUrl,
         discountType: discount > 0 ? discountType : null,
         discountValue: discount > 0 ? Number(discountValue) : null,
@@ -392,6 +406,44 @@ export function OfflineOrderDirectFormPage() {
                   </Field>
                 </>
               )}
+
+              {fulfillment === "DELIVERY" && (
+                <>
+                  <CheckboxRow
+                    checked={recipientIsCustomer}
+                    onChange={setRecipientIsCustomer}
+                    title="Recipient is the customer"
+                    subtitle="Uncheck to deliver to someone else"
+                  />
+                  {!recipientIsCustomer && (
+                    <>
+                      <Field label="Recipient name" required>
+                        <input
+                          value={recipientName}
+                          onChange={(e) => setRecipientName(e.target.value)}
+                          placeholder="Who receives it"
+                          className={inputClass}
+                        />
+                      </Field>
+                      <Field label="Recipient phone" required>
+                        <input
+                          type="tel"
+                          value={deliveryPhone}
+                          onChange={(e) => setDeliveryPhone(e.target.value)}
+                          placeholder="9876543210"
+                          className={inputClass}
+                        />
+                      </Field>
+                      <CheckboxRow
+                        checked={isSurpriseGift}
+                        onChange={setIsSurpriseGift}
+                        title="Surprise gift"
+                        subtitle="Contact the buyer only, not the recipient"
+                      />
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </Section>
 
@@ -439,32 +491,6 @@ export function OfflineOrderDirectFormPage() {
 
               {fulfillment === "DELIVERY" && (
                 <>
-                  <Field label="Recipient">
-                    <input
-                      value={recipientName}
-                      onChange={(e) => setRecipientName(e.target.value)}
-                      placeholder={customerName.trim() || "Same as buyer"}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Delivery phone" required>
-                    <input
-                      type="tel"
-                      value={deliveryPhone}
-                      onChange={(e) => {
-                        setDeliveryPhoneTouched(true);
-                        setDeliveryPhone(e.target.value);
-                      }}
-                      placeholder={customerPhone.trim() || "9876543210"}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <CheckboxRow
-                    checked={isSurpriseGift}
-                    onChange={setIsSurpriseGift}
-                    title="Surprise gift"
-                    subtitle="Contact the buyer only, not the recipient"
-                  />
                   <Field label="Search address" required className="col-span-2">
                     <AddressPlacesSearch
                       value={mapSearchQuery}
@@ -597,25 +623,62 @@ export function OfflineOrderDirectFormPage() {
           </Section>
 
           <Section title="Payment">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <ToggleButton
-                active={paymentMode === "FULL"}
-                onClick={() => setPaymentMode("FULL")}
+                active={paymentPlan === "FULL"}
+                onClick={() => setPaymentPlan("FULL")}
                 icon={<Wallet className="h-4 w-4" />}
                 title="Full payment"
-                subtitle="Entire total collected now"
+                subtitle="All collected now"
               />
               <ToggleButton
-                active={paymentMode === "ADVANCE"}
-                onClick={() => setPaymentMode("ADVANCE")}
+                active={paymentPlan === "ADVANCE"}
+                onClick={() => setPaymentPlan("ADVANCE")}
                 icon={<Hourglass className="h-4 w-4" />}
                 title="Advance"
                 subtitle="Rest stays pending"
               />
+              <ToggleButton
+                active={paymentPlan === "ON_DELIVERY"}
+                onClick={() => setPaymentPlan("ON_DELIVERY")}
+                icon={<HandCoins className="h-4 w-4" />}
+                title="Pay on delivery"
+                subtitle="Collect later"
+              />
+            </div>
+
+            <div className="mt-3">
+              <p className="mb-1.5 text-xs font-medium text-slate-700">
+                {paymentPlan === "ON_DELIVERY" ? "Expected payment mode" : "Payment mode"}
+                <span className="ml-1 font-normal text-slate-400">· for your records</span>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {OFFLINE_PAYMENT_METHODS.map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    aria-pressed={paymentMethod === m.value}
+                    onClick={() => setPaymentMethod((cur) => (cur === m.value ? null : m.value))}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs font-medium transition",
+                      paymentMethod === m.value
+                        ? "border-brand-500 bg-brand-500 text-white"
+                        : "hover:border-brand-300 border-slate-200 bg-white text-slate-700",
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              {paymentPlan === "ON_DELIVERY" && (
+                <p className="mt-1.5 text-[11px] text-slate-500">
+                  Record the payment from the order page when it comes in, even weeks later.
+                </p>
+              )}
             </div>
 
             <div className={cn(pairGrid, "mt-3")}>
-              {paymentMode === "ADVANCE" && (
+              {paymentPlan === "ADVANCE" && (
                 <Field
                   label="Advance amount"
                   required
@@ -762,7 +825,15 @@ export function OfflineOrderDirectFormPage() {
                 <span>Total</span>
                 <span className="tabular-nums">₹{grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}</span>
               </div>
-              {paymentMode === "ADVANCE" && Number(advanceAmount) > 0 && (
+              {paymentPlan === "ON_DELIVERY" && (
+                <div className="flex justify-between font-medium text-amber-700">
+                  <span>Due on delivery</span>
+                  <span className="tabular-nums">
+                    ₹{pendingAmount.toFixed(gstOnTop > 0 ? 2 : 0)}
+                  </span>
+                </div>
+              )}
+              {paymentPlan === "ADVANCE" && Number(advanceAmount) > 0 && (
                 <>
                   <div className="flex justify-between text-emerald-700">
                     <span>Advance</span>

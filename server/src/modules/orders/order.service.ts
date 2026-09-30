@@ -3,11 +3,9 @@ import { customAlphabet } from "nanoid";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { checkPincode } from "../delivery/delivery.service.js";
-import { sendEmail } from "../email/email.service.js";
-import { renderAdminNotification, renderCustomerConfirmation } from "../email/templates.js";
-import { logger } from "../../utils/logger.js";
-import { emitNewOrder } from "../../lib/events.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
+import { cashfreeEnabled } from "../payments/cashfree.client.js";
+import { notifyOrderPlaced } from "./order.notify.js";
 import {
   discountedLineInclusives,
   getPublicFreeDelivery,
@@ -24,7 +22,6 @@ import {
   sumLineTax,
 } from "./order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
-import { invoiceAttachmentIfPaid } from "./invoice.service.js";
 import { giftBillingFieldsSchema, orderAddressSchema, resolveGiftBilling } from "./order.gift.js";
 
 const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
@@ -59,7 +56,7 @@ export const createOrderSchema = z.object({
   ...giftBillingFieldsSchema.shape,
 
   customerNotes: z.string().trim().max(500).optional().nullable(),
-  paymentMethod: z.enum(["cod", "upi", "razorpay"]).default("cod"),
+  paymentMethod: z.enum(["cod", "cashfree"]).default("cod"),
 
   items: z.array(itemSchema).min(1, "Add at least one item to the cart"),
   couponCode: z.string().trim().max(24).optional().nullable(),
@@ -76,6 +73,11 @@ export function buildOrderNumber(): string {
 }
 
 export async function createOrder(input: CreateOrderInput) {
+  if (input.paymentMethod === "cashfree" && !cashfreeEnabled()) {
+    throw HttpError.badRequest(
+      "Online payment isn't available right now. Please choose cash on delivery.",
+    );
+  }
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
     throw HttpError.badRequest("Delivery address is required for delivery orders");
   }
@@ -314,56 +316,11 @@ export async function createOrder(input: CreateOrderInput) {
     return order;
   });
 
-  // Fire-and-forget notifications. Failures are logged but never fail the order.
-  void sendOrderEmails(created).catch((err) => {
-    logger.error({ err, orderId: created.id }, "order email dispatch failed");
-  });
-
-  emitNewOrder({
-    id: created.id,
-    orderNumber: created.orderNumber,
-    customerName: created.customerName,
-    total: created.total.toString(),
-    source: "STOREFRONT",
-    itemCount: created.items.length,
-    createdAt: created.createdAt.toISOString(),
-  });
+  // Online orders stay quiet until the gateway confirms payment (see
+  // payments/reconcilePayment); abandoned checkouts never reach the kitchen.
+  if (created.paymentMethod !== "cashfree") notifyOrderPlaced(created);
 
   return created;
-}
-
-async function sendOrderEmails(order: Awaited<ReturnType<typeof createOrder>>) {
-  const settings = await prisma.businessSettings.findFirst({
-    select: {
-      supportEmail: true,
-      orderNotificationEmail: true,
-    },
-  });
-  const adminRecipient = settings?.orderNotificationEmail || settings?.supportEmail;
-
-  if (order.customerEmail) {
-    const { subject, html } = renderCustomerConfirmation(order);
-    // Paid orders get the tax invoice attached straight away, the way other
-    // stores do. Unpaid ones are invoiced later from the admin order page.
-    const invoice = await invoiceAttachmentIfPaid(order);
-    void sendEmail({
-      to: order.customerEmail,
-      subject,
-      html,
-      replyTo: adminRecipient ?? undefined,
-      ...(invoice ? { attachments: [invoice] } : {}),
-    });
-  }
-
-  if (adminRecipient) {
-    const { subject, html } = renderAdminNotification(order);
-    void sendEmail({
-      to: adminRecipient,
-      subject,
-      html,
-      replyTo: order.customerEmail ?? undefined,
-    });
-  }
 }
 
 export async function getOrderById(id: string) {

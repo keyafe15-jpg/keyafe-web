@@ -30,6 +30,8 @@ export interface AdminOrderListItem {
   paymentMode: PaymentMode;
   advanceAmount: string;
   paymentScreenshotUrl: string | null;
+  /** Set once an online (Cashfree) payment is confirmed. */
+  paidAt: string | null;
   source: OrderSource;
   createdAt: string;
   itemCount: number;
@@ -47,6 +49,7 @@ export interface AdminOrderListItem {
     qty: number;
     messageOnCake: string | null;
     instructions: string | null;
+    description: string | null;
     referenceImageUrl: string | null;
     deliveryDate: string | null;
     deliverySlotKey: string | null;
@@ -66,6 +69,7 @@ export interface AdminOrderItem {
   flavourName: string | null;
   messageOnCake: string | null;
   instructions: string | null;
+  description: string | null;
   referenceImageUrl: string | null;
   deliveryDate: string | null;
   deliverySlotKey: string | null;
@@ -82,9 +86,23 @@ export interface AdminOrderItem {
   igstAmount: string;
 }
 
+export type PaymentAttemptStatus = "CREATED" | "SUCCESS" | "FAILED" | "USER_DROPPED" | "EXPIRED";
+
+export interface AdminPaymentAttempt {
+  id: string;
+  gatewayOrderId: string;
+  amount: string;
+  status: PaymentAttemptStatus;
+  gatewayPaymentId: string | null;
+  paymentGroup: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // `items` is omitted because the detail endpoint returns the full
 // AdminOrderItem shape, not the trimmed one the list endpoint sends.
 export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
+  paymentAttempts?: AdminPaymentAttempt[];
   discount: string;
   couponCode: string | null;
   taxableAmount: string;
@@ -208,11 +226,27 @@ export function useAdminOrder(idOrNumber: string | undefined) {
   });
 }
 
+export function useRefreshPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (order: { id: string; orderNumber: string }) =>
+      api.post<{ state: "PAID" | "PENDING" | "FAILED" | "NOT_ONLINE" }>(
+        `/admin/payments/orders/${order.id}/refresh`,
+      ),
+    onSuccess: (_data, order) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "order", order.id] });
+      void qc.invalidateQueries({ queryKey: ["admin", "order", order.orderNumber] });
+    },
+  });
+}
+
 export interface UpdateOrderPayload {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
   paymentMode?: PaymentMode;
   advanceAmount?: number;
+  paymentMethod?: "cash" | "upi" | "netbanking";
   paymentScreenshotUrl?: string | null;
   adminNotes?: string | null;
   items?: {
@@ -248,6 +282,7 @@ export interface EditOrderItemPayload {
   flavourName?: string | null;
   messageOnCake?: string | null;
   instructions?: string | null;
+  description?: string | null;
   referenceImageUrl?: string | null;
   unitPrice: number;
   qty: number;

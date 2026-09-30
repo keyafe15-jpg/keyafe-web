@@ -68,6 +68,10 @@ export function mergeInstructions(
   return composedPrefix || trimmed || null;
 }
 
+function customDescription(item: OrderItemDraft): string | null {
+  return item.kind === "CUSTOM" ? item.description.trim() || null : null;
+}
+
 export function validateOrderItems(items: OrderItemDraft[]): boolean {
   return items.every(
     (it) =>
@@ -107,6 +111,7 @@ export function toOrderLinkItemPayload(
     flavourName: resolveFlavourName(item, flavours),
     referenceImageUrl,
     messageHint,
+    description: customDescription(item),
     unitPrice: Number(item.unitPrice),
     qty: Number(item.qty) || 1,
   };
@@ -132,6 +137,7 @@ export function toOfflineOrderItemPayload(
     referenceImageUrl,
     messageOnCake: item.messageOnCake.trim() || null,
     instructions: mergeInstructions(lineNotes, item.instructions),
+    description: customDescription(item),
     unitPrice: Number(item.unitPrice),
     qty: Number(item.qty) || 1,
   };

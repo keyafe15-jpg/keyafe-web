@@ -1,7 +1,17 @@
 import { Link } from "react-router-dom";
 import { Truck, Store, Phone, ImageOff, Building2 } from "lucide-react";
 import { useUpdateOrder, type AdminOrderListItem } from "@/hooks/useAdminOrders";
-import { nextStatus, nextStatusLabel, orderContactPhone, SourceBadge, StatusPill, SurpriseGiftBadge } from "@/pages/orders/order-ui";
+import {
+  AwaitingPaymentBadge,
+  isAwaitingOnlinePayment,
+  nextStatus,
+  nextStatusLabel,
+  orderContactPhone,
+  paymentMethodLabel,
+  SourceBadge,
+  StatusPill,
+  SurpriseGiftBadge,
+} from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
 
 interface OrderBoardCardProps {
@@ -41,6 +51,7 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
               </span>
               <StatusPill status={order.status} />
               {order.isSurpriseGift && <SurpriseGiftBadge compact />}
+              {isAwaitingOnlinePayment(order) && <AwaitingPaymentBadge />}
             </div>
             {order.earliestDelivery ? (
               <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -88,6 +99,11 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
                         {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
                       </p>
                     )}
+                    {item.description && (
+                      <p className="mt-0.5 text-xs whitespace-pre-line text-slate-700">
+                        {item.description}
+                      </p>
+                    )}
                     {item.messageOnCake && (
                       <p className="mt-1 rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">
                         Cake message: “{item.messageOnCake}”
@@ -121,7 +137,7 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
             </a>
           </div>
           <span className="shrink-0 tabular-nums">
-            ₹{Number(order.total).toFixed(0)} · {order.paymentMethod.toUpperCase()}
+            ₹{Number(order.total).toFixed(0)} · {paymentMethodLabel(order.paymentMethod)}
           </span>
         </footer>
       </Link>

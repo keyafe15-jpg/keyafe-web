@@ -3,7 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Truck, Store, Phone, ChevronRight, Building2 } from "lucide-react";
 import { useAdminOrders, useAdminOrderCounts, type OrderStatus } from "@/hooks/useAdminOrders";
 import { PaginationControls } from "@/components/ClientPagination";
-import { SourceBadge, StatusPill, SurpriseGiftBadge } from "@/pages/orders/order-ui";
+import {
+  AwaitingPaymentBadge,
+  isAwaitingOnlinePayment,
+  paymentMethodLabel,
+  SourceBadge,
+  StatusPill,
+  SurpriseGiftBadge,
+} from "@/pages/orders/order-ui";
 import { useListSearch } from "@/store/listSearch";
 import { cn } from "@/lib/cn";
 
@@ -284,9 +291,15 @@ export function OrdersAllView() {
                       <p className="text-sm font-medium text-slate-900 tabular-nums">
                         ₹{Number(o.total).toFixed(0)}
                       </p>
-                      <p className="text-[11px] text-slate-500">
-                        {o.paymentMethod.toUpperCase()} · {o.paymentStatus}
-                      </p>
+                      {isAwaitingOnlinePayment(o) ? (
+                        <div className="mt-0.5">
+                          <AwaitingPaymentBadge />
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-500">
+                          {paymentMethodLabel(o.paymentMethod)} · {o.paymentStatus}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <StatusPill status={o.status} />
@@ -364,9 +377,13 @@ export function OrdersAllView() {
                       <span>
                         {o.itemCount} item{o.itemCount === 1 ? "" : "s"}
                       </span>
-                      <span>
-                        · {o.paymentMethod.toUpperCase()} · {o.paymentStatus}
-                      </span>
+                      {isAwaitingOnlinePayment(o) ? (
+                        <AwaitingPaymentBadge />
+                      ) : (
+                        <span>
+                          · {paymentMethodLabel(o.paymentMethod)} · {o.paymentStatus}
+                        </span>
+                      )}
                     </div>
                   </button>
                 </li>

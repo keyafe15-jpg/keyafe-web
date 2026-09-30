@@ -25,6 +25,7 @@ export interface OfflineOrderItemPayload {
   referenceImageUrl?: string | null;
   messageOnCake?: string | null;
   instructions?: string | null;
+  description?: string | null;
   unitPrice: number;
   qty: number;
 }
@@ -54,8 +55,10 @@ export interface PlaceOfflineOrderPayload {
   adminNotes?: string | null;
 
   // How much is being collected right now, and proof of the transfer.
+  // Pay on delivery is ADVANCE with advanceAmount 0.
   paymentMode: "FULL" | "ADVANCE";
   advanceAmount?: number;
+  paymentMethod?: "cash" | "upi" | "netbanking";
   paymentScreenshotUrl?: string | null;
 
   discountType?: "FLAT" | "PERCENT" | null;

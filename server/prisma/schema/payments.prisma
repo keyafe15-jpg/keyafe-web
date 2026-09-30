@@ -1,0 +1,33 @@
+enum PaymentAttemptStatus {
+  CREATED // Gateway order created, customer hasn't finished paying
+  SUCCESS
+  FAILED
+  USER_DROPPED // Customer closed/abandoned the gateway page
+  EXPIRED // Gateway order expired or was terminated before payment
+}
+
+// One row per gateway order. A retry after a failed/expired attempt opens a
+// new row, so this doubles as the audit trail for every online payment.
+model PaymentAttempt {
+  id       String @id @default(cuid())
+  orderId  String
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider String @default("cashfree")
+
+  // Our order id as sent to the gateway (orderNumber, then orderNumber-2, …).
+  gatewayOrderId   String  @unique
+  paymentSessionId String?
+  amount           Decimal @db.Decimal(10, 2)
+
+  status           PaymentAttemptStatus @default(CREATED)
+  gatewayPaymentId String?
+  // upi / card / net_banking / wallet …
+  paymentGroup     String?
+  // Last payload seen from the gateway (verify call or webhook).
+  raw              Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+}

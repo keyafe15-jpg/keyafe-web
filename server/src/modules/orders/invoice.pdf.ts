@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import type { InvoiceData } from "./invoice.service.js";
+import { paymentMethodLabel } from "../../lib/paymentLabel.js";
 import {
   ACCENT,
   brandLogo,
@@ -320,9 +321,14 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
     hr(doc.y);
     doc.y += 6;
     doc.font("Helvetica").fontSize(7.5).fillColor(MUTED);
-    doc.text(`Payment: ${data.paymentMethod.toUpperCase()} · ${data.paymentStatus}`, left, doc.y, {
-      width: fullWidth,
-    });
+    doc.text(
+      `Payment: ${paymentMethodLabel(data.paymentMethod)} · ${data.paymentStatus}`,
+      left,
+      doc.y,
+      {
+        width: fullWidth,
+      },
+    );
     if (data.compositionNote) {
       doc.font("Helvetica-Bold").fillColor(INK);
       doc.text(data.compositionNote, left, doc.y + 3, { width: fullWidth });

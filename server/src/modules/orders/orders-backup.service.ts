@@ -82,6 +82,7 @@ const ITEM_HEADERS = [
   "flavourName",
   "messageOnCake",
   "instructions",
+  "description",
   "referenceImageUrl",
   "deliveryDate",
   "deliverySlotKey",
@@ -269,6 +270,7 @@ export async function buildOrdersBackup(params: OrdersBackupParams): Promise<{
       row.flavourName = it.flavourName ?? "";
       row.messageOnCake = it.messageOnCake ?? "";
       row.instructions = it.instructions ?? "";
+      row.description = it.description ?? "";
       row.referenceImageUrl = it.referenceImageUrl ?? "";
       row.deliveryDate = it.deliveryDate?.toISOString() ?? "";
       row.deliverySlotKey = it.deliverySlotKey ?? "";
@@ -385,6 +387,7 @@ interface ItemDraft {
   flavourName: string | null;
   messageOnCake: string | null;
   instructions: string | null;
+  description: string | null;
   referenceImageUrl: string | null;
   deliveryDate: Date | null;
   deliverySlotKey: string | null;
@@ -510,6 +513,7 @@ function parseItemFromRow(raw: Record<string, unknown>): ItemDraft | null {
     flavourName: str(r.flavourName),
     messageOnCake: str(r.messageOnCake),
     instructions: str(r.instructions),
+    description: str(r.description),
     referenceImageUrl: str(r.referenceImageUrl),
     deliveryDate: parseDate(r.deliveryDate),
     deliverySlotKey: str(r.deliverySlotKey),
@@ -771,6 +775,7 @@ export async function importOrdersBackup(buffer: Buffer): Promise<{
               flavourName: it.flavourName,
               messageOnCake: it.messageOnCake,
               instructions: it.instructions,
+              description: it.description,
               referenceImageUrl: it.referenceImageUrl,
               deliveryDate: it.deliveryDate,
               deliverySlotKey: it.deliverySlotKey,

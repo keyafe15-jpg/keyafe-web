@@ -1,13 +1,27 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { orderGstOnTop } from "@keyafe/shared";
-import { useOrder } from "@/hooks/useOrders";
+import { useOrder, type Order } from "@/hooks/useOrders";
+import {
+  useCreatePaymentSession,
+  useSwitchToCod,
+  useVerifyPayment,
+  type PaymentState,
+} from "@/hooks/usePayments";
+import { payWithCashfree } from "@/lib/cashfree";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
 import { SurpriseGiftBadge } from "@/components/order/SurpriseGiftBadge";
 
+const PAYMENT_CHECKS = 5;
+const PAYMENT_CHECK_INTERVAL_MS = 3000;
+
 export function OrderSuccessPage() {
   const { id = "" } = useParams<{ id: string }>();
   const { data: order, isLoading, isError } = useOrder(id);
+  const awaitingPayment =
+    !!order && order.paymentMethod === "cashfree" && !order.paidAt && order.status !== "CANCELLED";
+  const paymentCheck = usePaymentCheck(order?.orderNumber ?? "", awaitingPayment);
 
   if (isLoading) {
     return (
@@ -44,51 +58,55 @@ export function OrderSuccessPage() {
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-12">
-      <div
-        className={`rounded-card border p-6 text-center sm:p-8 ${
-          cancelled ? "border-red-200 bg-red-50/50" : "border-emerald-200 bg-emerald-50/50"
-        }`}
-      >
+      {awaitingPayment ? (
+        <PaymentPendingCard order={order} check={paymentCheck} />
+      ) : (
         <div
-          className={`mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-white ${
-            cancelled ? "bg-red-500" : "bg-emerald-500"
+          className={`rounded-card border p-6 text-center sm:p-8 ${
+            cancelled ? "border-red-200 bg-red-50/50" : "border-emerald-200 bg-emerald-50/50"
           }`}
         >
-          <svg
-            width={28}
-            height={28}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+          <div
+            className={`mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-white ${
+              cancelled ? "bg-red-500" : "bg-emerald-500"
+            }`}
           >
-            {cancelled ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M20 6L9 17l-5-5" />}
-          </svg>
-        </div>
-        <h1 className="font-display text-3xl text-ink-900">
-          {cancelled ? "Order cancelled" : "Order confirmed!"}
-        </h1>
-        <p className="mt-1 text-sm text-ink-500">
-          {cancelled
-            ? "This order is no longer being prepared."
-            : `Thanks ${order.customerName.split(" ")[0]} — we've got your order.`}
-        </p>
-        <p
-          className={`mt-3 inline-block rounded-full bg-white px-3 py-1 text-xs font-medium text-ink-700 tabular-nums ring-1 ${
-            cancelled ? "ring-red-200" : "ring-emerald-200"
-          }`}
-        >
-          {order.orderNumber}
-        </p>
-        {order.isSurpriseGift && (
-          <div className="mt-3 flex justify-center">
-            <SurpriseGiftBadge />
+            <svg
+              width={28}
+              height={28}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              {cancelled ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M20 6L9 17l-5-5" />}
+            </svg>
           </div>
-        )}
-      </div>
+          <h1 className="font-display text-3xl text-ink-900">
+            {cancelled ? "Order cancelled" : "Order confirmed!"}
+          </h1>
+          <p className="mt-1 text-sm text-ink-500">
+            {cancelled
+              ? "This order is no longer being prepared."
+              : `Thanks ${order.customerName.split(" ")[0]} — we've got your order.`}
+          </p>
+          <p
+            className={`mt-3 inline-block rounded-full bg-white px-3 py-1 text-xs font-medium text-ink-700 tabular-nums ring-1 ${
+              cancelled ? "ring-red-200" : "ring-emerald-200"
+            }`}
+          >
+            {order.orderNumber}
+          </p>
+          {order.isSurpriseGift && (
+            <div className="mt-3 flex justify-center">
+              <SurpriseGiftBadge />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-8">
         <InfoCard title={isDelivery ? "Delivery to" : "Pickup at"}>
@@ -149,6 +167,9 @@ export function OrderSuccessPage() {
                 <p className="truncate text-xs text-ink-500">
                   {[it.sizeLabel, it.flavourName].filter(Boolean).join(" · ")}
                 </p>
+                {it.description && (
+                  <p className="text-xs whitespace-pre-line text-ink-700">{it.description}</p>
+                )}
                 {it.messageOnCake && (
                   <p className="truncate text-xs text-ink-500 italic">"{it.messageOnCake}"</p>
                 )}
@@ -215,18 +236,20 @@ export function OrderSuccessPage() {
           </span>
         </div>
         <p className="mt-1 text-[11px] text-ink-500">
-          Payment: {order.paymentMethod.toUpperCase()} · {order.paymentStatus}
+          Payment: {paymentMethodLabel(order.paymentMethod)} · {paymentStatusLabel(order)}
         </p>
       </div>
 
-      <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-        <div className="w-full max-w-sm text-center sm:w-auto">
-          <CancelOrderButton order={order} />
+      {!awaitingPayment && (
+        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <div className="w-full max-w-sm text-center sm:w-auto">
+            <CancelOrderButton order={order} />
+          </div>
+          <div className="w-full max-w-sm text-center sm:w-auto">
+            <DownloadInvoiceButton order={order} />
+          </div>
         </div>
-        <div className="w-full max-w-sm text-center sm:w-auto">
-          <DownloadInvoiceButton order={order} />
-        </div>
-      </div>
+      )}
 
       <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <Link
@@ -244,6 +267,180 @@ export function OrderSuccessPage() {
       </div>
     </section>
   );
+}
+
+type PaymentCheck = ReturnType<typeof usePaymentCheck>;
+
+/**
+ * Asks the server to reconcile with Cashfree a few times after the customer
+ * lands back here, since the payment can take a moment to settle.
+ */
+function usePaymentCheck(orderNumber: string, enabled: boolean) {
+  const verify = useVerifyPayment();
+  const [state, setState] = useState<PaymentState | null>(null);
+  const [checks, setChecks] = useState(0);
+  const { mutate } = verify;
+
+  const done = state === "PAID" || state === "FAILED" || state === "NOT_ONLINE";
+
+  useEffect(() => {
+    if (!enabled || done || checks >= PAYMENT_CHECKS) return;
+    const timer = setTimeout(
+      () => {
+        mutate(orderNumber, {
+          onSuccess: (res) => setState(res.state),
+          onSettled: () => setChecks((n) => n + 1),
+        });
+      },
+      checks === 0 ? 0 : PAYMENT_CHECK_INTERVAL_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [enabled, done, checks, orderNumber, mutate]);
+
+  return {
+    checking: enabled && (state === "PAID" || (!done && checks < PAYMENT_CHECKS)),
+    failed: state === "FAILED",
+    recheck: () => {
+      setState(null);
+      setChecks(0);
+    },
+  };
+}
+
+function PaymentPendingCard({ order, check }: { order: Order; check: PaymentCheck }) {
+  const createSession = useCreatePaymentSession();
+  const switchToCod = useSwitchToCod();
+  const [redirecting, setRedirecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canSwitchToCod = order.source === "STOREFRONT";
+
+  const retry = async () => {
+    setError(null);
+    setRedirecting(true);
+    try {
+      const session = await createSession.mutateAsync(order.orderNumber);
+      await payWithCashfree(session);
+    } catch (err) {
+      setRedirecting(false);
+      setError(err instanceof Error ? err.message : "Couldn't start the payment");
+    }
+  };
+
+  const payByCash = () => {
+    setError(null);
+    switchToCod.mutate(order.orderNumber, {
+      onError: (err) => {
+        setError(err instanceof Error ? err.message : "Couldn't switch to cash on delivery");
+        check.recheck();
+      },
+    });
+  };
+
+  if (check.checking) {
+    return (
+      <div className="rounded-card border border-cream-200 bg-cream-50 p-6 text-center sm:p-8">
+        <span className="mx-auto block h-12 w-12 animate-spin rounded-full border-4 border-brand-500/20 border-t-brand-500" />
+        <h1 className="mt-4 font-display text-2xl text-ink-900">Confirming your payment…</h1>
+        <p className="mt-1 text-sm text-ink-500">
+          This usually takes a few seconds. Please don't close this page.
+        </p>
+        <p className="mt-3 inline-block rounded-full bg-white px-3 py-1 text-xs font-medium text-ink-700 tabular-nums ring-1 ring-cream-200">
+          {order.orderNumber}
+        </p>
+      </div>
+    );
+  }
+
+  const busy = redirecting || switchToCod.isPending;
+
+  return (
+    <div className="rounded-card border border-amber-200 bg-amber-50/60 p-6 text-center sm:p-8">
+      <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500 text-2xl font-semibold text-white">
+        !
+      </div>
+      <h1 className="font-display text-2xl text-ink-900 sm:text-3xl">
+        {check.failed ? "Payment didn't go through" : "Payment not completed yet"}
+      </h1>
+      <p className="mx-auto mt-1 max-w-md text-sm text-ink-500">
+        {check.failed
+          ? "The payment was declined or cancelled. You can try again"
+          : "We haven't received your payment yet. If money was debited, it'll show up here shortly. Otherwise, try again"}
+        {canSwitchToCod ? " or pay when your order arrives." : "."}
+      </p>
+      <p className="mt-3 inline-block rounded-full bg-white px-3 py-1 text-xs font-medium text-ink-700 tabular-nums ring-1 ring-amber-200">
+        {order.orderNumber}
+      </p>
+
+      {error && (
+        <p className="mx-auto mt-4 max-w-md rounded-md bg-brand-100/60 px-3 py-2 text-xs text-brand-700">
+          {error}
+        </p>
+      )}
+
+      <div className="mt-5 flex flex-col items-center justify-center gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={retry}
+          disabled={busy}
+          className="w-full max-w-xs rounded-full bg-brand-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          {redirecting ? "Opening payment…" : "Retry payment"}
+        </button>
+        {canSwitchToCod && (
+          <button
+            type="button"
+            onClick={payByCash}
+            disabled={busy}
+            className="w-full max-w-xs rounded-full border border-ink-700 px-5 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-cream-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {switchToCod.isPending ? "Switching…" : "Pay on delivery instead"}
+          </button>
+        )}
+      </div>
+      {!check.failed && (
+        <button
+          type="button"
+          onClick={check.recheck}
+          disabled={busy}
+          className="mt-3 text-xs text-ink-500 hover:text-brand-700 hover:underline"
+        >
+          I've paid — check again
+        </button>
+      )}
+    </div>
+  );
+}
+
+function paymentMethodLabel(method: string) {
+  switch (method) {
+    case "cod":
+      return "Cash on delivery";
+    case "cash":
+      return "Cash";
+    case "upi":
+      return "UPI transfer";
+    case "netbanking":
+      return "Netbanking";
+    case "cashfree":
+      return "Online payment";
+    default:
+      return method.toUpperCase();
+  }
+}
+
+function paymentStatusLabel(order: Order) {
+  switch (order.paymentStatus) {
+    case "PAID":
+      return "Paid";
+    case "PARTIAL":
+      return `Advance ₹${Number(order.advanceAmount).toFixed(0)} paid`;
+    case "PENDING":
+      return order.paymentMethod === "cashfree" ? "Awaiting payment" : "Due on delivery";
+    case "FAILED":
+      return "Payment failed";
+    case "REFUNDED":
+      return "Refunded";
+  }
 }
 
 function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {

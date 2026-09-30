@@ -80,6 +80,8 @@ model OrderLinkItem {
   flavourName       String?
   referenceImageUrl String?
   messageHint       String?
+  // What a custom item is, e.g. the contents of a gift hamper.
+  description       String?
 
   // Price locked at link-creation time. Customer sees + accepts this.
   unitPrice Decimal @db.Decimal(10, 2)

@@ -1,4 +1,4 @@
-import { Gift, Globe, Link2, PhoneCall } from "lucide-react";
+import { Gift, Globe, Hourglass, Link2, PhoneCall } from "lucide-react";
 import type { OrderSource, OrderStatus } from "@/hooks/useAdminOrders";
 import { cn } from "@/lib/cn";
 
@@ -102,6 +102,62 @@ export function SourceBadge({ source }: { source: OrderSource }) {
     >
       <Icon className="h-3 w-3" />
       {cfg.label}
+    </span>
+  );
+}
+
+/** Modes staff record on offline orders; for reference only. */
+export const OFFLINE_PAYMENT_METHODS = [
+  { value: "cash", label: "Cash" },
+  { value: "upi", label: "UPI" },
+  { value: "netbanking", label: "Netbanking" },
+] as const;
+export type OfflinePaymentMethod = (typeof OFFLINE_PAYMENT_METHODS)[number]["value"];
+
+export function paymentMethodLabel(method: string): string {
+  switch (method) {
+    case "cod":
+      return "COD";
+    case "cash":
+      return "Cash";
+    case "upi":
+      return "UPI";
+    case "netbanking":
+      return "Netbanking";
+    case "cashfree":
+      return "Online";
+    default:
+      return method.toUpperCase();
+  }
+}
+
+/** "Pay on delivery" is stored as an ADVANCE order with nothing received. */
+export function paymentPlanLabel(order: {
+  paymentMode: "FULL" | "ADVANCE";
+  paymentStatus: string;
+  advanceAmount: string;
+}): string {
+  if (order.paymentMode === "FULL") return "Full";
+  if (Number(order.advanceAmount) <= 0 && order.paymentStatus === "PENDING") {
+    return "Pay on delivery";
+  }
+  return "Advance";
+}
+
+/** Customer chose online payment but Cashfree hasn't confirmed it yet. */
+export function isAwaitingOnlinePayment(order: {
+  paymentMethod: string;
+  paidAt: string | null;
+  status: OrderStatus;
+}): boolean {
+  return order.paymentMethod === "cashfree" && !order.paidAt && order.status !== "CANCELLED";
+}
+
+export function AwaitingPaymentBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+      <Hourglass className="h-3 w-3" />
+      Awaiting payment
     </span>
   );
 }

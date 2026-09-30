@@ -43,6 +43,7 @@ export const editOrderItemsSchema = z.object({
         flavourName: z.string().trim().nullable().optional(),
         messageOnCake: z.string().trim().max(200).nullable().optional(),
         instructions: z.string().trim().max(500).nullable().optional(),
+        description: z.string().trim().max(1000).nullable().optional(),
         referenceImageUrl: z
           .union([z.string().url(), z.literal(""), z.null()])
           .optional()
@@ -168,6 +169,7 @@ export async function editOrderItems(
     flavourName: string | null;
     messageOnCake: string | null;
     instructions: string | null;
+    description: string | null;
     referenceImageUrl: string | null;
     deliveryDate: Date | null;
     deliverySlotKey: string | null;
@@ -219,6 +221,8 @@ export async function editOrderItems(
           : (prev?.messageOnCake ?? null),
       instructions:
         row.instructions !== undefined ? (row.instructions ?? null) : (prev?.instructions ?? null),
+      description:
+        row.description !== undefined ? row.description || null : (prev?.description ?? null),
       referenceImageUrl,
       deliveryDate: prev?.deliveryDate ?? scheduleFallback?.deliveryDate ?? null,
       deliverySlotKey: prev?.deliverySlotKey ?? scheduleFallback?.deliverySlotKey ?? null,
@@ -292,6 +296,7 @@ export async function editOrderItems(
         flavourName: r.flavourName,
         messageOnCake: r.messageOnCake,
         instructions: r.instructions,
+        description: r.description,
         referenceImageUrl: r.referenceImageUrl,
         deliveryDate: r.deliveryDate,
         deliverySlotKey: r.deliverySlotKey,

@@ -15,6 +15,7 @@ export interface OrderLinkItem {
   flavourName: string | null;
   referenceImageUrl: string | null;
   messageHint: string | null;
+  description: string | null;
   unitPrice: string;
   qty: number;
 }
@@ -56,6 +57,7 @@ export interface OrderLinkItemPayload {
   flavourName?: string | null;
   referenceImageUrl?: string | null;
   messageHint?: string | null;
+  description?: string | null;
   unitPrice: number;
   qty: number;
 }

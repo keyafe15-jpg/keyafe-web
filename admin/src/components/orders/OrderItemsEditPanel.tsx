@@ -19,6 +19,8 @@ type DraftLine = {
   flavourName: string;
   messageOnCake: string;
   instructions: string;
+  description: string;
+  showDescription: boolean;
   unitPrice: string;
   qty: string;
   referenceImageUrl: string | null;
@@ -37,6 +39,8 @@ function itemToDraft(it: AdminOrderItem): DraftLine {
     flavourName: it.flavourName ?? "",
     messageOnCake: it.messageOnCake ?? "",
     instructions: it.instructions ?? "",
+    description: it.description ?? "",
+    showDescription: !it.productId || !!it.description,
     unitPrice: String(Number(it.unitPrice)),
     qty: String(it.qty),
     referenceImageUrl: it.referenceImageUrl ?? it.productImage,
@@ -55,6 +59,8 @@ function newDraftLine(): DraftLine {
     flavourName: "",
     messageOnCake: "",
     instructions: "",
+    description: "",
+    showDescription: true,
     unitPrice: "",
     qty: "1",
     referenceImageUrl: null,
@@ -142,6 +148,7 @@ export function OrderItemsEditPanel({
           flavourName: line.flavourName.trim() || null,
           messageOnCake: line.messageOnCake.trim() || null,
           instructions: line.instructions.trim() || null,
+          description: line.description.trim() || null,
           referenceImageUrl: referenceImageUrl || null,
           unitPrice: Number(line.unitPrice) || 0,
           qty: Math.max(1, Math.round(Number(line.qty)) || 1),
@@ -260,6 +267,19 @@ export function OrderItemsEditPanel({
                   className={cn(inputClass, "mt-1")}
                 />
               </label>
+              {line.showDescription && (
+                <label className="block text-xs sm:col-span-2">
+                  <span className="font-medium text-slate-700">Description (optional)</span>
+                  <textarea
+                    rows={2}
+                    maxLength={1000}
+                    value={line.description}
+                    onChange={(e) => patchLine(line.key, { description: e.target.value })}
+                    placeholder="e.g. Gift hamper: 6 cupcakes, 1 candle, chocolates…"
+                    className={cn(inputClass, "mt-1 resize-y")}
+                  />
+                </label>
+              )}
               <label className="block text-xs sm:col-span-2">
                 <span className="font-medium text-slate-700">Flavour</span>
                 <input

@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { stateNameFromCode } from "../../lib/indiaStates.js";
+import { CASH_PAYMENT_METHODS } from "../../lib/paymentLabel.js";
 import {
   ensureInvoiceNumber,
   financialYearLabel,
@@ -171,7 +172,7 @@ export async function buildGstExport(params: GstExportParams): Promise<{
     where: {
       status: { not: "CANCELLED" },
       paymentStatus: { in: ["PAID", "PARTIAL"] },
-      paymentMethod: { not: "cod" },
+      paymentMethod: { notIn: CASH_PAYMENT_METHODS },
       invoiceNumber: null,
       createdAt: { gte: range.from, lt: range.toExclusive },
     },
@@ -186,7 +187,7 @@ export async function buildGstExport(params: GstExportParams): Promise<{
   const orders = await prisma.order.findMany({
     where: {
       status: { not: "CANCELLED" },
-      paymentMethod: { not: "cod" },
+      paymentMethod: { notIn: CASH_PAYMENT_METHODS },
       invoiceNumber: { not: null },
       invoiceDate: { gte: range.from, lt: range.toExclusive },
     },

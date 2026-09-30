@@ -3,13 +3,12 @@ import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { checkPincode } from "../delivery/delivery.service.js";
-import { sendEmail } from "../email/email.service.js";
-import { renderAdminNotification, renderCustomerConfirmation } from "../email/templates.js";
 import { logger } from "../../utils/logger.js";
-import { emitNewOrder } from "../../lib/events.js";
 import { buildOrderNumber } from "../orders/order.service.js";
-import { invoiceAttachmentIfPaid } from "../orders/invoice.service.js";
+import { notifyOrderPlaced } from "../orders/order.notify.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
+import { cashfreeEnabled } from "../payments/cashfree.client.js";
+import { createPaymentSession } from "../payments/payment.service.js";
 import {
   manualDiscountRupees,
   roundMoney,
@@ -25,6 +24,7 @@ import {
   sumLineTax,
 } from "../orders/order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
+import { OFFLINE_PAYMENT_METHODS, type OfflinePaymentMethod } from "../../lib/paymentLabel.js";
 import {
   giftBillingFieldsSchema,
   orderAddressSchema,
@@ -41,21 +41,22 @@ const CUSTOM_GST_RATE = 5;
 const CUSTOM_GST_INCLUSIVE = true;
 const CUSTOM_HSN_CODE = "1905";
 
-// Shared by the order-link and offline-direct flows — turns a chosen
-// payment mode + raw advance amount into the amount/status/method to persist.
-// `paymentMethod` stays "cod" until Razorpay lands; a screenshot implies a
-// manual UPI/bank transfer was already verified.
+// Turns a chosen payment mode + raw advance amount into the amount/status/method
+// to persist. Used by the admin offline-direct form and by pay-on-delivery links.
+// Without an explicit method, a screenshot means staff already verified a manual
+// UPI/bank transfer.
 function resolvePayment(
   paymentMode: "FULL" | "ADVANCE",
   rawAdvanceAmount: number | undefined,
   total: number,
   paymentScreenshotUrl: string | null | undefined,
+  method?: OfflinePaymentMethod,
 ) {
   const advanceAmount =
     paymentMode === "FULL" ? total : Math.min(Math.max(rawAdvanceAmount ?? 0, 0), total);
   const paymentStatus =
     advanceAmount <= 0 ? "PENDING" : advanceAmount >= total ? "PAID" : "PARTIAL";
-  const paymentMethod = paymentScreenshotUrl ? "upi" : "cod";
+  const paymentMethod = method ?? (paymentScreenshotUrl ? "upi" : "cod");
   return { advanceAmount, paymentStatus, paymentMethod } as const;
 }
 
@@ -78,6 +79,7 @@ const orderLinkItemSchema = z.object({
   flavourName: z.string().trim().nullable().optional(),
   referenceImageUrl: z.string().url().nullable().optional(),
   messageHint: z.string().trim().max(200).nullable().optional(),
+  description: z.string().trim().max(1000).nullable().optional(),
   unitPrice: z.coerce.number().nonnegative(),
   qty: z.coerce.number().int().positive().default(1),
 });
@@ -171,6 +173,7 @@ async function buildItemCreates(items: OrderLinkItemInput[]) {
       flavourName: item.flavourName ?? null,
       referenceImageUrl,
       messageHint: item.messageHint ?? null,
+      description: item.description || null,
       unitPrice: item.unitPrice,
       qty: item.qty,
       sortOrder: index,
@@ -283,6 +286,7 @@ export async function getOrderLinkByToken(token: string) {
           flavourName: true,
           referenceImageUrl: true,
           messageHint: true,
+          description: true,
           unitPrice: true,
           qty: true,
           product: { select: { gstRate: true, priceIsGstInclusive: true } },
@@ -347,10 +351,10 @@ export const placeOrderLinkSchema = z.object({
 
   customerNotes: z.string().trim().max(500).optional().nullable(),
 
-  // How much the customer is paying now, and proof of the transfer.
+  // How much the customer pays now (online, via Cashfree). ADVANCE with 0 =
+  // pay everything on delivery.
   paymentMode: z.enum(["FULL", "ADVANCE"]).default("FULL"),
   advanceAmount: z.coerce.number().nonnegative().optional().default(0),
-  paymentScreenshotUrl: z.string().url().nullable().optional(),
 });
 
 export type PlaceOrderLinkInput = z.infer<typeof placeOrderLinkSchema>;
@@ -479,6 +483,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
       flavourName: item.flavourName,
       messageOnCake: item.messageHint ?? null,
       instructions: null,
+      description: item.description,
       referenceImageUrl: item.kind === "CUSTOM" ? item.referenceImageUrl : null,
       deliveryDate: dt,
       deliverySlotKey: input.deliverySlotKey,
@@ -501,16 +506,23 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
   );
   const total = roundMoney(subtotal - discount + deliveryFee + gstOnTop);
 
-  const payingNow = input.paymentMode === "FULL" ? total : (input.advanceAmount ?? 0);
-  if (payingNow > 0 && !input.paymentScreenshotUrl) {
-    throw HttpError.badRequest("Please upload a screenshot of your payment to confirm the order");
-  }
-  const { advanceAmount, paymentStatus, paymentMethod } = resolvePayment(
-    input.paymentMode,
-    input.advanceAmount,
-    total,
-    input.paymentScreenshotUrl,
+  // Anything paid upfront goes through Cashfree; the order is recorded as
+  // unpaid and flips once the gateway confirms. Pay-on-delivery stays COD.
+  const payingNow = roundMoney(
+    Math.min(input.paymentMode === "FULL" ? total : (input.advanceAmount ?? 0), total),
   );
+  const payOnline = payingNow > 0;
+  if (payOnline && !cashfreeEnabled()) {
+    throw HttpError.badRequest(
+      "Online payment isn't available right now. Please choose pay on delivery or contact us.",
+    );
+  }
+  if (payOnline && payingNow < 1) {
+    throw HttpError.badRequest("Upfront amount must be at least ₹1");
+  }
+  const { advanceAmount, paymentStatus, paymentMethod } = payOnline
+    ? ({ advanceAmount: 0, paymentStatus: "PENDING", paymentMethod: "cashfree" } as const)
+    : resolvePayment(input.paymentMode, input.advanceAmount, total, null);
 
   const orderNumber = buildOrderNumber();
 
@@ -552,7 +564,6 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
         paymentStatus,
         paymentMode: input.paymentMode,
         advanceAmount,
-        paymentScreenshotUrl: input.paymentScreenshotUrl ?? null,
         source: "OFFLINE_LINK",
         customerNotes: input.customerNotes ?? null,
         items: { create: itemCreates },
@@ -566,52 +577,20 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
     return created;
   });
 
-  // Fire-and-forget notifications (same as regular checkout).
-  void sendOrderLinkEmails(order).catch((err) => {
-    logger.error({ err, orderId: order.id }, "order-link email dispatch failed");
-  });
-
-  emitNewOrder({
-    id: order.id,
-    orderNumber: order.orderNumber,
-    customerName: order.customerName,
-    total: order.total.toString(),
-    source: "OFFLINE_LINK",
-    itemCount: order.items.length,
-    createdAt: order.createdAt.toISOString(),
-  });
-
-  return order;
-}
-
-async function sendOrderLinkEmails(order: Awaited<ReturnType<typeof placeOrderFromLink>>) {
-  const settings = await prisma.businessSettings.findFirst({
-    select: { supportEmail: true, orderNotificationEmail: true },
-  });
-  const adminRecipient = settings?.orderNotificationEmail || settings?.supportEmail;
-
-  if (order.customerEmail) {
-    const { subject, html } = renderCustomerConfirmation(order);
-    // Offline and link orders are often collected in full upfront, so the
-    // invoice rides along with the confirmation the same way it does on the
-    // storefront.
-    const invoice = await invoiceAttachmentIfPaid(order);
-    void sendEmail({
-      to: order.customerEmail,
-      subject,
-      html,
-      replyTo: adminRecipient ?? undefined,
-      ...(invoice ? { attachments: [invoice] } : {}),
-    });
+  if (!payOnline) {
+    notifyOrderPlaced(order);
+    return { ...order, payment: null };
   }
-  if (adminRecipient) {
-    const { subject, html } = renderAdminNotification(order);
-    void sendEmail({
-      to: adminRecipient,
-      subject,
-      html,
-      replyTo: order.customerEmail ?? undefined,
-    });
+
+  // Open the gateway session now so the chosen upfront amount is pinned
+  // server-side. If Cashfree hiccups the order still exists and the customer
+  // can retry from the order page.
+  try {
+    const payment = await createPaymentSession(order.orderNumber, { amount: payingNow });
+    return { ...order, payment };
+  } catch (err) {
+    logger.error({ err, orderId: order.id }, "order-link payment session failed");
+    return { ...order, payment: null };
   }
 }
 
@@ -705,6 +684,7 @@ const offlineItemSchema = z.object({
   referenceImageUrl: z.string().url().nullable().optional(),
   messageOnCake: z.string().trim().max(200).optional().nullable(),
   instructions: z.string().trim().max(500).optional().nullable(),
+  description: z.string().trim().max(1000).optional().nullable(),
   unitPrice: z.coerce.number().nonnegative(),
   qty: z.coerce.number().int().positive().default(1),
 });
@@ -736,9 +716,11 @@ export const placeOfflineOrderSchema = z.object({
   customerNotes: z.string().trim().max(500).optional().nullable(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
 
-  // How much is being collected right now, and proof of it.
+  // How much is being collected right now, and proof of it. Pay on delivery is
+  // ADVANCE with advanceAmount 0.
   paymentMode: z.enum(["FULL", "ADVANCE"]).default("FULL"),
   advanceAmount: z.coerce.number().nonnegative().optional().default(0),
+  paymentMethod: z.enum(OFFLINE_PAYMENT_METHODS).optional(),
   paymentScreenshotUrl: z.string().url().nullable().optional(),
 
   // Optional override of the pincode-table delivery fee (admin offline only).
@@ -901,6 +883,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       flavourName: item.flavourName ?? null,
       messageOnCake: item.messageOnCake ?? null,
       instructions: item.instructions ?? null,
+      description: item.description || null,
       referenceImageUrl: item.kind === "CUSTOM" ? (item.referenceImageUrl ?? null) : null,
       deliveryDate: dt,
       deliverySlotKey: input.deliverySlotKey,
@@ -929,6 +912,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     input.advanceAmount,
     total,
     input.paymentScreenshotUrl,
+    input.paymentMethod,
   );
 
   const userId = await ensureCustomerForOrder(prisma, {
@@ -978,19 +962,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     include: { items: true },
   });
 
-  void sendOrderLinkEmails(order).catch((err) => {
-    logger.error({ err, orderId: order.id }, "offline order email dispatch failed");
-  });
-
-  emitNewOrder({
-    id: order.id,
-    orderNumber: order.orderNumber,
-    customerName: order.customerName,
-    total: order.total.toString(),
-    source: "OFFLINE_DIRECT",
-    itemCount: order.items.length,
-    createdAt: order.createdAt.toISOString(),
-  });
+  notifyOrderPlaced(order);
 
   return order;
 }

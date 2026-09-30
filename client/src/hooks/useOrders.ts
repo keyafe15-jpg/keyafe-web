@@ -14,6 +14,7 @@ export interface OrderItem {
   flavourName: string | null;
   messageOnCake: string | null;
   instructions: string | null;
+  description: string | null;
   deliveryDate: string | null;
   deliverySlotKey: string | null;
   deliverySlotLabel: string | null;
@@ -54,11 +55,13 @@ export interface Order {
   cgstAmount: string;
   sgstAmount: string;
   igstAmount: string;
-  paymentMethod: string;
+  paymentMethod: "cod" | "upi" | "cashfree" | (string & {});
   paymentStatus: "PENDING" | "PARTIAL" | "PAID" | "FAILED" | "REFUNDED";
   paymentMode: "FULL" | "ADVANCE";
   advanceAmount: string;
   paymentScreenshotUrl: string | null;
+  paidAt: string | null;
+  source?: "STOREFRONT" | "OFFLINE_LINK" | "OFFLINE_DIRECT";
   status:
     | "PENDING"
     | "CONFIRMED"
@@ -109,7 +112,7 @@ export interface CreateOrderPayload {
   billingSameAsDelivery?: boolean;
   isSurpriseGift?: boolean;
   customerNotes?: string | null;
-  paymentMethod: "cod" | "upi" | "razorpay";
+  paymentMethod: "cod" | "cashfree";
   items: CreateOrderItem[];
   couponCode?: string | null;
 }

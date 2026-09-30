@@ -15,6 +15,7 @@ import multer from "multer";
 
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
+import { OFFLINE_PAYMENT_METHODS } from "../../lib/paymentLabel.js";
 import {
   requirePermission,
   staffHasPermission,
@@ -236,6 +237,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
         paymentMode: true,
         advanceAmount: true,
         paymentScreenshotUrl: true,
+        paidAt: true,
         source: true,
         createdAt: true,
         deliveryAddress: true,
@@ -251,6 +253,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
             qty: true,
             messageOnCake: true,
             instructions: true,
+            description: true,
             referenceImageUrl: true,
             deliveryDate: true,
             deliverySlotKey: true,
@@ -283,6 +286,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
       paymentMode: r.paymentMode,
       advanceAmount: r.advanceAmount,
       paymentScreenshotUrl: r.paymentScreenshotUrl,
+      paidAt: r.paidAt,
       source: r.source,
       createdAt: r.createdAt,
       itemCount: r._count.items,
@@ -384,6 +388,7 @@ adminOrderRouter.get("/schedule", requirePermission("orders.read"), async (req, 
             qty: true,
             messageOnCake: true,
             instructions: true,
+            description: true,
             referenceImageUrl: true,
             order: {
               select: {
@@ -453,6 +458,7 @@ adminOrderRouter.get("/schedule", requirePermission("orders.read"), async (req, 
           qty: l.qty,
           messageOnCake: l.messageOnCake,
           instructions: l.instructions,
+          description: l.description,
           referenceImageUrl: l.referenceImageUrl,
         })),
       };
@@ -750,7 +756,21 @@ adminOrderRouter.get("/:idOrNumber", requirePermission("orders.read"), async (re
   const key = req.params.idOrNumber ?? "";
   if (!key) throw HttpError.badRequest("Missing order id");
   const order = key.startsWith("KEY-") ? await getOrderByNumber(key) : await getOrderById(key);
-  res.json(order);
+  const paymentAttempts = await prisma.paymentAttempt.findMany({
+    where: { orderId: order.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      gatewayOrderId: true,
+      amount: true,
+      status: true,
+      gatewayPaymentId: true,
+      paymentGroup: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  res.json({ ...order, paymentAttempts });
 });
 
 adminOrderRouter.patch("/:id/items", requirePermission("orders.update"), async (req, res) => {
@@ -814,6 +834,7 @@ const updateSchema = z.object({
     .optional() satisfies z.ZodType<PaymentStatus | undefined>,
   paymentMode: z.enum(["FULL", "ADVANCE"]).optional() satisfies z.ZodType<PaymentMode | undefined>,
   advanceAmount: z.coerce.number().nonnegative().optional(),
+  paymentMethod: z.enum(OFFLINE_PAYMENT_METHODS).optional(),
   paymentScreenshotUrl: z.string().url().nullable().optional(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
   items: z
@@ -852,6 +873,17 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     data.status = status;
   }
 
+  if (rest.paymentMethod !== undefined) {
+    const existing = await prisma.order.findUnique({
+      where: { id },
+      select: { paymentMethod: true },
+    });
+    if (!existing) throw HttpError.notFound("Order not found");
+    if (existing.paymentMethod === "cashfree") {
+      throw HttpError.badRequest("Online (Cashfree) payments can't be changed to another mode");
+    }
+  }
+
   if (advanceAmount !== undefined) {
     const existing = await prisma.order.findUnique({
       where: { id },
@@ -866,6 +898,16 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
       paymentStatus ?? (clamped <= 0 ? "PENDING" : clamped >= total ? "PAID" : "PARTIAL");
   } else if (paymentStatus !== undefined) {
     data.paymentStatus = paymentStatus;
+    if (paymentStatus === "PAID") {
+      // Item edits re-derive the status from advanceAmount, so a paid order
+      // has to record the full total as received.
+      const existing = await prisma.order.findUnique({
+        where: { id },
+        select: { total: true },
+      });
+      if (!existing) throw HttpError.notFound("Order not found");
+      data.advanceAmount = Number(existing.total);
+    }
   }
 
   if (items) {

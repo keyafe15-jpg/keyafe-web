@@ -60,6 +60,12 @@ const envSchema = z.object({
   MSG91_SENDER_ID: z.string().optional(),
   MSG91_OTP_TEMPLATE_ID: z.string().optional(),
 
+  // Cashfree Payment Gateway. Online payment is offered only when both keys are
+  // set; the secret also signs webhooks. Use sandbox keys until go-live.
+  CASHFREE_APP_ID: z.string().optional(),
+  CASHFREE_SECRET_KEY: z.string().optional(),
+  CASHFREE_ENV: z.enum(["sandbox", "production"]).default("sandbox"),
+
   JWT_SECRET: z
     .string()
     .min(32, "JWT_SECRET must be at least 32 chars")

@@ -5,6 +5,8 @@ import { useAuth } from "@/store/auth";
 import { useCart } from "@/store/cart";
 import { useSavedAddresses } from "@/store/addresses";
 import { useCreateOrder } from "@/hooks/useOrders";
+import { useCreatePaymentSession, usePaymentConfig } from "@/hooks/usePayments";
+import { payWithCashfree } from "@/lib/cashfree";
 import { useFreeDelivery, usePreviewCoupon } from "@/hooks/useCoupons";
 import { usePincodeCheck, type PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
@@ -41,6 +43,7 @@ export function CheckoutPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [recipientIsMe, setRecipientIsMe] = useState(true);
   const [recipientName, setRecipientName] = useState("");
   const [deliveryPhone, setDeliveryPhone] = useState("");
   const [isSurpriseGift, setIsSurpriseGift] = useState(false);
@@ -77,30 +80,27 @@ export function CheckoutPage() {
   const [couponOpen, setCouponOpen] = useState(false);
   const previewCoupon = usePreviewCoupon();
   const freeDelivery = useFreeDelivery(subtotal);
+  const { data: paymentConfig } = usePaymentConfig();
+  const onlinePaymentAvailable = paymentConfig?.cashfreeEnabled ?? false;
+  const [payMethod, setPayMethod] = useState<"cashfree" | "cod">("cashfree");
+  const effectivePayMethod = onlinePaymentAvailable ? payMethod : "cod";
+  const createPaymentSession = useCreatePaymentSession();
+  const [redirectingToPayment, setRedirectingToPayment] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       setName((current) => current || user.name);
       setPhone((current) => current || user.phone);
-      setDeliveryPhone((current) => current || user.phone);
       setEmail((current) => current || user.email || "");
       void fetchSavedAddresses();
     }
   }, [fetchSavedAddresses, user]);
 
-  // Keep delivery phone in sync with buyer phone until the customer edits it.
-  const [deliveryPhoneTouched, setDeliveryPhoneTouched] = useState(false);
-  useEffect(() => {
-    if (!deliveryPhoneTouched) {
-      setDeliveryPhone(phone);
-    }
-  }, [phone, deliveryPhoneTouched]);
+  const hasOtherRecipient = fulfillment === "DELIVERY" && !recipientIsMe;
 
   useEffect(() => {
-    if (fulfillment === "PICKUP") {
-      setIsSurpriseGift(false);
-    }
-  }, [fulfillment]);
+    if (!hasOtherRecipient) setIsSurpriseGift(false);
+  }, [hasOtherRecipient]);
 
   useEffect(() => {
     if (!user || savedAddresses.length === 0) {
@@ -124,9 +124,14 @@ export function CheckoutPage() {
     setPincode(address.pincode);
     setStateCode(address.stateCode ?? "");
     setMapSearchQuery(`${address.line1}, ${address.city}, ${address.pincode}`);
+    const digits = (v: string) => v.replace(/\D/g, "").slice(-10);
+    const otherName =
+      !!address.recipientName &&
+      address.recipientName.trim().toLowerCase() !== name.trim().toLowerCase();
+    const otherPhone = !!address.phone && digits(address.phone) !== digits(phone);
+    setRecipientIsMe(!otherName && !otherPhone);
     setRecipientName(address.recipientName ?? "");
-    setDeliveryPhone(address.phone || phone);
-    setDeliveryPhoneTouched(Boolean(address.phone));
+    setDeliveryPhone(address.phone ?? "");
   };
 
   // Every line already carries its own delivery date + slot (set on the PDP).
@@ -211,7 +216,10 @@ export function CheckoutPage() {
       if (mapSearchQuery.trim().length < 3)
         e.mapSearchQuery = "Tell us what to search on Uber / Rapido";
       if (hasOnlyPanIndiaItems && !stateCode) e.stateCode = "Select the delivery state";
-      if (!PHONE_RE.test(deliveryPhone.trim())) e.deliveryPhone = "Enter a valid delivery phone";
+      if (!recipientIsMe) {
+        if (recipientName.trim().length < 2) e.recipientName = "Enter the recipient's name";
+        if (!PHONE_RE.test(deliveryPhone.trim())) e.deliveryPhone = "Enter a valid phone";
+      }
       if (!billingSameAsDelivery) {
         if (billLine1.trim().length < 3) e.billLine1 = "Billing street address is required";
         if (!PINCODE_RE.test(billPincode)) e.billPincode = "6-digit pincode";
@@ -239,6 +247,8 @@ export function CheckoutPage() {
     isBusinessOrder,
     companyName,
     gstin,
+    recipientIsMe,
+    recipientName,
     deliveryPhone,
     billingSameAsDelivery,
     billLine1,
@@ -247,6 +257,18 @@ export function CheckoutPage() {
     billStateCode,
   ]);
   const isValid = Object.keys(errors).length === 0 && lines.length > 0;
+
+  if (redirectingToPayment) {
+    return (
+      <section className="mx-auto max-w-md px-4 py-24 text-center">
+        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
+        <h1 className="font-display text-2xl text-ink-900">Taking you to secure payment…</h1>
+        <p className="mt-2 text-sm text-ink-500">
+          Order {redirectingToPayment} is saved. Please don’t close this page.
+        </p>
+      </section>
+    );
+  }
 
   if (lines.length === 0) {
     return (
@@ -272,8 +294,8 @@ export function CheckoutPage() {
 
     const created = await addSavedAddress({
       label: "Home",
-      recipientName: recipientName.trim() || name.trim() || user.name,
-      phone: deliveryPhone.trim() || phone.trim() || user.phone,
+      recipientName: (recipientIsMe ? name : recipientName).trim() || user.name,
+      phone: (recipientIsMe ? phone : deliveryPhone).trim() || user.phone,
       line1: line1.trim(),
       line2: line2.trim() || undefined,
       landmark: landmark.trim() || undefined,
@@ -340,13 +362,14 @@ export function CheckoutPage() {
         fulfillment,
         deliveryAddress,
         recipientName:
-          fulfillment === "DELIVERY" ? recipientName.trim() || name.trim() : null,
-        deliveryPhone: fulfillment === "DELIVERY" ? deliveryPhone.trim() || phone.trim() : null,
+          fulfillment === "DELIVERY" ? (recipientIsMe ? name : recipientName).trim() : null,
+        deliveryPhone:
+          fulfillment === "DELIVERY" ? (recipientIsMe ? phone : deliveryPhone).trim() : null,
         billingAddress,
         billingSameAsDelivery: fulfillment === "DELIVERY" ? billingSameAsDelivery : undefined,
-        isSurpriseGift: fulfillment === "DELIVERY" ? isSurpriseGift : false,
+        isSurpriseGift: hasOtherRecipient && isSurpriseGift,
         customerNotes: notes.trim() || null,
-        paymentMethod: "cod",
+        paymentMethod: effectivePayMethod,
         couponCode: appliedCoupon?.code ?? null,
         items: lines.map((l) => ({
           productId: l.productId,
@@ -363,6 +386,18 @@ export function CheckoutPage() {
           qty: l.qty,
         })),
       });
+      if (order.paymentMethod === "cashfree") {
+        setRedirectingToPayment(order.orderNumber);
+        clear();
+        try {
+          const session = await createPaymentSession.mutateAsync(order.orderNumber);
+          await payWithCashfree(session);
+        } catch {
+          // The order page offers "Retry payment" / "Pay on delivery".
+          navigate(`/order/${order.orderNumber}/success`, { replace: true });
+        }
+        return;
+      }
       clear();
       navigate(`/order/${order.orderNumber}/success`, { replace: true });
     } catch (err) {
@@ -403,73 +438,100 @@ export function CheckoutPage() {
           </FormCard>
 
           <FormCard title="2 · Your details">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Your name" required error={errors.name}>
-                <Input value={name} onChange={setName} placeholder="Aarav Sharma" />
-              </Field>
-              <Field label="Your phone" required error={errors.phone} hint="We’ll confirm the order with you">
-                <Input value={phone} onChange={setPhone} placeholder="9330048665" />
-              </Field>
-              <Field
-                label="Email"
-                hint="Optional — for the receipt"
-                error={errors.email}
-                className="sm:col-span-2"
+            <div
+              className={cn(
+                "grid gap-5",
+                fulfillment === "DELIVERY" &&
+                  "sm:grid-cols-2 sm:gap-0 sm:divide-x sm:divide-cream-200",
+              )}
+            >
+              <div
+                className={cn(
+                  "grid grid-cols-2 content-start gap-x-3 gap-y-3",
+                  fulfillment === "DELIVERY" && "sm:pr-5",
+                )}
               >
-                <Input value={email} onChange={setEmail} placeholder="you@example.com" />
-              </Field>
-              <BusinessGstFields
-                enabled={isBusinessOrder}
-                onEnabledChange={setIsBusinessOrder}
-                companyName={companyName}
-                onCompanyNameChange={setCompanyName}
-                gstin={gstin}
-                onGstinChange={setGstin}
-                companyError={errors.companyName}
-                gstinError={errors.gstin}
-              />
+                {fulfillment === "DELIVERY" && (
+                  <ColumnLabel className="col-span-2">You</ColumnLabel>
+                )}
+                <Field label="Name" required error={errors.name}>
+                  <Input value={name} onChange={setName} placeholder="Aarav Sharma" />
+                </Field>
+                <Field label="Phone" required error={errors.phone}>
+                  <Input
+                    value={phone}
+                    onChange={setPhone}
+                    placeholder="9330048665"
+                    inputMode="tel"
+                  />
+                </Field>
+                <Field label="Email (optional)" error={errors.email} className="col-span-2">
+                  <Input
+                    value={email}
+                    onChange={setEmail}
+                    placeholder="For the receipt"
+                    inputMode="email"
+                  />
+                </Field>
+                <div className="col-span-2">
+                  <BusinessGstFields
+                    enabled={isBusinessOrder}
+                    onEnabledChange={setIsBusinessOrder}
+                    companyName={companyName}
+                    onCompanyNameChange={setCompanyName}
+                    gstin={gstin}
+                    onGstinChange={setGstin}
+                    companyError={errors.companyName}
+                    gstinError={errors.gstin}
+                  />
+                </div>
+              </div>
+
+              {fulfillment === "DELIVERY" && (
+                <div className="grid grid-cols-2 content-start gap-x-3 gap-y-3 border-t border-cream-200 pt-4 sm:border-t-0 sm:pt-0 sm:pl-5">
+                  <ColumnLabel className="col-span-2">Who is this order for?</ColumnLabel>
+                  <div className="col-span-2">
+                    <CheckRow
+                      checked={recipientIsMe}
+                      onChange={setRecipientIsMe}
+                      title="Its for me"
+                      subtitle="Uncheck if it's for someone else"
+                    />
+                  </div>
+                  {!recipientIsMe && (
+                    <>
+                      <Field label="Name" required error={errors.recipientName}>
+                        <Input
+                          value={recipientName}
+                          onChange={setRecipientName}
+                          placeholder="Who receives it"
+                        />
+                      </Field>
+                      <Field label="Phone" required error={errors.deliveryPhone}>
+                        <Input
+                          value={deliveryPhone}
+                          onChange={setDeliveryPhone}
+                          placeholder="9330048665"
+                          inputMode="tel"
+                        />
+                      </Field>
+                      <div className="col-span-2">
+                        <CheckRow
+                          checked={isSurpriseGift}
+                          onChange={setIsSurpriseGift}
+                          title="Surprise gift"
+                          subtitle="We'll confirm with you only, not the recipient"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </FormCard>
 
           {fulfillment === "DELIVERY" && (
             <FormCard title="3 · Delivery details">
-              <div className="mb-5 grid gap-4 sm:grid-cols-2">
-                <Field
-                  label="Recipient name"
-                  hint="Who receives the cake — leave blank if it’s you"
-                >
-                  <Input
-                    value={recipientName}
-                    onChange={setRecipientName}
-                    placeholder={name.trim() || "Recipient name"}
-                  />
-                </Field>
-                <Field label="Delivery phone" required error={errors.deliveryPhone}>
-                  <Input
-                    value={deliveryPhone}
-                    onChange={(v) => {
-                      setDeliveryPhoneTouched(true);
-                      setDeliveryPhone(v);
-                    }}
-                    placeholder={phone.trim() || "9330048665"}
-                  />
-                </Field>
-                <label className="flex cursor-pointer items-start gap-2.5 sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={isSurpriseGift}
-                    onChange={(e) => setIsSurpriseGift(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-cream-300 text-brand-600 focus:ring-brand-500/20"
-                  />
-                  <span>
-                    <span className="text-sm font-medium text-ink-900">Surprise gift</span>
-                    <span className="mt-0.5 block text-xs text-ink-500">
-                      We’ll confirm with you only — we won’t message the recipient
-                    </span>
-                  </span>
-                </label>
-              </div>
-
               {user && savedAddresses.length > 0 && !showNewAddressForm && (
                 <div className="mb-5 space-y-3">
                   <p className="text-xs font-medium tracking-wide text-ink-500 uppercase">
@@ -787,7 +849,7 @@ export function CheckoutPage() {
                   type="checkbox"
                   checked={billingSameAsDelivery}
                   onChange={(e) => setBillingSameAsDelivery(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-cream-300 text-brand-600 focus:ring-brand-500/20"
+                  className="border-cream-300 text-brand-600 mt-0.5 h-4 w-4 rounded focus:ring-brand-500/20"
                 />
                 <span>
                   <span className="text-sm font-medium text-ink-900">Same as delivery address</span>
@@ -881,14 +943,35 @@ export function CheckoutPage() {
 
           <FormCard
             title="Payment"
-            subtitle="Pay on delivery for now. Online payment (UPI / cards) coming soon."
+            subtitle={
+              onlinePaymentAvailable
+                ? "Pay securely now, or pay when your order arrives."
+                : "Pay when your order arrives."
+            }
           >
-            <div className="rounded-lg border border-cream-200 bg-cream-50 px-4 py-3 text-sm text-ink-700">
-              <span className="font-medium">Cash on delivery / pickup</span>
-              <p className="mt-0.5 text-xs text-ink-500">
-                Pay the delivery partner or at the bakery when you receive the order.
-              </p>
-            </div>
+            {onlinePaymentAvailable ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ChoiceButton
+                  active={payMethod === "cashfree"}
+                  onClick={() => setPayMethod("cashfree")}
+                  title="Pay online"
+                  subtitle="UPI, cards, netbanking — secured by Cashfree"
+                />
+                <ChoiceButton
+                  active={payMethod === "cod"}
+                  onClick={() => setPayMethod("cod")}
+                  title="Cash on delivery / pickup"
+                  subtitle="Pay the delivery partner or at the bakery"
+                />
+              </div>
+            ) : (
+              <div className="rounded-lg border border-cream-200 bg-cream-50 px-4 py-3 text-sm text-ink-700">
+                <span className="font-medium">Cash on delivery / pickup</span>
+                <p className="mt-0.5 text-xs text-ink-500">
+                  Pay the delivery partner or at the bakery when you receive the order.
+                </p>
+              </div>
+            )}
           </FormCard>
         </div>
 
@@ -1110,7 +1193,11 @@ export function CheckoutPage() {
               disabled={!isValid || createOrder.isPending}
               className="mt-5 block w-full rounded-full bg-brand-500 py-3 text-center text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {createOrder.isPending ? "Placing order…" : "Place order"}
+              {createOrder.isPending
+                ? "Placing order…"
+                : effectivePayMethod === "cashfree"
+                  ? `Pay ₹${total.toFixed(gstOnTop > 0 ? 2 : 0)} securely`
+                  : "Place order"}
             </button>
             <p className="mt-2 text-center text-[11px] text-ink-500">
               By placing this order you agree to our terms.
@@ -1168,6 +1255,41 @@ function ChoiceButton({
   );
 }
 
+function ColumnLabel({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <p className={cn("text-[11px] font-semibold tracking-wider text-ink-500 uppercase", className)}>
+      {children}
+    </p>
+  );
+}
+
+function CheckRow({
+  checked,
+  onChange,
+  title,
+  subtitle,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="border-cream-300 text-brand-600 mt-0.5 h-4 w-4 shrink-0 rounded focus:ring-brand-500/20"
+      />
+      <span>
+        <span className="text-sm font-medium text-ink-900">{title}</span>
+        {subtitle && <span className="mt-0.5 block text-xs text-ink-500">{subtitle}</span>}
+      </span>
+    </label>
+  );
+}
+
 function Field({
   label,
   hint,
@@ -1184,7 +1306,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className={cn("block", className)}>
+    <label className={cn("block min-w-0", className)}>
       <span className="mb-1 flex items-center gap-1 text-xs font-medium text-ink-700">
         {label}
         {required && <span className="text-brand-500">*</span>}

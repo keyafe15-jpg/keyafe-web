@@ -1,4 +1,5 @@
 import type { Order, OrderItem } from "@prisma/client";
+import { paymentMethodLabel } from "../../lib/paymentLabel.js";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -32,6 +33,11 @@ function itemRow(item: OrderItem): string {
       <td style="padding:12px 0;border-top:1px solid #f0e6d5;">
         <div style="font-weight:600;color:#2c3540;">${escapeHtml(item.productName)}</div>
         ${meta ? `<div style="font-size:13px;color:#7d8590;">${escapeHtml(meta)}</div>` : ""}
+        ${
+          item.description
+            ? `<div style="font-size:13px;color:#4b5563;white-space:pre-line;">${escapeHtml(item.description)}</div>`
+            : ""
+        }
         ${
           item.messageOnCake
             ? `<div style="font-size:13px;color:#7d8590;font-style:italic;">"${escapeHtml(item.messageOnCake)}"</div>`
@@ -197,7 +203,7 @@ export function renderCustomerConfirmation(order: OrderWithItems) {
 
     ${totalsBlock(order)}
     <p style="color:#7d8590;font-size:12px;margin-top:10px;">
-      Payment: ${escapeHtml(order.paymentMethod.toUpperCase())} · ${escapeHtml(order.paymentStatus)}
+      Payment: ${escapeHtml(paymentMethodLabel(order.paymentMethod))} · ${escapeHtml(order.paymentStatus)}
     </p>
 
     ${

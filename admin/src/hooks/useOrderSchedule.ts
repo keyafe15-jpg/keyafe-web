@@ -17,6 +17,7 @@ export interface ScheduleItem {
   qty: number;
   messageOnCake: string | null;
   instructions: string | null;
+  description: string | null;
   referenceImageUrl: string | null;
 }
 

@@ -749,7 +749,7 @@ export function OrderItemRow({
                 ? "Add pounds, flavour, message…"
                 : isCustomPizza
                   ? "Add size, crust, toppings…"
-                  : "Add size, notes…"}
+                  : "Add description, size, notes…"}
           </button>
         )}
 
@@ -1056,6 +1056,23 @@ export function OrderItemRow({
                 onToggle={toggleAddon}
               />
             )}
+
+            <Field label="Description (optional)">
+              <textarea
+                value={item.description}
+                onChange={(e) => onPatch({ description: e.target.value })}
+                rows={3}
+                maxLength={1000}
+                placeholder={
+                  isCustomPizza
+                    ? "e.g. half veg, half paneer"
+                    : isCustomCake
+                      ? "e.g. 2-tier fondant, gold drip"
+                      : "e.g. Gift hamper: 6 cupcakes, 1 candle, chocolates…"
+                }
+                className={cn(inputClass, "resize-y")}
+              />
+            </Field>
 
             <Field label="Instructions">
               <input

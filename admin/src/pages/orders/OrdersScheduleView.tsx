@@ -107,6 +107,11 @@ function ScheduleCard({ entry }: { entry: ScheduleEntry }) {
                 <p className="truncate text-xs text-slate-500">
                   {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
                 </p>
+                {item.description && (
+                  <p className="mt-0.5 text-xs whitespace-pre-line text-slate-600">
+                    {item.description}
+                  </p>
+                )}
                 {item.messageOnCake && (
                   <p className="mt-0.5 text-xs text-slate-500">Message: “{item.messageOnCake}”</p>
                 )}

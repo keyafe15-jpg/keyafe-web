@@ -15,6 +15,8 @@ export interface OrderItemDraft {
   customFlavour: string;
   messageOnCake: string;
   instructions: string;
+  /** Custom items only — what it is, e.g. the contents of a gift hamper. */
+  description: string;
   unitPrice: string;
   qty: string;
   refFile: File | null;
@@ -51,6 +53,7 @@ export function newOrderItem(kind: OrderLinkKind = "CUSTOM"): OrderItemDraft {
     customFlavour: "",
     messageOnCake: "",
     instructions: "",
+    description: "",
     unitPrice: "",
     qty: "1",
     refFile: null,
@@ -84,6 +87,7 @@ export function orderLinkItemToDraft(it: OrderLinkItem): OrderItemDraft {
     customFlavour: !it.flavourId && it.flavourName ? it.flavourName : "",
     messageOnCake: it.messageHint ?? "",
     instructions: "",
+    description: it.description ?? "",
     unitPrice: Number(it.unitPrice).toFixed(0),
     qty: String(it.qty),
     refFile: null,
