@@ -9,14 +9,46 @@ export interface StallMenuItem {
   sortOrder: number;
 }
 
-export interface Stall {
-  id: string;
+export type StallKind = "OFFICE" | "EXHIBITION";
+export type StallChargeBasis = "TOTAL" | "PER_DAY";
+/** Offices are always live; exhibitions by their dates (IST). */
+export type StallStatus = "live" | "upcoming" | "ended";
+
+export interface StallFields {
   name: string;
+  kind: StallKind;
+  location: string | null;
+  /** YYYY-MM-DD; exhibitions only. */
+  startDate: string | null;
+  endDate: string | null;
+  chargeAmount: number;
+  chargeBasis: StallChargeBasis;
   isActive: boolean;
+}
+
+export interface StallInfo extends StallFields {
+  id: string;
   sortOrder: number;
+  status: StallStatus;
+  /** Days an exhibition runs, inclusive; null for offices. */
+  days: number | null;
+  /** chargeAmount, or chargeAmount × days when charged per day. */
+  effectiveCharge: number;
+}
+
+export interface Stall extends StallInfo {
+  /** Days the counter may enter sales for (last week, within an exhibition's dates). */
+  counterWindow: { from: string; to: string } | null;
   /** Days with any record; a stall with history can't be deleted. */
   dayCount: number;
   menu: StallMenuItem[];
+}
+
+export interface StallSummary {
+  stall: StallInfo;
+  totals: StallTotals & { daysWithSales: number };
+  charge: number;
+  net: number;
 }
 
 export type StallSaleKind = "ITEMIZED" | "CONSOLIDATED";
@@ -49,7 +81,10 @@ export interface StallDayView {
   closedByName: string | null;
   stall: { id: string; name: string };
   sales: StallSale[];
+  /** Once a day has a lump sum, only lump entries count toward these. */
   totals: StallTotals;
+  lumpOverride: boolean;
+  tappedTotals: { cash: number; upi: number; total: number };
   itemsSold: { name: string; qty: number; amount: number }[];
 }
 
@@ -58,6 +93,7 @@ export interface StallDaySummary extends StallTotals {
   date: string;
   status: StallDayStatus;
   stall: { id: string; name: string };
+  lumpOverride: boolean;
 }
 
 export interface StallDaysList {
@@ -81,12 +117,14 @@ function refreshSales(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: [...STALLS, "days"] });
   void qc.invalidateQueries({ queryKey: [...STALLS, "day"] });
   void qc.invalidateQueries({ queryKey: [...STALLS, "today"] });
+  void qc.invalidateQueries({ queryKey: [...STALLS, "summary"] });
   void qc.invalidateQueries({ queryKey: ["admin", "orders", "collections"] });
 }
 
 function refreshStalls(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: [...STALLS, "list"] });
   void qc.invalidateQueries({ queryKey: [...STALLS, "manage"] });
+  void qc.invalidateQueries({ queryKey: [...STALLS, "summary"] });
 }
 
 /** Active stalls with their active menu — what the counter shows. */
@@ -108,21 +146,32 @@ export function useManageStalls() {
   });
 }
 
-export function useStallToday(stallId: string | null) {
+/** The counter's day — today, or a missed day picked on the counter. */
+export function useStallCounterDay(stallId: string | null, date: string) {
   return useQuery<StallDayView>({
-    queryKey: [...STALLS, "today", stallId],
-    queryFn: () => api.get<StallDayView>(`/admin/stalls/${stallId}/today`),
-    enabled: !!stallId,
+    queryKey: [...STALLS, "today", stallId, date],
+    queryFn: () => api.get<StallDayView>(`/admin/stalls/${stallId}/today?date=${date}`),
+    enabled: !!stallId && !!date,
     staleTime: 15_000,
   });
 }
 
-export function useStallDays(from: string, to: string, enabled = true) {
+export function useStallDays(from: string, to: string, stallId: string | null, enabled = true) {
+  const params = new URLSearchParams({ from, to, ...(stallId ? { stallId } : {}) });
   return useQuery<StallDaysList>({
-    queryKey: [...STALLS, "days", from, to],
-    queryFn: () =>
-      api.get<StallDaysList>(`/admin/stalls/days?${new URLSearchParams({ from, to }).toString()}`),
+    queryKey: [...STALLS, "days", params.toString()],
+    queryFn: () => api.get<StallDaysList>(`/admin/stalls/days?${params.toString()}`),
     enabled: enabled && !!from && !!to,
+    staleTime: 30_000,
+  });
+}
+
+/** All-time sales for one stall against its stall charge. */
+export function useStallSummary(stallId: string | null) {
+  return useQuery<StallSummary>({
+    queryKey: [...STALLS, "summary", stallId],
+    queryFn: () => api.get<StallSummary>(`/admin/stalls/${stallId}/summary`),
+    enabled: !!stallId,
     staleTime: 30_000,
   });
 }
@@ -138,24 +187,24 @@ export function useStallDay(stallId: string | null, date: string | null) {
 
 // ---------- Counter mutations ----------
 
-export function useRecordStallSale(stallId: string | null) {
+export function useRecordStallSale(stallId: string | null, date: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: StallSaleInput) =>
-      api.post<StallDayView>(`/admin/stalls/${stallId}/sales`, input),
+      api.post<StallDayView>(`/admin/stalls/${stallId}/sales`, { ...input, date }),
     onSuccess: (day) => {
-      qc.setQueryData([...STALLS, "today", stallId], day);
+      qc.setQueryData([...STALLS, "today", stallId, date], day);
       refreshSales(qc);
     },
   });
 }
 
-export function useCloseStallToday(stallId: string | null) {
+export function useCloseStallDay(stallId: string | null, date: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<StallDayView>(`/admin/stalls/${stallId}/today/close`, {}),
+    mutationFn: () => api.post<StallDayView>(`/admin/stalls/${stallId}/today/close`, { date }),
     onSuccess: (day) => {
-      qc.setQueryData([...STALLS, "today", stallId], day);
+      qc.setQueryData([...STALLS, "today", stallId, date], day);
       refreshSales(qc);
     },
   });
@@ -201,7 +250,8 @@ export function useSetStallDayStatus() {
 export function useCreateStall() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { name: string }) => api.post<{ id: string }>("/admin/stalls", input),
+    mutationFn: (input: Partial<StallFields> & { name: string; copyMenuFrom?: string }) =>
+      api.post<{ id: string }>("/admin/stalls", input),
     onSuccess: () => refreshStalls(qc),
   });
 }
@@ -209,8 +259,20 @@ export function useCreateStall() {
 export function useUpdateStall() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; isActive?: boolean }) =>
+    mutationFn: ({ id, ...body }: { id: string } & Partial<StallFields>) =>
       api.patch<{ ok: boolean }>(`/admin/stalls/${id}`, body),
+    onSuccess: () => {
+      refreshStalls(qc);
+      refreshSales(qc);
+    },
+  });
+}
+
+export function useCopyStallMenu() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ stallId, fromStallId }: { stallId: string; fromStallId: string }) =>
+      api.post<{ copied: number }>(`/admin/stalls/${stallId}/menu/copy`, { fromStallId }),
     onSuccess: () => refreshStalls(qc),
   });
 }

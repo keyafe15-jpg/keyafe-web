@@ -17,6 +17,7 @@ import {
   DayStatusPill,
   ItemPicker,
   ItemsSold,
+  LumpOverrideNote,
   LumpSumForm,
   SaleList,
   Segmented,
@@ -112,6 +113,9 @@ function DayDetail({ target, stall }: { target: DrawerTarget; stall: Stall | und
           </Dialog.Close>
         </div>
         {day && <TotalsStrip totals={day.totals} className="mt-4" />}
+        {day?.lumpOverride && (
+          <LumpOverrideNote tappedTotal={day.tappedTotals.total} className="mt-3" />
+        )}
       </div>
 
       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-5">
@@ -177,7 +181,7 @@ function DayDetail({ target, stall }: { target: DrawerTarget; stall: Stall | und
                     </div>
                   </>
                 ) : (
-                  <LumpSumForm onSubmit={save} saving={add.isPending} />
+                  <LumpSumForm onSubmit={save} saving={add.isPending} tapped={day.tappedTotals} />
                 )}
               </section>
             )}
@@ -196,6 +200,7 @@ function DayDetail({ target, stall }: { target: DrawerTarget; stall: Stall | und
                 onDelete={onDelete}
                 deletingId={del.isPending ? del.variables : null}
                 showAuthor
+                lumpOverride={day.lumpOverride}
               />
             </section>
           </>

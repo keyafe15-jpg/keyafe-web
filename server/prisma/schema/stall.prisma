@@ -12,15 +12,33 @@ enum StallSaleKind {
   CONSOLIDATED // Lump cash/UPI figure entered when there was no time to itemise
 }
 
+enum StallKind {
+  OFFICE // Long-running counter, e.g. a corporate office; no stall charge
+  EXHIBITION // Temporary stall between startDate and endDate
+}
+
+enum StallChargeBasis {
+  TOTAL // chargeAmount covers the whole exhibition
+  PER_DAY // chargeAmount × number of days (endDate - startDate + 1)
+}
+
 model Stall {
-  id        String          @id @default(cuid())
-  name      String
-  isActive  Boolean         @default(true)
-  sortOrder Int             @default(0)
-  menuItems StallMenuItem[]
-  days      StallDay[]
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id           String           @id @default(cuid())
+  name         String
+  kind         StallKind        @default(OFFICE)
+  // Venue and address, free text.
+  location     String?
+  // IST calendar days; set for exhibitions only.
+  startDate    DateTime?        @db.Date
+  endDate      DateTime?        @db.Date
+  chargeAmount Decimal          @default(0) @db.Decimal(10, 2)
+  chargeBasis  StallChargeBasis @default(TOTAL)
+  isActive     Boolean          @default(true)
+  sortOrder    Int              @default(0)
+  menuItems    StallMenuItem[]
+  days         StallDay[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 }
 
 model StallMenuItem {

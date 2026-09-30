@@ -10,19 +10,24 @@ import {
   type StaffUser,
 } from "../../middleware/auth.js";
 import {
-  closeToday,
+  closeCounterDay,
+  copyMenu,
+  createStall,
   daysQuerySchema,
   deleteSale,
   findDayId,
   getDayView,
+  getStallSummary,
   istToday,
   listDays,
   listStalls,
   menuItemView,
   parseSaleInput,
   recordSale,
+  requireCounterDay,
   requireStall,
   setDayStatus,
+  updateStall,
 } from "./stall.service.js";
 
 export const adminStallRouter = Router();
@@ -42,23 +47,30 @@ const param = (req: Request, key: string): string => {
   return value;
 };
 
-async function todayView(stallId: string) {
+async function counterView(stallId: string, date: string) {
   const stall = await requireStall(stallId);
-  const date = istToday();
   return getDayView(await findDayId(stallId, date), {
     stall: { id: stall.id, name: stall.name },
     date,
   });
 }
 
+/** The counter works on today unless a missed day is picked (`?date=` or body `date`). */
+const counterDate = (value: unknown) => {
+  if (value == null || value === "") return istToday();
+  const date = calendarDay.safeParse(value);
+  if (!date.success) throw HttpError.badRequest("Invalid date");
+  return date.data;
+};
+
 // ---------- Counter ----------
 
 adminStallRouter.get("/", canSell, async (_req, res) => {
-  res.json(await listStalls({ includeInactive: false }));
+  res.json(await listStalls({ counter: true }));
 });
 
 adminStallRouter.get("/manage", canManage, async (_req, res) => {
-  res.json(await listStalls({ includeInactive: true }));
+  res.json(await listStalls({ counter: false }));
 });
 
 adminStallRouter.get("/days", canManage, async (req, res) => {
@@ -89,17 +101,23 @@ adminStallRouter.delete("/sales/:saleId", canSell, async (req, res) => {
 });
 
 adminStallRouter.get("/:stallId/today", canSell, async (req, res) => {
-  res.json(await todayView(param(req, "stallId")));
+  const date = counterDate(req.query.date);
+  await requireCounterDay(param(req, "stallId"), date);
+  res.json(await counterView(param(req, "stallId"), date));
 });
 
 adminStallRouter.post("/:stallId/sales", canSell, async (req, res) => {
+  const date = counterDate(req.body?.date);
   const input = parseSaleInput(req.body);
-  await recordSale(param(req, "stallId"), istToday(), input, staffOf(req), { allowClosed: false });
-  res.status(201).json(await todayView(param(req, "stallId")));
+  await requireCounterDay(param(req, "stallId"), date);
+  await recordSale(param(req, "stallId"), date, input, staffOf(req), { allowClosed: false });
+  res.status(201).json(await counterView(param(req, "stallId"), date));
 });
 
 adminStallRouter.post("/:stallId/today/close", canSell, async (req, res) => {
-  const id = await closeToday(param(req, "stallId"), staffOf(req));
+  const date = counterDate(req.body?.date);
+  await requireCounterDay(param(req, "stallId"), date);
+  const id = await closeCounterDay(param(req, "stallId"), date, staffOf(req));
   res.json(await getDayView(id));
 });
 
@@ -134,28 +152,26 @@ adminStallRouter.post("/:stallId/days/:date/sales", canManage, async (req, res) 
 
 // ---------- Admin: stalls ----------
 
-const stallSchema = z.object({
-  name: z.string().trim().min(1).max(80),
-  isActive: z.boolean().optional(),
+adminStallRouter.post("/", canManage, async (req, res) => {
+  res.status(201).json(await createStall(req.body));
 });
 
-adminStallRouter.post("/", canManage, async (req, res) => {
-  const parsed = stallSchema.safeParse(req.body);
-  if (!parsed.success) throw HttpError.badRequest("Invalid stall", parsed.error.flatten());
-  const last = await prisma.stall.aggregate({ _max: { sortOrder: true } });
-  const stall = await prisma.stall.create({
-    data: { ...parsed.data, sortOrder: (last._max.sortOrder ?? 0) + 10 },
-    select: { id: true },
-  });
-  res.status(201).json(stall);
+adminStallRouter.get("/:stallId/summary", canManage, async (req, res) => {
+  res.json(await getStallSummary(param(req, "stallId")));
 });
 
 adminStallRouter.patch("/:stallId", canManage, async (req, res) => {
-  const parsed = stallSchema.partial().safeParse(req.body);
-  if (!parsed.success) throw HttpError.badRequest("Invalid stall", parsed.error.flatten());
-  await requireStall(param(req, "stallId"));
-  await prisma.stall.update({ where: { id: param(req, "stallId") }, data: parsed.data });
+  await updateStall(param(req, "stallId"), req.body);
   res.json({ ok: true });
+});
+
+const copyMenuSchema = z.object({ fromStallId: z.string().min(1) });
+
+adminStallRouter.post("/:stallId/menu/copy", canManage, async (req, res) => {
+  const parsed = copyMenuSchema.safeParse(req.body);
+  if (!parsed.success) throw HttpError.badRequest("Pick a stall to copy from");
+  const stall = await requireStall(param(req, "stallId"));
+  res.json({ copied: await copyMenu(parsed.data.fromStallId, stall.id) });
 });
 
 adminStallRouter.delete("/:stallId", canManage, async (req, res) => {

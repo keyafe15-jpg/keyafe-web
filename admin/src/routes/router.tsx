@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -29,8 +29,7 @@ import { CouponsPage } from "@/pages/coupons/CouponsPage";
 import { CustomersListPage } from "@/pages/customers/CustomersListPage";
 import { UsersRolesPage } from "@/pages/staff/UsersRolesPage";
 import { RequirePermission } from "@/components/nav/RequirePermission";
-import { StallCounterPage } from "@/pages/stall/StallCounterPage";
-import { StallDaysPage } from "@/pages/stall/StallDaysPage";
+import { StallSalesPage } from "@/pages/stall/StallSalesPage";
 import { StallMenuPage } from "@/pages/stall/StallMenuPage";
 
 export const router = createBrowserRouter([
@@ -70,11 +69,11 @@ export const router = createBrowserRouter([
           },
           {
             path: "stall",
-            element: <StallCounterPage />,
+            element: <StallSalesPage />,
           },
           {
             path: "stall/days",
-            element: <StallDaysPage />,
+            element: <Navigate to="/stall?tab=history" replace />,
           },
           {
             path: "stall/menu",

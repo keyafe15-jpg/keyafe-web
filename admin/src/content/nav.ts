@@ -21,7 +21,6 @@ import {
   MessageSquareQuote,
   GalleryHorizontal,
   ChefHat,
-  CalendarDays,
   UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
@@ -76,20 +75,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       {
         to: "/stall",
-        label: "Stall counter",
+        label: "Stall sales",
         icon: ChefHat,
         requiresPermission: "stall.sell",
         end: true,
       },
       {
-        to: "/stall/days",
-        label: "Stall sales",
-        icon: CalendarDays,
-        requiresPermission: "stall.manage",
-      },
-      {
         to: "/stall/menu",
-        label: "Stall menu",
+        label: "Stalls & menus",
         icon: UtensilsCrossed,
         requiresPermission: "stall.manage",
       },

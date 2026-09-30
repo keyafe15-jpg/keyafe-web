@@ -1,8 +1,34 @@
-import { useState } from "react";
-import { Banknote, Minus, Plus, Smartphone, Trash2, X } from "lucide-react";
-import type { StallMenuItem, StallSale, StallSaleInput, StallTotals } from "@/hooks/useStalls";
+import { useState, type SelectHTMLAttributes } from "react";
+import { Banknote, ChevronDown, MapPin, Minus, Plus, Smartphone, Trash2, X } from "lucide-react";
+import {
+  useStallSummary,
+  type StallInfo,
+  type StallMenuItem,
+  type StallSale,
+  type StallSaleInput,
+  type StallStatus,
+  type StallTotals,
+} from "@/hooks/useStalls";
 import { formatINR } from "@/lib/money";
 import { cn } from "@/lib/cn";
+import { selectClass } from "@/components/form/Field";
+
+/** `selectClass` hides the native arrow, so draw one to make it read as a dropdown. */
+export function Select({
+  className,
+  wrapperClassName,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { wrapperClassName?: string }) {
+  return (
+    <span className={cn("relative inline-block max-w-full", wrapperClassName)}>
+      <select {...props} className={cn(selectClass, "cursor-pointer pr-9", className)}>
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-slate-500" />
+    </span>
+  );
+}
 
 /** menuItemId → qty */
 export type Cart = Record<string, number>;
@@ -190,13 +216,15 @@ export function CartPanel({
 const amountInputClass =
   "w-full rounded-lg border border-slate-200 bg-white py-2.5 pr-3 pl-7 text-base text-slate-900 tabular-nums placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none";
 
-/** Consolidated cash/UPI figure for when there was no time to tap items. */
+/** The day's full cash/UPI figure; once entered it replaces the tapped total. */
 export function LumpSumForm({
   onSubmit,
   saving,
+  tapped,
 }: {
   onSubmit: (input: StallSaleInput) => Promise<void>;
   saving: boolean;
+  tapped?: { cash: number; upi: number };
 }) {
   const [cash, setCash] = useState("");
   const [upi, setUpi] = useState("");
@@ -230,8 +258,13 @@ export function LumpSumForm({
       className="space-y-3"
     >
       <p className="text-sm text-slate-500">
-        No time to tap items? Enter the total you collected — it adds to today&rsquo;s sales.
+        Enter the full cash and UPI collected for the day — this replaces the tapped total.
       </p>
+      {tapped && tapped.cash + tapped.upi > 0 && (
+        <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          Tapped so far: Cash {formatINR(tapped.cash)} · UPI {formatINR(tapped.upi)}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3">
         {[
           { label: "Cash", value: cash, set: setCash },
@@ -289,51 +322,78 @@ function saleSummary(sale: StallSale) {
 
 const timeFmt = new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" });
 
+/** Shown when a lump sum is in: tapped entries stay listed but don't count. */
+export function LumpOverrideNote({
+  tappedTotal,
+  className,
+}: {
+  tappedTotal: number;
+  className?: string;
+}) {
+  if (tappedTotal <= 0) return null;
+  return (
+    <p className={cn("rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800", className)}>
+      Lump sum counted — tapped entries ({formatINR(tappedTotal)}) are not added.
+    </p>
+  );
+}
+
 export function SaleList({
   sales,
   onDelete,
   deletingId,
   showAuthor,
+  lumpOverride,
 }: {
   sales: StallSale[];
   onDelete?: (sale: StallSale) => void;
   deletingId?: string | null;
   showAuthor?: boolean;
+  lumpOverride?: boolean;
 }) {
   if (sales.length === 0) {
     return <p className="px-1 py-3 text-sm text-slate-500">No entries yet.</p>;
   }
   return (
     <ul className="divide-y divide-slate-100">
-      {sales.map((s) => (
-        <li key={s.id} className="flex items-start gap-3 py-2.5">
-          <span className="w-16 shrink-0 pt-0.5 text-xs text-slate-400 tabular-nums">
-            {timeFmt.format(new Date(s.createdAt))}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-slate-800">{saleSummary(s)}</p>
-            <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-slate-500">
-              {s.cashAmount > 0 && <span>Cash {formatINR(s.cashAmount)}</span>}
-              {s.upiAmount > 0 && <span>UPI {formatINR(s.upiAmount)}</span>}
-              {showAuthor && s.createdByName && <span>· {s.createdByName}</span>}
-            </p>
-          </div>
-          <span className="shrink-0 pt-0.5 text-sm font-semibold text-slate-900 tabular-nums">
-            {formatINR(s.cashAmount + s.upiAmount)}
-          </span>
-          {onDelete && (
-            <button
-              type="button"
-              onClick={() => onDelete(s)}
-              disabled={deletingId === s.id}
-              aria-label="Remove entry"
-              className="-mr-1 shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+      {sales.map((s) => {
+        const covered = lumpOverride && s.kind === "ITEMIZED";
+        return (
+          <li key={s.id} className="flex items-start gap-3 py-2.5">
+            <span className="w-16 shrink-0 pt-0.5 text-xs text-slate-400 tabular-nums">
+              {timeFmt.format(new Date(s.createdAt))}
+            </span>
+            <div className={cn("min-w-0 flex-1", covered && "opacity-60")}>
+              <p className="text-sm text-slate-800">{saleSummary(s)}</p>
+              <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-slate-500">
+                {s.cashAmount > 0 && <span>Cash {formatINR(s.cashAmount)}</span>}
+                {s.upiAmount > 0 && <span>UPI {formatINR(s.upiAmount)}</span>}
+                {showAuthor && s.createdByName && <span>· {s.createdByName}</span>}
+                {covered && <span className="text-amber-700">· covered by lump sum</span>}
+              </p>
+            </div>
+            <span
+              className={cn(
+                "shrink-0 pt-0.5 text-sm font-semibold tabular-nums",
+                covered ? "text-slate-400 line-through" : "text-slate-900",
+              )}
             >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </li>
-      ))}
+              {formatINR(s.cashAmount + s.upiAmount)}
+            </span>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(s)}
+                disabled={deletingId === s.id}
+                aria-label="Remove entry"
+                className="-mr-1 shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -352,6 +412,86 @@ export function ItemsSold({ items }: { items: { name: string; qty: number; amoun
         </li>
       ))}
     </ul>
+  );
+}
+
+/** "12–14 Oct", "30 Sep – 2 Oct", or "12 Oct" for a one-day exhibition. */
+export function formatStallDates(start: string | null, end: string | null) {
+  if (!start || !end) return "";
+  const s = new Date(`${start}T00:00:00`);
+  const e = new Date(`${end}T00:00:00`);
+  const month = (d: Date) => d.toLocaleDateString("en-IN", { month: "short" });
+  const year = e.getFullYear() !== new Date().getFullYear() ? ` ${e.getFullYear()}` : "";
+  if (start === end) return `${s.getDate()} ${month(s)}${year}`;
+  if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
+    return `${s.getDate()}–${e.getDate()} ${month(e)}${year}`;
+  }
+  return `${s.getDate()} ${month(s)} – ${e.getDate()} ${month(e)}${year}`;
+}
+
+const STATUS_STYLE: Record<StallStatus, string> = {
+  live: "bg-emerald-50 text-emerald-700",
+  upcoming: "bg-sky-50 text-sky-700",
+  ended: "bg-slate-100 text-slate-500",
+};
+
+export function StallStatusBadge({ stall }: { stall: Pick<StallInfo, "kind" | "status"> }) {
+  if (stall.kind === "OFFICE") return null;
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
+        STATUS_STYLE[stall.status],
+      )}
+    >
+      {stall.status === "live" ? "Live" : stall.status === "upcoming" ? "Upcoming" : "Ended"}
+    </span>
+  );
+}
+
+/** Exhibition takings against the stall charge. */
+export function StallSummaryCard({ stallId, className }: { stallId: string; className?: string }) {
+  const { data } = useStallSummary(stallId);
+  if (!data || data.stall.kind !== "EXHIBITION") return null;
+  const { stall, totals, charge, net } = data;
+  return (
+    <div className={cn("rounded-card border border-slate-200 bg-white p-4", className)}>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="font-semibold text-slate-900">{stall.name}</h2>
+        <StallStatusBadge stall={stall} />
+      </div>
+      <p className="mt-0.5 text-xs text-slate-500">
+        {formatStallDates(stall.startDate, stall.endDate)}
+        {stall.days != null && ` · ${stall.days} day${stall.days === 1 ? "" : "s"}`}
+      </p>
+      {stall.location && (
+        <p className="mt-1 flex items-start gap-1 text-xs whitespace-pre-line text-slate-500">
+          <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+          {stall.location}
+        </p>
+      )}
+      <TotalsStrip totals={totals} className="mt-4" />
+      <dl className="mt-4 space-y-1.5 border-t border-slate-100 pt-3 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt className="text-slate-500">
+            Stall charge
+            {stall.chargeBasis === "PER_DAY" && stall.days != null && charge > 0 && (
+              <span className="text-xs">
+                {" "}
+                ({formatINR(stall.chargeAmount)}/day × {stall.days})
+              </span>
+            )}
+          </dt>
+          <dd className="text-slate-900 tabular-nums">− {formatINR(charge)}</dd>
+        </div>
+        <div className="flex justify-between gap-3 font-semibold">
+          <dt className="text-slate-900">Net after charge</dt>
+          <dd className={cn("tabular-nums", net < 0 ? "text-red-600" : "text-emerald-700")}>
+            {formatINR(net)}
+          </dd>
+        </div>
+      </dl>
+    </div>
   );
 }
 

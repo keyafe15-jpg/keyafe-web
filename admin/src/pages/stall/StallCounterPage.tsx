@@ -1,31 +1,35 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
-import { CheckCircle2, Lock } from "lucide-react";
+import { CalendarDays, CheckCircle2, Lock, MapPin } from "lucide-react";
 import {
-  useCloseStallToday,
+  useCloseStallDay,
   useDeleteStallSale,
   useRecordStallSale,
-  useStallToday,
+  useSetStallDayStatus,
+  useStallCounterDay,
   useStalls,
   type Stall,
   type StallSale,
   type StallSaleInput,
 } from "@/hooks/useStalls";
 import { useStaffPermission } from "@/lib/permissions";
-import { formatDayShort } from "@/lib/dateRange";
+import { formatDayShort, toInputDate } from "@/lib/dateRange";
 import { formatINR } from "@/lib/money";
-import { selectClass } from "@/components/form/Field";
 import {
   CartPanel,
   DayStatusPill,
   ItemPicker,
+  LumpOverrideNote,
   LumpSumForm,
   SaleList,
   Segmented,
+  Select,
+  StallStatusBadge,
   TotalsStrip,
   cartToInput,
   cartTotal,
+  formatStallDates,
   type Cart,
 } from "./stall-ui";
 
@@ -45,16 +49,18 @@ export function StallCounterPage() {
   if (!stall) {
     return (
       <div className="mx-auto max-w-md rounded-card border border-slate-200 bg-white p-6 text-center">
-        <p className="font-medium text-slate-900">No stall set up yet</p>
+        <p className="font-medium text-slate-900">No stall running today</p>
         <p className="mt-1 text-sm text-slate-500">
-          {canManage ? "Create the stall and its menu first." : "Ask an admin to set up the stall."}
+          {canManage
+            ? "Set up a stall, or check the exhibition dates and that the stall is switched on."
+            : "Ask an admin to set up the stall."}
         </p>
         {canManage && (
           <Link
             to="/stall/menu"
             className="mt-4 inline-flex rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            Set up stall menu
+            Stalls &amp; menus
           </Link>
         )}
       </div>
@@ -86,9 +92,15 @@ function StallCounter({
   canManage: boolean;
   onPickStall: (id: string) => void;
 }) {
-  const today = useStallToday(stall.id);
-  const record = useRecordStallSale(stall.id);
-  const close = useCloseStallToday(stall.id);
+  const todayKey = toInputDate(new Date());
+  const allowed = stall.counterWindow;
+  const defaultDate = allowed?.to ?? todayKey;
+  const [date, setDate] = useState(defaultDate);
+  const isToday = date === todayKey;
+  const today = useStallCounterDay(stall.id, date);
+  const record = useRecordStallSale(stall.id, date);
+  const close = useCloseStallDay(stall.id, date);
+  const reopen = useSetStallDayStatus();
   const del = useDeleteStallSale();
   const [mode, setMode] = useState<Mode>(stall.menu.length > 0 ? "items" : "lump");
   const [cart, setCart] = useState<Cart>({});
@@ -126,6 +138,17 @@ function StallCounter({
       .catch(() => {});
   };
 
+  const onReopen = () => {
+    if (!day?.id) return;
+    setError(null);
+    reopen.mutate(
+      { dayId: day.id, action: "reopen" },
+      {
+        onError: (err) => setError(err instanceof Error ? err.message : "Could not reopen the day"),
+      },
+    );
+  };
+
   const onDelete = (sale: StallSale) => {
     if (!confirm(`Remove this ${formatINR(sale.cashAmount + sale.upiAmount)} entry?`)) return;
     setError(null);
@@ -140,38 +163,97 @@ function StallCounter({
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
             {stalls.length > 1 ? (
-              <select
+              <Select
                 value={stall.id}
                 onChange={(e) => onPickStall(e.target.value)}
                 aria-label="Stall"
-                className={`${selectClass} py-1.5 font-semibold`}
+                title="Switch stall"
+                className="py-1.5 font-semibold"
               >
                 {stalls.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             ) : (
               <h1 className="truncate text-lg font-semibold text-slate-900">{stall.name}</h1>
             )}
-            <p className="mt-0.5 text-xs text-slate-500">
-              {day ? formatDayShort(day.date) : "Today"}
-              {day && day.totals.count > 0 && (
-                <>
-                  {" "}
-                  · {day.totals.count} entr{day.totals.count === 1 ? "y" : "ies"}
-                </>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+              <label
+                title="Pick a missed day to enter its sales"
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-700 hover:border-slate-300"
+              >
+                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <input
+                  type="date"
+                  value={date}
+                  min={allowed?.from}
+                  max={allowed?.to ?? todayKey}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    setDate(e.target.value);
+                    setError(null);
+                  }}
+                  aria-label="Sales date"
+                  className="bg-transparent text-xs text-slate-700 outline-none"
+                />
+              </label>
+              {date !== defaultDate && (
+                <button
+                  type="button"
+                  onClick={() => setDate(defaultDate)}
+                  className="font-medium text-brand-600 hover:text-brand-700"
+                >
+                  {defaultDate === todayKey ? "Back to today" : "Back to last day"}
+                </button>
               )}
-            </p>
+              {day && day.totals.count > 0 && (
+                <span>
+                  {day.totals.count} entr{day.totals.count === 1 ? "y" : "ies"}
+                </span>
+              )}
+            </div>
           </div>
           {day && <DayStatusPill status={day.status} />}
         </div>
+        {!isToday && (
+          <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Entering sales for <span className="font-semibold">{formatDayShort(date)}</span>, not
+            today.
+          </p>
+        )}
+        {stall.kind === "EXHIBITION" && (
+          <div className="-mt-1 mb-3 space-y-0.5 text-xs text-slate-500">
+            <p className="flex items-center gap-1.5">
+              <StallStatusBadge stall={stall} />
+              <span>
+                {formatStallDates(stall.startDate, stall.endDate)}
+                {stall.days ? ` · ${stall.days} day${stall.days === 1 ? "" : "s"}` : ""}
+              </span>
+            </p>
+            {stall.location && (
+              <p className="flex items-start gap-1">
+                <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                <span className="line-clamp-2 whitespace-pre-line">{stall.location}</span>
+              </p>
+            )}
+          </div>
+        )}
         {day ? (
-          <TotalsStrip totals={day.totals} />
+          <>
+            <TotalsStrip totals={day.totals} />
+            {day.lumpOverride && (
+              <LumpOverrideNote tappedTotal={day.tappedTotals.total} className="mt-3" />
+            )}
+          </>
         ) : (
           <p className="py-3 text-center text-sm text-slate-500">
-            {today.isError ? "Could not load today’s sales." : "Loading…"}
+            {today.isError
+              ? today.error instanceof Error
+                ? today.error.message
+                : "Could not load this day’s sales."
+              : "Loading…"}
           </p>
         )}
       </div>
@@ -181,14 +263,24 @@ function StallCounter({
       {closed ? (
         <div className="mb-4 flex items-start gap-3 rounded-card border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-          <p>
+          <p className="min-w-0 flex-1">
             Day closed
             {day?.closedByName ? ` by ${day.closedByName}` : ""}
             {day?.closedAt
               ? ` at ${new Date(day.closedAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`
               : ""}
-            . {canManage ? "Reopen it from Stall sales to add more." : "Ask an admin to reopen it."}
+            . {canManage ? "Reopen it to add or remove entries." : "Ask an admin to reopen it."}
           </p>
+          {canManage && day?.id && (
+            <button
+              type="button"
+              disabled={reopen.isPending}
+              onClick={onReopen}
+              className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {reopen.isPending ? "Reopening…" : "Reopen day"}
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -237,6 +329,7 @@ function StallCounter({
             <div className="rounded-card border border-slate-200 bg-white p-4">
               <LumpSumForm
                 saving={record.isPending}
+                tapped={day?.tappedTotals}
                 onSubmit={(input) =>
                   save(
                     input,
@@ -259,11 +352,14 @@ function StallCounter({
       )}
 
       <section className="mt-6 rounded-card border border-slate-200 bg-white px-4 py-3">
-        <h2 className="text-sm font-semibold text-slate-900">Today&rsquo;s entries</h2>
+        <h2 className="text-sm font-semibold text-slate-900">
+          {isToday ? "Today’s entries" : `Entries for ${formatDayShort(date)}`}
+        </h2>
         <SaleList
           sales={day?.sales ?? []}
           onDelete={closed ? undefined : onDelete}
           deletingId={del.isPending ? del.variables : null}
+          lumpOverride={day?.lumpOverride}
         />
       </section>
 
@@ -282,7 +378,7 @@ function StallCounter({
           <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-900/40" />
           <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-card bg-white p-5 shadow-xl">
             <Dialog.Title className="text-lg font-semibold text-slate-900">
-              Close today&rsquo;s sales?
+              {isToday ? "Close today’s sales?" : `Close sales for ${formatDayShort(date)}?`}
             </Dialog.Title>
             <Dialog.Description className="mt-1 text-sm text-slate-500">
               Check these match the cash in hand and your UPI app. You won&rsquo;t be able to add or
