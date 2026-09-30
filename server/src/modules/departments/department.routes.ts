@@ -84,6 +84,34 @@ adminDepartmentRouter.post("/", async (req, res) => {
   res.status(StatusCodes.CREATED).json({ ...created, categoryCount: 0 });
 });
 
+const reorderSchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1),
+});
+
+adminDepartmentRouter.post("/reorder", async (req, res) => {
+  const parsed = reorderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid reorder payload", parsed.error.flatten());
+  }
+  const { orderedIds } = parsed.data;
+  if (new Set(orderedIds).size !== orderedIds.length) {
+    throw HttpError.badRequest("Duplicate ids in reorder list");
+  }
+
+  const existing = await prisma.department.count({ where: { id: { in: orderedIds } } });
+  if (existing !== orderedIds.length) {
+    throw HttpError.badRequest("One or more stores were not found");
+  }
+
+  await prisma.$transaction(
+    orderedIds.map((id, index) =>
+      prisma.department.update({ where: { id }, data: { sortOrder: (index + 1) * 10 } }),
+    ),
+  );
+
+  res.json({ ok: true });
+});
+
 const updateSchema = createSchema.partial();
 
 adminDepartmentRouter.patch("/:id", async (req, res) => {

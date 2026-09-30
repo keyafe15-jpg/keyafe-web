@@ -56,6 +56,15 @@ export function useUpdateDepartment() {
   });
 }
 
+export function useReorderDepartments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      api.post<{ ok: boolean }>("/admin/departments/reorder", { orderedIds }),
+    onSuccess: () => invalidate(qc),
+  });
+}
+
 export function useDeleteDepartment() {
   const qc = useQueryClient();
   return useMutation({

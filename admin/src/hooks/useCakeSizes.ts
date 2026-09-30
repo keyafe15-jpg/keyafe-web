@@ -47,6 +47,17 @@ export function useUpdateCakeSize() {
   });
 }
 
+export function useReorderCakeSizes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      api.post<{ ok: boolean }>("/admin/cake-sizes/reorder", { orderedIds }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "cake-sizes"] });
+    },
+  });
+}
+
 export function useDeleteCakeSize() {
   const qc = useQueryClient();
   return useMutation({

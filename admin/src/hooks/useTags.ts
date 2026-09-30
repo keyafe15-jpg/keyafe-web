@@ -70,6 +70,18 @@ export function useUpdateTag() {
   });
 }
 
+export function useReorderTags() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      api.post<{ ok: boolean }>("/admin/tags/reorder", { orderedIds }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "tags"] });
+      void qc.invalidateQueries({ queryKey: ["tags"] });
+    },
+  });
+}
+
 export function useDeleteTag() {
   const qc = useQueryClient();
   return useMutation({

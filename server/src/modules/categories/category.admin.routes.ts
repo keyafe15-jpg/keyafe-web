@@ -118,6 +118,41 @@ adminCategoryRouter.post("/", async (req, res) => {
   res.status(StatusCodes.CREATED).json(created);
 });
 
+const reorderSchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1),
+});
+
+// Reorders one sibling group — all top-level categories, or the subs of one parent.
+adminCategoryRouter.post("/reorder", async (req, res) => {
+  const parsed = reorderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Invalid reorder payload", parsed.error.flatten());
+  }
+  const { orderedIds } = parsed.data;
+  if (new Set(orderedIds).size !== orderedIds.length) {
+    throw HttpError.badRequest("Duplicate ids in reorder list");
+  }
+
+  const rows = await prisma.category.findMany({
+    where: { id: { in: orderedIds } },
+    select: { parentId: true },
+  });
+  if (rows.length !== orderedIds.length) {
+    throw HttpError.badRequest("One or more categories were not found");
+  }
+  if (new Set(rows.map((r) => r.parentId)).size > 1) {
+    throw HttpError.badRequest("Only categories with the same parent can be reordered together");
+  }
+
+  await prisma.$transaction(
+    orderedIds.map((id, index) =>
+      prisma.category.update({ where: { id }, data: { sortOrder: (index + 1) * 10 } }),
+    ),
+  );
+
+  res.json({ ok: true });
+});
+
 const updateSchema = createSchema.partial();
 
 adminCategoryRouter.patch("/:id", async (req, res) => {

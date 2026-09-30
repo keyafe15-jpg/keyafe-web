@@ -1,14 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   useAdminTags,
   useCreateTag,
   useDeleteTag,
+  useReorderTags,
   useUpdateTag,
   type AdminTag,
 } from "@/hooks/useTags";
 import { cn } from "@/lib/cn";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
+import {
+  ReorderHandle,
+  ReorderList,
+  type ReorderItemContext,
+} from "@/components/reorder/ReorderList";
+import { ActiveSwitch } from "@/components/ui/ActiveSwitch";
 
 const slugify = (s: string) =>
   s
@@ -19,8 +26,27 @@ const slugify = (s: string) =>
 
 const DEFAULT_COLORS = ["#E31C79", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6"];
 
+const NO_TAGS: AdminTag[] = [];
+
 export function TagsPage() {
-  const { data: tags = [], isLoading } = useAdminTags();
+  const { data: tags = NO_TAGS, isLoading } = useAdminTags();
+  const reorderTags = useReorderTags();
+  const [items, setItems] = useState<AdminTag[]>([]);
+  const [reorderError, setReorderError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setItems(tags);
+  }, [tags]);
+
+  const onReorder = (next: AdminTag[]) => {
+    const prev = items;
+    setItems(next);
+    setReorderError(null);
+    void reorderTags.mutateAsync(next.map((t) => t.id)).catch((err) => {
+      setItems(prev);
+      setReorderError(err instanceof Error ? err.message : "Failed to save order");
+    });
+  };
 
   return (
     <div>
@@ -28,41 +54,53 @@ export function TagsPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Product tags</h1>
         <p className="mt-1 text-sm text-slate-500">
           Labels like &ldquo;New launch&rdquo; and &ldquo;Best seller&rdquo;. Assign them on each
-          product; they show as badges on the storefront. Tick{" "}
+          product; they show as badges on the storefront. Turn on{" "}
           <span className="font-medium">On homepage</span> to give a tag its own product row on the
-          landing page — lower <span className="font-medium">Order</span> appears first. Delete only
-          works when no products use the tag — otherwise remove it from those products first.
+          landing page — drag rows to set the order those rows appear in. Delete only works when no
+          products use the tag — otherwise remove it from those products first.
         </p>
       </div>
 
-      <NewTagRow />
+      <NewTagRow nextSortOrder={Math.min(999, Math.max(0, ...tags.map((t) => t.sortOrder)) + 10)} />
+
+      {reorderError && (
+        <div className="mt-4 rounded-lg border border-brand-500/40 bg-brand-100/50 px-4 py-3 text-sm text-brand-700">
+          {reorderError}
+        </div>
+      )}
 
       <div className="mt-4 overflow-hidden rounded-card border border-slate-200 bg-white">
         {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
-        {!isLoading && tags.length === 0 && (
+        {!isLoading && items.length === 0 && (
           <div className="p-8 text-center text-sm text-slate-500">
             No tags yet — add your first one above.
           </div>
         )}
-        {!isLoading && tags.length > 0 && (
+        {!isLoading && items.length > 0 && (
           <table className="w-full text-left text-sm">
             <thead className="hidden border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase md:table-header-group">
               <tr>
+                <th className="w-10 px-2 py-2 font-medium">
+                  <span className="sr-only">Reorder</span>
+                </th>
                 <th className="px-4 py-2 font-medium">Tag</th>
                 <th className="w-36 px-4 py-2 font-medium">Color</th>
                 <th className="w-32 px-4 py-2 text-center font-medium">On homepage</th>
-                <th className="w-20 px-4 py-2 text-center font-medium">Order</th>
                 <th className="w-28 px-4 py-2 text-right font-medium">Products</th>
                 <th className="w-14 px-4 py-2 text-right font-medium">
                   <span className="sr-only">Delete</span>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {tags.map((tag) => (
-                <TagRow key={tag.id} tag={tag} />
-              ))}
-            </tbody>
+            <ReorderList
+              as="tbody"
+              className="divide-y divide-slate-100"
+              items={items}
+              onReorder={onReorder}
+              disabled={reorderTags.isPending}
+            >
+              {(tag, ctx) => <TagRow key={tag.id} tag={tag} reorder={ctx} />}
+            </ReorderList>
           </table>
         )}
       </div>
@@ -70,7 +108,7 @@ export function TagsPage() {
   );
 }
 
-function NewTagRow() {
+function NewTagRow({ nextSortOrder }: { nextSortOrder: number }) {
   const create = useCreateTag();
   const [name, setName] = useState("");
   const [colorHex, setColorHex] = useState(DEFAULT_COLORS[0]);
@@ -85,6 +123,7 @@ function NewTagRow() {
         name: name.trim(),
         slug: slugify(name),
         colorHex: colorHex || null,
+        sortOrder: nextSortOrder,
       });
       setName("");
       setColorHex(DEFAULT_COLORS[0]);
@@ -136,7 +175,7 @@ function NewTagRow() {
   );
 }
 
-function TagRow({ tag }: { tag: AdminTag }) {
+function TagRow({ tag, reorder }: { tag: AdminTag; reorder: ReorderItemContext }) {
   const update = useUpdateTag();
   const del = useDeleteTag();
   const [name, setName] = useState(tag.name);
@@ -171,8 +210,18 @@ function TagRow({ tag }: { tag: AdminTag }) {
   };
 
   return (
-    <tr className="block p-4 hover:bg-slate-50 md:table-row md:p-0">
-      <td className="block md:table-cell md:px-4 md:py-3">
+    <tr
+      ref={reorder.setNodeRef}
+      style={reorder.style}
+      className={cn(
+        "grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-1 py-2 pr-2 pl-1 hover:bg-slate-50 md:table-row md:p-0",
+        reorder.isDragging && "bg-white shadow-md",
+      )}
+    >
+      <td className="col-[1] row-[1/3] md:table-cell md:px-2 md:py-3 md:align-middle">
+        <ReorderHandle {...reorder.handleProps} />
+      </td>
+      <td className="col-[2] row-[1] min-w-0 md:table-cell md:px-4 md:py-3">
         <input
           value={name}
           onChange={(e) => {
@@ -186,71 +235,60 @@ function TagRow({ tag }: { tag: AdminTag }) {
               (e.target as HTMLInputElement).blur();
             }
           }}
-          className="w-full rounded-md border border-transparent bg-transparent py-1 font-medium text-slate-900 outline-none focus:border-slate-200 focus:bg-white focus:px-2"
+          aria-label="Tag name"
+          className="w-full truncate rounded-md border border-transparent bg-transparent py-0.5 font-medium text-slate-900 outline-none focus:border-slate-200 focus:bg-white focus:px-2 md:py-1"
         />
-        <p className="text-xs text-slate-500">/{tag.slug}</p>
+        <p className="hidden text-xs text-slate-500 md:block">/{tag.slug}</p>
         {error && <p className="mt-1 text-xs text-brand-700">{error}</p>}
       </td>
-      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-3">
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={colorHex}
-            onChange={(e) => {
-              setColorHex(e.target.value);
-              setDirty(true);
-            }}
-            onBlur={() => dirty && commit()}
-            className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white"
-          />
-          <span
-            className="rounded-full px-2.5 py-0.5 text-xs font-medium"
-            style={{
-              backgroundColor: `${colorHex}22`,
-              color: colorHex,
-            }}
-          >
-            Preview
+      <td className="col-[2/5] row-[2] min-w-0 md:table-cell md:px-4 md:py-3">
+        <div className="flex items-center justify-between gap-2 md:justify-start">
+          <span className="min-w-0 truncate text-xs text-slate-500 md:hidden">
+            /{tag.slug} · {tag.productCount} product{tag.productCount === 1 ? "" : "s"}
           </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <input
+              type="color"
+              value={colorHex}
+              onChange={(e) => {
+                setColorHex(e.target.value);
+                setDirty(true);
+              }}
+              onBlur={() => dirty && commit()}
+              aria-label="Badge color"
+              className="h-7 w-8 cursor-pointer rounded border border-slate-200 bg-white md:h-8 md:w-10"
+            />
+            <span
+              className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+              style={{
+                backgroundColor: `${colorHex}22`,
+                color: colorHex,
+              }}
+            >
+              Preview
+            </span>
+          </div>
         </div>
       </td>
-      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
-        <label className="flex cursor-pointer items-center justify-between gap-2 md:justify-center">
-          <span className="text-xs font-medium text-slate-500 md:hidden">On homepage</span>
-          <input
-            type="checkbox"
+      <td className="col-[3] row-[1] md:table-cell md:px-4 md:py-3 md:text-center">
+        <div className="flex items-center gap-1.5 md:justify-center">
+          <span className="text-[11px] font-medium text-slate-500 md:hidden">Home</span>
+          <ActiveSwitch
             checked={tag.showOnHome}
-            onChange={(e) => update.mutate({ id: tag.id, showOnHome: e.target.checked })}
-            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-            title="Show this tag as a section on the storefront landing page"
-          />
-        </label>
-      </td>
-      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
-        <div className="flex items-center justify-between gap-2 md:justify-center">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Order</span>
-          <input
-            type="number"
-            min={0}
-            defaultValue={tag.sortOrder}
-            onBlur={(e) => {
-              const n = Number(e.target.value);
-              if (Number.isFinite(n) && n !== tag.sortOrder) {
-                update.mutate({ id: tag.id, sortOrder: n });
-              }
-            }}
-            className={cn(inputClass, "w-16 py-1 text-center text-xs")}
-            title="Lower numbers appear higher on the landing page"
+            label={`Show ${tag.name} on homepage`}
+            title={
+              tag.showOnHome
+                ? "Shown as a homepage section — tap to remove"
+                : "Tap to show this tag as a section on the homepage"
+            }
+            onChange={(showOnHome) => update.mutate({ id: tag.id, showOnHome })}
           />
         </div>
       </td>
-      <td className="mt-2 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
-        <div className="flex items-center justify-between gap-2 md:justify-end">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Products</span>
-          <span className="text-slate-600 tabular-nums">{tag.productCount}</span>
-        </div>
+      <td className="hidden md:table-cell md:px-4 md:py-3 md:text-right">
+        <span className="text-slate-600 tabular-nums">{tag.productCount}</span>
       </td>
-      <td className="mt-3 block text-right md:mt-0 md:table-cell md:px-4 md:py-3">
+      <td className="col-[4] row-[1] text-right md:table-cell md:px-4 md:py-3">
         <button
           type="button"
           onClick={() => void onDelete()}

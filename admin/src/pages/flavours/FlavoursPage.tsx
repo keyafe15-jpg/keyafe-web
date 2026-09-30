@@ -13,6 +13,7 @@ import {
   ReorderList,
   type ReorderItemContext,
 } from "@/components/reorder/ReorderList";
+import { ActiveSwitch } from "@/components/ui/ActiveSwitch";
 import { cn } from "@/lib/cn";
 
 const inputClass =
@@ -26,8 +27,10 @@ const emptyNew = {
   isHealthy: false,
 };
 
+const NO_FLAVOURS: AdminFlavour[] = [];
+
 export function FlavoursPage() {
-  const { data: flavours = [], isLoading } = useAdminFlavours();
+  const { data: flavours = NO_FLAVOURS, isLoading } = useAdminFlavours();
   const createFlavour = useCreateFlavour();
   const reorderFlavours = useReorderFlavours();
   const [items, setItems] = useState<AdminFlavour[]>([]);
@@ -432,38 +435,6 @@ function FlavourRow({
         <td className="col-span-4 col-start-2 text-xs text-brand-700 md:hidden">{error}</td>
       )}
     </tr>
-  );
-}
-
-function ActiveSwitch({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      title={checked ? "Active — tap to hide from the storefront" : "Hidden — tap to activate"}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:ring-2 focus:ring-brand-500/30 focus:outline-none",
-        checked ? "bg-emerald-500" : "bg-slate-300",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block h-4 w-4 rounded-full bg-white shadow transition-transform",
-          checked ? "translate-x-4.5" : "translate-x-0.5",
-        )}
-      />
-    </button>
   );
 }
 

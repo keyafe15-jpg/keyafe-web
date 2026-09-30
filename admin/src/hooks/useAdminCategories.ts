@@ -66,6 +66,15 @@ export function useUpdateCategory() {
   });
 }
 
+export function useReorderCategories() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      api.post<{ ok: boolean }>("/admin/categories/reorder", { orderedIds }),
+    onSuccess: () => invalidate(qc),
+  });
+}
+
 export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
