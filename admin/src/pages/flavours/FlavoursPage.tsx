@@ -330,32 +330,42 @@ function FlavourRow({
       ref={reorder.setNodeRef}
       style={reorder.style}
       className={cn(
-        "block p-4 hover:bg-slate-50 md:table-row md:p-0",
+        "grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-x-2 px-2 py-2 hover:bg-slate-50 md:table-row md:p-0",
         reorder.isDragging && "bg-white shadow-md",
       )}
     >
-      <td className="mb-2 block md:mb-0 md:table-cell md:px-2 md:py-3 md:align-middle">
+      <td className="row-span-2 md:table-cell md:px-2 md:py-3 md:align-middle">
         <ReorderHandle {...reorder.handleProps} />
       </td>
-      <td className="block md:table-cell md:px-4 md:py-3">
-        <p className="font-medium text-slate-900">{flavour.name}</p>
-        <p className="text-xs text-slate-500">/{flavour.slug}</p>
+      <td className="min-w-0 md:table-cell md:px-4 md:py-3">
+        <p
+          className={cn(
+            "truncate font-medium text-slate-900 md:whitespace-normal",
+            !flavour.isActive && "text-slate-400",
+          )}
+        >
+          {flavour.name}
+        </p>
+        <p className="hidden text-xs text-slate-500 md:block">/{flavour.slug}</p>
         {inUse && (
-          <p className="mt-0.5 text-[11px] text-slate-400">
+          <p className="mt-0.5 hidden text-[11px] text-slate-400 md:block">
             On {flavour.productCount} product{flavour.productCount === 1 ? "" : "s"}
           </p>
         )}
       </td>
-      <td className="block md:table-cell md:px-4 md:py-3">
-        <div className="mt-2 flex flex-wrap gap-1 empty:hidden md:mt-0">
+      <td className="col-start-2 row-start-2 min-w-0 md:table-cell md:px-4 md:py-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-1 md:flex-nowrap">
+          <span className="truncate text-[11px] text-slate-400 md:hidden">
+            /{flavour.slug}
+            {inUse ? ` · ${flavour.productCount} product${flavour.productCount === 1 ? "" : "s"}` : ""}
+          </span>
           {flavour.isEggless && <Tag label="Eggless" tone="green" />}
           {flavour.isSugarFree && <Tag label="Sugar-free" tone="brand" />}
           {flavour.isHealthy && <Tag label="Healthy" tone="emerald" />}
         </div>
       </td>
-      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-2 md:text-right">
-        <div className="flex items-center justify-between gap-2 md:justify-end">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Additional</span>
+      <td className="col-start-3 row-span-2 row-start-1 md:table-cell md:px-4 md:py-2 md:text-right">
+        <div className="flex items-center justify-end gap-2">
           <div className="flex items-center gap-2">
             <div className="relative">
               <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-slate-400">
@@ -377,31 +387,26 @@ function FlavourRow({
                     (e.target as HTMLInputElement).blur();
                   }
                 }}
+                aria-label={`Additional amount for ${flavour.name}`}
                 className={cn(
-                  "w-28 rounded-md border border-slate-200 bg-white py-1.5 pr-2 pl-7 text-right text-sm text-slate-900 tabular-nums outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20",
+                  "w-20 rounded-md border border-slate-200 bg-white py-1.5 pr-2 pl-7 text-right text-sm text-slate-900 tabular-nums outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 md:w-28",
                   error && "border-brand-500",
                 )}
               />
             </div>
-            {update.isPending && <span className="text-xs text-slate-400">…</span>}
+            {update.isPending && <span className="hidden text-xs text-slate-400 md:inline">…</span>}
           </div>
         </div>
-        {error && <p className="mt-1 text-xs text-brand-700 md:hidden">{error}</p>}
       </td>
-      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-center">
-        <label className="flex cursor-pointer items-center justify-between gap-2 md:justify-center">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Active</span>
-          <input
-            type="checkbox"
-            checked={flavour.isActive}
-            onChange={(e) => update.mutate({ id: flavour.id, isActive: e.target.checked })}
-            className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-          />
-        </label>
+      <td className="col-start-4 row-span-2 row-start-1 md:table-cell md:px-4 md:py-3 md:text-center">
+        <ActiveSwitch
+          checked={flavour.isActive}
+          label={`${flavour.name} active`}
+          onChange={(isActive) => update.mutate({ id: flavour.id, isActive })}
+        />
       </td>
-      <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
-        <div className="flex items-center justify-between gap-2 md:justify-end">
-          <span className="text-xs font-medium text-slate-500 md:hidden">Delete</span>
+      <td className="col-start-5 row-span-2 row-start-1 md:table-cell md:px-4 md:py-3 md:text-right">
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={() => void onDelete()}
@@ -423,7 +428,42 @@ function FlavourRow({
         </div>
         {error && <p className="mt-1 hidden text-xs text-brand-700 md:block">{error}</p>}
       </td>
+      {error && (
+        <td className="col-span-4 col-start-2 text-xs text-brand-700 md:hidden">{error}</td>
+      )}
     </tr>
+  );
+}
+
+function ActiveSwitch({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={checked ? "Active — tap to hide from the storefront" : "Hidden — tap to activate"}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:ring-2 focus:ring-brand-500/30 focus:outline-none",
+        checked ? "bg-emerald-500" : "bg-slate-300",
+      )}
+    >
+      <span
+        className={cn(
+          "inline-block h-4 w-4 rounded-full bg-white shadow transition-transform",
+          checked ? "translate-x-4.5" : "translate-x-0.5",
+        )}
+      />
+    </button>
   );
 }
 

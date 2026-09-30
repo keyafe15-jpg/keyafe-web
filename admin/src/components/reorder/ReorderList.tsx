@@ -150,7 +150,8 @@ export function ReorderHandle({
       aria-label="Drag to reorder"
       title="Drag to reorder"
       className={cn(
-        "inline-flex h-8 w-8 cursor-grab items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 active:cursor-grabbing",
+        // touch-none stops mobile browsers from claiming the gesture as a scroll.
+        "inline-flex h-9 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-slate-400 transition select-none hover:bg-slate-100 hover:text-slate-700 active:cursor-grabbing active:bg-slate-100 md:h-8 md:w-8",
         className,
       )}
       {...props}
