@@ -78,12 +78,21 @@ export function FlavoursPage() {
   };
 
   const showTable = !isLoading && (items.length > 0 || adding);
+  const hiddenCount = items.filter((f) => !f.isActive).length;
 
   return (
     <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Flavours</h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-2xl font-semibold text-slate-900">Flavours</h1>
+            {!isLoading && (
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 tabular-nums">
+                {items.length} {items.length === 1 ? "flavour" : "flavours"}
+                {hiddenCount > 0 && <span className="text-slate-400"> · {hiddenCount} hidden</span>}
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-slate-500">
             Master flavour list. Drag rows to set storefront order. The{" "}
             <span className="font-medium">Additional amount</span> is added on top of the product
@@ -283,13 +292,7 @@ function FlagCheck({
   );
 }
 
-function FlavourRow({
-  flavour,
-  reorder,
-}: {
-  flavour: AdminFlavour;
-  reorder: ReorderItemContext;
-}) {
+function FlavourRow({ flavour, reorder }: { flavour: AdminFlavour; reorder: ReorderItemContext }) {
   const update = useUpdateFlavour();
   const del = useDeleteFlavour();
   const [amount, setAmount] = useState<string>(Number(flavour.additionalAmount).toString());
@@ -360,7 +363,9 @@ function FlavourRow({
         <div className="flex min-w-0 flex-wrap items-center gap-1 md:flex-nowrap">
           <span className="truncate text-[11px] text-slate-400 md:hidden">
             /{flavour.slug}
-            {inUse ? ` · ${flavour.productCount} product${flavour.productCount === 1 ? "" : "s"}` : ""}
+            {inUse
+              ? ` · ${flavour.productCount} product${flavour.productCount === 1 ? "" : "s"}`
+              : ""}
           </span>
           {flavour.isEggless && <Tag label="Eggless" tone="green" />}
           {flavour.isSugarFree && <Tag label="Sugar-free" tone="brand" />}
