@@ -13,6 +13,12 @@ import { buildInvoicePdf, sendInvoiceEmail } from "./invoice.service.js";
 import { buildGstExport } from "./gst-export.service.js";
 import { buildOrdersBackup, importOrdersBackup } from "./orders-backup.service.js";
 import { buildChallanPdf } from "./challan.service.js";
+import {
+  getCollectionsSummary,
+  getPendingCollections,
+  parseCollectionsQuery,
+  parsePendingQuery,
+} from "./order.collections.js";
 import multer from "multer";
 
 import { assertKitchenOpenOn } from "../store/store.service.js";
@@ -650,6 +656,18 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
     chart,
   });
 });
+
+adminOrderRouter.get("/collections", requirePermission("dashboard.read"), async (req, res) => {
+  res.json(await getCollectionsSummary(parseCollectionsQuery(req.query)));
+});
+
+adminOrderRouter.get(
+  "/collections/pending",
+  requirePermission("dashboard.read"),
+  async (req, res) => {
+    res.json(await getPendingCollections(parsePendingQuery(req.query)));
+  },
+);
 
 // Server-Sent Events channel — admin subscribes here and gets a `new-order`
 // message every time an order is placed (any source).

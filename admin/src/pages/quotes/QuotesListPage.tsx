@@ -7,6 +7,7 @@ import {
   type QuoteStatus,
 } from "@/hooks/useAdminQuotes";
 import { cn } from "@/lib/cn";
+import { whatsappHref } from "@/lib/contact";
 
 const TABS: { key: QuoteStatus | "ALL"; label: string }[] = [
   { key: "ALL", label: "All" },
@@ -48,12 +49,6 @@ function formatDate(iso: string) {
     month: "short",
     year: "numeric",
   });
-}
-
-function whatsappHref(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-  const withCountry = digits.length === 10 ? `91${digits}` : digits;
-  return `https://wa.me/${withCountry}`;
 }
 
 export function QuotesListPage() {
