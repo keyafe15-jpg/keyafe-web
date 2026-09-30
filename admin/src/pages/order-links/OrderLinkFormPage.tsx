@@ -25,11 +25,7 @@ import {
 import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
 import { cn } from "@/lib/cn";
-
-function publicUrl(token: string): string {
-  const base = window.location.origin.replace(/:517[5-9]$/, ":5173");
-  return `${base}/o/${token}`;
-}
+import { orderLinkUrl } from "@/lib/storefront";
 
 export function OrderLinkFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -143,7 +139,7 @@ export function OrderLinkFormPage() {
       };
 
       const link = await create.mutateAsync(payload);
-      setCreated({ token: link.token, url: publicUrl(link.token) });
+      setCreated({ token: link.token, url: orderLinkUrl(link.token) });
     } catch (err) {
       setUploading(false);
       setError(err instanceof Error ? err.message : "Failed to save link");

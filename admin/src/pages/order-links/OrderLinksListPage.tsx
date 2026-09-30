@@ -8,12 +8,7 @@ import {
   type OrderLinkStatus,
 } from "@/hooks/useAdminOrderLinks";
 import { cn } from "@/lib/cn";
-
-// Falls back to window.location.origin so we always get a working URL locally.
-function publicUrl(token: string): string {
-  const base = window.location.origin.replace(/:517[5-9]$/, ":5173");
-  return `${base}/o/${token}`;
-}
+import { orderLinkUrl } from "@/lib/storefront";
 
 const TABS: { key: OrderLinkStatus | "ALL"; label: string }[] = [
   { key: "ALL", label: "All" },
@@ -119,7 +114,7 @@ export function OrderLinksListPage() {
 function LinkRow({ link }: { link: OrderLink }) {
   const [copied, setCopied] = useState(false);
   const update = useUpdateOrderLink();
-  const url = publicUrl(link.token);
+  const url = orderLinkUrl(link.token);
 
   const copyUrl = async () => {
     await navigator.clipboard.writeText(url);
