@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Pencil, X } from "lucide-react";
 import { useBusinessUpi, useUpdateBusinessUpi } from "@/hooks/useBusinessUpi";
+import { useBusinessContact, useUpdateBusinessContact } from "@/hooks/useBusinessContact";
 import {
   useBusinessGst,
   useUpdateBusinessGst,
@@ -17,67 +17,152 @@ import {
 import { gstinIssue, gstinStateCode, normalizeGstin } from "@/lib/gstin";
 import { SELECTABLE_STATES, stateNameFromCode } from "@/lib/indiaStates";
 import { cn } from "@/lib/cn";
+import { InfoRow, SectionHeader } from "./settings/SettingsSection";
+import { StorefrontProfileSection } from "./settings/StorefrontProfileSection";
 
 export function SettingsPage() {
   return (
-    <div className="max-w-xl">
+    <div>
       <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
-      <p className="mt-1 text-sm text-slate-500">Business, GST, invoicing.</p>
+      <p className="mt-1 text-sm text-slate-500">Business, website, GST, invoicing.</p>
 
-      <UpiSettingsSection />
-      <BusinessGstSection />
-    </div>
-  );
-}
-
-function SectionHeader({
-  title,
-  description,
-  editing,
-  onEdit,
-  onCancel,
-}: {
-  title: string;
-  description: string;
-  editing: boolean;
-  onEdit: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        <p className="mt-1 text-xs text-slate-500">{description}</p>
+      <div className="grid grid-cols-2 gap-4">
+        <ContactSettingsSection />
+        <StorefrontProfileSection />
+        <UpiSettingsSection />
+        <BusinessGstSection />
       </div>
-      {editing ? (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
-        >
-          <X className="h-3.5 w-3.5" /> Cancel
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={onEdit}
-          className="hover:border-brand-300 inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:text-brand-700"
-        >
-          <Pencil className="h-3.5 w-3.5" /> Edit
-        </button>
-      )}
     </div>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+function ContactSettingsSection() {
+  const { data, isLoading } = useBusinessContact();
+  const update = useUpdateBusinessContact();
+
+  const [editing, setEditing] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [altPhone, setAltPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const resetFromServer = () => {
+    setPhone(data?.supportPhone ?? "");
+    setAltPhone(data?.altPhone ?? "");
+    setEmail(data?.supportEmail ?? "");
+    setNotifyEmail(data?.orderNotificationEmail ?? "");
+    setError(null);
+  };
+
+  const submit = async () => {
+    setError(null);
+    try {
+      await update.mutateAsync({
+        supportPhone: phone.trim(),
+        altPhone: altPhone.trim() || null,
+        supportEmail: email.trim(),
+        orderNotificationEmail: notifyEmail.trim() || null,
+      });
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save");
+    }
+  };
+
   return (
-    <div className="grid gap-0.5 sm:grid-cols-[9rem_1fr] sm:gap-3">
-      <dt className="text-xs font-medium text-slate-500">{label}</dt>
-      <dd className="text-sm text-slate-900">
-        {value || <span className="text-slate-400">Not set</span>}
-      </dd>
-    </div>
+    <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
+      <SectionHeader
+        title="Contact & notifications"
+        description="Shown on the website and printed on invoices, challans and customer emails. Order alerts are emailed to the notification address."
+        editing={editing}
+        onEdit={() => {
+          resetFromServer();
+          setEditing(true);
+        }}
+        onCancel={() => {
+          resetFromServer();
+          setEditing(false);
+        }}
+      />
+
+      {isLoading ? (
+        <p className="mt-4 text-sm text-slate-500">Loading…</p>
+      ) : editing ? (
+        <form
+          className="mt-4 space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!update.isPending) void submit();
+          }}
+        >
+          <Field
+            label="Support phone"
+            hint="Shown on the website, invoices and emails, and used for the WhatsApp button. Also gets WhatsApp order alerts."
+          >
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="9330048665"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Other phone" hint="Optional second number shown on the website.">
+            <input
+              type="tel"
+              value={altPhone}
+              onChange={(e) => setAltPhone(e.target.value)}
+              placeholder="9883186892"
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            label="Support email"
+            hint="Shown on the website and invoices; customer emails' reply-to address."
+          >
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="support@keyafe.com"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            label="Order alerts email"
+            hint="New-order and cancellation emails. Leave blank to use the support email."
+          >
+            <input
+              type="email"
+              value={notifyEmail}
+              onChange={(e) => setNotifyEmail(e.target.value)}
+              placeholder={email || "orders@keyafe.com"}
+              className={inputClass}
+            />
+          </Field>
+          {error && <p className="text-xs text-red-700">{error}</p>}
+          <button type="submit" disabled={update.isPending} className={submitClass}>
+            {update.isPending ? "Saving…" : "Save"}
+          </button>
+        </form>
+      ) : (
+        <dl className="mt-4 space-y-3 rounded-lg border border-slate-100 bg-slate-50/70 p-4">
+          <InfoRow label="Support phone" value={data?.supportPhone} />
+          <InfoRow label="Other phone" value={data?.altPhone} />
+          <InfoRow label="Support email" value={data?.supportEmail} />
+          <InfoRow
+            label="Order alerts email"
+            value={
+              data?.orderNotificationEmail ||
+              (data?.supportEmail && <span className="text-slate-500">Same as support email</span>)
+            }
+          />
+        </dl>
+      )}
+    </section>
   );
 }
 

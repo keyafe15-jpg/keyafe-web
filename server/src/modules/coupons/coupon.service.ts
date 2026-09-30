@@ -4,6 +4,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { sendEmail } from "../email/email.service.js";
 import { renderCouponShare } from "../email/templates.js";
+import { getBusinessContact } from "../store/businessContact.js";
 
 export function digitsPhone(phone: string): string {
   const raw = phone.replace(/\D/g, "");
@@ -459,7 +460,7 @@ export async function emailCoupon(code: string, to: string) {
     where: { code: code.trim().toUpperCase() },
   });
   if (!coupon) throw HttpError.notFound("Coupon not found");
-  const { subject, html } = renderCouponShare(coupon);
+  const { subject, html } = renderCouponShare(coupon, await getBusinessContact());
   await sendEmail({ to, subject, html });
   return { ok: true };
 }

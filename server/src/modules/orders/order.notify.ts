@@ -4,6 +4,7 @@ import { emitNewOrder } from "../../lib/events.js";
 import { logger } from "../../utils/logger.js";
 import { sendEmail } from "../email/email.service.js";
 import { renderAdminNotification, renderCustomerConfirmation } from "../email/templates.js";
+import { getBusinessContact } from "../store/businessContact.js";
 import { invoiceAttachmentIfPaid } from "./invoice.service.js";
 
 type OrderWithItems = Order & { items: OrderItem[] };
@@ -31,13 +32,16 @@ export function notifyOrderPlaced(order: OrderWithItems) {
 }
 
 async function sendOrderEmails(order: OrderWithItems) {
-  const settings = await prisma.businessSettings.findFirst({
-    select: { supportEmail: true, orderNotificationEmail: true },
-  });
+  const [settings, contact] = await Promise.all([
+    prisma.businessSettings.findFirst({
+      select: { supportEmail: true, orderNotificationEmail: true },
+    }),
+    getBusinessContact(),
+  ]);
   const adminRecipient = settings?.orderNotificationEmail || settings?.supportEmail;
 
   if (order.customerEmail) {
-    const { subject, html } = renderCustomerConfirmation(order);
+    const { subject, html } = renderCustomerConfirmation(order, contact);
     const invoice = await invoiceAttachmentIfPaid(order);
     void sendEmail({
       to: order.customerEmail,
@@ -49,7 +53,7 @@ async function sendOrderEmails(order: OrderWithItems) {
   }
 
   if (adminRecipient) {
-    const { subject, html } = renderAdminNotification(order);
+    const { subject, html } = renderAdminNotification(order, contact);
     void sendEmail({
       to: adminRecipient,
       subject,

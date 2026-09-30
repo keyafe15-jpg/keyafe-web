@@ -1,7 +1,7 @@
 import { Star } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { SlideCarousel } from "@/components/ui/SlideCarousel";
-import { BRAND } from "@/content/brand";
+import { useStoreProfile } from "@/hooks/useStoreProfile";
 import { HOME_COPY } from "@/content/home";
 import {
   googleReviewsConfigured,
@@ -38,15 +38,17 @@ function PlatformBadge({
   name: string;
   rating: number;
   count: number;
-  href: string;
+  href?: string | null;
   accent: string;
 }) {
+  const Tag = href ? "a" : "div";
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex min-w-[9.5rem] flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/70 px-4 py-3 shadow-sm backdrop-blur-md transition hover:-translate-y-0.5 hover:border-brand-300"
+    <Tag
+      {...(href ? { href, target: "_blank", rel: "noopener noreferrer" } : {})}
+      className={cn(
+        "flex min-w-[9.5rem] flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/70 px-4 py-3 shadow-sm backdrop-blur-md",
+        href && "transition hover:-translate-y-0.5 hover:border-brand-300",
+      )}
     >
       <span className={cn("text-[11px] font-semibold tracking-[0.18em] uppercase", accent)}>
         {name}
@@ -58,7 +60,7 @@ function PlatformBadge({
       <span className="text-xs text-ink-500">
         {count.toLocaleString("en-IN")} rating{count === 1 ? "" : "s"}
       </span>
-    </a>
+    </Tag>
   );
 }
 
@@ -111,7 +113,8 @@ export function GoogleReviewsSection() {
   const { data, isLoading, isError } = useGooglePlaceReviews();
   const showGoogle = configured && !isError && (isLoading || Boolean(data));
   const copy = HOME_COPY.googleReviews;
-  const { zomato, swiggy } = BRAND.platformRatings;
+  const profile = useStoreProfile();
+  const { zomato, swiggy } = profile.ratings;
 
   return (
     <section className="relative z-10 mx-auto max-w-6xl px-4 py-12">
@@ -136,20 +139,24 @@ export function GoogleReviewsSection() {
               accent="text-[#4285F4]"
             />
           )}
-          <PlatformBadge
-            name="Zomato"
-            rating={zomato.rating}
-            count={zomato.count}
-            href={BRAND.socials.zomato}
-            accent="text-[#E23744]"
-          />
-          <PlatformBadge
-            name="Swiggy"
-            rating={swiggy.rating}
-            count={swiggy.count}
-            href={BRAND.socials.swiggy}
-            accent="text-[#FC8019]"
-          />
+          {zomato && (
+            <PlatformBadge
+              name="Zomato"
+              rating={zomato.rating}
+              count={zomato.count}
+              href={profile.socials.zomato}
+              accent="text-[#E23744]"
+            />
+          )}
+          {swiggy && (
+            <PlatformBadge
+              name="Swiggy"
+              rating={swiggy.rating}
+              count={swiggy.count}
+              href={profile.socials.swiggy}
+              accent="text-[#FC8019]"
+            />
+          )}
         </div>
       </Reveal>
 

@@ -684,6 +684,22 @@ export async function updateOrderLink(id: string, input: UpdateOrderLinkInput) {
   });
 }
 
+/** Removes a link that never became an order; its items go with it. */
+export async function deleteOrderLink(id: string) {
+  const existing = await prisma.orderLink.findUnique({
+    where: { id },
+    select: { id: true, linkedOrder: { select: { orderNumber: true } } },
+  });
+  if (!existing) throw HttpError.notFound("Order link not found");
+  if (existing.linkedOrder) {
+    throw HttpError.conflict(
+      `This link became order ${existing.linkedOrder.orderNumber}, so it can't be deleted.`,
+    );
+  }
+  await prisma.orderLink.delete({ where: { id } });
+  return { id };
+}
+
 // -------- Offline order (admin fills EVERYTHING, no customer link) --------
 
 const offlineItemSchema = z.object({

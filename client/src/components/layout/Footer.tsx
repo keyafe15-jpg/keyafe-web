@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
-import { BRAND } from "@/content/brand";
 import { FOOTER_COPY } from "@/content/footer";
 import { QUOTE_NAV, HEALTHY_NAV, PANINDIA_NAV, SAMEDAY_NAV, storeNavItem } from "@/content/nav";
 import { groupCategoriesByDepartment, useCategories, useDepartments } from "@/hooks/useCategories";
+import { useStoreProfile } from "@/hooks/useStoreProfile";
 import { cn } from "@/lib/cn";
 import {
   ArrowUp,
@@ -13,12 +13,6 @@ import {
   MessageCircle,
   Phone,
 } from "lucide-react";
-
-const SOCIAL_LINKS = [
-  { href: BRAND.socials.instagram, label: "Instagram", Icon: Instagram },
-  { href: BRAND.socials.facebook, label: "Facebook", Icon: Facebook },
-  { href: BRAND.socials.whatsapp, label: "WhatsApp", Icon: MessageCircle },
-] as const;
 
 const ORDER_LINKS = [
   SAMEDAY_NAV,
@@ -33,7 +27,13 @@ export function Footer() {
   const { data: categories = [] } = useCategories();
   const { data: departments = [] } = useDepartments();
   const categoryGroups = groupCategoriesByDepartment(categories, departments);
+  const profile = useStoreProfile();
   const year = new Date().getFullYear();
+  const socialLinks = [
+    { href: profile.socials.instagram, label: "Instagram", Icon: Instagram },
+    { href: profile.socials.facebook, label: "Facebook", Icon: Facebook },
+    { href: profile.whatsappHref, label: "WhatsApp", Icon: MessageCircle },
+  ].filter((link): link is typeof link & { href: string } => Boolean(link.href));
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -55,11 +55,11 @@ export function Footer() {
           <div className="flex min-w-0 items-center gap-3">
             <Link to="/" className="inline-flex shrink-0 items-center gap-2.5">
               <img
-                src={BRAND.logoSrc}
-                alt={BRAND.logoAlt}
+                src={profile.logoSrc}
+                alt={profile.logoAlt}
                 className="h-9 w-9 rounded-full border border-white/15 bg-white object-cover"
               />
-              <span className="brand-wordmark text-xl">{BRAND.name}</span>
+              <span className="brand-wordmark text-xl">{profile.name}</span>
             </Link>
             <h2 className="hidden font-display text-lg leading-snug tracking-tight text-white md:block">
               {FOOTER_COPY.headline[0]}{" "}
@@ -124,20 +124,20 @@ export function Footer() {
 
           <div className="flex flex-wrap items-center gap-3">
             <a
-              href={`mailto:${FOOTER_COPY.sections.studio.email}`}
+              href={`mailto:${profile.email}`}
               className="inline-flex items-center gap-1.5 text-[13px] text-cream-100/80 transition hover:text-white"
             >
               <Mail className="h-3.5 w-3.5 text-brand-300" />
-              <span className="hidden sm:inline">{FOOTER_COPY.sections.studio.email}</span>
+              <span className="hidden sm:inline">{profile.email}</span>
             </a>
             <a
-              href={`tel:${BRAND.supportPhone.replace(/\s/g, "")}`}
+              href={`tel:${profile.phoneHref}`}
               className="inline-flex items-center gap-1.5 text-[13px] text-cream-100/80 transition hover:text-white"
             >
               <Phone className="h-3.5 w-3.5 text-brand-300" />
-              <span className="hidden sm:inline">{BRAND.supportPhone}</span>
+              <span className="hidden sm:inline">{profile.phone}</span>
             </a>
-            {SOCIAL_LINKS.map(({ href, label, Icon }) => (
+            {socialLinks.map(({ href, label, Icon }) => (
               <a
                 key={label}
                 href={href}
@@ -153,7 +153,9 @@ export function Footer() {
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-[11px] text-cream-100/45">{FOOTER_COPY.copyright(year)}</p>
+          <p className="text-[11px] text-cream-100/45">
+            {FOOTER_COPY.copyright(year, profile.name)}
+          </p>
           <button
             type="button"
             onClick={scrollToTop}

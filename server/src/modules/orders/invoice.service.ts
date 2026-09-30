@@ -8,6 +8,7 @@ import { FALLBACK_SELLER_STATE_CODE } from "./order.tax.js";
 import { renderInvoicePdf } from "./invoice.pdf.js";
 import type { DocumentParty } from "./pdf.theme.js";
 import { renderInvoiceEmail } from "../email/templates.js";
+import { getBusinessContact } from "../store/businessContact.js";
 import { sendEmail, type EmailAttachment } from "../email/email.service.js";
 
 const IST = "Asia/Kolkata";
@@ -597,8 +598,7 @@ export async function sendInvoiceEmail(orderId: string): Promise<{
     order,
     title: data.title,
     invoiceNumber: data.invoiceNumber,
-    tradeName: data.seller.name,
-    supportPhone: data.seller.phone ?? "",
+    contact: await getBusinessContact(),
   });
 
   const sent = await sendEmail({

@@ -1,5 +1,6 @@
 import type { Order, OrderItem } from "@prisma/client";
 import { paymentMethodLabel } from "../../lib/paymentLabel.js";
+import type { BusinessContact } from "../store/businessContact.js";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -58,7 +59,11 @@ function itemRow(item: OrderItem): string {
     </tr>`;
 }
 
-function addressBlock(order: OrderWithItems, opts: { forAdmin?: boolean } = {}): string {
+function addressBlock(
+  order: OrderWithItems,
+  contact: BusinessContact,
+  opts: { forAdmin?: boolean } = {},
+): string {
   const addr = order.deliveryAddress as null | {
     line1: string;
     line2?: string | null;
@@ -69,7 +74,7 @@ function addressBlock(order: OrderWithItems, opts: { forAdmin?: boolean } = {}):
     area?: string | null;
   };
   if (order.fulfillment === "PICKUP" || !addr) {
-    return `<p style="margin:0;color:#2c3540;">Pickup at the bakery — Howrah 711202</p>`;
+    return `<p style="margin:0;color:#2c3540;">Pickup at the bakery${contact.place ? ` — ${escapeHtml(contact.place)}` : ""}</p>`;
   }
 
   const showDeliveryPhone =
@@ -110,7 +115,20 @@ function addressBlock(order: OrderWithItems, opts: { forAdmin?: boolean } = {}):
     </div>`;
 }
 
-function shell(title: string, bodyHtml: string): string {
+function phoneLink(contact: BusinessContact): string {
+  return `<a href="tel:${escapeHtml(contact.phoneHref)}" style="color:#e31c79;text-decoration:none;">${escapeHtml(contact.phone)}</a>`;
+}
+
+/** "Questions? Just reply to this email or call us at …" — drops the call part when no phone is saved. */
+function questionsLine(
+  contact: BusinessContact,
+  lead = "Questions? Just reply to this email",
+): string {
+  return contact.phone ? `${lead} or call us at ${phoneLink(contact)}.` : `${lead}.`;
+}
+
+function shell(title: string, bodyHtml: string, contact: BusinessContact): string {
+  const footer = [contact.legalName, contact.place, contact.phone].filter(Boolean).join(" · ");
   return `<!doctype html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>
 <body style="margin:0;padding:0;background:#faf6ec;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#2c3540;">
@@ -119,7 +137,7 @@ function shell(title: string, bodyHtml: string): string {
       ${bodyHtml}
     </div>
     <p style="text-align:center;color:#7d8590;font-size:12px;margin-top:24px;">
-      Keyafe Foods · Howrah 711202 · +91 93300 48665
+      ${escapeHtml(footer)}
     </p>
   </div>
 </body></html>`;
@@ -177,7 +195,7 @@ function totalsBlock(order: OrderWithItems): string {
     </table>`;
 }
 
-export function renderCustomerConfirmation(order: OrderWithItems) {
+export function renderCustomerConfirmation(order: OrderWithItems, contact: BusinessContact) {
   const rows = order.items.map(itemRow).join("");
   const html = shell(
     `Order confirmed — ${order.orderNumber}`,
@@ -194,7 +212,7 @@ export function renderCustomerConfirmation(order: OrderWithItems) {
     <h3 style="margin:20px 0 6px;font-size:13px;color:#7d8590;text-transform:uppercase;letter-spacing:0.5px;">
       ${order.fulfillment === "DELIVERY" ? "Delivery to" : "Pickup at"}
     </h3>
-    ${addressBlock(order)}
+    ${addressBlock(order, contact)}
 
     <h3 style="margin:24px 0 6px;font-size:13px;color:#7d8590;text-transform:uppercase;letter-spacing:0.5px;">Your order</h3>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
@@ -215,9 +233,9 @@ export function renderCustomerConfirmation(order: OrderWithItems) {
     }
 
     <p style="margin-top:24px;color:#7d8590;font-size:13px;">
-      Questions? Just reply to this email or call us at
-      <a href="tel:+919330048665" style="color:#e31c79;text-decoration:none;">+91 93300 48665</a>.
+      ${questionsLine(contact)}
     </p>`,
+    contact,
   );
   return {
     subject: `Order confirmed — ${order.orderNumber}`,
@@ -225,7 +243,7 @@ export function renderCustomerConfirmation(order: OrderWithItems) {
   };
 }
 
-export function renderAdminNotification(order: OrderWithItems) {
+export function renderAdminNotification(order: OrderWithItems, contact: BusinessContact) {
   const rows = order.items.map(itemRow).join("");
   const html = shell(
     `New order — ${order.orderNumber}`,
@@ -251,7 +269,7 @@ export function renderAdminNotification(order: OrderWithItems) {
     <h3 style="margin:20px 0 6px;font-size:13px;color:#7d8590;text-transform:uppercase;letter-spacing:0.5px;">
       ${order.fulfillment === "DELIVERY" ? "Delivery to" : "Pickup"}
     </h3>
-    ${addressBlock(order, { forAdmin: true })}
+    ${addressBlock(order, contact, { forAdmin: true })}
 
     <h3 style="margin:24px 0 6px;font-size:13px;color:#7d8590;text-transform:uppercase;letter-spacing:0.5px;">Items</h3>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
@@ -267,6 +285,7 @@ export function renderAdminNotification(order: OrderWithItems) {
           </p>`
         : ""
     }`,
+    contact,
   );
   return {
     subject: `New order · ${money(order.total)} · ${order.customerName} · ${order.orderNumber}`,
@@ -274,7 +293,7 @@ export function renderAdminNotification(order: OrderWithItems) {
   };
 }
 
-export function renderCustomerCancelled(order: OrderWithItems) {
+export function renderCustomerCancelled(order: OrderWithItems, contact: BusinessContact) {
   const html = shell(
     `Order cancelled — ${order.orderNumber}`,
     `
@@ -288,9 +307,9 @@ export function renderCustomerCancelled(order: OrderWithItems) {
       If you paid online, the bakery will confirm any refund separately.
     </p>
     <p style="margin:0;color:#7d8590;font-size:13px;">
-      Questions? Call us at
-      <a href="tel:+919330048665" style="color:#e31c79;text-decoration:none;">+91 93300 48665</a>.
+      ${questionsLine(contact)}
     </p>`,
+    contact,
   );
   return {
     subject: `Order cancelled — ${order.orderNumber}`,
@@ -298,7 +317,11 @@ export function renderCustomerCancelled(order: OrderWithItems) {
   };
 }
 
-export function renderAdminCancelled(order: OrderWithItems, by: "customer" | "admin") {
+export function renderAdminCancelled(
+  order: OrderWithItems,
+  by: "customer" | "admin",
+  contact: BusinessContact,
+) {
   const who = by === "customer" ? "Customer cancelled" : "Cancelled in admin";
   const html = shell(
     `Order cancelled — ${order.orderNumber}`,
@@ -312,6 +335,7 @@ export function renderAdminCancelled(order: OrderWithItems, by: "customer" | "ad
       ${escapeHtml(order.customerPhone)}
       ${order.customerEmail ? ` · ${escapeHtml(order.customerEmail)}` : ""}
     </p>`,
+    contact,
   );
   return {
     subject: `Cancelled · ${order.orderNumber} · ${order.customerName}`,
@@ -323,10 +347,10 @@ export function renderInvoiceEmail(args: {
   order: OrderWithItems;
   title: string;
   invoiceNumber: string;
-  tradeName: string;
-  supportPhone: string;
+  contact: BusinessContact;
 }) {
-  const { order, title, invoiceNumber, tradeName, supportPhone } = args;
+  const { order, title, invoiceNumber, contact } = args;
+  const tradeName = contact.tradeName;
   const forBusiness = Boolean(order.customerGstin);
   const html = shell(
     `${title} ${invoiceNumber} — ${tradeName}`,
@@ -370,10 +394,10 @@ export function renderInvoiceEmail(args: {
     </table>
 
     <p style="margin-top:24px;color:#7d8590;font-size:13px;">
-      Something look wrong on the invoice? Reply to this email or call us at
-      <a href="tel:${escapeHtml(supportPhone.replace(/\s/g, ""))}" style="color:#e31c79;text-decoration:none;">${escapeHtml(supportPhone)}</a>
+      Something look wrong on the invoice? Reply to this email${contact.phone ? ` or call us at ${phoneLink(contact)}` : ""}
       and we'll sort it out.
     </p>`,
+    contact,
   );
   return {
     subject: `${title} ${invoiceNumber} — order ${order.orderNumber}`,
@@ -385,6 +409,7 @@ export function renderPasswordReset(args: {
   name: string;
   link: string;
   expiresInMinutes: number;
+  contact: BusinessContact;
 }) {
   const firstName = args.name.split(" ")[0] || args.name;
   const html = shell(
@@ -401,17 +426,21 @@ export function renderPasswordReset(args: {
     <p style="margin:20px 0 0;color:#7d8590;font-size:13px;">
       If you didn't ask for this, you can ignore this email. Your password won't change.
     </p>`,
+    args.contact,
   );
   return { subject: "Reset your Keyafe password", html };
 }
 
-export function renderCouponShare(coupon: {
-  code: string;
-  type: "PERCENT" | "FLAT";
-  value: unknown;
-  validUntil: Date;
-  minCartAmount: unknown;
-}) {
+export function renderCouponShare(
+  coupon: {
+    code: string;
+    type: "PERCENT" | "FLAT";
+    value: unknown;
+    validUntil: Date;
+    minCartAmount: unknown;
+  },
+  contact: BusinessContact,
+) {
   const offer =
     coupon.type === "PERCENT" ? `${Number(coupon.value)}% off` : `${money(coupon.value)} off`;
   const until = coupon.validUntil.toLocaleDateString("en-IN", {
@@ -436,6 +465,7 @@ export function renderCouponShare(coupon: {
     <p style="margin:4px 0 0;color:#7d8590;font-size:13px;">Valid until ${escapeHtml(until)}</p>
     ${min}
     `,
+    contact,
   );
   return {
     subject: `Your Keyafe coupon: ${coupon.code} · ${offer}`,

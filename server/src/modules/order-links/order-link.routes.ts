@@ -4,6 +4,7 @@ import { HttpError } from "../../utils/httpError.js";
 import {
   createOrderLink,
   createOrderLinkSchema,
+  deleteOrderLink,
   getOrderLinkById,
   getOrderLinkByToken,
   listOrderLinks,
@@ -47,6 +48,10 @@ adminOrderLinkRouter.patch("/:id", requirePermission("offline-orders.write"), as
   }
   const updated = await updateOrderLink(req.params.id ?? "", parsed.data);
   res.json(updated);
+});
+
+adminOrderLinkRouter.delete("/:id", requirePermission("offline-orders.write"), async (req, res) => {
+  res.json(await deleteOrderLink(req.params.id ?? ""));
 });
 
 // Public (customer-facing).

@@ -17,6 +17,7 @@ import {
 import { ensureCustomerRole } from "../customers/customer.service.js";
 import { sendEmail } from "../email/email.service.js";
 import { renderPasswordReset } from "../email/templates.js";
+import { getBusinessContact } from "../store/businessContact.js";
 import { isStaffRole, requireAuth, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { CUSTOMER_ROLE_SLUG } from "../staff/rbac.catalog.js";
 import { logger } from "../../utils/logger.js";
@@ -636,6 +637,7 @@ authRouter.post("/forgot-password", async (req, res) => {
     name: user.name,
     link: `${origin}/reset-password?token=${rawToken}`,
     expiresInMinutes: RESET_TOKEN_TTL_MS / 60_000,
+    contact: await getBusinessContact(),
   });
   void sendEmail({ to: user.email, subject, html });
 

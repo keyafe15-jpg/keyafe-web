@@ -3,6 +3,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { sendEmail } from "../email/email.service.js";
 import { renderAdminCancelled, renderCustomerCancelled } from "../email/templates.js";
+import { getBusinessContact } from "../store/businessContact.js";
 import { logger } from "../../utils/logger.js";
 import { emitOrderCancelled } from "../../lib/events.js";
 import { sendStaffWhatsApp } from "../../lib/whatsapp.js";
@@ -218,8 +219,10 @@ async function notifyCancelled(
     cancelledAt: new Date().toISOString(),
   });
 
+  const contact = await getBusinessContact();
+
   if (order.customerEmail) {
-    const { subject, html } = renderCustomerCancelled(order);
+    const { subject, html } = renderCustomerCancelled(order, contact);
     void sendEmail({
       to: order.customerEmail,
       subject,
@@ -229,7 +232,7 @@ async function notifyCancelled(
   }
 
   if (adminRecipients.length > 0) {
-    const { subject, html } = renderAdminCancelled(order, by);
+    const { subject, html } = renderAdminCancelled(order, by, contact);
     void sendEmail({
       to: adminRecipients,
       subject,

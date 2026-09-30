@@ -68,8 +68,16 @@ adminStaffRouter.post("/users", requirePermission("users.manage"), async (req, r
 });
 
 const updateUserSchema = z.object({
-  name: z.string().trim().min(2).optional(),
-  email: z.string().trim().email().nullable().optional(),
+  name: z.string().trim().min(2, "Name is too short").optional(),
+  phone: createUserSchema.shape.phone.optional(),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Enter a valid email")
+    .nullable()
+    .optional()
+    .or(z.literal("").transform(() => null)),
   roleId: z.string().min(1).optional(),
   isActive: z.boolean().optional(),
 });
@@ -77,7 +85,10 @@ const updateUserSchema = z.object({
 adminStaffRouter.patch("/users/:id", requirePermission("users.manage"), async (req, res) => {
   const parsed = updateUserSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw HttpError.badRequest("Invalid update", parsed.error.flatten());
+    throw HttpError.badRequest(
+      parsed.error.issues[0]?.message ?? "Invalid update",
+      parsed.error.flatten(),
+    );
   }
   const actorId = (req as AuthenticatedRequest).staff?.id;
   if (!actorId) throw HttpError.unauthorized("Authentication required");

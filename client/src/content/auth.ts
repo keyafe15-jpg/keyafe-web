@@ -43,7 +43,8 @@ export const AUTH_COPY = {
     subtitle: "We’ll email a reset link to the address saved on your account.",
     submit: "Send reset link",
     submitting: "Sending…",
-    noEmail: "No email on your account? Log in with OTP, or call us on +91 93300 48665.",
+    noEmail: (phone: string) =>
+      `No email on your account? Log in with OTP, or call us on ${phone}.`,
     back: "Back to log in",
   },
   changePassword: {

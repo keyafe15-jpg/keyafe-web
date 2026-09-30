@@ -16,6 +16,7 @@ import {
 } from "@/lib/validators";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
 import { AUTH_COPY } from "@/content/auth";
+import { useStoreProfile } from "@/hooks/useStoreProfile";
 import { cn } from "@/lib/cn";
 
 type AuthStep = "phone" | "otp" | "profile";
@@ -329,6 +330,7 @@ function RegisterForm({
 
 function ForgotPasswordForm({ onSwitch }: { onSwitch: (mode: AuthMode) => void }) {
   const requestPasswordReset = useAuth((s) => s.requestPasswordReset);
+  const contact = useStoreProfile();
   const [sentMessage, setSentMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const {
@@ -362,7 +364,7 @@ function ForgotPasswordForm({ onSwitch }: { onSwitch: (mode: AuthMode) => void }
     return (
       <div className="space-y-4">
         <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{sentMessage}</p>
-        <p className="text-sm text-ink-500">{AUTH_COPY.forgot.noEmail}</p>
+        <p className="text-sm text-ink-500">{AUTH_COPY.forgot.noEmail(contact.phone)}</p>
         {backLink}
       </div>
     );

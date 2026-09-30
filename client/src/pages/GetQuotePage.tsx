@@ -19,6 +19,7 @@ import { SlideCarousel } from "@/components/ui/SlideCarousel";
 import { api } from "@/lib/api";
 import { uploadImages } from "@/lib/uploads";
 import { closedDayMessage, closureForDate, useShopClosures } from "@/hooks/useShopClosures";
+import { useStoreProfile } from "@/hooks/useStoreProfile";
 import { cn } from "@/lib/cn";
 
 function todayIso() {
@@ -99,6 +100,7 @@ function QuoteChooser() {
 }
 
 function QuoteForm({ kind }: { kind: QuoteKind }) {
+  const contact = useStoreProfile();
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -172,7 +174,11 @@ function QuoteForm({ kind }: { kind: QuoteKind }) {
     return (
       <section className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="mb-3 font-display text-4xl text-ink-900">{QUOTE_COPY.successTitle}</h1>
-        <p className="mb-8 text-ink-500">{QUOTE_COPY.successBody}</p>
+        <p className="mb-8 text-ink-500">
+          {QUOTE_COPY.successBody(
+            [contact.phone, contact.altPhone].filter(Boolean).join(" / "),
+          )}
+        </p>
         <div className="flex justify-center gap-3">
           <Link
             to="/"

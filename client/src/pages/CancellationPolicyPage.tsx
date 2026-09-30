@@ -1,13 +1,11 @@
 import { Link } from "react-router-dom";
 import { Mail, MessageCircle, Phone } from "lucide-react";
 import { Seo } from "@/components/seo/Seo";
-import { BRAND } from "@/content/brand";
+import { useStoreProfile } from "@/hooks/useStoreProfile";
 
 /** Must match CUSTOMER_CANCEL_CUTOFF_HOURS in server/src/modules/orders/order.cancel.ts. */
 const CANCEL_CUTOFF_HOURS = 4;
 const LAST_UPDATED = "30 September 2026";
-
-const telHref = (phone: string) => `tel:${phone.replace(/\s/g, "")}`;
 
 function PolicySection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -19,11 +17,13 @@ function PolicySection({ title, children }: { title: string; children: React.Rea
 }
 
 export function CancellationPolicyPage() {
+  const contact = useStoreProfile();
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <Seo
         title="Cancellation & refund policy"
-        description={`${BRAND.name} bakes every order fresh. Read how cancellations, refunds and order changes work.`}
+        description={`${contact.name} bakes every order fresh. Read how cancellations, refunds and order changes work.`}
       />
 
       <p className="text-sm font-medium tracking-[0.2em] text-brand-500 uppercase">Policies</p>
@@ -86,21 +86,21 @@ export function CancellationPolicyPage() {
           </p>
           <div className="grid gap-2 pt-1 sm:grid-cols-3">
             <a
-              href={`mailto:${BRAND.supportEmail}`}
+              href={`mailto:${contact.email}`}
               className="flex items-center gap-2 rounded-lg border border-cream-200 px-3 py-2.5 text-ink-900 transition hover:border-brand-300"
             >
               <Mail className="h-4 w-4 shrink-0 text-brand-500" />
-              <span className="min-w-0 truncate">{BRAND.supportEmail}</span>
+              <span className="min-w-0 truncate">{contact.email}</span>
             </a>
             <a
-              href={telHref(BRAND.supportPhone)}
+              href={`tel:${contact.phoneHref}`}
               className="flex items-center gap-2 rounded-lg border border-cream-200 px-3 py-2.5 text-ink-900 transition hover:border-brand-300"
             >
               <Phone className="h-4 w-4 shrink-0 text-brand-500" />
-              {BRAND.supportPhone}
+              {contact.phone}
             </a>
             <a
-              href={BRAND.socials.whatsapp}
+              href={contact.whatsappHref}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-2 rounded-lg border border-cream-200 px-3 py-2.5 text-ink-900 transition hover:border-brand-300"
@@ -109,13 +109,15 @@ export function CancellationPolicyPage() {
               WhatsApp us
             </a>
           </div>
-          <p className="text-xs text-ink-500">
-            You can also reach us on{" "}
-            <a href={telHref(BRAND.altPhone)} className="font-medium text-ink-700">
-              {BRAND.altPhone}
-            </a>
-            .
-          </p>
+          {contact.altPhone && (
+            <p className="text-xs text-ink-500">
+              You can also reach us on{" "}
+              <a href={`tel:${contact.altPhoneHref}`} className="font-medium text-ink-700">
+                {contact.altPhone}
+              </a>
+              .
+            </p>
+          )}
         </PolicySection>
       </div>
     </div>

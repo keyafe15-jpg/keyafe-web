@@ -9,7 +9,7 @@ import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
 import { CategoriesMenu } from "@/components/categories/CategoriesMenu";
 import { StoresMenu } from "@/components/categories/StoresMenu";
 import { CatalogSearchBar } from "@/components/product/CatalogSearchBar";
-import { BRAND } from "@/content/brand";
+import { useStoreProfile } from "@/hooks/useStoreProfile";
 import { SAMEDAY_NAV, HEALTHY_NAV, PANINDIA_NAV, QUOTE_NAV, storeNavItem } from "@/content/nav";
 import { AUTH_COPY } from "@/content/auth";
 import {
@@ -87,6 +87,7 @@ function FeaturePill({
 
 export function Header({ isCustomLink }: { isCustomLink: boolean }) {
   const count = useCart((s) => s.itemCount());
+  const profile = useStoreProfile();
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
   const { pathname } = useLocation();
@@ -137,11 +138,11 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
             )}
           >
             <img
-              src={BRAND.logoSrc}
-              alt={BRAND.logoAlt}
+              src={profile.logoSrc}
+              alt={profile.logoAlt}
               className="h-11 w-11 rounded-full border border-[#e7d6b4] bg-white object-cover shadow-sm md:h-12 md:w-12"
             />
-            <span className="brand-wordmark">{BRAND.name}</span>
+            <span className="brand-wordmark">{profile.name}</span>
           </Link>
 
           {/* Middle — Categories dropdown + highlighted tabs. Hidden on small and tablet screens. */}
@@ -320,11 +321,11 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-cream-100 bg-white/95 px-5 py-3.5 backdrop-blur">
               <Link to="/" onClick={closeMobileMenu} className="flex items-center gap-2">
                 <img
-                  src={BRAND.logoSrc}
-                  alt={BRAND.logoAlt}
+                  src={profile.logoSrc}
+                  alt={profile.logoAlt}
                   className="h-9 w-9 rounded-full border border-[#e7d6b4] bg-white object-cover shadow-sm"
                 />
-                <span className="brand-wordmark text-lg">{BRAND.name}</span>
+                <span className="brand-wordmark text-lg">{profile.name}</span>
               </Link>
               <button
                 type="button"

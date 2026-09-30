@@ -95,8 +95,8 @@ export const QUOTE_COPY = {
   submitCta: "Send request",
   submittingCta: "Sending…",
   successTitle: "Thanks — we'll be in touch!",
-  successBody:
-    "Our team will review your request and reach out with a quote. If it's urgent, feel free to call us directly at 9330048665 / 9883186892.",
+  successBody: (phones: string) =>
+    `Our team will review your request and reach out with a quote. If it's urgent, feel free to call us directly at ${phones}.`,
   backToHome: "Back to home",
   submitAnother: "Submit another",
   switchKind: "Wrong type? Switch enquiry",

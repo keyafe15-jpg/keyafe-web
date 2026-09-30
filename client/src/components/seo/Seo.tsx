@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { BRAND } from "@/content/brand";
+import { absoluteUrl, useStoreProfile } from "@/hooks/useStoreProfile";
 
 interface SeoProps {
   /** Page title without the brand suffix. */
@@ -21,13 +22,10 @@ interface SeoProps {
  */
 export function Seo({ title, description, image, noIndex }: SeoProps) {
   const { pathname } = useLocation();
+  const profile = useStoreProfile();
   const url = `${BRAND.siteUrl}${pathname}`;
-  const fullTitle = title.includes(BRAND.name) ? title : `${title} | ${BRAND.name}`;
-  const imageUrl = image
-    ? image.startsWith("http")
-      ? image
-      : `${BRAND.siteUrl}${image}`
-    : `${BRAND.siteUrl}${BRAND.logoSrc}`;
+  const fullTitle = title.includes(profile.name) ? title : `${title} | ${profile.name}`;
+  const imageUrl = absoluteUrl(image ?? profile.logoSrc);
 
   return (
     <>
@@ -37,7 +35,7 @@ export function Seo({ title, description, image, noIndex }: SeoProps) {
       {noIndex && <meta name="robots" content="noindex,nofollow" />}
 
       <meta property="og:type" content="website" />
-      <meta property="og:site_name" content={BRAND.name} />
+      <meta property="og:site_name" content={profile.name} />
       <meta property="og:locale" content="en_IN" />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
@@ -58,33 +56,37 @@ export function Seo({ title, description, image, noIndex }: SeoProps) {
  * gifting — can still be declared to search engines.
  */
 export function BakeryJsonLd({ offerings }: { offerings: readonly string[] }) {
-  const { location } = BRAND;
+  const profile = useStoreProfile();
+  const { location } = profile;
+  const logo = absoluteUrl(profile.logoSrc);
 
+  // Blank parts are omitted rather than guessed; wrong details rank worse than absent ones.
   const address: Record<string, string> = {
     "@type": "PostalAddress",
-    addressLocality: location.locality,
-    addressRegion: location.region,
-    postalCode: location.postalCode,
-    addressCountry: location.country,
+    addressCountry: BRAND.location.country,
   };
-  // Omitted rather than guessed — see the TODO in content/brand.ts.
   if (location.street) address.streetAddress = location.street;
+  if (location.locality || location.city) {
+    address.addressLocality = location.locality || location.city;
+  }
+  if (location.region) address.addressRegion = location.region;
+  if (location.postalCode) address.postalCode = location.postalCode;
 
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Bakery",
-    name: BRAND.legalName,
-    alternateName: BRAND.name,
+    name: profile.legalName,
+    alternateName: profile.name,
     url: BRAND.siteUrl,
-    logo: `${BRAND.siteUrl}${BRAND.logoSrc}`,
-    image: `${BRAND.siteUrl}${BRAND.logoSrc}`,
-    description: BRAND.tagline,
-    telephone: BRAND.supportPhone,
-    email: BRAND.supportEmail,
+    logo,
+    image: logo,
+    description: profile.tagline,
+    telephone: profile.phone,
+    email: profile.email,
     priceRange: "₹₹",
     address,
     areaServed: location.areaServed.map((name) => ({ "@type": "City", name })),
-    sameAs: [BRAND.socials.instagram, BRAND.socials.facebook],
+    sameAs: [profile.socials.instagram, profile.socials.facebook].filter(Boolean),
     hasOfferCatalog: {
       "@type": "OfferCatalog",
       name: "Bakes and catering",

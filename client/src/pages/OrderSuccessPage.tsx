@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { orderGstOnTop } from "@keyafe/shared";
 import { useOrder, type Order } from "@/hooks/useOrders";
+import { useStoreProfile } from "@/hooks/useStoreProfile";
 import {
   useCreatePaymentSession,
   useSwitchToCod,
@@ -19,6 +20,7 @@ const PAYMENT_CHECK_INTERVAL_MS = 3000;
 export function OrderSuccessPage() {
   const { id = "" } = useParams<{ id: string }>();
   const { data: order, isLoading, isError } = useOrder(id);
+  const contact = useStoreProfile();
   const awaitingPayment =
     !!order && order.paymentMethod === "cashfree" && !order.paidAt && order.status !== "CANCELLED";
   const paymentCheck = usePaymentCheck(order?.orderNumber ?? "", awaitingPayment);
@@ -259,7 +261,7 @@ export function OrderSuccessPage() {
           Continue shopping
         </Link>
         <a
-          href={`tel:+919330048665`}
+          href={`tel:${contact.phoneHref}`}
           className="rounded-full bg-brand-500 px-5 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
         >
           Call the bakery

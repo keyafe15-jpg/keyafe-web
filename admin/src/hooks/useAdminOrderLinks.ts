@@ -135,6 +135,18 @@ export function useAdminOrderLink(id: string | undefined) {
   });
 }
 
+/** Only links that never became an order can be deleted. */
+export function useDeleteOrderLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ id: string }>(`/admin/order-links/${id}`),
+    onSuccess: ({ id }) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "order-links"] });
+      qc.removeQueries({ queryKey: ["admin", "order-link", id] });
+    },
+  });
+}
+
 export function useUpdateOrderLink() {
   const qc = useQueryClient();
   return useMutation({

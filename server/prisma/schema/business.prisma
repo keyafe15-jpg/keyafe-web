@@ -16,9 +16,19 @@ model BusinessSettings {
   challanTerms           String?
   supportEmail           String
   supportPhone           String
+  // Second number shown on the storefront alongside supportPhone.
+  altPhone               String?
   // Where the new-order notification email is sent. Falls back to supportEmail if null.
   orderNotificationEmail String?
   currency               String    @default("INR")
+
+  // Storefront profile. The shop name comes from tradeName / legalName above.
+  tagline         String?
+  logoUrl         String? // null → the bundled /logo.png
+  socialLinks     Json? // { instagram, facebook, zomato, swiggy }
+  platformRatings Json? // { zomato: { rating, count }, swiggy: { rating, count } }
+  // Public listing for search engines; kept in step with the Google Business Profile.
+  publicLocation  Json? // { street, locality, city, region, postalCode, areaServed[], openingHours }
 
   // Manual UPI collection (offline/order-link flows) — no gateway, no fees.
   // Customers pay this VPA directly and upload a screenshot as proof.

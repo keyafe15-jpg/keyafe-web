@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { KeyRound, Plus, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { inputClass, selectClass, submitClass } from "@/components/form/Field";
 import { PasswordDialog } from "@/components/PasswordDialog";
@@ -21,6 +21,7 @@ import {
   type StaffRole,
   type StaffUser,
 } from "@/hooks/useAdminStaff";
+import { StaffDetailsDialog } from "./StaffDetailsDialog";
 
 type PageTab = "staff" | "roles";
 
@@ -101,7 +102,7 @@ function StaffTab() {
                 <th className="px-4 py-2 font-medium">Role</th>
                 <th className="px-4 py-2 font-medium">Last login</th>
                 <th className="w-28 px-4 py-2 text-center font-medium">Active</th>
-                <th className="w-24 px-4 py-2 text-right font-medium">
+                <th className="w-32 px-4 py-2 text-right font-medium">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
@@ -243,6 +244,7 @@ function StaffRow({ user, roles }: { user: StaffUser; roles: StaffRole[] }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const onDelete = async () => {
     setError(null);
@@ -331,6 +333,20 @@ function StaffRow({ user, roles }: { user: StaffUser; roles: StaffRole[] }) {
         </label>
       </td>
       <td className="mt-3 block text-right whitespace-nowrap md:mt-0 md:table-cell md:px-4 md:py-3">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setNotice(null);
+            setDetailsOpen(true);
+          }}
+          title={`Edit name, phone and email for “${user.name}”`}
+          aria-label={`Edit details for ${user.name}`}
+          className="mr-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+        <StaffDetailsDialog user={user} open={detailsOpen} onOpenChange={setDetailsOpen} />
         <button
           type="button"
           onClick={() => {

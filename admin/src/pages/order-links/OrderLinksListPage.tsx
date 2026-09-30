@@ -1,8 +1,19 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Copy, Ban, Package, Sparkles, ExternalLink, Check, Pencil } from "lucide-react";
+import {
+  Plus,
+  Copy,
+  Ban,
+  Package,
+  Sparkles,
+  ExternalLink,
+  Check,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import {
   useAdminOrderLinks,
+  useDeleteOrderLink,
   useUpdateOrderLink,
   type OrderLink,
   type OrderLinkStatus,
@@ -114,6 +125,7 @@ export function OrderLinksListPage() {
 function LinkRow({ link }: { link: OrderLink }) {
   const [copied, setCopied] = useState(false);
   const update = useUpdateOrderLink();
+  const del = useDeleteOrderLink();
   const url = orderLinkUrl(link.token);
 
   const copyUrl = async () => {
@@ -274,6 +286,26 @@ function LinkRow({ link }: { link: OrderLink }) {
                 <Ban className="h-3 w-3" /> Cancel
               </button>
             </>
+          )}
+          {!link.linkedOrder && (
+            <button
+              onClick={() => {
+                const warning =
+                  link.status === "OPEN"
+                    ? "Delete this link? The customer won't be able to open it any more."
+                    : "Delete this link?";
+                if (!confirm(warning)) return;
+                del.mutate(link.id, {
+                  onError: (err) =>
+                    alert(err instanceof Error ? err.message : "Could not delete the link"),
+                });
+              }}
+              disabled={del.isPending}
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-red-600 hover:border-red-300 hover:bg-red-50 disabled:opacity-50"
+              title="Delete link"
+            >
+              <Trash2 className="h-3 w-3" /> {del.isPending ? "Deleting…" : "Delete"}
+            </button>
           )}
           {link.linkedOrder && (
             <Link

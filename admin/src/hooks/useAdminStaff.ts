@@ -116,6 +116,8 @@ export function useUpdateStaffUser() {
     }: {
       id: string;
       name?: string;
+      phone?: string;
+      email?: string | null;
       roleId?: string;
       isActive?: boolean;
     }) => api.patch<StaffUser>(`/admin/staff/users/${id}`, body),

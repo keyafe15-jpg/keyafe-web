@@ -226,6 +226,7 @@ export async function updateStaffUser(
   id: string,
   input: {
     name?: string;
+    phone?: string;
     email?: string | null;
     roleId?: string;
     isActive?: boolean;
@@ -274,10 +275,19 @@ export async function updateStaffUser(
     }
   }
 
+  const phone = input.phone ? normalizeCustomerPhone(input.phone) : undefined;
+  if (phone && phone !== existing.phone) {
+    const phoneTaken = await findUserByPhone(phone);
+    if (phoneTaken && phoneTaken.id !== id) {
+      throw HttpError.conflict("Another account already uses this phone number");
+    }
+  }
+
   const updated = await prisma.user.update({
     where: { id },
     data: {
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+      ...(phone ? { phone } : {}),
       ...(input.email !== undefined ? { email: input.email } : {}),
       ...(input.roleId ? { roleId: input.roleId } : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),

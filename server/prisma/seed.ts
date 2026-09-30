@@ -47,8 +47,29 @@ async function seedBusinessSettings() {
         stateCode: "19",
         pincode: "711202",
       },
-      supportEmail: "hello@keyafe.example",
+      supportEmail: "support@keyafe.com",
       supportPhone: "9330048665",
+      altPhone: "9883186892",
+      tagline: "Handcrafted cakes, cookies & bakes — baked fresh, delivered warm.",
+      socialLinks: {
+        instagram: "https://instagram.com/keyafe",
+        facebook: "https://facebook.com/keyafe",
+        zomato: "https://www.zomato.com/",
+        swiggy: "https://www.swiggy.com/",
+      },
+      platformRatings: {
+        zomato: { rating: 4.2, count: 1198 },
+        swiggy: { rating: 4.4, count: 224 },
+      },
+      publicLocation: {
+        street: "",
+        locality: "Belur",
+        city: "Howrah",
+        region: "West Bengal",
+        postalCode: "711202",
+        areaServed: ["Kolkata", "Howrah", "Hooghly"],
+        openingHours: "",
+      },
     },
   });
   logger.info(`Created BusinessSettings ${created.id}`);
@@ -1024,7 +1045,9 @@ async function main() {
 
   // Demo catalogue + fake orders would pollute a live shop's reports.
   if (env.NODE_ENV === "production" && process.env.SEED_DEMO_DATA !== "true") {
-    logger.info("Production: skipping demo products and sample orders (set SEED_DEMO_DATA=true to include)");
+    logger.info(
+      "Production: skipping demo products and sample orders (set SEED_DEMO_DATA=true to include)",
+    );
     return;
   }
   await seedProducts();

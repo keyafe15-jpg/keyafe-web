@@ -5,6 +5,13 @@ import { HttpError } from "../../utils/httpError.js";
 import { gstinIssue, gstinStateCode, normalizeGstin } from "../../lib/gstin.js";
 import { sanitizeSiteLink } from "../../lib/siteLink.js";
 import { FALLBACK_SELLER_STATE_CODE } from "../orders/order.tax.js";
+import { normalizePhone } from "./businessContact.js";
+import {
+  getPublicStoreProfile,
+  storefrontProfileSchema,
+  storefrontProfileSelect,
+  toStorefrontProfile,
+} from "./storefrontProfile.js";
 import {
   computeSameDayStatus,
   getStoreHours,
@@ -84,6 +91,11 @@ storeRouter.get("/payment-info", async (_req, res) => {
   });
 });
 
+storeRouter.get("/profile", async (_req, res) => {
+  res.setHeader("Cache-Control", "public, max-age=60");
+  res.json(await getPublicStoreProfile());
+});
+
 // adminBusinessRouter is mounted in app.ts behind requireStaff +
 // requirePermission("settings.update"), so handlers here assume staff access.
 const businessUpiSchema = z.object({
@@ -116,6 +128,84 @@ adminBusinessRouter.patch("/upi", async (req, res) => {
     select: { upiId: true, upiPayeeName: true },
   });
   res.json(updated);
+});
+
+// Printed on invoices, challans and customer emails; new-order and cancellation
+// emails go to orderNotificationEmail, or supportEmail when that is blank.
+const contactSelect = {
+  supportPhone: true,
+  altPhone: true,
+  supportEmail: true,
+  orderNotificationEmail: true,
+} as const;
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .refine((v) => /^\+?[\d\s-]{10,16}$/.test(v), "Enter a valid phone number")
+  .transform(normalizePhone);
+
+const businessContactSchema = z.object({
+  supportPhone: phoneSchema,
+  altPhone: phoneSchema.nullable().or(z.literal("").transform(() => null)),
+  supportEmail: z.string().trim().toLowerCase().email("Enter a valid email"),
+  orderNotificationEmail: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Enter a valid email")
+    .nullable()
+    .or(z.literal("").transform(() => null)),
+});
+
+adminBusinessRouter.get("/contact", async (_req, res) => {
+  const settings = await prisma.businessSettings.findFirst({ select: contactSelect });
+  if (!settings) throw HttpError.notFound("Business settings not found");
+  res.json(settings);
+});
+
+adminBusinessRouter.patch("/contact", async (req, res) => {
+  const parsed = businessContactSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest(
+      parsed.error.issues[0]?.message ?? "Invalid contact details",
+      parsed.error.flatten(),
+    );
+  }
+  const existing = await prisma.businessSettings.findFirst({ select: { id: true } });
+  if (!existing) throw HttpError.notFound("Business settings not found");
+  const updated = await prisma.businessSettings.update({
+    where: { id: existing.id },
+    data: parsed.data,
+    select: contactSelect,
+  });
+  res.json(updated);
+});
+
+// Tagline, logo, social / delivery-app links, ratings and the public address
+// shown on the storefront and to search engines.
+adminBusinessRouter.get("/storefront", async (_req, res) => {
+  const settings = await prisma.businessSettings.findFirst({ select: storefrontProfileSelect });
+  if (!settings) throw HttpError.notFound("Business settings not found");
+  res.json(toStorefrontProfile(settings));
+});
+
+adminBusinessRouter.patch("/storefront", async (req, res) => {
+  const parsed = storefrontProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest(
+      parsed.error.issues[0]?.message ?? "Invalid storefront details",
+      parsed.error.flatten(),
+    );
+  }
+  const existing = await prisma.businessSettings.findFirst({ select: { id: true } });
+  if (!existing) throw HttpError.notFound("Business settings not found");
+  const updated = await prisma.businessSettings.update({
+    where: { id: existing.id },
+    data: parsed.data,
+    select: storefrontProfileSelect,
+  });
+  res.json(toStorefrontProfile(updated));
 });
 
 // Seller identity printed on every tax invoice. Deliberately not seeded — it
