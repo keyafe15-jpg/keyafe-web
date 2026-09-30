@@ -316,6 +316,53 @@ export function useEditOrderItems() {
   });
 }
 
+/** Permanently deletes an order; the server checks the retyped order number. */
+export function useDeleteOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, confirmOrderNumber }: { id: string; confirmOrderNumber: string }) =>
+      api.delete<{ orderNumber: string }>(`/admin/orders/${id}`, { confirmOrderNumber }),
+    onSuccess: (data, { id }) => {
+      qc.removeQueries({ queryKey: ["admin", "order", id] });
+      qc.removeQueries({ queryKey: ["admin", "order", data.orderNumber] });
+      for (const key of ["orders", "order-counts", "order-links", "customers", "customer"]) {
+        void qc.invalidateQueries({ queryKey: ["admin", key] });
+      }
+    },
+  });
+}
+
+export interface UpdateBuyerGstResult {
+  order: AdminOrder;
+  placeOfSupplyChanged: boolean;
+}
+
+/**
+ * Adds, changes or removes the buyer's GSTIN on an order. The server re-splits
+ * the GST already charged between CGST+SGST and IGST to match the new place of
+ * supply; the order total never changes.
+ */
+export function useUpdateBuyerGst() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      customerGstin: string | null;
+      customerCompanyName: string | null;
+    }) => api.patch<UpdateBuyerGstResult>(`/admin/orders/${id}/buyer-gst`, body),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "order", data.order.id] });
+      void qc.invalidateQueries({
+        queryKey: ["admin", "order", data.order.orderNumber],
+      });
+    },
+  });
+}
+
 /**
  * Downloads the invoice PDF. The first download assigns the order its
  * permanent invoice number, so the order is refetched afterwards to pick it up.

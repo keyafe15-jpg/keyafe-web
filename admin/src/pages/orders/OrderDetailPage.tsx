@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Phone,
@@ -12,13 +12,16 @@ import {
   Download,
   ClipboardList,
   Building2,
+  Trash2,
 } from "lucide-react";
 import {
   useAdminOrder,
+  useDeleteOrder,
   useDownloadChallan,
   useDownloadInvoice,
   useEmailInvoice,
   useRefreshPayment,
+  useUpdateBuyerGst,
   useUpdateOrder,
   type AdminOrder,
   type PaymentAttemptStatus,
@@ -27,6 +30,7 @@ import {
   type PaymentStatus,
 } from "@/hooks/useAdminOrders";
 import { stateNameFromCode } from "@/lib/indiaStates";
+import { gstinIssue, gstinStateCode, normalizeGstin } from "@/lib/gstin";
 import { orderGstOnTop } from "@keyafe/shared";
 import {
   AwaitingPaymentBadge,
@@ -53,6 +57,7 @@ export function OrderDetailPage() {
   const canUpdate = useStaffPermission("orders.update");
   const canReadInvoices = useStaffPermission("invoices.read");
   const canReadChallans = useStaffPermission("challans.read");
+  const canDelete = useStaffPermission("orders.delete");
   const scheduleLocked = order?.status === "DELIVERED" || order?.status === "CANCELLED";
   const itemsEditLocked =
     scheduleLocked || Boolean(order?.invoiceNumber) || order?.paymentStatus === "REFUNDED";
@@ -326,7 +331,7 @@ export function OrderDetailPage() {
             </div>
           </Card>
 
-          {canReadInvoices && <InvoiceCard order={order} />}
+          {canReadInvoices && <InvoiceCard order={order} canUpdate={canUpdate} />}
 
           {/* Corporate orders need both documents: the tax invoice for the
               books and the challan to hand over with the goods. */}
@@ -613,6 +618,8 @@ export function OrderDetailPage() {
               </div>
             )}
           </Card>
+
+          {canDelete && <DeleteOrderCard order={order} />}
         </aside>
       </div>
     </div>
@@ -891,11 +898,13 @@ function ChallanCard({ order }: { order: AdminOrder }) {
   );
 }
 
-function InvoiceCard({ order }: { order: AdminOrder }) {
+function InvoiceCard({ order, canUpdate }: { order: AdminOrder; canUpdate: boolean }) {
   const download = useDownloadInvoice();
   const email = useEmailInvoice();
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingGst, setEditingGst] = useState(false);
+  const canEditGst = canUpdate && order.status !== "CANCELLED";
 
   // Which tax applied is derived from the amounts actually charged, rather
   // than re-deriving the seller's state on the client.
@@ -981,9 +990,33 @@ function InvoiceCard({ order }: { order: AdminOrder }) {
             ) : (
               <span className="text-xs text-slate-400">Individual — no GSTIN on this order</span>
             )}
+            {canEditGst && !editingGst && (
+              <button
+                type="button"
+                onClick={() => {
+                  setNote(null);
+                  setError(null);
+                  setEditingGst(true);
+                }}
+                className="ml-2 text-xs font-medium text-brand-700 hover:underline"
+              >
+                {order.customerGstin ? "Edit" : "Add GSTIN"}
+              </button>
+            )}
           </dd>
         </div>
       </dl>
+
+      {editingGst && (
+        <BuyerGstEditor
+          order={order}
+          onClose={() => setEditingGst(false)}
+          onSaved={(message) => {
+            setEditingGst(false);
+            setNote(message);
+          }}
+        />
+      )}
 
       {blocked ? (
         <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">{blocked}</p>
@@ -1037,6 +1070,243 @@ function InvoiceCard({ order }: { order: AdminOrder }) {
       {note && <p className="mt-2 text-xs text-emerald-700">{note}</p>}
       {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
     </Card>
+  );
+}
+
+function DeleteOrderCard({ order }: { order: AdminOrder }) {
+  const navigate = useNavigate();
+  const remove = useDeleteOrder();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const matches = typed.trim().toUpperCase() === order.orderNumber.toUpperCase();
+  const paidAmount =
+    order.paymentStatus === "PAID"
+      ? Number(order.total)
+      : order.paymentStatus === "PARTIAL"
+        ? Number(order.advanceAmount)
+        : 0;
+  const warnings = [
+    order.invoiceNumber &&
+      `Tax invoice ${order.invoiceNumber} has been issued. That number won't be reused, so your GST invoice series will have a gap — keep a copy of the invoice for your records.`,
+    order.challanNumber && `Delivery challan ${order.challanNumber} will no longer exist.`,
+    paidAmount > 0 &&
+      `₹${paidAmount.toLocaleString("en-IN")} was collected on this order${
+        order.paymentMethod === "cashfree" ? " online" : ""
+      }. Deleting doesn't refund it.`,
+  ].filter((w): w is string => Boolean(w));
+
+  const submit = async () => {
+    setError(null);
+    try {
+      await remove.mutateAsync({ id: order.id, confirmOrderNumber: typed.trim() });
+      navigate("/orders", { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the order");
+    }
+  };
+
+  return (
+    <section className="rounded-card border border-red-200 bg-white">
+      <div className="px-4 py-3">
+        <p className="text-sm font-semibold text-slate-900">Delete order</p>
+        <p className="mt-0.5 text-xs text-slate-500">
+          Permanently removes the order, its items and payment records. This can't be undone — to
+          stop an order, cancel it instead.
+        </p>
+        {!open ? (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete order
+          </button>
+        ) : (
+          <form
+            className="mt-3 space-y-2.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (matches) void submit();
+            }}
+          >
+            {warnings.length > 0 && (
+              <ul className="space-y-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            )}
+            <label className="block">
+              <span className="text-xs text-slate-600">
+                Type <span className="font-mono font-semibold">{order.orderNumber}</span> to confirm
+              </span>
+              <input
+                autoFocus
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder={order.orderNumber}
+                className={cn(inputClass, "mt-1 font-mono")}
+              />
+            </label>
+            {error && <p className="text-xs text-red-700">{error}</p>}
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={!matches || remove.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {remove.isPending ? "Deleting…" : "Delete permanently"}
+              </button>
+              <button
+                type="button"
+                disabled={remove.isPending}
+                onClick={() => {
+                  setOpen(false);
+                  setTyped("");
+                  setError(null);
+                }}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Keep order
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function BuyerGstEditor({
+  order,
+  onClose,
+  onSaved,
+}: {
+  order: AdminOrder;
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
+  const save = useUpdateBuyerGst();
+  const [companyName, setCompanyName] = useState(order.customerCompanyName ?? "");
+  const [gstin, setGstin] = useState(order.customerGstin ?? "");
+  const [touched, setTouched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const normalized = normalizeGstin(gstin);
+  const gstinError = gstinIssue(normalized);
+  const nameError =
+    companyName.trim().length < 2 ? "Enter the registered business name" : null;
+  const newState = gstinError ? null : gstinStateCode(normalized);
+  const unchanged =
+    normalized === (order.customerGstin ?? "") &&
+    companyName.trim() === (order.customerCompanyName ?? "");
+  const stateChanges = !!newState && !!order.placeOfSupply && newState !== order.placeOfSupply;
+
+  const submit = async (body: { customerGstin: string | null; customerCompanyName: string | null }) => {
+    setError(null);
+    try {
+      const result = await save.mutateAsync({ id: order.id, ...body });
+      const pos = result.order.placeOfSupply;
+      const split = Number(result.order.igstAmount) > 0 ? "IGST" : "CGST + SGST";
+      const base = body.customerGstin ? "GST details saved" : "GSTIN removed";
+      onSaved(
+        result.placeOfSupplyChanged && pos
+          ? `${base}. Place of supply is now ${stateNameFromCode(pos) ?? pos} (${pos}), charged as ${split}.`
+          : `${base}.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save GST details");
+    }
+  };
+
+  return (
+    <form
+      className="mt-3 space-y-2.5 rounded-md border border-slate-200 bg-slate-50 p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setTouched(true);
+        if (gstinError || nameError) return;
+        void submit({ customerGstin: normalized, customerCompanyName: companyName.trim() });
+      }}
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block min-w-0">
+          <span className="text-xs font-medium text-slate-600">Business name</span>
+          <input
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            maxLength={160}
+            placeholder="As on GST certificate"
+            className={cn(inputClass, "mt-1")}
+          />
+          {touched && nameError && <span className="text-xs text-red-700">{nameError}</span>}
+        </label>
+        <label className="block min-w-0">
+          <span className="text-xs font-medium text-slate-600">GSTIN</span>
+          <input
+            value={gstin}
+            onChange={(e) => setGstin(e.target.value.toUpperCase())}
+            onBlur={() => setGstin(normalizeGstin(gstin))}
+            maxLength={20}
+            placeholder="19ABCDE1234F1Z5"
+            className={cn(inputClass, "mt-1 font-mono uppercase")}
+          />
+          {touched && gstinError && <span className="text-xs text-red-700">{gstinError}</span>}
+        </label>
+      </div>
+
+      {stateChanges && (
+        <p className="rounded bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+          This GSTIN is registered in {stateNameFromCode(newState) ?? newState}, so the place of
+          supply moves from {stateNameFromCode(order.placeOfSupply) ?? order.placeOfSupply} to{" "}
+          {stateNameFromCode(newState) ?? newState}. The GST already charged is re-split between
+          CGST + SGST and IGST — the order total doesn't change.
+        </p>
+      )}
+      {order.invoiceNumber && (
+        <p className="text-xs text-slate-500">
+          Invoice <span className="font-mono">{order.invoiceNumber}</span> is already issued. The
+          next download or email will show these details under the same number — send the
+          customer the updated copy.
+        </p>
+      )}
+      {error && <p className="text-xs text-red-700">{error}</p>}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="submit"
+          disabled={save.isPending || unchanged}
+          className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+        >
+          <Save className="h-3.5 w-3.5" />
+          {save.isPending ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={save.isPending}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        {order.customerGstin && (
+          <button
+            type="button"
+            disabled={save.isPending}
+            onClick={() => {
+              if (!window.confirm("Remove the GSTIN and bill this order to an individual?")) return;
+              void submit({ customerGstin: null, customerCompanyName: null });
+            }}
+            className="ml-auto text-xs font-medium text-red-700 hover:underline disabled:opacity-50"
+          >
+            Remove GSTIN
+          </button>
+        )}
+      </div>
+    </form>
   );
 }
 

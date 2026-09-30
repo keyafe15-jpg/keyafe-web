@@ -7,6 +7,8 @@ import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
 import { editOrderItems, editOrderItemsSchema } from "./order.edit-items.js";
+import { updateBuyerGst, updateBuyerGstSchema } from "./order.buyer-gst.js";
+import { deleteOrder, deleteOrderSchema } from "./order.delete.js";
 import { buildInvoicePdf, sendInvoiceEmail } from "./invoice.service.js";
 import { buildGstExport } from "./gst-export.service.js";
 import { buildOrdersBackup, importOrdersBackup } from "./orders-backup.service.js";
@@ -782,6 +784,34 @@ adminOrderRouter.patch("/:id/items", requirePermission("orders.update"), async (
   }
   const result = await editOrderItems(id, parsed.data);
   res.json(result);
+});
+
+adminOrderRouter.patch("/:id/buyer-gst", requirePermission("orders.update"), async (req, res) => {
+  const id = req.params.id ?? "";
+  if (!id) throw HttpError.badRequest("Missing order id");
+  const parsed = updateBuyerGstSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Invalid GST details";
+    throw HttpError.badRequest(message, parsed.error.flatten());
+  }
+  res.json(await updateBuyerGst(id, parsed.data));
+});
+
+adminOrderRouter.delete("/:id", requirePermission("orders.delete"), async (req, res) => {
+  const id = req.params.id ?? "";
+  if (!id) throw HttpError.badRequest("Missing order id");
+  const parsed = deleteOrderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw HttpError.badRequest("Type the order number to confirm");
+  }
+  const staff = (req as AuthenticatedRequest).staff;
+  res.json(
+    await deleteOrder(
+      id,
+      parsed.data.confirmOrderNumber,
+      staff && { id: staff.id, name: staff.name },
+    ),
+  );
 });
 
 // Both invoice routes assign a permanent number on first use, which is why
