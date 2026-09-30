@@ -29,7 +29,7 @@ export interface AdminOrderListItem {
   paymentMethod: string;
   paymentMode: PaymentMode;
   advanceAmount: string;
-  paymentScreenshotUrl: string | null;
+  paymentScreenshotUrls: string[];
   /** Set once an online (Cashfree) payment is confirmed. */
   paidAt: string | null;
   source: OrderSource;
@@ -241,13 +241,16 @@ export function useRefreshPayment() {
   });
 }
 
+/** Matches the server cap: advance, balance, and one spare. */
+export const MAX_PAYMENT_SCREENSHOTS = 3;
+
 export interface UpdateOrderPayload {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
   paymentMode?: PaymentMode;
   advanceAmount?: number;
   paymentMethod?: "cash" | "upi" | "netbanking";
-  paymentScreenshotUrl?: string | null;
+  paymentScreenshotUrls?: string[];
   adminNotes?: string | null;
   items?: {
     id: string;

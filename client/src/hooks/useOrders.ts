@@ -59,7 +59,7 @@ export interface Order {
   paymentStatus: "PENDING" | "PARTIAL" | "PAID" | "FAILED" | "REFUNDED";
   paymentMode: "FULL" | "ADVANCE";
   advanceAmount: string;
-  paymentScreenshotUrl: string | null;
+  paymentScreenshotUrls: string[];
   paidAt: string | null;
   source?: "STOREFRONT" | "OFFLINE_LINK" | "OFFLINE_DIRECT";
   status:

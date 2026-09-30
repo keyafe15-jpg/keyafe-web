@@ -104,7 +104,11 @@ model Order {
   paymentMode          PaymentMode   @default(FULL)
   // Amount collected upfront for offline orders; total - advanceAmount is still owed.
   advanceAmount        Decimal       @default(0) @db.Decimal(10, 2)
-  // Customer/admin-uploaded proof of the UPI/bank transfer.
+  // Customer/admin-uploaded proof of UPI/bank transfers — up to 3 (advance,
+  // balance, one spare). Capped by MAX_PAYMENT_SCREENSHOTS in the API.
+  paymentScreenshotUrls String[] @default([])
+  // Superseded by paymentScreenshotUrls; read by servers still on the old
+  // code, so drop it only once every deploy has moved over.
   paymentScreenshotUrl String?
 
   // Status

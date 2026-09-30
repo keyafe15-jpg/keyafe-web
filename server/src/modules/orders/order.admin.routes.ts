@@ -23,7 +23,7 @@ import multer from "multer";
 
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
-import { OFFLINE_PAYMENT_METHODS } from "../../lib/paymentLabel.js";
+import { MAX_PAYMENT_SCREENSHOTS, OFFLINE_PAYMENT_METHODS } from "../../lib/paymentLabel.js";
 import {
   requirePermission,
   staffHasPermission,
@@ -244,7 +244,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
         paymentMethod: true,
         paymentMode: true,
         advanceAmount: true,
-        paymentScreenshotUrl: true,
+        paymentScreenshotUrls: true,
         paidAt: true,
         source: true,
         createdAt: true,
@@ -293,7 +293,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
       paymentMethod: r.paymentMethod,
       paymentMode: r.paymentMode,
       advanceAmount: r.advanceAmount,
-      paymentScreenshotUrl: r.paymentScreenshotUrl,
+      paymentScreenshotUrls: r.paymentScreenshotUrls,
       paidAt: r.paidAt,
       source: r.source,
       createdAt: r.createdAt,
@@ -883,7 +883,7 @@ const updateSchema = z.object({
   paymentMode: z.enum(["FULL", "ADVANCE"]).optional() satisfies z.ZodType<PaymentMode | undefined>,
   advanceAmount: z.coerce.number().nonnegative().optional(),
   paymentMethod: z.enum(OFFLINE_PAYMENT_METHODS).optional(),
-  paymentScreenshotUrl: z.string().url().nullable().optional(),
+  paymentScreenshotUrls: z.array(z.string().url()).max(MAX_PAYMENT_SCREENSHOTS).optional(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
   items: z
     .array(

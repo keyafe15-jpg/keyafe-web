@@ -17,6 +17,8 @@ import {
   Copy,
   Check,
   XCircle,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import {
   useAdminOrder,
@@ -27,6 +29,7 @@ import {
   useRefreshPayment,
   useUpdateBuyerGst,
   useUpdateOrder,
+  MAX_PAYMENT_SCREENSHOTS,
   type AdminOrder,
   type PaymentAttemptStatus,
   type InvoiceEmailResult,
@@ -92,12 +95,25 @@ export function OrderDetailPage() {
       const res = await uploadImage(file, "payment-screenshot");
       await update.mutateAsync({
         id: order.id,
-        paymentScreenshotUrl: res.publicUrl,
+        paymentScreenshotUrls: [...order.paymentScreenshotUrls, res.publicUrl],
       });
     } catch (err) {
       setScreenshotError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setScreenshotUploading(false);
+    }
+  };
+
+  const removeScreenshot = async (url: string) => {
+    if (!order || !confirm("Remove this payment screenshot?")) return;
+    setScreenshotError(null);
+    try {
+      await update.mutateAsync({
+        id: order.id,
+        paymentScreenshotUrls: order.paymentScreenshotUrls.filter((u) => u !== url),
+      });
+    } catch (err) {
+      setScreenshotError(err instanceof Error ? err.message : "Could not remove screenshot");
     }
   };
 
@@ -555,34 +571,64 @@ export function OrderDetailPage() {
 
             {order.paymentMethod !== "cashfree" && (
               <div className="mt-4 border-t border-slate-100 pt-3">
-                <label className="text-xs font-medium text-slate-700">Payment screenshot</label>
-                {order.paymentScreenshotUrl && (
-                  <a
-                    href={order.paymentScreenshotUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 block"
-                  >
-                    <img
-                      src={order.paymentScreenshotUrl}
-                      alt="Payment proof"
-                      className="h-32 w-32 rounded-md border border-slate-200 object-cover"
-                    />
-                  </a>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={screenshotUploading}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void uploadScreenshot(file);
-                  }}
-                  className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
-                />
-                {screenshotUploading && (
-                  <p className="mt-1 text-[11px] text-slate-500">Uploading…</p>
-                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-slate-700">Payment screenshots</span>
+                  <span className="text-[11px] text-slate-400 tabular-nums">
+                    {order.paymentScreenshotUrls.length}/{MAX_PAYMENT_SCREENSHOTS}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {order.paymentScreenshotUrls.map((url, index) => (
+                    <div key={url} className="relative">
+                      <a href={url} target="_blank" rel="noreferrer" className="block">
+                        <img
+                          src={url}
+                          alt={`Payment proof ${index + 1}`}
+                          className="h-20 w-20 rounded-md border border-slate-200 object-cover"
+                        />
+                      </a>
+                      <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-slate-900/70 px-1.5 text-[10px] font-medium text-white">
+                        {index + 1}
+                      </span>
+                      {canUpdate && (
+                        <button
+                          type="button"
+                          onClick={() => void removeScreenshot(url)}
+                          disabled={update.isPending}
+                          aria-label={`Remove payment screenshot ${index + 1}`}
+                          className="absolute -top-1.5 -right-1.5 rounded-full bg-white p-0.5 text-slate-500 shadow ring-1 ring-slate-200 transition hover:text-red-600 disabled:opacity-50"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {canUpdate && order.paymentScreenshotUrls.length < MAX_PAYMENT_SCREENSHOTS && (
+                    <label
+                      className={cn(
+                        "flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-slate-300 text-[11px] font-medium text-slate-500 transition hover:border-brand-500 hover:text-brand-600",
+                        screenshotUploading && "pointer-events-none opacity-60",
+                      )}
+                    >
+                      <ImagePlus className="h-5 w-5" />
+                      {screenshotUploading ? "Uploading…" : "Add"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={screenshotUploading}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (file) void uploadScreenshot(file);
+                        }}
+                        className="sr-only"
+                      />
+                    </label>
+                  )}
+                  {!canUpdate && order.paymentScreenshotUrls.length === 0 && (
+                    <p className="text-[11px] text-slate-400">None uploaded.</p>
+                  )}
+                </div>
                 {screenshotError && (
                   <p className="mt-1 text-[11px] text-red-700">{screenshotError}</p>
                 )}

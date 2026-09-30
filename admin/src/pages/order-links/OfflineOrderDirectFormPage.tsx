@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, HandCoins, Hourglass, ImagePlus, Store, Truck, Wallet, X } from "lucide-react";
 import { OFFLINE_PAYMENT_METHODS, type OfflinePaymentMethod } from "@/pages/orders/order-ui";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
+import { MAX_PAYMENT_SCREENSHOTS } from "@/hooks/useAdminOrders";
 import { TIME_SLOTS } from "@/content/slots";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/uploads";
@@ -89,8 +90,8 @@ export function OfflineOrderDirectFormPage() {
   const [paymentPlan, setPaymentPlan] = useState<"FULL" | "ADVANCE" | "ON_DELIVERY">("FULL");
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<OfflinePaymentMethod | null>(null);
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
+  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
@@ -100,14 +101,10 @@ export function OfflineOrderDirectFormPage() {
   useOrderItemRefPreviews(items, setItems);
 
   useEffect(() => {
-    if (!screenshotFile) {
-      setScreenshotPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(screenshotFile);
-    setScreenshotPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [screenshotFile]);
+    const urls = screenshotFiles.map((file) => URL.createObjectURL(file));
+    setScreenshotPreviews(urls);
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, [screenshotFiles]);
 
   useEffect(() => {
     setPincodeInfo(null);
@@ -234,11 +231,13 @@ export function OfflineOrderDirectFormPage() {
       }
       setUploading(false);
 
-      let paymentScreenshotUrl: string | null = null;
-      if (screenshotFile) {
+      const paymentScreenshotUrls: string[] = [];
+      if (screenshotFiles.length > 0) {
         setUploading(true);
-        const res = await uploadImage(screenshotFile, "payment-screenshot");
-        paymentScreenshotUrl = res.publicUrl;
+        for (const file of screenshotFiles) {
+          const res = await uploadImage(file, "payment-screenshot");
+          paymentScreenshotUrls.push(res.publicUrl);
+        }
         setUploading(false);
       }
 
@@ -304,7 +303,7 @@ export function OfflineOrderDirectFormPage() {
               ? 0
               : undefined,
         paymentMethod: paymentMethod ?? undefined,
-        paymentScreenshotUrl,
+        paymentScreenshotUrls,
         discountType: discount > 0 ? discountType : null,
         discountValue: discount > 0 ? Number(discountValue) : null,
         deliveryFee: fulfillment === "DELIVERY" ? deliveryFee : undefined,
@@ -707,48 +706,53 @@ export function OfflineOrderDirectFormPage() {
                   onValue={setDiscountValue}
                 />
               </div>
-              <div className="col-span-2 flex items-center gap-3">
-                <label className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition group-hover:border-brand-500 group-hover:text-brand-600">
-                    {screenshotPreview ? (
+              <div className="col-span-2">
+                <p className="text-xs font-medium text-slate-700">
+                  Payment screenshots{" "}
+                  <span className="font-normal text-slate-500">
+                    — optional, up to {MAX_PAYMENT_SCREENSHOTS} (advance, balance, spare)
+                  </span>
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {screenshotPreviews.map((url, index) => (
+                    <div key={url} className="relative">
                       <img
-                        src={screenshotPreview}
-                        alt="Payment screenshot"
-                        className="h-full w-full object-cover"
+                        src={url}
+                        alt={`Payment screenshot ${index + 1}`}
+                        className="h-14 w-14 rounded-lg border border-slate-200 object-cover"
                       />
-                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setScreenshotFiles((files) => files.filter((_, i) => i !== index))
+                        }
+                        className="absolute -top-1.5 -right-1.5 rounded-full bg-white p-0.5 text-slate-500 shadow ring-1 ring-slate-200 hover:text-red-600"
+                        aria-label={`Remove screenshot ${index + 1}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {screenshotFiles.length < MAX_PAYMENT_SCREENSHOTS && (
+                    <label className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition hover:border-brand-500 hover:text-brand-600">
                       <ImagePlus className="h-5 w-5" />
-                    )}
-                  </span>
-                  <span className="min-w-0 text-xs">
-                    <span className="block font-medium text-slate-700">
-                      {screenshotFile ? "Payment screenshot" : "Add payment screenshot"}
-                    </span>
-                    <span className="block truncate text-slate-500">
-                      {screenshotFile?.name ?? "Optional — UPI / bank transfer proof"}
-                    </span>
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null;
-                      e.target.value = "";
-                      if (file) setScreenshotFile(file);
-                    }}
-                    className="sr-only"
-                  />
-                </label>
-                {screenshotFile && (
-                  <button
-                    type="button"
-                    onClick={() => setScreenshotFile(null)}
-                    className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                    aria-label="Remove screenshot"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
+                      <span className="sr-only">Add payment screenshot</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const picked = Array.from(e.target.files ?? []);
+                          e.target.value = "";
+                          setScreenshotFiles((files) =>
+                            [...files, ...picked].slice(0, MAX_PAYMENT_SCREENSHOTS),
+                          );
+                        }}
+                        className="sr-only"
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
             </div>
           </Section>

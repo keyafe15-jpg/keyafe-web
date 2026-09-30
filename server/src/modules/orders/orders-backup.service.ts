@@ -9,6 +9,7 @@ import type {
 } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
+import { MAX_PAYMENT_SCREENSHOTS } from "../../lib/paymentLabel.js";
 
 export type OrdersBackupFormat = "xlsx" | "csv";
 
@@ -59,7 +60,7 @@ const ORDER_HEADERS = [
   "paymentStatus",
   "paymentMode",
   "advanceAmount",
-  "paymentScreenshotUrl",
+  "paymentScreenshotUrls",
   "status",
   "source",
   "customerNotes",
@@ -244,7 +245,7 @@ export async function buildOrdersBackup(params: OrdersBackupParams): Promise<{
     row.paymentStatus = o.paymentStatus;
     row.paymentMode = o.paymentMode;
     row.advanceAmount = num(o.advanceAmount);
-    row.paymentScreenshotUrl = o.paymentScreenshotUrl ?? "";
+    row.paymentScreenshotUrls = o.paymentScreenshotUrls.join("\n");
     row.status = o.status;
     row.source = o.source;
     row.customerNotes = o.customerNotes ?? "";
@@ -365,7 +366,7 @@ interface OrderDraft {
   paymentStatus: PaymentStatus;
   paymentMode: PaymentMode;
   advanceAmount: number;
-  paymentScreenshotUrl: string | null;
+  paymentScreenshotUrls: string[];
   status: OrderStatus;
   source: OrderSource;
   customerNotes: string | null;
@@ -478,7 +479,11 @@ function parseOrderFromRow(raw: Record<string, unknown>): Omit<OrderDraft, "item
     paymentStatus: paymentStatusRaw as PaymentStatus,
     paymentMode: paymentModeRaw as PaymentMode,
     advanceAmount: num(r.advanceAmount),
-    paymentScreenshotUrl: str(r.paymentScreenshotUrl),
+    // Backups taken before multiple screenshots used a single-URL column.
+    paymentScreenshotUrls: (str(r.paymentScreenshotUrls) ?? str(r.paymentScreenshotUrl) ?? "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, MAX_PAYMENT_SCREENSHOTS),
     status: statusRaw as OrderStatus,
     source: sourceRaw as OrderSource,
     customerNotes: str(r.customerNotes),
@@ -706,7 +711,7 @@ export async function importOrdersBackup(buffer: Buffer): Promise<{
         paymentStatus: draft.paymentStatus,
         paymentMode: draft.paymentMode,
         advanceAmount: draft.advanceAmount,
-        paymentScreenshotUrl: draft.paymentScreenshotUrl,
+        paymentScreenshotUrls: draft.paymentScreenshotUrls,
         status: draft.status,
         source: draft.source,
         customerNotes: draft.customerNotes,

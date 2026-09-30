@@ -24,7 +24,11 @@ import {
   sumLineTax,
 } from "../orders/order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
-import { OFFLINE_PAYMENT_METHODS, type OfflinePaymentMethod } from "../../lib/paymentLabel.js";
+import {
+  MAX_PAYMENT_SCREENSHOTS,
+  OFFLINE_PAYMENT_METHODS,
+  type OfflinePaymentMethod,
+} from "../../lib/paymentLabel.js";
 import {
   giftBillingFieldsSchema,
   orderAddressSchema,
@@ -43,20 +47,20 @@ const CUSTOM_HSN_CODE = "1905";
 
 // Turns a chosen payment mode + raw advance amount into the amount/status/method
 // to persist. Used by the admin offline-direct form and by pay-on-delivery links.
-// Without an explicit method, a screenshot means staff already verified a manual
+// Without an explicit method, any screenshot means staff already verified a manual
 // UPI/bank transfer.
 function resolvePayment(
   paymentMode: "FULL" | "ADVANCE",
   rawAdvanceAmount: number | undefined,
   total: number,
-  paymentScreenshotUrl: string | null | undefined,
+  hasScreenshot: boolean,
   method?: OfflinePaymentMethod,
 ) {
   const advanceAmount =
     paymentMode === "FULL" ? total : Math.min(Math.max(rawAdvanceAmount ?? 0, 0), total);
   const paymentStatus =
     advanceAmount <= 0 ? "PENDING" : advanceAmount >= total ? "PAID" : "PARTIAL";
-  const paymentMethod = method ?? (paymentScreenshotUrl ? "upi" : "cod");
+  const paymentMethod = method ?? (hasScreenshot ? "upi" : "cod");
   return { advanceAmount, paymentStatus, paymentMethod } as const;
 }
 
@@ -529,7 +533,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
   }
   const { advanceAmount, paymentStatus, paymentMethod } = payOnline
     ? ({ advanceAmount: 0, paymentStatus: "PENDING", paymentMethod: "cashfree" } as const)
-    : resolvePayment(input.paymentMode, input.advanceAmount, total, null);
+    : resolvePayment(input.paymentMode, input.advanceAmount, total, false);
 
   const orderNumber = buildOrderNumber();
 
@@ -730,7 +734,7 @@ export const placeOfflineOrderSchema = z.object({
   paymentMode: z.enum(["FULL", "ADVANCE"]).default("FULL"),
   advanceAmount: z.coerce.number().nonnegative().optional().default(0),
   paymentMethod: z.enum(OFFLINE_PAYMENT_METHODS).optional(),
-  paymentScreenshotUrl: z.string().url().nullable().optional(),
+  paymentScreenshotUrls: z.array(z.string().url()).max(MAX_PAYMENT_SCREENSHOTS).default([]),
 
   // Optional override of the pincode-table delivery fee (admin offline only).
   deliveryFee: z.coerce.number().nonnegative().optional().nullable(),
@@ -920,7 +924,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     input.paymentMode,
     input.advanceAmount,
     total,
-    input.paymentScreenshotUrl,
+    input.paymentScreenshotUrls.length > 0,
     input.paymentMethod,
   );
 
@@ -962,7 +966,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       paymentStatus,
       paymentMode: input.paymentMode,
       advanceAmount,
-      paymentScreenshotUrl: input.paymentScreenshotUrl ?? null,
+      paymentScreenshotUrls: input.paymentScreenshotUrls,
       source: "OFFLINE_DIRECT",
       customerNotes: input.customerNotes ?? null,
       adminNotes: input.adminNotes ?? null,
