@@ -26,6 +26,7 @@ const ORDER_LINKS = [
   PANINDIA_NAV,
   { to: QUOTE_NAV.to, label: "Custom & corporate orders" },
   { to: "/about", label: "About us" },
+  { to: "/cancellation-policy", label: "Cancellation & refunds" },
 ] as const;
 
 export function Footer() {

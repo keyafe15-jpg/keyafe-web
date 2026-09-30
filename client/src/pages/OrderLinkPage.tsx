@@ -785,7 +785,16 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
                 : "Confirm order"}
           </button>
           <p className="mt-2 text-center text-[11px] text-ink-500">
-            By confirming you agree to the price locked above.
+            By confirming you agree to the price locked above and our{" "}
+            <a
+              href="/cancellation-policy"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-brand-600 underline"
+            >
+              cancellation &amp; refund policy
+            </a>
+            .
           </p>
         </div>
       </div>

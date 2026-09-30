@@ -15,8 +15,11 @@ const KITCHEN_OR_LATER: ReadonlySet<OrderStatus> = new Set([
   "DELIVERED",
 ]);
 
-/** Safety window if the order is still PENDING/CONFIRMED. */
-export const CUSTOMER_CANCEL_CUTOFF_HOURS = 10;
+/**
+ * Safety window if the order is still PENDING/CONFIRMED. Published on the
+ * storefront's /cancellation-policy page, so change both together.
+ */
+export const CUSTOMER_CANCEL_CUTOFF_HOURS = 4;
 
 const BAKERY_TZ_OFFSET = "+05:30";
 
@@ -33,7 +36,7 @@ const SLOT_START: Record<string, { hour: number; minute: number }> = {
 export interface CustomerCancelState {
   allowed: boolean;
   reason: string | null;
-  /** ISO timestamp after which online cancel is blocked (10h before delivery). */
+  /** ISO timestamp after which online cancel is blocked. */
   deadlineAt: string | null;
 }
 

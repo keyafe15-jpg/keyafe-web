@@ -16,6 +16,7 @@ import { SearchPage } from "@/pages/SearchPage";
 import { SavedAddressesPage } from "@/pages/SavedAddressesPage";
 import { MyOrdersPage } from "@/pages/MyOrdersPage";
 import { AboutPage } from "@/pages/AboutPage";
+import { CancellationPolicyPage } from "@/pages/CancellationPolicyPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OrderLinkPage } from "@/pages/OrderLinkPage";
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
       { path: "tag/:slug", element: <TagPage /> },
       { path: "search", element: <SearchPage /> },
       { path: "about", element: <AboutPage /> },
+      { path: "cancellation-policy", element: <CancellationPolicyPage /> },
       { path: "saved-addresses", element: <SavedAddressesPage /> },
       { path: "my-orders", element: <MyOrdersPage /> },
       { path: "o/:token", element: <OrderLinkPage /> },

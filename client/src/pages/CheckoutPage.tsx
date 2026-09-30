@@ -1200,7 +1200,16 @@ export function CheckoutPage() {
                   : "Place order"}
             </button>
             <p className="mt-2 text-center text-[11px] text-ink-500">
-              By placing this order you agree to our terms.
+              By placing this order you agree to our{" "}
+              <a
+                href="/cancellation-policy"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-brand-600"
+              >
+                cancellation &amp; refund policy
+              </a>
+              .
             </p>
           </div>
         </aside>
