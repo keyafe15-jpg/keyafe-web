@@ -35,6 +35,7 @@ import { adminToppingRouter, toppingRouter } from "./modules/toppings/topping.ro
 import { addonRouter, adminAddonRouter } from "./modules/addons/addon.routes.js";
 import { orderRouter } from "./modules/orders/order.routes.js";
 import { adminOrderRouter } from "./modules/orders/order.admin.routes.js";
+import { adminStallRouter } from "./modules/stalls/stall.routes.js";
 import {
   adminOfflineOrderRouter,
   adminOrderLinkRouter,
@@ -185,6 +186,7 @@ export function createApp() {
   app.use("/api/admin/order-links", requireStaff, adminOrderLinkRouter);
   app.use("/api/admin/offline-orders", requireStaff, adminOfflineOrderRouter);
   app.use("/api/admin/payments", requireStaff, adminPaymentRouter);
+  app.use("/api/admin/stalls", requireStaff, adminStallRouter);
   app.use(
     "/api/admin/delivery",
     requireStaff,

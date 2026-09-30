@@ -9,6 +9,8 @@ export interface CollectionsSummary {
     pending: number;
     orders: number;
     pendingOrders: number;
+    /** Stall counter sales, already included in `sales` and `received`. */
+    stall: { sales: number; cash: number; upi: number };
   };
   outstandingAllTime: { pending: number; customers: number };
 }

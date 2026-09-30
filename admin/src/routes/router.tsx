@@ -29,6 +29,9 @@ import { CouponsPage } from "@/pages/coupons/CouponsPage";
 import { CustomersListPage } from "@/pages/customers/CustomersListPage";
 import { UsersRolesPage } from "@/pages/staff/UsersRolesPage";
 import { RequirePermission } from "@/components/nav/RequirePermission";
+import { StallCounterPage } from "@/pages/stall/StallCounterPage";
+import { StallDaysPage } from "@/pages/stall/StallDaysPage";
+import { StallMenuPage } from "@/pages/stall/StallMenuPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -64,6 +67,18 @@ export const router = createBrowserRouter([
           {
             path: "offline-orders/:id/edit",
             element: <OrderLinkFormPage />,
+          },
+          {
+            path: "stall",
+            element: <StallCounterPage />,
+          },
+          {
+            path: "stall/days",
+            element: <StallDaysPage />,
+          },
+          {
+            path: "stall/menu",
+            element: <StallMenuPage />,
           },
           {
             path: "quotes",

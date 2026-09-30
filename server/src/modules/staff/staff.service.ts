@@ -5,7 +5,7 @@ import { normalizeCustomerPhone, phoneLookupVariants } from "../../lib/phone.js"
 import { hashPassword } from "../../lib/password.js";
 import { revokeUserSessions } from "../auth/sessions.js";
 import { CUSTOMER_ROLE_SLUG } from "./rbac.catalog.js";
-import { syncPermissionCatalog } from "./rbac.seed.js";
+import { ensureStallStaffRole, syncPermissionCatalog } from "./rbac.seed.js";
 
 async function findUserByPhone(phone: string) {
   for (const variant of phoneLookupVariants(phone)) {
@@ -352,6 +352,8 @@ export async function deleteStaffUser(id: string, actorId: string) {
 }
 
 export async function listRoles() {
+  await syncPermissionCatalog();
+  await ensureStallStaffRole();
   const roles = await prisma.role.findMany({
     where: { slug: { not: CUSTOMER_ROLE_SLUG } },
     orderBy: [{ isSuperuser: "desc" }, { name: "asc" }],

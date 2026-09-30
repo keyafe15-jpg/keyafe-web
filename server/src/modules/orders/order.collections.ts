@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
+import { calendarRange, type CalendarRange } from "../../lib/calendarDay.js";
+import { getStallTotals } from "../stalls/stall.service.js";
 
 // Money owed vs collected, bucketed by delivery date. An order belongs to the
 // day of its earliest delivery; pan-India orders (no delivery dates) fall back
@@ -9,21 +11,11 @@ import { HttpError } from "../../utils/httpError.js";
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
-const calendarDay = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD")
-  .refine((value) => {
-    const d = new Date(`${value}T00:00:00.000Z`);
-    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
-  }, "Not a real date");
-
-const rangeSchema = z
-  .object({ from: calendarDay, to: calendarDay })
-  .refine((r) => r.from <= r.to, "From date must be before or equal to To date.");
+const rangeSchema = calendarRange;
 
 const pendingQuerySchema = z.union([z.object({ scope: z.literal("all") }), rangeSchema]);
 
-type Range = z.infer<typeof rangeSchema>;
+type Range = CalendarRange;
 
 const roundMoney = (n: number) => Math.round(n * 100) / 100;
 
@@ -141,10 +133,20 @@ function summarise(orders: CollectionOrder[]) {
 }
 
 export async function getCollectionsSummary(range: Range) {
-  const [inRange, allTime] = await Promise.all([loadOrders(range), loadOrders(null)]);
+  const [inRange, allTime, stall] = await Promise.all([
+    loadOrders(range),
+    loadOrders(null),
+    getStallTotals(range),
+  ]);
   const owing = allTime.filter((o) => o.pending > 0);
+  const orders = summarise(inRange);
   return {
-    range: summarise(inRange),
+    range: {
+      ...orders,
+      sales: roundMoney(orders.sales + stall.sales),
+      received: roundMoney(orders.received + stall.sales),
+      stall,
+    },
     outstandingAllTime: {
       pending: roundMoney(owing.reduce((sum, o) => sum + o.pending, 0)),
       customers: new Set(owing.map((o) => o.customerPhone)).size,

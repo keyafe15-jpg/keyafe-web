@@ -12,6 +12,7 @@ import {
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatINR } from "@/lib/money";
+import { customLabel, monthRange, toInputDate } from "@/lib/dateRange";
 import { useAdminAuth } from "@/store/adminAuth";
 import { staffHasPermission } from "@/lib/permissions";
 import { useCollectionsSummary, type CollectionsScope } from "@/hooks/useCollections";
@@ -55,35 +56,7 @@ function formatCompact(value: number, currency: boolean) {
   }).format(value);
 }
 
-function toInputDate(value: Date) {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 type Preset = "this-month" | "last-month" | "custom";
-
-function monthRange(offset: number) {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
-  return {
-    from: toInputDate(start),
-    to: toInputDate(end),
-    label: start.toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
-  };
-}
-
-function customLabel(from: string, to: string) {
-  const fmt = (day: string, withYear: boolean) =>
-    new Date(`${day}T00:00:00`).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      ...(withYear && { year: "numeric" }),
-    });
-  return from === to ? fmt(from, true) : `${fmt(from, false)} – ${fmt(to, true)}`;
-}
 
 const PRESETS: { key: Preset; label: string }[] = [
   { key: "this-month", label: "This month" },
@@ -112,6 +85,8 @@ export function DashboardPage() {
   const outstanding = collections.data?.outstandingAllTime;
   const collectedPct =
     money && money.sales > 0 ? Math.round((money.received / money.sales) * 100) : null;
+  const stallHint =
+    money && money.stall.sales > 0 ? `incl. stall ${formatINR(money.stall.sales)}` : undefined;
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -257,11 +232,19 @@ export function DashboardPage() {
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <MoneyCard label="Total sales" value={money ? formatINR(money.sales) : "—"} />
+        <MoneyCard
+          label="Total sales"
+          value={money ? formatINR(money.sales) : "—"}
+          hint={stallHint}
+        />
         <MoneyCard
           label="Received"
           value={money ? formatINR(money.received) : "—"}
-          hint={collectedPct == null ? undefined : `${collectedPct}% collected`}
+          hint={
+            [collectedPct == null ? null : `${collectedPct}% collected`, stallHint]
+              .filter(Boolean)
+              .join(" · ") || undefined
+          }
           valueClassName="text-emerald-700"
         />
         <MoneyCard
@@ -445,7 +428,7 @@ function MoneyCard({
       >
         {value}
       </span>
-      {hint && <span className="mt-0.5 block truncate text-xs text-slate-500">{hint}</span>}
+      {hint && <span className="mt-0.5 block text-xs leading-snug text-slate-500">{hint}</span>}
     </>
   );
 

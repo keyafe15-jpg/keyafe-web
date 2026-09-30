@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAlerts, type PendingOrderAlert } from "@/store/alerts";
 import { useAdminAuth } from "@/store/adminAuth";
 import { renewSessionIfExpiring } from "@/lib/api";
+import { staffHasPermission } from "@/lib/permissions";
 
 interface NewOrderEvent {
   id: string;
@@ -23,8 +24,10 @@ export function useOrderStream() {
   // EventSource keeps reconnecting with the URL it was opened with, so a renewed
   // token has to reopen the stream or alerts stop once the old token expires.
   const token = useAdminAuth((s) => s.accessToken);
+  const canReadOrders = useAdminAuth((s) => staffHasPermission(s.user, "orders.read"));
 
   useEffect(() => {
+    if (!canReadOrders) return;
     const url = token
       ? `/api/admin/orders/stream?access_token=${encodeURIComponent(token)}`
       : "/api/admin/orders/stream";
@@ -96,5 +99,5 @@ export function useOrderStream() {
     return () => {
       es.close();
     };
-  }, [qc, enqueue, enqueueCancelled, token]);
+  }, [qc, enqueue, enqueueCancelled, token, canReadOrders]);
 }

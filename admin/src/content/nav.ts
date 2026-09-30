@@ -20,6 +20,9 @@ import {
   Megaphone,
   MessageSquareQuote,
   GalleryHorizontal,
+  ChefHat,
+  CalendarDays,
+  UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,6 +31,8 @@ export interface AdminNavItem {
   label: string;
   icon: LucideIcon;
   requiresPermission?: string;
+  /** Highlight only on an exact match, when other nav items live under this path. */
+  end?: boolean;
 }
 
 export interface AdminNavGroup {
@@ -63,6 +68,30 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Reviews",
         icon: MessageSquareQuote,
         requiresPermission: "reviews.read",
+      },
+    ],
+  },
+  {
+    label: "Stall",
+    items: [
+      {
+        to: "/stall",
+        label: "Stall counter",
+        icon: ChefHat,
+        requiresPermission: "stall.sell",
+        end: true,
+      },
+      {
+        to: "/stall/days",
+        label: "Stall sales",
+        icon: CalendarDays,
+        requiresPermission: "stall.manage",
+      },
+      {
+        to: "/stall/menu",
+        label: "Stall menu",
+        icon: UtensilsCrossed,
+        requiresPermission: "stall.manage",
       },
     ],
   },

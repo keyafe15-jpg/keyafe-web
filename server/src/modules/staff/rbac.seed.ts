@@ -7,6 +7,8 @@ import {
   CHEF_ROLE_SLUG,
   CUSTOMER_ROLE_SLUG,
   PERMISSION_CATALOG,
+  STALL_STAFF_PERMISSION_KEYS,
+  STALL_STAFF_ROLE_SLUG,
 } from "./rbac.catalog.js";
 
 export async function syncPermissionCatalog() {
@@ -26,6 +28,31 @@ export async function syncPermissionCatalog() {
       },
     });
   }
+}
+
+/**
+ * Creates the Stall staff role (stall.sell only) on first run. Also called
+ * when roles are listed, because production databases are never re-seeded.
+ * Leaves an existing role untouched so admin edits to it stick.
+ */
+export async function ensureStallStaffRole() {
+  const existing = await prisma.role.findUnique({ where: { slug: STALL_STAFF_ROLE_SLUG } });
+  if (existing) return;
+
+  const perms = await prisma.permission.findMany({
+    where: { key: { in: [...STALL_STAFF_PERMISSION_KEYS] } },
+    select: { id: true },
+  });
+  await prisma.role.create({
+    data: {
+      slug: STALL_STAFF_ROLE_SLUG,
+      name: "Stall staff",
+      description: "Stall counter — record walk-in sales and close the day",
+      isSystem: true,
+      isSuperuser: false,
+      permissions: { create: perms.map((p) => ({ permissionId: p.id })) },
+    },
+  });
 }
 
 export async function seedRbac() {
@@ -96,6 +123,8 @@ export async function seedRbac() {
       });
     }
   }
+
+  await ensureStallStaffRole();
 
   logger.info(`Seeded ${PERMISSION_CATALOG.length} permissions and system roles`);
 

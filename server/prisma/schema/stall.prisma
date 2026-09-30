@@ -1,0 +1,86 @@
+// Walk-in counter sales at stalls we run on site (e.g. a live kitchen in a
+// corporate office). Anonymous and paid on the spot, so they live apart from
+// Order, but they feed the dashboard's sales/received totals.
+
+enum StallDayStatus {
+  OPEN
+  CLOSED
+}
+
+enum StallSaleKind {
+  ITEMIZED // Staff tapped menu items; the whole total is either cash or UPI
+  CONSOLIDATED // Lump cash/UPI figure entered when there was no time to itemise
+}
+
+model Stall {
+  id        String          @id @default(cuid())
+  name      String
+  isActive  Boolean         @default(true)
+  sortOrder Int             @default(0)
+  menuItems StallMenuItem[]
+  days      StallDay[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model StallMenuItem {
+  id        String   @id @default(cuid())
+  stallId   String
+  stall     Stall    @relation(fields: [stallId], references: [id], onDelete: Cascade)
+  name      String
+  price     Decimal  @db.Decimal(10, 2)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stallId, sortOrder])
+}
+
+model StallDay {
+  id           String         @id @default(cuid())
+  stallId      String
+  // Restrict so deleting a stall can't wipe its sales history; deactivate it instead.
+  stall        Stall          @relation(fields: [stallId], references: [id], onDelete: Restrict)
+  // IST calendar day the sales belong to.
+  date         DateTime       @db.Date
+  status       StallDayStatus @default(OPEN)
+  closedAt     DateTime?
+  closedById   String?
+  closedByName String?
+  sales        StallSale[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([stallId, date])
+  @@index([date])
+}
+
+model StallSale {
+  id            String          @id @default(cuid())
+  dayId         String
+  day           StallDay        @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  kind          StallSaleKind
+  cashAmount    Decimal         @default(0) @db.Decimal(10, 2)
+  upiAmount     Decimal         @default(0) @db.Decimal(10, 2)
+  note          String?
+  createdById   String?
+  createdByName String?
+  items         StallSaleItem[]
+  createdAt     DateTime        @default(now())
+
+  @@index([dayId, createdAt])
+}
+
+model StallSaleItem {
+  id         String    @id @default(cuid())
+  saleId     String
+  sale       StallSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  // Null once the menu item is deleted; name/price below are snapshots.
+  menuItemId String?
+  name       String
+  price      Decimal   @db.Decimal(10, 2)
+  qty        Int
+
+  @@index([saleId])
+}

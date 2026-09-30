@@ -26,6 +26,14 @@ export const PERMISSION_CATALOG = [
     sortOrder: 1,
   },
 
+  { key: "stall.sell", label: "Record stall sales", category: "stall", sortOrder: 0 },
+  {
+    key: "stall.manage",
+    label: "Manage stall menu & daily sales",
+    category: "stall",
+    sortOrder: 1,
+  },
+
   { key: "products.read", label: "View products", category: "catalog", sortOrder: 0 },
   { key: "products.write", label: "Edit products", category: "catalog", sortOrder: 1 },
   { key: "categories.write", label: "Edit categories", category: "catalog", sortOrder: 2 },
@@ -54,7 +62,9 @@ export const PERMISSION_CATALOG = [
 ] as const;
 
 export const CHEF_PERMISSION_KEYS = ["orders.read", "orders.update"] as const;
+export const STALL_STAFF_PERMISSION_KEYS = ["stall.sell"] as const;
 
 export const CUSTOMER_ROLE_SLUG = "customer";
 export const ADMIN_ROLE_SLUG = "admin";
 export const CHEF_ROLE_SLUG = "chef";
+export const STALL_STAFF_ROLE_SLUG = "stall-staff";
