@@ -33,14 +33,14 @@ export function OrdersListPage() {
           </p>
         </div>
 
-        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+        <div className="flex max-w-full flex-wrap gap-y-1 self-start rounded-lg border border-slate-200 bg-white p-1 sm:shrink-0">
           {PAGE_TABS.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => setPageTab(t.key)}
               className={cn(
-                "rounded-md px-4 py-2 text-sm font-medium transition",
+                "shrink-0 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition sm:px-4",
                 pageTab === t.key
                   ? "bg-brand-500 text-white shadow-sm"
                   : "text-slate-600 hover:bg-slate-100",

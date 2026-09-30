@@ -7,12 +7,16 @@ import {
   Truck,
   Store,
   Save,
-  ImageOff,
+  Pencil,
   FileText,
   Download,
   ClipboardList,
   Building2,
   Trash2,
+  ChevronDown,
+  Copy,
+  Check,
+  XCircle,
 } from "lucide-react";
 import {
   useAdminOrder,
@@ -43,12 +47,12 @@ import {
   SurpriseGiftBadge,
 } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
-import { textareaClass, inputClass, selectClass } from "@/components/form/Field";
+import { textareaClass, inputClass } from "@/components/form/Field";
 import { uploadImage } from "@/lib/uploads";
 import { TIME_SLOTS } from "@/content/slots";
 import { useStaffPermission } from "@/lib/permissions";
 import { OrderItemsEditPanel } from "@/components/orders/OrderItemsEditPanel";
-import { ImageLightboxThumb } from "@/components/ui/ImageLightboxThumb";
+import { OrderItemCard, SlotSelect, slotLabelFor } from "@/components/orders/OrderItemCard";
 
 export function OrderDetailPage() {
   const { idOrNumber = "" } = useParams<{ idOrNumber: string }>();
@@ -109,6 +113,12 @@ export function OrderDetailPage() {
     );
 
   const isDelivery = order.fulfillment === "DELIVERY";
+  const billingSameAsDelivery = Boolean(
+    isDelivery &&
+    order.deliveryAddress &&
+    order.billingAddress &&
+    sameAddress(order.deliveryAddress, order.billingAddress),
+  );
 
   return (
     <div>
@@ -139,21 +149,13 @@ export function OrderDetailPage() {
         </div>
         <StatusChanger
           currentStatus={order.status}
-          onChange={(status) => {
-            if (status === "CANCELLED") {
-              const ok = window.confirm(
-                "Cancel this order? The customer will be emailed. You can cancel even if the kitchen has started.",
-              );
-              if (!ok) return;
-            }
-            update.mutate({ id: order.id, status });
-          }}
+          onChange={(status) => update.mutate({ id: order.id, status })}
           pending={update.isPending}
         />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-6">
+      <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
+        <div className="min-w-0 space-y-3 lg:space-y-6">
           <Card title="Items">
             {canUpdate && !itemsEditLocked && !editingItems && (
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -197,88 +199,31 @@ export function OrderDetailPage() {
               />
             )}
             <ul className="divide-y divide-slate-100">
-              {order.items.map((it) => {
-                const thumb = it.referenceImageUrl ?? it.productImage;
-                return (
-                <li key={it.id} className="flex items-start gap-3 py-3">
-                  {thumb ? (
-                    <ImageLightboxThumb
-                      src={thumb}
-                      alt={it.productName}
-                      className="h-14 w-14"
-                    />
-                  ) : (
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
-                      <ImageOff className="h-4 w-4" />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900">{it.productName}</p>
-                    <p className="text-xs text-slate-500">
-                      {[it.sizeLabel, it.flavourName].filter(Boolean).join(" · ")}
-                    </p>
-                    {it.description && (
-                      <p className="mt-0.5 text-xs whitespace-pre-line text-slate-700">
-                        {it.description}
-                      </p>
-                    )}
-                    {it.messageOnCake && (
-                      <p className="text-xs text-slate-600 italic">Message: "{it.messageOnCake}"</p>
-                    )}
-                    {it.instructions && (
-                      <p className="text-xs text-slate-600">Notes: {it.instructions}</p>
-                    )}
-                    <p className="mt-1 text-[11px] font-medium text-brand-700">
-                      {it.deliveryDate && it.deliverySlotLabel
-                        ? `${new Date(it.deliveryDate).toLocaleDateString("en-IN", {
-                            weekday: "short",
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })} · ${it.deliverySlotLabel}`
-                        : "Ships pan-India via courier"}
-                    </p>
-                    {canUpdate && (
-                      <ItemScheduleEditor
-                        itemId={it.id}
-                        orderId={order.id}
-                        locked={scheduleLocked}
-                        deliveryDate={it.deliveryDate}
-                        deliverySlotKey={it.deliverySlotKey}
-                        deliverySlotLabel={it.deliverySlotLabel}
-                        pending={update.isPending}
-                        onSave={(payload) =>
-                          update.mutateAsync({
-                            id: order.id,
-                            items: [payload],
-                          })
-                        }
-                      />
-                    )}
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-xs text-slate-500">
-                      ₹{Number(it.unitPrice).toFixed(0)} × {it.qty}
-                    </p>
-                    <p className="font-medium text-slate-900 tabular-nums">
-                      ₹{Number(it.lineTotal).toFixed(2)}
-                    </p>
-                    {it.gstRate !== null && (
-                      <p className="mt-0.5 text-[11px] text-slate-400">
-                        {it.hsnCode ? `HSN ${it.hsnCode} · ` : ""}
-                        GST {Number(it.gstRate)}%
-                      </p>
-                    )}
-                  </div>
+              {order.items.map((it) => (
+                <li key={it.id}>
+                  <OrderItemCard
+                    item={it}
+                    pending={update.isPending}
+                    onSaveSchedule={
+                      canUpdate && !scheduleLocked
+                        ? (payload) => update.mutateAsync({ id: order.id, items: [payload] })
+                        : undefined
+                    }
+                  />
                 </li>
-              );
-              })}
+              ))}
             </ul>
               </>
             )}
           </Card>
 
-          <Card title="Totals">
+          <Card
+            title="Totals"
+            collapsible
+            summary={`₹${Number(order.total).toFixed(2)} · ${paymentMethodLabel(order.paymentMethod)} · ${
+              isAwaitingOnlinePayment(order) ? "Awaiting payment" : order.paymentStatus.toLowerCase()
+            }`}
+          >
             <div className="space-y-1 text-sm">
               {Number(order.taxableAmount) > 0 && (
                 <>
@@ -343,7 +288,12 @@ export function OrderDetailPage() {
             </Card>
           )}
 
-          <Card title="Admin notes" subtitle="Only visible to the kitchen">
+          <Card
+            title="Admin notes"
+            subtitle="Only visible to the kitchen"
+            collapsible
+            summary={order.adminNotes?.trim() || "No notes yet"}
+          >
             <textarea
               rows={3}
               value={adminNotes}
@@ -365,8 +315,12 @@ export function OrderDetailPage() {
           </Card>
         </div>
 
-        <aside className="space-y-6">
-          <Card title="Customer">
+        <aside className="min-w-0 space-y-3 lg:space-y-6">
+          <Card
+            title="Customer"
+            collapsible
+            summary={`${order.customerCompanyName ?? order.customerName} · ${order.customerPhone}`}
+          >
             {order.customerCompanyName ? (
               <>
                 <p className="flex items-center gap-1.5 font-medium text-slate-900">
@@ -407,6 +361,18 @@ export function OrderDetailPage() {
           <Card
             title={isDelivery ? "Delivery to" : "Pickup"}
             icon={isDelivery ? <Truck className="h-4 w-4" /> : <Store className="h-4 w-4" />}
+            collapsible
+            summary={
+              isDelivery && order.deliveryAddress
+                ? [
+                    order.deliveryAddress.line1,
+                    order.deliveryAddress.area,
+                    order.deliveryAddress.pincode,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : "Bakery HQ · Howrah 711202"
+            }
           >
             {isDelivery && order.deliveryAddress ? (
               <>
@@ -450,23 +416,12 @@ export function OrderDetailPage() {
                   </p>
                 </address>
                 {order.deliveryAddress.mapSearchQuery && (
-                  <div className="mt-3 rounded-lg border border-brand-500/20 bg-brand-100/50 px-3 py-2">
-                    <p className="text-[10px] font-semibold tracking-wide text-brand-700 uppercase">
-                      Search on Uber / Rapido
-                    </p>
-                    <p className="mt-0.5 text-sm font-medium text-slate-900">
-                      {order.deliveryAddress.mapSearchQuery}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(order.deliveryAddress!.mapSearchQuery!);
-                      }}
-                      className="mt-1 text-[10px] text-brand-700 hover:underline"
-                    >
-                      Copy to clipboard
-                    </button>
-                  </div>
+                  <CopyForRideApp text={order.deliveryAddress.mapSearchQuery} />
+                )}
+                {billingSameAsDelivery && (
+                  <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                    Billing address: same as delivery
+                  </p>
                 )}
               </>
             ) : (
@@ -474,8 +429,14 @@ export function OrderDetailPage() {
             )}
           </Card>
 
-          {order.billingAddress && (
-            <Card title="Billing address">
+          {order.billingAddress && !billingSameAsDelivery && (
+            <Card
+              title="Billing address"
+              collapsible
+              summary={[order.billingAddress.line1, order.billingAddress.pincode]
+                .filter(Boolean)
+                .join(" · ")}
+            >
               <address className="text-sm text-slate-700 not-italic">
                 <p>{order.billingAddress.line1}</p>
                 {order.billingAddress.line2 && <p>{order.billingAddress.line2}</p>}
@@ -492,7 +453,17 @@ export function OrderDetailPage() {
             </Card>
           )}
 
-          <Card title="Payment">
+          <Card
+            title="Payment"
+            collapsible
+            summary={`${
+              order.paymentMethod === "cashfree"
+                ? "Online (Cashfree)"
+                : paymentMethodLabel(order.paymentMethod)
+            } · ${paymentPlanLabel(order)} · ${
+              isAwaitingOnlinePayment(order) ? "Awaiting payment" : order.paymentStatus.toLowerCase()
+            }`}
+          >
             <p className="text-sm text-slate-900">
               {order.paymentMethod === "cashfree"
                 ? "Online (Cashfree)"
@@ -619,56 +590,11 @@ export function OrderDetailPage() {
             )}
           </Card>
 
+          {order.status !== "CANCELLED" && <CancelOrderCard order={order} />}
           {canDelete && <DeleteOrderCard order={order} />}
         </aside>
       </div>
     </div>
-  );
-}
-
-function toYmd(iso: string | null) {
-  if (!iso) return "";
-  return iso.slice(0, 10);
-}
-
-function slotLabelFor(key: string) {
-  const known = TIME_SLOTS.find((s) => s.key === key);
-  if (known) return known.label;
-  if (key === "SAME_DAY") return "Same day";
-  return key;
-}
-
-function SlotSelect({
-  value,
-  onChange,
-  extraKey,
-  extraLabel,
-  disabled,
-}: {
-  value: string;
-  onChange: (key: string) => void;
-  extraKey?: string | null;
-  extraLabel?: string | null;
-  disabled?: boolean;
-}) {
-  const extra =
-    extraKey && !TIME_SLOTS.some((s) => s.key === extraKey)
-      ? { key: extraKey, label: extraLabel || extraKey }
-      : null;
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      className={cn(selectClass, "min-w-0")}
-    >
-      {extra && <option value={extra.key}>{extra.label}</option>}
-      {TIME_SLOTS.map((s) => (
-        <option key={s.key} value={s.key}>
-          {s.label}
-        </option>
-      ))}
-    </select>
   );
 }
 
@@ -679,9 +605,27 @@ function BulkScheduleBar({
   pending: boolean;
   onApply: (deliveryDate: string | null, slotKey: string, slotLabel: string) => Promise<unknown>;
 }) {
+  const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
   const [slotKey, setSlotKey] = useState<string>(TIME_SLOTS[0].key);
   const [error, setError] = useState<string | null>(null);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mb-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-brand-700"
+      >
+        <Pencil className="h-3 w-3" /> Change date & slot for every item
+      </button>
+    );
+  }
+
+  const close = () => {
+    setOpen(false);
+    setError(null);
+  };
 
   return (
     <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -691,9 +635,19 @@ function BulkScheduleBar({
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className={cn(inputClass, "w-auto")}
+          className={cn(inputClass, "w-auto py-1.5 text-xs")}
+          aria-label="Delivery date"
         />
-        <SlotSelect value={slotKey} onChange={setSlotKey} disabled={pending} />
+        <div className="min-w-40 flex-1 sm:max-w-64">
+          <SlotSelect
+            value={slotKey}
+            onChange={setSlotKey}
+            disabled={pending}
+            className="py-1.5 text-xs"
+          />
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
         <button
           type="button"
           disabled={pending || !date}
@@ -701,97 +655,25 @@ function BulkScheduleBar({
             setError(null);
             try {
               await onApply(date, slotKey, slotLabelFor(slotKey));
+              close();
             } catch (err) {
               setError(err instanceof Error ? err.message : "Could not update");
             }
           }}
-          className="rounded-md bg-brand-500 px-3 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+          className="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
           Apply to all
         </button>
+        <button
+          type="button"
+          onClick={close}
+          disabled={pending}
+          className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+        >
+          Cancel
+        </button>
       </div>
       {error && <p className="mt-2 text-xs text-brand-600">{error}</p>}
-    </div>
-  );
-}
-
-function ItemScheduleEditor({
-  itemId,
-  locked,
-  deliveryDate,
-  deliverySlotKey,
-  deliverySlotLabel,
-  pending,
-  onSave,
-}: {
-  itemId: string;
-  orderId: string;
-  locked: boolean;
-  deliveryDate: string | null;
-  deliverySlotKey: string | null;
-  deliverySlotLabel: string | null;
-  pending: boolean;
-  onSave: (payload: {
-    id: string;
-    deliveryDate: string | null;
-    deliverySlotKey: string | null;
-    deliverySlotLabel: string | null;
-  }) => Promise<unknown>;
-}) {
-  const [date, setDate] = useState(toYmd(deliveryDate));
-  const [slotKey, setSlotKey] = useState(deliverySlotKey || TIME_SLOTS[0].key);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDate(toYmd(deliveryDate));
-    setSlotKey(deliverySlotKey || TIME_SLOTS[0].key);
-    setError(null);
-  }, [deliveryDate, deliverySlotKey]);
-
-  const originalDate = toYmd(deliveryDate);
-  const originalSlot = deliverySlotKey || "";
-  const dirty = date !== originalDate || (date ? slotKey !== originalSlot : false);
-
-  if (locked) return null;
-
-  return (
-    <div className="mt-2 flex flex-wrap items-end gap-2">
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        className={cn(inputClass, "w-auto py-1.5 text-xs")}
-      />
-      <div className="min-w-40 flex-1">
-        <SlotSelect
-          value={slotKey}
-          onChange={setSlotKey}
-          extraKey={deliverySlotKey}
-          extraLabel={deliverySlotLabel}
-          disabled={pending}
-        />
-      </div>
-      <button
-        type="button"
-        disabled={pending || !dirty || (!!date && !slotKey)}
-        onClick={async () => {
-          setError(null);
-          try {
-            await onSave({
-              id: itemId,
-              deliveryDate: date || null,
-              deliverySlotKey: date ? slotKey : null,
-              deliverySlotLabel: date ? slotLabelFor(slotKey) : null,
-            });
-          } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not update");
-          }
-        }}
-        className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-40"
-      >
-        Save date
-      </button>
-      {error && <p className="w-full text-xs text-brand-600">{error}</p>}
     </div>
   );
 }
@@ -820,6 +702,8 @@ function ChallanCard({ order }: { order: AdminOrder }) {
 
   return (
     <Card
+      collapsible
+      summary={order.challanNumber ?? "Not issued yet"}
       title="Delivery challan"
       subtitle={
         issued
@@ -934,6 +818,12 @@ function InvoiceCard({ order, canUpdate }: { order: AdminOrder; canUpdate: boole
 
   return (
     <Card
+      collapsible
+      summary={
+        order.invoiceNumber
+          ? `${order.invoiceNumber}${order.customerGstin ? ` · GSTIN ${order.customerGstin}` : ""}`
+          : "Not issued yet"
+      }
       title="Tax invoice"
       subtitle={
         issued
@@ -1070,6 +960,70 @@ function InvoiceCard({ order, canUpdate }: { order: AdminOrder; canUpdate: boole
       {note && <p className="mt-2 text-xs text-emerald-700">{note}</p>}
       {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
     </Card>
+  );
+}
+
+function CancelOrderCard({ order }: { order: AdminOrder }) {
+  const update = useUpdateOrder();
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const cancel = async () => {
+    setError(null);
+    try {
+      await update.mutateAsync({ id: order.id, status: "CANCELLED" });
+      setConfirming(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not cancel the order");
+    }
+  };
+
+  return (
+    <section className="rounded-card border border-amber-200 bg-white">
+      <div className="px-4 py-3">
+        <p className="text-sm font-semibold text-slate-900">Cancel order</p>
+        <p className="mt-0.5 text-xs text-slate-500">
+          Stops the order and emails the customer. Works even if the kitchen has started.
+        </p>
+        {!confirming ? (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50"
+          >
+            <XCircle className="h-3.5 w-3.5" /> Cancel order
+          </button>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs font-medium text-slate-800">
+              Cancel {order.orderNumber}? The customer will be notified.
+            </p>
+            {error && <p className="text-xs text-red-700">{error}</p>}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void cancel()}
+                disabled={update.isPending}
+                className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {update.isPending ? "Cancelling…" : "Yes, cancel order"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirming(false);
+                  setError(null);
+                }}
+                disabled={update.isPending}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Keep order
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -1310,28 +1264,112 @@ function BuyerGstEditor({
   );
 }
 
+/**
+ * With `collapsible`, the card folds down to its header and `summary` below
+ * the lg breakpoint, where the page is a single long column. From lg up every
+ * card stays open.
+ */
 function Card({
   title,
   subtitle,
   icon,
+  summary,
+  collapsible = false,
   children,
 }: {
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
+  summary?: React.ReactNode;
+  collapsible?: boolean;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(!collapsible);
+  const collapsed = collapsible && !open;
+
+  const heading = (
+    <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+      {icon}
+      {title}
+    </h2>
+  );
+
   return (
     <section className="rounded-card border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 px-4 py-3">
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-          {icon}
-          {title}
-        </h2>
-        {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
-      </div>
-      <div className="p-4">{children}</div>
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className={cn(
+            "flex w-full items-start gap-2 px-4 py-3 text-left lg:pointer-events-none",
+            collapsed ? "lg:border-b lg:border-slate-100" : "border-b border-slate-100",
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            {heading}
+            {collapsed && summary && (
+              <p className="mt-0.5 truncate text-xs text-slate-500 lg:hidden">{summary}</p>
+            )}
+            {subtitle && (
+              <p className={cn("mt-0.5 text-xs text-slate-500", collapsed && "hidden lg:block")}>
+                {subtitle}
+              </p>
+            )}
+          </div>
+          <ChevronDown
+            className={cn(
+              "mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition-transform lg:hidden",
+              open && "rotate-180",
+            )}
+          />
+        </button>
+      ) : (
+        <div className="border-b border-slate-100 px-4 py-3">
+          {heading}
+          {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+        </div>
+      )}
+      <div className={cn("p-4", collapsed && "hidden lg:block")}>{children}</div>
     </section>
+  );
+}
+
+function sameAddress(
+  a: NonNullable<AdminOrder["deliveryAddress"]>,
+  b: NonNullable<AdminOrder["billingAddress"]>,
+): boolean {
+  const norm = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
+  return (["line1", "line2", "landmark", "area", "city", "pincode"] as const).every(
+    (k) => norm(a[k]) === norm(b[k]),
+  );
+}
+
+function CopyForRideApp({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+      className="mt-3 flex w-full items-center gap-2.5 rounded-lg border border-brand-500/20 bg-brand-100/50 px-3 py-2 text-left hover:bg-brand-100"
+    >
+      {copied ? (
+        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+      ) : (
+        <Copy className="h-4 w-4 shrink-0 text-brand-700" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10px] font-semibold tracking-wide text-brand-700 uppercase">
+          {copied ? "Copied" : "Copy for Uber / Rapido"}
+        </span>
+        <span className="line-clamp-1 text-xs text-slate-700">{text}</span>
+      </span>
+    </button>
   );
 }
 
@@ -1448,6 +1486,12 @@ function StatusChanger({
   const currentIdx = STATUS_FLOW.indexOf(currentStatus);
   const next =
     currentIdx >= 0 && currentIdx < STATUS_FLOW.length - 1 ? STATUS_FLOW[currentIdx + 1] : null;
+  const others = STATUS_FLOW.filter((s) => s !== currentStatus && s !== next);
+  const pretty = (s: OrderStatus) => s.toLowerCase().replace(/_/g, " ");
+  const statusMoveLabel = (s: OrderStatus) => {
+    if (currentStatus === "CANCELLED") return `Restore as ${pretty(s)}`;
+    return STATUS_FLOW.indexOf(s) < currentIdx ? `Back to ${pretty(s)}` : `Skip to ${pretty(s)}`;
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -1461,38 +1505,29 @@ function StatusChanger({
           Mark {next.toLowerCase().replace(/_/g, " ")} →
         </button>
       )}
-      {currentStatus !== "CANCELLED" && (
-        <button
-          type="button"
-          onClick={() => onChange("CANCELLED")}
-          disabled={pending}
-          className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-        >
-          Cancel order
-        </button>
+      {others.length > 0 && (
+        <label className="relative inline-flex">
+          <span className="sr-only">Change status</span>
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) onChange(e.target.value as OrderStatus);
+            }}
+            disabled={pending}
+            className="appearance-none rounded-md border border-slate-200 bg-white py-1.5 pr-7 pl-2.5 text-xs font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:opacity-50"
+          >
+            <option value="" disabled hidden>
+              {next ? "Other status" : "Change status"}
+            </option>
+            {others.map((s) => (
+              <option key={s} value={s}>
+                {statusMoveLabel(s)}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute top-1/2 right-2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+        </label>
       )}
-      <select
-        value={currentStatus}
-        onChange={(e) => onChange(e.target.value as OrderStatus)}
-        disabled={pending}
-        className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:opacity-50"
-      >
-        {(
-          [
-            "PENDING",
-            "CONFIRMED",
-            "IN_KITCHEN",
-            "READY",
-            "OUT_FOR_DELIVERY",
-            "DELIVERED",
-            "CANCELLED",
-          ] as OrderStatus[]
-        ).map((s) => (
-          <option key={s} value={s}>
-            Set to {s.toLowerCase().replace(/_/g, " ")}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

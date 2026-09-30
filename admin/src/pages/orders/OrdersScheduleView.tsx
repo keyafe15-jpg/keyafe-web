@@ -14,6 +14,7 @@ import type { OrderStatus } from "@/hooks/useAdminOrders";
 import { slotRank } from "@/content/slots";
 import { StatusPill, SourceBadge, SurpriseGiftBadge } from "@/pages/orders/order-ui";
 import { PaginationControls } from "@/components/ClientPagination";
+import { OrderCompactRow } from "@/pages/orders/OrderCompactRow";
 import { useListSearch } from "@/store/listSearch";
 
 const PAGE_SIZE = 25;
@@ -68,79 +69,97 @@ function ScheduleCard({ entry }: { entry: ScheduleEntry }) {
   const destination = [order.city, order.pincode].filter(Boolean).join(" · ");
 
   return (
-    <Link
-      to={`/orders/${order.orderNumber}`}
-      className="hover:border-brand-300 flex flex-col rounded-card border border-slate-200 bg-white p-4 transition hover:shadow-sm"
-    >
-      <header className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs font-semibold text-slate-900">
-              {order.orderNumber}
-            </span>
-            <StatusPill status={order.status} />
-            {order.isSurpriseGift && <SurpriseGiftBadge compact />}
+    <>
+      <OrderCompactRow
+        className="md:hidden"
+        orderNumber={order.orderNumber}
+        status={order.status}
+        fulfillment={order.fulfillment}
+        heading={entry.deliverySlotLabel ?? "Slot not set"}
+        items={entry.items}
+        customer={order.customerCompanyName ?? order.customerName}
+        place={isDelivery ? (order.city ?? undefined) : "Pickup"}
+        phone={order.customerPhone}
+        isSurpriseGift={order.isSurpriseGift}
+      />
+      <Link
+        to={`/orders/${order.orderNumber}`}
+        className="hover:border-brand-300 hidden flex-col rounded-card border border-slate-200 bg-white p-4 transition hover:shadow-sm md:flex"
+      >
+        <header className="mb-3 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-xs font-semibold text-slate-900">
+                {order.orderNumber}
+              </span>
+              <StatusPill status={order.status} />
+              {order.isSurpriseGift && <SurpriseGiftBadge compact />}
+            </div>
+            <p className="mt-1 text-sm font-semibold text-slate-900">
+              {entry.deliverySlotLabel ?? "Slot not set"}
+            </p>
           </div>
-          <p className="mt-1 text-sm font-semibold text-slate-900">
-            {entry.deliverySlotLabel ?? "Slot not set"}
-          </p>
-        </div>
-        <SourceBadge source={order.source} />
-      </header>
+          <SourceBadge source={order.source} />
+        </header>
 
-      <ul className="flex-1 space-y-2.5 border-t border-slate-100 pt-3">
-        {entry.items.map((item) => {
-          const imageUrl = item.productImage ?? item.referenceImageUrl;
-          return (
-            <li key={item.id} className="flex gap-3 text-sm">
-              {imageUrl ? (
-                <img src={imageUrl} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
-              ) : (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100">
-                  <ImageOff className="h-4 w-4 text-slate-300" />
-                </div>
-              )}
-              <div className="min-w-0">
-                <p className="truncate font-medium text-slate-900">
-                  {item.qty} × {item.productName}
-                </p>
-                <p className="truncate text-xs text-slate-500">
-                  {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
-                </p>
-                {item.description && (
-                  <p className="mt-0.5 text-xs whitespace-pre-line text-slate-600">
-                    {item.description}
+        <ul className="flex-1 space-y-2.5 border-t border-slate-100 pt-3">
+          {entry.items.map((item) => {
+            const imageUrl = item.productImage ?? item.referenceImageUrl;
+            return (
+              <li key={item.id} className="flex gap-3 text-sm">
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-md object-cover"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100">
+                    <ImageOff className="h-4 w-4 text-slate-300" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-900">
+                    {item.qty} × {item.productName}
                   </p>
-                )}
-                {item.messageOnCake && (
-                  <p className="mt-0.5 text-xs text-slate-500">Message: “{item.messageOnCake}”</p>
-                )}
-                {item.instructions && (
-                  <p className="mt-0.5 text-xs text-slate-500">Note: {item.instructions}</p>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                  <p className="truncate text-xs text-slate-500">
+                    {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
+                  </p>
+                  {item.description && (
+                    <p className="mt-0.5 text-xs whitespace-pre-line text-slate-600">
+                      {item.description}
+                    </p>
+                  )}
+                  {item.messageOnCake && (
+                    <p className="mt-0.5 text-xs text-slate-500">Message: “{item.messageOnCake}”</p>
+                  )}
+                  {item.instructions && (
+                    <p className="mt-0.5 text-xs text-slate-500">Note: {item.instructions}</p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
 
-      <footer className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
-        <div className="flex min-w-0 items-center gap-1 truncate">
-          {order.customerCompanyName ? (
-            <Building2 className="h-3 w-3 shrink-0" />
-          ) : (
-            <Phone className="h-3 w-3 shrink-0" />
-          )}
-          <span className="truncate">{order.customerCompanyName ?? order.customerName}</span>
-          <span className="text-slate-300">·</span>
-          <span className="shrink-0">{order.customerPhone}</span>
-        </div>
-        <span className="flex shrink-0 items-center gap-1">
-          {isDelivery ? <Truck className="h-3 w-3" /> : <Store className="h-3 w-3" />}
-          {isDelivery ? destination || "Delivery" : "Pickup"}
-        </span>
-      </footer>
-    </Link>
+        <footer className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
+          <div className="flex min-w-0 items-center gap-1 truncate">
+            {order.customerCompanyName ? (
+              <Building2 className="h-3 w-3 shrink-0" />
+            ) : (
+              <Phone className="h-3 w-3 shrink-0" />
+            )}
+            <span className="truncate">{order.customerCompanyName ?? order.customerName}</span>
+            <span className="text-slate-300">·</span>
+            <span className="shrink-0">{order.customerPhone}</span>
+          </div>
+          <span className="flex shrink-0 items-center gap-1">
+            {isDelivery ? <Truck className="h-3 w-3" /> : <Store className="h-3 w-3" />}
+            {isDelivery ? destination || "Delivery" : "Pickup"}
+          </span>
+        </footer>
+      </Link>
+    </>
   );
 }
 
@@ -307,7 +326,7 @@ export function OrdersScheduleView() {
                 {day.entries.length === 1 ? "y" : "ies"}
               </span>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-2 min-[360px]:grid-cols-2 md:gap-4 xl:grid-cols-3">
               {day.entries.map((entry) => (
                 <ScheduleCard key={entry.key} entry={entry} />
               ))}

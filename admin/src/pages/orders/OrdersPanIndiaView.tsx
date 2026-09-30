@@ -38,7 +38,7 @@ function TileSection({
         </div>
       )}
       {!isLoading && orders.length > 0 && (
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-2 min-[360px]:grid-cols-2 sm:grid-cols-1 sm:gap-5 md:grid-cols-2">
           {orders.map((o) => (
             <OrderBoardCard key={o.id} order={o} flow="courier" />
           ))}
