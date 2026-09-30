@@ -5,6 +5,7 @@ import {
   useAddStallDaySale,
   useDeleteStallSale,
   useSetStallDayStatus,
+  useSettleStallDue,
   useStallDay,
   type Stall,
   type StallSale,
@@ -23,6 +24,7 @@ import {
   Segmented,
   TotalsStrip,
   cartToInput,
+  saleAmount,
   type Cart,
 } from "./stall-ui";
 
@@ -61,6 +63,7 @@ function DayDetail({ target, stall }: { target: DrawerTarget; stall: Stall | und
   const add = useAddStallDaySale();
   const setStatus = useSetStallDayStatus();
   const del = useDeleteStallSale();
+  const settle = useSettleStallDue();
   const [adding, setAdding] = useState(false);
   const [mode, setMode] = useState<"items" | "lump">("lump");
   const [cart, setCart] = useState<Cart>({});
@@ -78,11 +81,19 @@ function DayDetail({ target, stall }: { target: DrawerTarget; stall: Stall | und
   };
 
   const onDelete = (sale: StallSale) => {
-    if (!confirm(`Remove this ${formatINR(sale.cashAmount + sale.upiAmount)} entry?`)) return;
+    if (!confirm(`Remove this ${formatINR(saleAmount(sale))} entry?`)) return;
     setError(null);
     del.mutate(sale.id, {
       onError: (err) => setError(err instanceof Error ? err.message : "Could not remove entry"),
     });
+  };
+
+  const onSettle = (sale: StallSale, via: "CASH" | "UPI") => {
+    setError(null);
+    settle.mutate(
+      { saleId: sale.id, paidVia: via },
+      { onError: (err) => setError(err instanceof Error ? err.message : "Could not mark as paid") },
+    );
   };
 
   const toggleStatus = () => {
@@ -172,8 +183,8 @@ function DayDetail({ target, stall }: { target: DrawerTarget; stall: Stall | und
                         cart={cart}
                         setCart={setCart}
                         saving={add.isPending}
-                        onPay={(method) =>
-                          void save(cartToInput(cart, method))
+                        onPay={(method, dueFrom) =>
+                          void save(cartToInput(cart, method, dueFrom))
                             .then(() => setCart({}))
                             .catch(() => {})
                         }
@@ -199,6 +210,8 @@ function DayDetail({ target, stall }: { target: DrawerTarget; stall: Stall | und
                 sales={day.sales}
                 onDelete={onDelete}
                 deletingId={del.isPending ? del.variables : null}
+                onSettle={onSettle}
+                settlingId={settle.isPending ? settle.variables?.saleId : null}
                 showAuthor
                 lumpOverride={day.lumpOverride}
               />

@@ -8,8 +8,8 @@ enum StallDayStatus {
 }
 
 enum StallSaleKind {
-  ITEMIZED // Staff tapped menu items; the whole total is either cash or UPI
-  CONSOLIDATED // Lump cash/UPI figure entered when there was no time to itemise
+  ITEMIZED // Staff tapped menu items; the whole total is cash, UPI or due
+  CONSOLIDATED // Lump cash/UPI/due figure entered when there was no time to itemise
 }
 
 enum StallKind {
@@ -81,6 +81,13 @@ model StallSale {
   kind          StallSaleKind
   cashAmount    Decimal         @default(0) @db.Decimal(10, 2)
   upiAmount     Decimal         @default(0) @db.Decimal(10, 2)
+  // Sold on credit and not yet paid. Counts as sales, not as money received.
+  dueAmount     Decimal         @default(0) @db.Decimal(10, 2)
+  // Who owes the due, free text (name, desk, company).
+  dueFrom       String?
+  // Set when the due is collected; the amount then moves into cashAmount / upiAmount.
+  duePaidAt     DateTime?
+  duePaidByName String?
   note          String?
   createdById   String?
   createdByName String?

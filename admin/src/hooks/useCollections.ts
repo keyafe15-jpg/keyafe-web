@@ -10,9 +10,15 @@ export interface CollectionsSummary {
     orders: number;
     pendingOrders: number;
     /** Stall counter sales, already included in `sales` and `received`. */
-    stall: { sales: number; cash: number; upi: number };
+    stall: { sales: number; received: number; cash: number; upi: number; due: number };
   };
-  outstandingAllTime: { pending: number; customers: number };
+  outstandingAllTime: {
+    pending: number;
+    customers: number;
+    /** Unpaid stall dues, every stall and date. */
+    stallDue: number;
+    stallDueEntries: number;
+  };
 }
 
 export interface PendingOrder {

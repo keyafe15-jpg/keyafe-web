@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
   CalendarRange,
@@ -64,6 +65,33 @@ const PRESETS: { key: Preset; label: string }[] = [
   { key: "custom", label: "Custom" },
 ];
 
+function StallDuesBanner({
+  amount,
+  entries,
+  canOpen,
+}: {
+  amount: number;
+  entries: number;
+  canOpen: boolean;
+}) {
+  const body = (
+    <span className="text-slate-600">
+      Stall dues not yet collected:{" "}
+      <span className="font-semibold text-amber-700 tabular-nums">{formatINR(amount)}</span> across{" "}
+      {entries} entr{entries === 1 ? "y" : "ies"}
+    </span>
+  );
+  const boxClass =
+    "mt-3 flex w-full items-center justify-between gap-3 rounded-card border border-slate-200 bg-white px-3 py-2.5 text-left text-sm sm:px-4";
+  if (!canOpen) return <div className={boxClass}>{body}</div>;
+  return (
+    <Link to="/stall?tab=history" className={cn(boxClass, "transition hover:border-amber-300")}>
+      {body}
+      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+    </Link>
+  );
+}
+
 export function DashboardPage() {
   const [preset, setPreset] = useState<Preset>("this-month");
   const [customFrom, setCustomFrom] = useState(() => monthRange(0).from);
@@ -72,6 +100,7 @@ export function DashboardPage() {
   const [drawer, setDrawer] = useState<{ scope: CollectionsScope; label: string } | null>(null);
   const user = useAdminAuth((s) => s.user);
   const canReadDashboard = staffHasPermission(user, "dashboard.read");
+  const canManageStalls = staffHasPermission(user, "stall.manage");
 
   const range =
     preset === "custom"
@@ -241,7 +270,12 @@ export function DashboardPage() {
           label="Received"
           value={money ? formatINR(money.received) : "—"}
           hint={
-            [collectedPct == null ? null : `${collectedPct}% collected`, stallHint]
+            [
+              collectedPct == null ? null : `${collectedPct}% collected`,
+              money && money.stall.received > 0
+                ? `incl. stall ${formatINR(money.stall.received)}`
+                : null,
+            ]
               .filter(Boolean)
               .join(" · ") || undefined
           }
@@ -253,14 +287,21 @@ export function DashboardPage() {
           hint={
             !money
               ? undefined
-              : money.pendingOrders > 0
-                ? `${money.pendingOrders} order${money.pendingOrders === 1 ? "" : "s"} · see who owes`
-                : "All paid"
+              : money.pending <= 0
+                ? "All paid"
+                : [
+                    money.pendingOrders > 0
+                      ? `${money.pendingOrders} order${money.pendingOrders === 1 ? "" : "s"} · see who owes`
+                      : null,
+                    money.stall.due > 0 ? `stall dues ${formatINR(money.stall.due)}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
           }
           valueClassName="text-amber-700"
           className="col-span-2 border-amber-200 bg-amber-50/40 sm:col-span-1"
           onClick={
-            money && money.pending > 0
+            money && money.pendingOrders > 0
               ? () =>
                   setDrawer({
                     scope: { from, to },
@@ -286,6 +327,14 @@ export function DashboardPage() {
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
         </button>
+      )}
+
+      {outstanding && outstanding.stallDue > 0 && (
+        <StallDuesBanner
+          amount={outstanding.stallDue}
+          entries={outstanding.stallDueEntries}
+          canOpen={canManageStalls}
+        />
       )}
 
       <section className="mt-4 rounded-card border border-slate-200 bg-white sm:mt-6">

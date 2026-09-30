@@ -59,18 +59,46 @@ export interface StallSale {
   kind: StallSaleKind;
   cashAmount: number;
   upiAmount: number;
+  /** Still owed; 0 once collected. */
+  dueAmount: number;
+  dueFrom: string | null;
+  /** Set when a due was collected (its amount is then in cash/UPI). */
+  duePaidAt: string | null;
+  duePaidByName: string | null;
   note: string | null;
   createdByName: string | null;
   createdAt: string;
   items: { id: string; menuItemId: string | null; name: string; price: number; qty: number }[];
 }
 
-export interface StallTotals {
+export interface StallMoney {
   cash: number;
   upi: number;
+  due: number;
+  /** cash + upi */
+  received: number;
+  /** cash + upi + due */
   total: number;
+}
+
+export interface StallTotals extends StallMoney {
   count: number;
 }
+
+export interface StallDue {
+  id: string;
+  kind: StallSaleKind;
+  amount: number;
+  dueFrom: string | null;
+  note: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  items: { name: string; qty: number }[];
+  date: string;
+  stall: { id: string; name: string };
+}
+
+export type StallPaymentMethod = "CASH" | "UPI" | "DUE";
 
 export interface StallDayView {
   /** Null until the first entry of the day is saved. */
@@ -84,7 +112,7 @@ export interface StallDayView {
   /** Once a day has a lump sum, only lump entries count toward these. */
   totals: StallTotals;
   lumpOverride: boolean;
-  tappedTotals: { cash: number; upi: number; total: number };
+  tappedTotals: StallMoney;
   itemsSold: { name: string; qty: number; amount: number }[];
 }
 
@@ -104,11 +132,21 @@ export interface StallDaysList {
 export type StallSaleInput =
   | {
       kind: "ITEMIZED";
-      paymentMethod: "CASH" | "UPI";
+      paymentMethod: StallPaymentMethod;
       items: { menuItemId: string; qty: number }[];
+      /** Required when paymentMethod is DUE. */
+      dueFrom?: string;
       note?: string;
     }
-  | { kind: "CONSOLIDATED"; cashAmount: number; upiAmount: number; note?: string };
+  | {
+      kind: "CONSOLIDATED";
+      cashAmount: number;
+      upiAmount: number;
+      dueAmount?: number;
+      /** Required when dueAmount > 0. */
+      dueFrom?: string;
+      note?: string;
+    };
 
 const STALLS = ["admin", "stalls"] as const;
 
@@ -118,6 +156,7 @@ function refreshSales(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: [...STALLS, "day"] });
   void qc.invalidateQueries({ queryKey: [...STALLS, "today"] });
   void qc.invalidateQueries({ queryKey: [...STALLS, "summary"] });
+  void qc.invalidateQueries({ queryKey: [...STALLS, "dues"] });
   void qc.invalidateQueries({ queryKey: ["admin", "orders", "collections"] });
 }
 
@@ -214,6 +253,29 @@ export function useDeleteStallSale() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (saleId: string) => api.delete<StallDayView>(`/admin/stalls/sales/${saleId}`),
+    onSuccess: () => refreshSales(qc),
+  });
+}
+
+// ---------- Dues ----------
+
+/** Unpaid due entries, oldest first; every stall unless one is given. */
+export function useStallDues(stallId?: string | null) {
+  return useQuery<{ total: number; dues: StallDue[] }>({
+    queryKey: [...STALLS, "dues", stallId ?? "all"],
+    queryFn: () =>
+      api.get<{ total: number; dues: StallDue[] }>(
+        `/admin/stalls/dues${stallId ? `?stallId=${stallId}` : ""}`,
+      ),
+    staleTime: 15_000,
+  });
+}
+
+export function useSettleStallDue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ saleId, paidVia }: { saleId: string; paidVia: "CASH" | "UPI" }) =>
+      api.post<StallDayView>(`/admin/stalls/sales/${saleId}/settle`, { paidVia }),
     onSuccess: () => refreshSales(qc),
   });
 }

@@ -15,6 +15,7 @@ import {
   formatStallDates,
 } from "./stall-ui";
 import { StallDayDrawer, type DrawerTarget } from "./StallDayDrawer";
+import { StallDuesPanel } from "./StallDuesPanel";
 
 type Preset = "this-month" | "last-month" | "custom";
 
@@ -43,6 +44,10 @@ export function StallHistory() {
     rangeValid,
   );
   const multiStall = stalls.length > 1;
+  const showDue = (data?.totals.due ?? 0) > 0;
+  const cols = showDue
+    ? "md:grid-cols-[minmax(0,1fr)_6rem_6rem_6rem_6rem_1.5rem]"
+    : "md:grid-cols-[minmax(0,1fr)_6rem_6rem_6rem_1.5rem]";
 
   const pickStall = (id: string) => {
     setStallId(id);
@@ -146,6 +151,12 @@ export function StallHistory() {
         <StallSummaryCard stallId={filterStall.id} className="mb-4" />
       )}
 
+      <StallDuesPanel
+        stallId={filterStall?.id}
+        showStall={multiStall && !filterStall}
+        className="mb-4"
+      />
+
       {data && (
         <div className="mb-4 rounded-card border border-slate-200 bg-white p-3 sm:p-4">
           <TotalsStrip totals={data.totals} />
@@ -177,10 +188,16 @@ export function StallHistory() {
         )}
         {data && data.days.length > 0 && (
           <ul className="divide-y divide-slate-100">
-            <li className="hidden grid-cols-[minmax(0,1fr)_6rem_6rem_6rem_1.5rem] gap-3 bg-slate-50 px-4 py-2 text-xs font-medium tracking-wide text-slate-500 uppercase md:grid">
+            <li
+              className={cn(
+                "hidden gap-3 bg-slate-50 px-4 py-2 text-xs font-medium tracking-wide text-slate-500 uppercase md:grid",
+                cols,
+              )}
+            >
               <span>Day</span>
               <span className="text-right">Cash</span>
               <span className="text-right">UPI</span>
+              {showDue && <span className="text-right">Due</span>}
               <span className="text-right">Total</span>
               <span />
             </li>
@@ -189,7 +206,10 @@ export function StallHistory() {
                 <button
                   type="button"
                   onClick={() => setDrawer({ stallId: d.stall.id, date: d.date })}
-                  className="grid w-full grid-cols-[minmax(0,1fr)_auto_1.25rem] items-center gap-x-3 gap-y-0.5 px-4 py-3 text-left transition hover:bg-slate-50 md:grid-cols-[minmax(0,1fr)_6rem_6rem_6rem_1.5rem]"
+                  className={cn(
+                    "grid w-full grid-cols-[minmax(0,1fr)_auto_1.25rem] items-center gap-x-3 gap-y-0.5 px-4 py-3 text-left transition hover:bg-slate-50",
+                    cols,
+                  )}
                 >
                   <span className="min-w-0">
                     <span className="flex items-center gap-2">
@@ -207,6 +227,9 @@ export function StallHistory() {
                       <span className="md:hidden">
                         {" "}
                         · Cash {formatINR(d.cash)} · UPI {formatINR(d.upi)}
+                        {d.due > 0 && (
+                          <span className="text-amber-700"> · Due {formatINR(d.due)}</span>
+                        )}
                       </span>
                     </span>
                   </span>
@@ -216,6 +239,16 @@ export function StallHistory() {
                   <span className="hidden text-right text-sm text-slate-700 tabular-nums md:block">
                     {formatINR(d.upi)}
                   </span>
+                  {showDue && (
+                    <span
+                      className={cn(
+                        "hidden text-right text-sm tabular-nums md:block",
+                        d.due > 0 ? "font-medium text-amber-700" : "text-slate-400",
+                      )}
+                    >
+                      {formatINR(d.due)}
+                    </span>
+                  )}
                   <span className="text-right font-semibold text-slate-900 tabular-nums">
                     {formatINR(d.total)}
                   </span>

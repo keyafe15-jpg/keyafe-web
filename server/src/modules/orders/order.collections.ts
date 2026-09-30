@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { calendarRange, type CalendarRange } from "../../lib/calendarDay.js";
-import { getStallTotals } from "../stalls/stall.service.js";
+import { getStallTotals, listOpenDues } from "../stalls/stall.service.js";
 
 // Money owed vs collected, bucketed by delivery date. An order belongs to the
 // day of its earliest delivery; pan-India orders (no delivery dates) fall back
@@ -133,10 +133,11 @@ function summarise(orders: CollectionOrder[]) {
 }
 
 export async function getCollectionsSummary(range: Range) {
-  const [inRange, allTime, stall] = await Promise.all([
+  const [inRange, allTime, stall, stallDues] = await Promise.all([
     loadOrders(range),
     loadOrders(null),
     getStallTotals(range),
+    listOpenDues(),
   ]);
   const owing = allTime.filter((o) => o.pending > 0);
   const orders = summarise(inRange);
@@ -144,12 +145,15 @@ export async function getCollectionsSummary(range: Range) {
     range: {
       ...orders,
       sales: roundMoney(orders.sales + stall.sales),
-      received: roundMoney(orders.received + stall.sales),
+      received: roundMoney(orders.received + stall.received),
+      pending: roundMoney(orders.pending + stall.due),
       stall,
     },
     outstandingAllTime: {
       pending: roundMoney(owing.reduce((sum, o) => sum + o.pending, 0)),
       customers: new Set(owing.map((o) => o.customerPhone)).size,
+      stallDue: stallDues.total,
+      stallDueEntries: stallDues.dues.length,
     },
   };
 }

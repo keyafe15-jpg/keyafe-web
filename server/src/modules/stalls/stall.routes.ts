@@ -20,6 +20,7 @@ import {
   getStallSummary,
   istToday,
   listDays,
+  listOpenDues,
   listStalls,
   menuItemView,
   parseSaleInput,
@@ -27,6 +28,8 @@ import {
   requireCounterDay,
   requireStall,
   setDayStatus,
+  settleDue,
+  settleDueSchema,
   updateStall,
 } from "./stall.service.js";
 
@@ -97,6 +100,18 @@ adminStallRouter.delete("/sales/:saleId", canSell, async (req, res) => {
   const dayId = await deleteSale(param(req, "saleId"), {
     canManage: staffHasPermission(staff, "stall.manage"),
   });
+  res.json(await getDayView(dayId));
+});
+
+adminStallRouter.get("/dues", canSell, async (req, res) => {
+  const stallId = typeof req.query.stallId === "string" ? req.query.stallId : undefined;
+  res.json(await listOpenDues(stallId || undefined));
+});
+
+adminStallRouter.post("/sales/:saleId/settle", canSell, async (req, res) => {
+  const parsed = settleDueSchema.safeParse(req.body);
+  if (!parsed.success) throw HttpError.badRequest("Pick cash or UPI");
+  const dayId = await settleDue(param(req, "saleId"), parsed.data.paidVia, staffOf(req));
   res.json(await getDayView(dayId));
 });
 

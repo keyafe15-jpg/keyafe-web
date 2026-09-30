@@ -7,9 +7,11 @@ import {
   useDeleteStallSale,
   useRecordStallSale,
   useSetStallDayStatus,
+  useSettleStallDue,
   useStallCounterDay,
   useStalls,
   type Stall,
+  type StallPaymentMethod,
   type StallSale,
   type StallSaleInput,
 } from "@/hooks/useStalls";
@@ -30,8 +32,11 @@ import {
   cartToInput,
   cartTotal,
   formatStallDates,
+  methodLabel,
+  saleAmount,
   type Cart,
 } from "./stall-ui";
+import { StallDuesPanel } from "./StallDuesPanel";
 
 const STALL_KEY = "keyafe.stall.selected";
 const NO_STALLS: Stall[] = [];
@@ -102,6 +107,7 @@ function StallCounter({
   const close = useCloseStallDay(stall.id, date);
   const reopen = useSetStallDayStatus();
   const del = useDeleteStallSale();
+  const settle = useSettleStallDue();
   const [mode, setMode] = useState<Mode>(stall.menu.length > 0 ? "items" : "lump");
   const [cart, setCart] = useState<Cart>({});
   const [error, setError] = useState<string | null>(null);
@@ -128,14 +134,25 @@ function StallCounter({
     }
   };
 
-  const pay = (method: "CASH" | "UPI") => {
+  const pay = (method: StallPaymentMethod, dueFrom?: string) => {
     const total = cartTotal(cart, stall.menu);
     void save(
-      cartToInput(cart, method),
-      `${formatINR(total)} · ${method === "CASH" ? "Cash" : "UPI"}`,
+      cartToInput(cart, method, dueFrom),
+      `${formatINR(total)} · ${methodLabel(method)}${dueFrom ? ` (${dueFrom})` : ""}`,
     )
       .then(() => setCart({}))
       .catch(() => {});
+  };
+
+  const onSettle = (sale: StallSale, via: "CASH" | "UPI") => {
+    setError(null);
+    settle.mutate(
+      { saleId: sale.id, paidVia: via },
+      {
+        onSuccess: () => setFlash(`${formatINR(sale.dueAmount)} due paid · ${methodLabel(via)}`),
+        onError: (err) => setError(err instanceof Error ? err.message : "Could not mark as paid"),
+      },
+    );
   };
 
   const onReopen = () => {
@@ -150,7 +167,7 @@ function StallCounter({
   };
 
   const onDelete = (sale: StallSale) => {
-    if (!confirm(`Remove this ${formatINR(sale.cashAmount + sale.upiAmount)} entry?`)) return;
+    if (!confirm(`Remove this ${formatINR(saleAmount(sale))} entry?`)) return;
     setError(null);
     del.mutate(sale.id, {
       onError: (err) => setError(err instanceof Error ? err.message : "Could not remove entry"),
@@ -333,7 +350,7 @@ function StallCounter({
                 onSubmit={(input) =>
                   save(
                     input,
-                    `${formatINR(input.kind === "CONSOLIDATED" ? input.cashAmount + input.upiAmount : 0)} lump sum`,
+                    `${formatINR(input.kind === "CONSOLIDATED" ? input.cashAmount + input.upiAmount + (input.dueAmount ?? 0) : 0)} lump sum`,
                   )
                 }
               />
@@ -359,9 +376,13 @@ function StallCounter({
           sales={day?.sales ?? []}
           onDelete={closed ? undefined : onDelete}
           deletingId={del.isPending ? del.variables : null}
+          onSettle={onSettle}
+          settlingId={settle.isPending ? settle.variables?.saleId : null}
           lumpOverride={day?.lumpOverride}
         />
       </section>
+
+      <StallDuesPanel stallId={stall.id} className="mt-4" />
 
       {!closed && day && (
         <button
@@ -382,7 +403,7 @@ function StallCounter({
             </Dialog.Title>
             <Dialog.Description className="mt-1 text-sm text-slate-500">
               Check these match the cash in hand and your UPI app. You won&rsquo;t be able to add or
-              remove entries after closing.
+              remove entries after closing, but dues can still be marked paid.
             </Dialog.Description>
             {day && <TotalsStrip totals={day.totals} className="my-4" />}
             {close.isError && (

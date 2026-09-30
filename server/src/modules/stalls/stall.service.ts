@@ -282,7 +282,19 @@ export async function copyMenu(fromStallId: string, toStallId: string) {
 
 // ---------- Money ----------
 
-type KindSums = { kind: StallSaleKind; cash: number; upi: number; count: number };
+type Money = { cash: number; upi: number; due: number };
+type KindSums = Money & { kind: StallSaleKind; count: number };
+
+/** Paise → rupees for a cash/UPI/due split. Total is sales; received excludes dues. */
+function moneyView({ cash, upi, due }: Money) {
+  return {
+    cash: fromPaise(cash),
+    upi: fromPaise(upi),
+    due: fromPaise(due),
+    received: fromPaise(cash + upi),
+    total: fromPaise(cash + upi + due),
+  };
+}
 
 /**
  * A lump sum is the full count for its day: once a day has any CONSOLIDATED
@@ -292,15 +304,16 @@ type KindSums = { kind: StallSaleKind; cash: number; upi: number; count: number 
 function dayMoney(rows: KindSums[]) {
   const lumps = rows.filter((r) => r.kind === "CONSOLIDATED");
   const tapped = rows.filter((r) => r.kind === "ITEMIZED");
-  const sum = (list: KindSums[], key: "cash" | "upi") => list.reduce((n, r) => n + r[key], 0);
-  const counted = lumps.length > 0 ? lumps : tapped;
+  const sum = (list: KindSums[]): Money => ({
+    cash: list.reduce((n, r) => n + r.cash, 0),
+    upi: list.reduce((n, r) => n + r.upi, 0),
+    due: list.reduce((n, r) => n + r.due, 0),
+  });
   return {
-    cash: sum(counted, "cash"),
-    upi: sum(counted, "upi"),
+    ...sum(lumps.length > 0 ? lumps : tapped),
     count: rows.reduce((n, r) => n + r.count, 0),
     lumpOverride: lumps.length > 0,
-    tappedCash: sum(tapped, "cash"),
-    tappedUpi: sum(tapped, "upi"),
+    tapped: sum(tapped),
   };
 }
 
@@ -309,7 +322,7 @@ async function moneyByDay(where: Prisma.StallSaleWhereInput) {
   const groups = await prisma.stallSale.groupBy({
     by: ["dayId", "kind"],
     where,
-    _sum: { cashAmount: true, upiAmount: true },
+    _sum: { cashAmount: true, upiAmount: true, dueAmount: true },
     _count: { _all: true },
   });
   const byDay = new Map<string, KindSums[]>();
@@ -319,6 +332,7 @@ async function moneyByDay(where: Prisma.StallSaleWhereInput) {
       kind: g.kind,
       cash: toPaise(g._sum.cashAmount ?? 0),
       upi: toPaise(g._sum.upiAmount ?? 0),
+      due: toPaise(g._sum.dueAmount ?? 0),
       count: g._count._all,
     });
     byDay.set(g.dayId, list);
@@ -326,16 +340,16 @@ async function moneyByDay(where: Prisma.StallSaleWhereInput) {
   return new Map([...byDay].map(([dayId, rows]) => [dayId, dayMoney(rows)]));
 }
 
-function totalOf(days: Iterable<{ cash: number; upi: number; count: number }>) {
-  let cash = 0;
-  let upi = 0;
+function totalOf(days: Iterable<Money & { count: number }>) {
+  const sum: Money = { cash: 0, upi: 0, due: 0 };
   let count = 0;
   for (const d of days) {
-    cash += d.cash;
-    upi += d.upi;
+    sum.cash += d.cash;
+    sum.upi += d.upi;
+    sum.due += d.due;
     count += d.count;
   }
-  return { cash: fromPaise(cash), upi: fromPaise(upi), total: fromPaise(cash + upi), count };
+  return { ...moneyView(sum), count };
 }
 
 /** All-time sales for one stall against its stall charge. */
@@ -355,21 +369,26 @@ export async function getStallSummary(stallId: string) {
 // ---------- Sales ----------
 
 const noteSchema = z.string().trim().max(300).optional();
+const dueFromSchema = z.string().trim().max(80).optional();
+const amountSchema = z.number().min(0).max(10_000_000);
 
 export const saleInputSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("ITEMIZED"),
-    paymentMethod: z.enum(["CASH", "UPI"]),
+    paymentMethod: z.enum(["CASH", "UPI", "DUE"]),
     items: z
       .array(z.object({ menuItemId: z.string().min(1), qty: z.number().int().min(1).max(999) }))
       .min(1)
       .max(50),
+    dueFrom: dueFromSchema,
     note: noteSchema,
   }),
   z.object({
     kind: z.literal("CONSOLIDATED"),
-    cashAmount: z.number().min(0).max(10_000_000),
-    upiAmount: z.number().min(0).max(10_000_000),
+    cashAmount: amountSchema,
+    upiAmount: amountSchema,
+    dueAmount: amountSchema.default(0),
+    dueFrom: dueFromSchema,
     note: noteSchema,
   }),
 ]);
@@ -379,13 +398,19 @@ export type SaleInput = z.infer<typeof saleInputSchema>;
 export function parseSaleInput(body: unknown): SaleInput {
   const parsed = saleInputSchema.safeParse(body);
   if (!parsed.success) throw HttpError.badRequest("Invalid sale", parsed.error.flatten());
+  const input = parsed.data;
+  const hasDue =
+    input.kind === "ITEMIZED" ? input.paymentMethod === "DUE" : toPaise(input.dueAmount) > 0;
   if (
-    parsed.data.kind === "CONSOLIDATED" &&
-    toPaise(parsed.data.cashAmount) + toPaise(parsed.data.upiAmount) <= 0
+    input.kind === "CONSOLIDATED" &&
+    toPaise(input.cashAmount) + toPaise(input.upiAmount) + toPaise(input.dueAmount) <= 0
   ) {
-    throw HttpError.badRequest("Enter a cash or UPI amount");
+    throw HttpError.badRequest("Enter a cash, UPI or due amount");
   }
-  return parsed.data;
+  if (hasDue && !input.dueFrom) {
+    throw HttpError.badRequest("Enter who owes the due amount");
+  }
+  return input;
 }
 
 async function getOrCreateDay(stallId: string, day: string) {
@@ -423,11 +448,14 @@ export async function recordSale(
   };
 
   if (input.kind === "CONSOLIDATED") {
+    const dueAmount = fromPaise(toPaise(input.dueAmount));
     await prisma.stallSale.create({
       data: {
         ...base,
         cashAmount: fromPaise(toPaise(input.cashAmount)),
         upiAmount: fromPaise(toPaise(input.upiAmount)),
+        dueAmount,
+        dueFrom: dueAmount > 0 ? input.dueFrom || null : null,
       },
     });
     return dayRow.id;
@@ -453,6 +481,8 @@ export async function recordSale(
       ...base,
       cashAmount: input.paymentMethod === "CASH" ? amount : 0,
       upiAmount: input.paymentMethod === "UPI" ? amount : 0,
+      dueAmount: input.paymentMethod === "DUE" ? amount : 0,
+      dueFrom: input.paymentMethod === "DUE" ? input.dueFrom || null : null,
       items: {
         create: menu.map((m) => ({
           menuItemId: m.id,
@@ -483,6 +513,76 @@ export async function deleteSale(saleId: string, { canManage }: { canManage: boo
   }
   await prisma.stallSale.delete({ where: { id: sale.id } });
   return sale.day.id;
+}
+
+// ---------- Dues ----------
+
+export const settleDueSchema = z.object({ paidVia: z.enum(["CASH", "UPI"]) });
+
+/**
+ * Collects a due: its amount moves into the entry's cash or UPI, so the sale
+ * stays on its original day. Allowed on closed days — it's money coming in,
+ * not a correction.
+ */
+export async function settleDue(saleId: string, paidVia: "CASH" | "UPI", staff: StaffUser) {
+  const sale = await prisma.stallSale.findUnique({
+    where: { id: saleId },
+    select: { id: true, dayId: true, dueAmount: true },
+  });
+  if (!sale) throw HttpError.notFound("Entry not found");
+  if (toPaise(sale.dueAmount) <= 0) throw HttpError.conflict("This entry has nothing due.");
+  const { count } = await prisma.stallSale.updateMany({
+    where: { id: sale.id, dueAmount: sale.dueAmount },
+    data: {
+      ...(paidVia === "CASH"
+        ? { cashAmount: { increment: sale.dueAmount } }
+        : { upiAmount: { increment: sale.dueAmount } }),
+      dueAmount: 0,
+      duePaidAt: new Date(),
+      duePaidByName: staff.name,
+    },
+  });
+  if (count === 0) throw HttpError.conflict("This due was just updated. Refresh and try again.");
+  return sale.dayId;
+}
+
+/** Unpaid dues that count toward sales (tapped dues on a lump-sum day don't). */
+export async function listOpenDues(stallId?: string) {
+  const rows = await prisma.stallSale.findMany({
+    where: {
+      dueAmount: { gt: 0 },
+      OR: [{ kind: "CONSOLIDATED" }, { day: { sales: { none: { kind: "CONSOLIDATED" } } } }],
+      ...(stallId ? { day: { stallId } } : {}),
+    },
+    orderBy: [{ day: { date: "asc" } }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      kind: true,
+      dueAmount: true,
+      dueFrom: true,
+      note: true,
+      createdByName: true,
+      createdAt: true,
+      items: { select: { name: true, qty: true } },
+      day: { select: { date: true, stall: { select: { id: true, name: true } } } },
+    },
+  });
+  const dues = rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    amount: Number(r.dueAmount),
+    dueFrom: r.dueFrom,
+    note: r.note,
+    createdByName: r.createdByName,
+    createdAt: r.createdAt,
+    items: r.items,
+    date: r.day.date.toISOString().slice(0, 10),
+    stall: r.day.stall,
+  }));
+  return {
+    total: fromPaise(dues.reduce((n, d) => n + toPaise(d.amount), 0)),
+    dues,
+  };
 }
 
 // ---------- Days ----------
@@ -528,6 +628,10 @@ const daySelect = {
       kind: true,
       cashAmount: true,
       upiAmount: true,
+      dueAmount: true,
+      dueFrom: true,
+      duePaidAt: true,
+      duePaidByName: true,
       note: true,
       createdByName: true,
       createdAt: true,
@@ -556,9 +660,9 @@ export async function getDayView(
       closedByName: null,
       stall: fallback.stall,
       sales: [],
-      totals: { cash: 0, upi: 0, total: 0, count: 0 },
+      totals: { ...moneyView({ cash: 0, upi: 0, due: 0 }), count: 0 },
       lumpOverride: false,
-      tappedTotals: { cash: 0, upi: 0, total: 0 },
+      tappedTotals: moneyView({ cash: 0, upi: 0, due: 0 }),
       itemsSold: [],
     };
   }
@@ -568,6 +672,7 @@ export async function getDayView(
       kind: s.kind,
       cash: toPaise(s.cashAmount),
       upi: toPaise(s.upiAmount),
+      due: toPaise(s.dueAmount),
       count: 1,
     })),
   );
@@ -584,6 +689,7 @@ export async function getDayView(
       ...s,
       cashAmount: Number(s.cashAmount),
       upiAmount: Number(s.upiAmount),
+      dueAmount: Number(s.dueAmount),
       items: s.items.map((i) => ({ ...i, price: Number(i.price) })),
     };
   });
@@ -596,18 +702,9 @@ export async function getDayView(
     closedByName: row.closedByName,
     stall: row.stall,
     sales,
-    totals: {
-      cash: fromPaise(money.cash),
-      upi: fromPaise(money.upi),
-      total: fromPaise(money.cash + money.upi),
-      count: sales.length,
-    },
+    totals: { ...moneyView(money), count: sales.length },
     lumpOverride: money.lumpOverride,
-    tappedTotals: {
-      cash: fromPaise(money.tappedCash),
-      upi: fromPaise(money.tappedUpi),
-      total: fromPaise(money.tappedCash + money.tappedUpi),
-    },
+    tappedTotals: moneyView(money.tapped),
     itemsSold: [...sold.values()]
       .map((s) => ({ ...s, amount: fromPaise(s.amount) }))
       .sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name)),
@@ -635,7 +732,7 @@ export async function listDays({ from, to, stallId }: z.infer<typeof daysQuerySc
     },
   });
   const money = await moneyByDay({ dayId: { in: days.map((d) => d.id) } });
-  const none = { cash: 0, upi: 0, count: 0, lumpOverride: false };
+  const none = { cash: 0, upi: 0, due: 0, count: 0, lumpOverride: false };
 
   const kept = days
     .map((d) => ({ d, m: money.get(d.id) ?? none }))
@@ -648,9 +745,7 @@ export async function listDays({ from, to, stallId }: z.infer<typeof daysQuerySc
       date: d.date.toISOString().slice(0, 10),
       status: d.status,
       stall: d.stall,
-      cash: fromPaise(m.cash),
-      upi: fromPaise(m.upi),
-      total: fromPaise(m.cash + m.upi),
+      ...moneyView(m),
       count: m.count,
       lumpOverride: m.lumpOverride,
     })),
@@ -658,11 +753,11 @@ export async function listDays({ from, to, stallId }: z.infer<typeof daysQuerySc
   };
 }
 
-/** Stall money for the dashboard. Always fully collected, so sales = received. */
+/** Stall money for the dashboard. Dues are sales not yet received. */
 export async function getStallTotals({ from, to }: CalendarRange) {
   const money = await moneyByDay({
     day: { date: { gte: dayToDate(from), lte: dayToDate(to) } },
   });
-  const { cash, upi, total } = totalOf(money.values());
-  return { sales: total, cash, upi };
+  const { cash, upi, due, received, total } = totalOf(money.values());
+  return { sales: total, received, cash, upi, due };
 }
