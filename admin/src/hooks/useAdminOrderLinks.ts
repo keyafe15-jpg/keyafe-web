@@ -36,6 +36,8 @@ export interface OrderLink {
   discountValue: string | null;
   /** Locked delivery fee when set; otherwise customer pays pincode table rate. */
   deliveryFee: string | null;
+  /** Customer may pay online via Cashfree; otherwise pay on delivery / pickup only. */
+  allowOnlinePayment: boolean;
   linkedOrder: {
     id: string;
     orderNumber: string;
@@ -77,6 +79,7 @@ export interface CreateOrderLinkPayload {
   discountValue?: number | null;
   /** Lock delivery fee for this link; null = use pincode table when customer orders. */
   deliveryFee?: number | null;
+  allowOnlinePayment?: boolean;
 }
 
 export function useAdminOrderLinks(status?: OrderLinkStatus | "ALL") {
@@ -110,6 +113,17 @@ export interface UpdateOrderLinkPayload {
   discountType?: "FLAT" | "PERCENT" | null;
   discountValue?: number | null;
   deliveryFee?: number | null;
+  allowOnlinePayment?: boolean;
+}
+
+/** Whether Cashfree keys are configured on the server at all. */
+export function useOnlinePaymentAvailable() {
+  return useQuery({
+    queryKey: ["admin", "payments", "config"],
+    queryFn: () => api.get<{ cashfreeEnabled: boolean; mode: string }>("/payments/config"),
+    staleTime: 5 * 60_000,
+    select: (d) => d.cashfreeEnabled,
+  });
 }
 
 export function useAdminOrderLink(id: string | undefined) {

@@ -126,6 +126,8 @@ export const createOrderLinkSchema = z.object({
   // Optional locked delivery fee for this link (null = use pincode table).
   deliveryFee: z.coerce.number().nonnegative().nullable().optional(),
 
+  allowOnlinePayment: z.boolean().optional().default(false),
+
   ...manualDiscountFields,
 });
 
@@ -205,6 +207,7 @@ export async function createOrderLink(input: CreateOrderLinkInput) {
       discountType: discount.discountType,
       discountValue: discount.discountValue,
       deliveryFee: input.deliveryFee ?? null,
+      allowOnlinePayment: input.allowOnlinePayment,
       items: { create: itemCreates },
     },
     include: { items: { orderBy: { sortOrder: "asc" } } },
@@ -273,6 +276,7 @@ export async function getOrderLinkByToken(token: string) {
       discountType: true,
       discountValue: true,
       deliveryFee: true,
+      allowOnlinePayment: true,
       items: {
         orderBy: { sortOrder: "asc" },
         select: {
@@ -512,6 +516,9 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
     Math.min(input.paymentMode === "FULL" ? total : (input.advanceAmount ?? 0), total),
   );
   const payOnline = payingNow > 0;
+  if (payOnline && !link.allowOnlinePayment) {
+    throw HttpError.badRequest("This order is paid on delivery or pickup.");
+  }
   if (payOnline && !cashfreeEnabled()) {
     throw HttpError.badRequest(
       "Online payment isn't available right now. Please choose pay on delivery or contact us.",
@@ -611,6 +618,7 @@ export const updateOrderLinkSchema = z.object({
   customerName: z.string().trim().nullable().optional(),
   customerPhone: z.string().trim().nullable().optional(),
   deliveryFee: z.coerce.number().nonnegative().nullable().optional(),
+  allowOnlinePayment: z.boolean().optional(),
   ...manualDiscountFields,
 });
 
@@ -634,6 +642,7 @@ export async function updateOrderLink(id: string, input: UpdateOrderLinkInput) {
   if (input.customerName !== undefined) data.customerName = input.customerName;
   if (input.customerPhone !== undefined) data.customerPhone = input.customerPhone;
   if (input.deliveryFee !== undefined) data.deliveryFee = input.deliveryFee;
+  if (input.allowOnlinePayment !== undefined) data.allowOnlinePayment = input.allowOnlinePayment;
   if (input.expiresInDays !== undefined) {
     data.expiresAt = input.expiresInDays
       ? new Date(Date.now() + input.expiresInDays * 24 * 3600 * 1000)

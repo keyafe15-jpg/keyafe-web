@@ -4,6 +4,7 @@ import { ArrowLeft, Copy, Check } from "lucide-react";
 import {
   useAdminOrderLink,
   useCreateOrderLink,
+  useOnlinePaymentAvailable,
   useUpdateOrderLink,
   type CreateOrderLinkPayload,
   type OrderLinkItemPayload,
@@ -45,6 +46,8 @@ export function OrderLinkFormPage() {
   const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
   const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
+  const [allowOnlinePayment, setAllowOnlinePayment] = useState(false);
+  const { data: onlinePaymentAvailable = false } = useOnlinePaymentAvailable();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{
@@ -68,6 +71,7 @@ export function OrderLinkFormPage() {
         : "",
     );
     setDeliveryFeeInput(existing.deliveryFee != null ? String(Number(existing.deliveryFee)) : "");
+    setAllowOnlinePayment(existing.allowOnlinePayment);
     if (existing.expiresAt) {
       const daysLeft = Math.max(
         1,
@@ -99,6 +103,7 @@ export function OrderLinkFormPage() {
   const deliveryFeePayload = {
     deliveryFee: lockedDeliveryFee,
   };
+  const paymentPayload = { allowOnlinePayment };
 
   const submit = async () => {
     setError(null);
@@ -123,6 +128,7 @@ export function OrderLinkFormPage() {
           expiresInDays: expiresInDays ? Number(expiresInDays) : null,
           ...discountPayload,
           ...deliveryFeePayload,
+          ...paymentPayload,
         });
         navigate("/offline-orders");
         return;
@@ -136,6 +142,7 @@ export function OrderLinkFormPage() {
         expiresInDays: expiresInDays ? Number(expiresInDays) : null,
         ...discountPayload,
         ...deliveryFeePayload,
+        ...paymentPayload,
       };
 
       const link = await create.mutateAsync(payload);
@@ -283,6 +290,31 @@ export function OrderLinkFormPage() {
                 Delivery still added from the customer’s pincode when they order.
               </p>
             )}
+
+            <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-md border border-slate-200 p-3">
+              <input
+                type="checkbox"
+                checked={allowOnlinePayment}
+                onChange={(e) => setAllowOnlinePayment(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
+              />
+              <span className="text-sm text-slate-700">
+                <span className="font-medium text-slate-900">
+                  Collect payment online (Cashfree)
+                </span>
+                <span className="mt-0.5 block text-[11px] text-slate-500">
+                  {allowOnlinePayment
+                    ? "Customer can pay in full or an advance online, or choose pay on delivery. Cashfree charges a fee per payment."
+                    : "Off: customer pays on delivery or pickup — no gateway fee."}
+                </span>
+                {allowOnlinePayment && !onlinePaymentAvailable && (
+                  <span className="mt-1 block text-[11px] text-amber-700">
+                    Cashfree isn’t set up on the server yet, so the customer will only see pay on
+                    delivery until it is.
+                  </span>
+                )}
+              </span>
+            </label>
 
             <label className="mt-4 flex items-center justify-between gap-3">
               <span className="text-sm text-slate-700">

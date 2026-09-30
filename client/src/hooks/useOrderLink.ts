@@ -39,6 +39,8 @@ export interface PublicOrderLink {
   discountValue: string | null;
   /** When set, customer pays this delivery fee (not the pincode table rate). */
   deliveryFee: string | null;
+  /** Bakery allowed Cashfree for this link; otherwise pay on delivery / pickup only. */
+  allowOnlinePayment: boolean;
   linkedOrder: { orderNumber: string } | null;
 }
 

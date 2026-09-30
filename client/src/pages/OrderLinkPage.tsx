@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useOrderLink, usePlaceOrderLink } from "@/hooks/useOrderLink";
 import { usePincodeCheck, type PincodeCheckResult } from "@/hooks/usePincodeCheck";
@@ -19,6 +19,35 @@ type PayChoice = "FULL" | "ADVANCE" | "COD";
 const PHONE_RE = /^[0-9+\-\s]{7,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PINCODE_RE = /^\d{6}$/;
+
+const MISSING_DETAILS: [fields: string[], label: string][] = [
+  [["date"], "a date"],
+  [["name"], "your name"],
+  [["phone"], "your phone number"],
+  [["email"], "a valid email"],
+  [["companyName", "gstin"], "your GST details"],
+  [["recipientName", "deliveryPhone"], "the recipient's details"],
+  [["mapSearchQuery", "line1", "pincode"], "your delivery address"],
+  [["billMapSearchQuery", "billLine1", "billPincode"], "the billing address"],
+  [["advanceAmount"], "an advance amount"],
+];
+
+/** "Add your name, phone number and delivery address to continue", or null when complete. */
+function missingDetailsHint(
+  errors: Record<string, string>,
+  pincodeResult: PincodeCheckResult | null,
+): string | null {
+  if (errors.pincode && pincodeResult && !pincodeResult.serviceable) return errors.pincode;
+  const missing = MISSING_DETAILS.filter(([fields]) => fields.some((f) => errors[f])).map(
+    ([, label]) => label,
+  );
+  if (missing.length === 0) return null;
+  const list =
+    missing.length === 1
+      ? missing[0]
+      : `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}`;
+  return `Add ${list} to continue`;
+}
 
 function todayIso() {
   const d = new Date();
@@ -80,7 +109,8 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
   const place = usePlaceOrderLink({ token: link.token });
   const pincodeCheck = usePincodeCheck();
   const { data: paymentConfig } = usePaymentConfig();
-  const onlinePaymentAvailable = paymentConfig?.cashfreeEnabled ?? false;
+  const onlinePaymentAvailable =
+    link.allowOnlinePayment && (paymentConfig?.cashfreeEnabled ?? false);
 
   const [fulfillment, setFulfillment] = useState<Fulfillment>("DELIVERY");
   const [name, setName] = useState(link.customerName ?? "");
@@ -227,6 +257,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
   const isValid = Object.keys(allErrors).length === 0;
   // Errors stay hidden until the first submit attempt so a fresh form isn't all red.
   const errors: Record<string, string> = showErrors ? allErrors : {};
+  const missingHint = missingDetailsHint(allErrors, pincodeResult);
 
   const submit = async () => {
     if (!isValid) {
@@ -315,6 +346,29 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
     }
   };
 
+  const submitLabel = place.isPending
+    ? "Placing order…"
+    : payChoice !== "COD" && payNowAmount > 0
+      ? `Pay ₹${payNowAmount.toFixed(2)} securely`
+      : "Confirm order";
+  const deliveryFeePending = fulfillment === "DELIVERY" && !pincodeResult?.serviceable;
+  const payingAdvance = payChoice === "ADVANCE" && Number(advanceAmount) > 0;
+
+  // The sticky bar duplicates the summary button, so it steps aside whenever
+  // that button is on screen.
+  const summaryButtonRef = useRef<HTMLButtonElement>(null);
+  const [summaryButtonVisible, setSummaryButtonVisible] = useState(false);
+  useEffect(() => {
+    const el = summaryButtonRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setSummaryButtonVisible(Boolean(entry?.isIntersecting)),
+      { threshold: 0.5 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [redirectingToPayment]);
+
   if (redirectingToPayment) {
     return (
       <section className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 text-center">
@@ -328,7 +382,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
   }
 
   return (
-    <section className="mx-auto max-w-3xl px-4 py-8">
+    <section className="mx-auto max-w-3xl px-4 pt-8 pb-28">
       <div className="mb-6 text-center">
         <p className="text-xs font-semibold tracking-wider text-brand-700 uppercase">
           Keyafe Foods
@@ -340,74 +394,16 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
       </div>
 
       {/* Locked items */}
-      <div className="mb-6 space-y-3">
-        {link.items.map((item) => {
-          const itemTotal = Number(item.unitPrice) * item.qty;
-          return (
-            <div
-              key={item.id}
-              className="overflow-hidden rounded-card border-2 border-brand-500/30 bg-white shadow-sm"
-            >
-              <div className="grid gap-0 sm:grid-cols-[160px_1fr]">
-                <div className="aspect-square w-full bg-cream-100 sm:aspect-auto">
-                  {item.referenceImageUrl ? (
-                    <img
-                      src={item.referenceImageUrl}
-                      alt={item.productName}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-ink-400 flex h-full min-h-32 w-full items-center justify-center text-xs">
-                      No image
-                    </div>
-                  )}
-                </div>
-                <div className="p-5">
-                  <p className="text-[10px] font-semibold tracking-wider text-brand-700 uppercase">
-                    Your order
-                  </p>
-                  <h2 className="mt-1 font-display text-xl text-ink-900">{item.productName}</h2>
-                  {item.description && (
-                    <p className="mt-1 text-sm whitespace-pre-line text-ink-700">
-                      {item.description}
-                    </p>
-                  )}
-                  <dl className="mt-2 space-y-0.5 text-sm text-ink-700">
-                    {item.sizeLabel && (
-                      <div className="flex gap-1.5">
-                        <dt className="text-ink-500">Size:</dt>
-                        <dd>{item.sizeLabel}</dd>
-                      </div>
-                    )}
-                    {item.flavourName && (
-                      <div className="flex gap-1.5">
-                        <dt className="text-ink-500">Flavour:</dt>
-                        <dd>{item.flavourName}</dd>
-                      </div>
-                    )}
-                    {item.qty > 1 && (
-                      <div className="flex gap-1.5">
-                        <dt className="text-ink-500">Qty:</dt>
-                        <dd>{item.qty}</dd>
-                      </div>
-                    )}
-                  </dl>
-                  <div className="mt-3 flex items-baseline gap-2">
-                    <span className="text-3xl font-semibold text-ink-900">
-                      ₹{Number(item.unitPrice).toFixed(0)}
-                    </span>
-                    {item.qty > 1 && (
-                      <span className="text-sm text-ink-500">
-                        × {item.qty} = ₹{itemTotal.toFixed(0)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        <p className="text-[11px] text-ink-500">Includes GST. Delivery fee added below.</p>
+      <div className="mb-6">
+        <p className="mb-2 text-[11px] font-semibold tracking-wider text-brand-700 uppercase">
+          {link.items.length > 1 ? `Your order · ${link.items.length} items` : "Your order"}
+        </p>
+        <div className={cn("grid gap-3", link.items.length > 1 && "sm:grid-cols-2")}>
+          {link.items.map((item) => (
+            <LockedItemCard key={item.id} item={item} />
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-ink-500">Includes GST. Delivery fee added below.</p>
       </div>
 
       <div className="space-y-5">
@@ -773,17 +769,15 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
           )}
 
           <button
+            ref={summaryButtonRef}
             type="button"
             onClick={submit}
-            disabled={place.isPending}
+            disabled={place.isPending || !isValid}
             className="mt-4 block w-full rounded-full bg-brand-500 py-3 text-center text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {place.isPending
-              ? "Placing order…"
-              : payChoice !== "COD" && payNowAmount > 0
-                ? `Pay ₹${payNowAmount.toFixed(2)} securely`
-                : "Confirm order"}
+            {submitLabel}
           </button>
+          {missingHint && <p className="mt-2 text-center text-xs text-brand-700">{missingHint}</p>}
           <p className="mt-2 text-center text-[11px] text-ink-500">
             By confirming you agree to the price locked above and our{" "}
             <a
@@ -798,7 +792,131 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
           </p>
         </div>
       </div>
+
+      <StickyPayBar
+        hidden={summaryButtonVisible}
+        amountLabel={payingAdvance ? "Paying now" : "Total"}
+        amount={payingAdvance ? Number(advanceAmount) : total}
+        subLabel={
+          payingAdvance
+            ? `₹${Math.max(total - Number(advanceAmount), 0).toFixed(0)} on delivery`
+            : deliveryFeePending
+              ? "+ delivery"
+              : payChoice === "COD"
+                ? "Pay on delivery"
+                : undefined
+        }
+        buttonLabel={submitLabel}
+        hint={missingHint}
+        disabled={place.isPending || !isValid}
+        onSubmit={submit}
+      />
     </section>
+  );
+}
+
+type LockedItem = NonNullable<ReturnType<typeof useOrderLink>["data"]>["items"][number];
+
+function LockedItemCard({ item }: { item: LockedItem }) {
+  const itemTotal = Number(item.unitPrice) * item.qty;
+  const specs = [item.sizeLabel, item.flavourName, item.qty > 1 ? `Qty ${item.qty}` : null].filter(
+    Boolean,
+  );
+  return (
+    <div className="flex gap-3 rounded-card border-2 border-brand-500/30 bg-white p-3 shadow-sm sm:gap-4">
+      {item.referenceImageUrl ? (
+        <a
+          href={item.referenceImageUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-cream-100 sm:h-24 sm:w-24"
+          aria-label={`View ${item.productName} image`}
+        >
+          <img
+            src={item.referenceImageUrl}
+            alt={item.productName}
+            className="h-full w-full object-cover"
+          />
+        </a>
+      ) : (
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-cream-100 text-[10px] text-ink-500 sm:h-24 sm:w-24">
+          No image
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <h2 className="font-display text-base leading-snug text-ink-900 sm:text-lg">
+          {item.productName}
+        </h2>
+        {specs.length > 0 && <p className="mt-0.5 text-xs text-ink-500">{specs.join(" · ")}</p>}
+        {item.description && (
+          <p className="mt-1 text-xs whitespace-pre-line text-ink-700">{item.description}</p>
+        )}
+        <p className="mt-1.5 flex items-baseline gap-1.5">
+          <span className="text-lg font-semibold text-ink-900 tabular-nums">
+            ₹{Number(item.unitPrice).toFixed(0)}
+          </span>
+          {item.qty > 1 && (
+            <span className="text-xs text-ink-500">
+              × {item.qty} = ₹{itemTotal.toFixed(0)}
+            </span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StickyPayBar({
+  hidden,
+  amountLabel,
+  amount,
+  subLabel,
+  hint,
+  buttonLabel,
+  disabled,
+  onSubmit,
+}: {
+  hidden: boolean;
+  amountLabel: string;
+  amount: number;
+  subLabel?: string;
+  hint?: string | null;
+  buttonLabel: string;
+  disabled: boolean;
+  onSubmit: () => void;
+}) {
+  return (
+    <div
+      aria-hidden={hidden}
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-30 border-t border-cream-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur transition-transform duration-200",
+        hidden && "pointer-events-none translate-y-full",
+      )}
+    >
+      {hint && (
+        <p className="mx-auto mb-2 max-w-3xl text-center text-xs text-brand-700 sm:text-left">
+          {hint}
+        </p>
+      )}
+      <div className="mx-auto flex max-w-3xl items-center gap-3 sm:gap-6">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] text-ink-500">{amountLabel}</p>
+          <p className="text-lg leading-tight font-semibold text-ink-900 tabular-nums">
+            ₹{amount.toFixed(2)}
+          </p>
+          {subLabel && <p className="truncate text-[11px] text-ink-500">{subLabel}</p>}
+        </div>
+        <button
+          type="button"
+          tabIndex={hidden ? -1 : undefined}
+          onClick={onSubmit}
+          disabled={disabled}
+          className="shrink-0 rounded-full bg-brand-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-56 sm:px-8"
+        >
+          {buttonLabel}
+        </button>
+      </div>
+    </div>
   );
 }
 

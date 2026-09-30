@@ -44,6 +44,10 @@ model OrderLink {
   // table rate — they are not told it was overridden.
   deliveryFee Decimal? @db.Decimal(10, 2)
 
+  // Cashfree charges a fee per payment, so online payment is opt-in per link.
+  // When off, the customer can only pay on delivery / pickup.
+  allowOnlinePayment Boolean @default(false)
+
   status    OrderLinkStatus @default(OPEN)
   expiresAt DateTime?
 
