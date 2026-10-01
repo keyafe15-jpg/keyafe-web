@@ -30,7 +30,9 @@ import {
 import { useFlavours } from "@/hooks/useFlavours";
 import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
-import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
+import { AddressPlacesSearch, type ParsedPlace } from "@/components/address/AddressPlacesSearch";
+import type { DeliveryDistrict } from "@/hooks/useAdminDeliveryPincodes";
+import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
 
 interface PincodeInfo {
@@ -40,6 +42,19 @@ interface PincodeInfo {
   state?: string | null;
   stateCode?: string | null;
   deliveryFee: number;
+}
+
+const DISTRICTS: { value: DeliveryDistrict; label: string }[] = [
+  { value: "KOLKATA", label: "Kolkata" },
+  { value: "HOWRAH", label: "Howrah" },
+  { value: "HOOGHLY", label: "Hooghly" },
+];
+
+function guessDistrict(city: string): DeliveryDistrict {
+  if (/howrah/i.test(city)) return "HOWRAH";
+  if (/hooghly|hugli|serampore|chinsurah|chandannagar|uttarpara|rishra|konnagar|bandel/i.test(city))
+    return "HOOGHLY";
+  return "KOLKATA";
 }
 
 function todayIso(): string {
@@ -99,6 +114,13 @@ export function OfflineOrderDirectFormPage() {
   /** Editable delivery fee; prefilled from pincode table when the check succeeds. */
   const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
   const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(true);
+  /** Last address picked from the map search; only trusted while its pincode is still typed. */
+  const [pickedPlace, setPickedPlace] = useState<ParsedPlace | null>(null);
+  const canSavePincode = useStaffPermission("delivery.write");
+  const [savePincode, setSavePincode] = useState(true);
+  const [zoneCity, setZoneCity] = useState("");
+  const [zoneArea, setZoneArea] = useState("");
+  const [zoneDistrict, setZoneDistrict] = useState<DeliveryDistrict>("KOLKATA");
 
   useOrderItemRefPreviews(items, setItems);
 
@@ -129,11 +151,6 @@ export function OfflineOrderDirectFormPage() {
       .then((info) => {
         if (cancelled) return;
         setPincodeInfo(info);
-        if (!info.serviceable) {
-          setPincodeError(
-            "We may still deliver here, please call or WhatsApp us to confirm or opt for pickup",
-          );
-        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -158,6 +175,20 @@ export function OfflineOrderDirectFormPage() {
       setDeliveryFeeInput("");
     }
   }, [fulfillment, pincodeInfo]);
+
+  const place = pickedPlace?.pincode === pincode ? pickedPlace : null;
+  /** Checked and not in the delivery table: staff set the charge themselves. */
+  const unlistedPincode = fulfillment === "DELIVERY" && pincodeInfo?.serviceable === false;
+  const deliveryPriced =
+    fulfillment === "DELIVERY" && (pincodeInfo?.serviceable || unlistedPincode);
+
+  useEffect(() => {
+    if (!unlistedPincode) return;
+    const city = place?.city ?? "";
+    setZoneCity(city);
+    setZoneArea("");
+    setZoneDistrict(guessDistrict(city));
+  }, [unlistedPincode, place]);
 
   const deliveryFee =
     fulfillment === "DELIVERY" && deliveryFeeInput.trim() !== ""
@@ -193,7 +224,10 @@ export function OfflineOrderDirectFormPage() {
     (line1.trim().length >= 3 &&
       mapSearchQuery.trim().length >= 3 &&
       /^\d{6}$/.test(pincode) &&
-      pincodeInfo?.serviceable === true &&
+      (pincodeInfo?.serviceable === true ||
+        (unlistedPincode &&
+          deliveryFeeInput.trim() !== "" &&
+          (!canSavePincode || !savePincode || zoneCity.trim().length >= 2))) &&
       (recipientIsCustomer ||
         (recipientName.trim().length >= 2 && /^[0-9+\-\s]{7,15}$/.test(deliveryPhone.trim()))) &&
       (billingSameAsDelivery ||
@@ -262,10 +296,10 @@ export function OfflineOrderDirectFormPage() {
                 landmark: landmark.trim() || null,
                 mapSearchQuery: mapSearchQuery.trim(),
                 pincode,
-                city: pincodeInfo?.city ?? null,
-                area: pincodeInfo?.area ?? null,
-                state: pincodeInfo?.state ?? null,
-                stateCode: pincodeInfo?.stateCode ?? null,
+                city: pincodeInfo?.city ?? (place?.city || zoneCity.trim() || null),
+                area: pincodeInfo?.area ?? (zoneArea.trim() || null),
+                state: pincodeInfo?.state ?? (place?.state || null),
+                stateCode: pincodeInfo?.stateCode ?? (place?.stateCode || null),
               }
             : null,
         recipientName:
@@ -311,6 +345,14 @@ export function OfflineOrderDirectFormPage() {
         discountValue: discount > 0 ? Number(discountValue) : null,
         deliveryFee: fulfillment === "DELIVERY" ? deliveryFee : undefined,
         deliveryPaidToRider,
+        saveDeliveryPincode:
+          unlistedPincode && canSavePincode && savePincode
+            ? {
+                city: zoneCity.trim(),
+                area: zoneArea.trim() || null,
+                district: zoneDistrict,
+              }
+            : undefined,
       };
 
       const order = await create.mutateAsync(payload);
@@ -501,6 +543,7 @@ export function OfflineOrderDirectFormPage() {
                       onPlaceSelect={(place) => {
                         if (place.line1) setLine1(place.line1);
                         if (place.pincode) setPincode(place.pincode);
+                        setPickedPlace(place);
                       }}
                       placeholder="Building, society, or area"
                     />
@@ -544,16 +587,20 @@ export function OfflineOrderDirectFormPage() {
                       inputMode="decimal"
                       value={deliveryFeeInput}
                       onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                      placeholder="From pincode"
+                      placeholder={unlistedPincode ? "Enter charge" : "From pincode"}
                       className={inputClass}
-                      disabled={!pincodeInfo?.serviceable}
+                      disabled={!deliveryPriced}
                     />
                   </Field>
-                  {(pincodeChecking || pincodeInfo?.serviceable || pincodeError) && (
+                  {(pincodeChecking || pincodeInfo || pincodeError) && (
                     <p
                       className={cn(
                         "col-span-2 -mt-1 text-xs",
-                        pincodeError ? "text-red-700" : "text-emerald-700",
+                        pincodeError
+                          ? "text-red-700"
+                          : unlistedPincode
+                            ? "text-amber-700"
+                            : "text-emerald-700",
                         pincodeChecking && "text-slate-500",
                       )}
                     >
@@ -561,10 +608,59 @@ export function OfflineOrderDirectFormPage() {
                         ? "Checking pincode…"
                         : pincodeError
                           ? pincodeError
-                          : `${pincodeInfo?.city ?? ""}${pincodeInfo?.area ? ` · ${pincodeInfo.area}` : ""} · table rate ₹${Number(pincodeInfo?.deliveryFee ?? 0).toFixed(0)} — edit if charging differently`}
+                          : unlistedPincode
+                            ? `${pincode} isn't in your delivery pincodes. Enter the delivery charge for this order.`
+                            : `${pincodeInfo?.city ?? ""}${pincodeInfo?.area ? ` · ${pincodeInfo.area}` : ""} · table rate ₹${Number(pincodeInfo?.deliveryFee ?? 0).toFixed(0)} — edit if charging differently`}
                     </p>
                   )}
-                  {pincodeInfo?.serviceable && (
+                  {unlistedPincode && canSavePincode && (
+                    <div className="col-span-2 space-y-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                      <CheckboxRow
+                        checked={savePincode}
+                        onChange={setSavePincode}
+                        title={`Add ${pincode} to delivery pincodes`}
+                        subtitle={
+                          deliveryFeeInput.trim()
+                            ? `at ₹${deliveryFee.toFixed(0)}, so it fills in next time`
+                            : "at this charge, so it fills in next time"
+                        }
+                      />
+                      {savePincode && (
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-3 sm:gap-x-4">
+                          <Field label="City" required>
+                            <input
+                              value={zoneCity}
+                              onChange={(e) => setZoneCity(e.target.value)}
+                              placeholder="Kolkata"
+                              className={inputClass}
+                            />
+                          </Field>
+                          <Field label="Area">
+                            <input
+                              value={zoneArea}
+                              onChange={(e) => setZoneArea(e.target.value)}
+                              placeholder="New Town"
+                              className={inputClass}
+                            />
+                          </Field>
+                          <Field label="District" className="col-span-2 sm:col-span-1">
+                            <select
+                              value={zoneDistrict}
+                              onChange={(e) => setZoneDistrict(e.target.value as DeliveryDistrict)}
+                              className={selectClass}
+                            >
+                              {DISTRICTS.map((d) => (
+                                <option key={d.value} value={d.value}>
+                                  {d.label}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {deliveryPriced && (
                     <DeliveryPaidToField
                       paidToRider={deliveryPaidToRider}
                       onChange={setDeliveryPaidToRider}
@@ -820,7 +916,7 @@ export function OfflineOrderDirectFormPage() {
                   <span className="tabular-nums">−₹{discount.toFixed(0)}</span>
                 </div>
               )}
-              {fulfillment === "DELIVERY" && pincodeInfo?.serviceable && deliveryPaidToRider ? (
+              {deliveryPriced && deliveryPaidToRider ? (
                 <div className="flex justify-between text-slate-500">
                   <span>Delivery · paid to rider, not in total</span>
                   <span className="tabular-nums">₹{deliveryFee.toFixed(0)}</span>
@@ -829,11 +925,7 @@ export function OfflineOrderDirectFormPage() {
                 <div className="flex justify-between text-slate-700">
                   <span>Delivery</span>
                   <span className="tabular-nums">
-                    {fulfillment === "PICKUP"
-                      ? "—"
-                      : pincodeInfo?.serviceable
-                        ? `₹${deliveryFee.toFixed(0)}`
-                        : "—"}
+                    {deliveryPriced ? `₹${deliveryFee.toFixed(0)}` : "—"}
                   </span>
                 </div>
               )}

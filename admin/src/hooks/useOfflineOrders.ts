@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { OrderLinkKind } from "./useAdminOrderLinks";
+import type { DeliveryDistrict } from "./useAdminDeliveryPincodes";
 
 export interface OfflineOrderAddress {
   line1: string;
@@ -67,6 +68,8 @@ export interface PlaceOfflineOrderPayload {
   /** Optional override of the pincode-table delivery fee. */
   deliveryFee?: number | null;
   deliveryPaidToRider?: boolean;
+  /** Adds an unlisted pincode to the delivery table at deliveryFee. */
+  saveDeliveryPincode?: { city: string; area: string | null; district: DeliveryDistrict };
 }
 
 export interface OfflineOrderResponse {
@@ -80,8 +83,11 @@ export function useCreateOfflineOrder() {
   return useMutation({
     mutationFn: (input: PlaceOfflineOrderPayload) =>
       api.post<OfflineOrderResponse>("/admin/offline-orders/place", input),
-    onSuccess: () => {
+    onSuccess: (_order, input) => {
       void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      if (input.saveDeliveryPincode) {
+        void qc.invalidateQueries({ queryKey: ["admin", "delivery-pincodes"] });
+      }
     },
   });
 }

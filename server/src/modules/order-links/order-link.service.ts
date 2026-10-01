@@ -1,5 +1,6 @@
 import { customAlphabet } from "nanoid";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { checkPincode } from "../delivery/delivery.service.js";
@@ -766,10 +767,24 @@ export const placeOfflineOrderSchema = z.object({
   deliveryFee: z.coerce.number().nonnegative().optional().nullable(),
   deliveryPaidToRider: z.boolean().optional().default(false),
 
+  // Adds an unlisted delivery pincode to the table at deliveryFee once the
+  // order is placed. Needs delivery.write (checked by the route).
+  saveDeliveryPincode: z
+    .object({
+      city: z.string().trim().min(2),
+      area: z.string().trim().nullable().optional(),
+      district: z.enum(["KOLKATA", "HOWRAH", "HOOGHLY"]),
+    })
+    .optional(),
+
   ...manualDiscountFields,
 });
 
 export type PlaceOfflineOrderInput = z.infer<typeof placeOfflineOrderSchema>;
+
+// Every West Bengal pincode starts 70–74, which settles GST for unlisted ones.
+const WEST_BENGAL_PINCODE = /^7[0-4]\d{4}$/;
+const WEST_BENGAL_STATE_CODE = "19";
 
 export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   const dt = new Date(input.deliveryDate);
@@ -796,17 +811,36 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     isSurpriseGift: input.isSurpriseGift,
   });
 
+  const sellerStateCode = await getSellerStateCode();
   let deliveryFee = 0;
-  let isLocalZone = false;
+  let localZoneStateCode: string | null = null;
+  let pincodeToSave: Prisma.DeliveryPincodeCreateInput | null = null;
   if (input.fulfillment === "DELIVERY" && input.deliveryAddress) {
-    const info = await checkPincode(input.deliveryAddress.pincode);
-    if (!info.serviceable) {
-      throw HttpError.badRequest(
-        "We don't currently deliver to this pincode. Choose pickup or a different address.",
-      );
+    const { pincode } = input.deliveryAddress;
+    const info = await checkPincode(pincode);
+    if (info.serviceable) {
+      deliveryFee =
+        input.deliveryFee != null ? Number(input.deliveryFee) : Number(info.deliveryFee);
+      localZoneStateCode = sellerStateCode;
+    } else {
+      // Staff can still deliver to an unlisted pincode at a charge they set.
+      if (input.deliveryFee == null) {
+        throw HttpError.badRequest("Enter the delivery charge for this pincode.");
+      }
+      deliveryFee = Number(input.deliveryFee);
+      if (input.saveDeliveryPincode) {
+        localZoneStateCode = sellerStateCode;
+        pincodeToSave = {
+          pincode,
+          city: input.saveDeliveryPincode.city,
+          area: input.saveDeliveryPincode.area || null,
+          district: input.saveDeliveryPincode.district,
+          deliveryFee,
+        };
+      } else if (WEST_BENGAL_PINCODE.test(pincode)) {
+        localZoneStateCode = WEST_BENGAL_STATE_CODE;
+      }
     }
-    deliveryFee = input.deliveryFee != null ? Number(input.deliveryFee) : Number(info.deliveryFee);
-    isLocalZone = true;
   }
 
   // Snapshot every catalog product upfront so all validation fails fast.
@@ -858,14 +892,13 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     }
   }
 
-  const sellerStateCode = await getSellerStateCode();
   const placeOfSupply = resolvePlaceOfSupply({
     fulfillment: input.fulfillment,
     deliveryAddress: input.deliveryAddress,
     sellerStateCode,
     // Offline addresses are typed against DeliveryPincode, which has no state
-    // column, so a serviceable pincode is what establishes the state here.
-    localZoneStateCode: isLocalZone ? sellerStateCode : null,
+    // column, so the pincode is what establishes the state here.
+    localZoneStateCode,
     buyerGstin: input.customerGstin,
   });
   const isIntraState = placeOfSupply === sellerStateCode;
@@ -1004,6 +1037,19 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     },
     include: { items: true },
   });
+
+  if (pincodeToSave) {
+    const { pincode, ...zone } = pincodeToSave;
+    await prisma.deliveryPincode
+      .upsert({
+        where: { pincode },
+        create: pincodeToSave,
+        update: { ...zone, isActive: true },
+      })
+      .catch((err: unknown) => {
+        logger.error({ err, pincode }, "saving delivery pincode from offline order failed");
+      });
+  }
 
   notifyOrderPlaced(order);
 

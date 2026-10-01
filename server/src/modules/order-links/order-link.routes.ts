@@ -16,7 +16,11 @@ import {
   updateOrderLinkSchema,
 } from "./order-link.service.js";
 
-import { requirePermission } from "../../middleware/auth.js";
+import {
+  requirePermission,
+  staffHasPermission,
+  type AuthenticatedRequest,
+} from "../../middleware/auth.js";
 
 export const adminOrderLinkRouter = Router();
 
@@ -83,6 +87,13 @@ adminOfflineOrderRouter.post(
     const parsed = placeOfflineOrderSchema.safeParse(req.body);
     if (!parsed.success) {
       throw HttpError.badRequest("Invalid order", parsed.error.flatten());
+    }
+    const staff = (req as AuthenticatedRequest).staff;
+    if (
+      parsed.data.saveDeliveryPincode &&
+      !(staff && staffHasPermission(staff, "delivery.write"))
+    ) {
+      throw HttpError.forbidden("You don't have permission to add delivery pincodes");
     }
     const order = await placeOfflineOrder(parsed.data);
     res.status(StatusCodes.CREATED).json(order);
