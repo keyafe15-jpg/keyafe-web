@@ -68,6 +68,8 @@ export interface PlaceOfflineOrderPayload {
   /** Optional override of the pincode-table delivery fee. */
   deliveryFee?: number | null;
   deliveryPaidToRider?: boolean;
+  /** YYYY-MM-DD the order was taken; backdated (past delivery date) orders only. */
+  placedOn?: string;
   /** Adds an unlisted pincode to the delivery table at deliveryFee. */
   saveDeliveryPincode?: { city: string; area: string | null; district: DeliveryDistrict };
 }

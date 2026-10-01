@@ -64,6 +64,14 @@ function todayIso(): string {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** "2026-09-25" → "2026-09-24". */
+function dayBefore(iso: string): string {
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 /** "2026-09-25" → "25 Sep 2026". */
 function formatDay(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -108,6 +116,13 @@ export function OfflineOrderDirectFormPage() {
 
   const [deliveryDate, setDeliveryDate] = useState(todayIso());
   const isPastOrder = !!deliveryDate && deliveryDate < todayIso();
+  /** Backdated orders only. Follows the delivery date (day before) until staff pick one. */
+  const [placedOnInput, setPlacedOnInput] = useState("");
+  const [placedOnTouched, setPlacedOnTouched] = useState(false);
+  const placedOn =
+    placedOnTouched && placedOnInput && placedOnInput <= deliveryDate
+      ? placedOnInput
+      : dayBefore(deliveryDate);
   const [slotKey, setSlotKey] = useState<string>(TIME_SLOTS[0].key);
 
   const [customerNotes, setCustomerNotes] = useState("");
@@ -336,6 +351,7 @@ export function OfflineOrderDirectFormPage() {
         billingSameAsDelivery: fulfillment === "DELIVERY" ? billingSameAsDelivery : undefined,
         isSurpriseGift: hasOtherRecipient && isSurpriseGift,
         deliveryDate,
+        placedOn: isPastOrder ? placedOn : undefined,
         deliverySlotKey: slot.key,
         deliverySlotLabel: slot.label,
 
@@ -542,9 +558,24 @@ export function OfflineOrderDirectFormPage() {
                 </select>
               </Field>
               {isPastOrder && (
-                <p className="col-span-2 -mt-1 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Past order: saved as Delivered, invoice dated {formatDay(deliveryDate)}.
-                </p>
+                <>
+                  <Field label="Order placed on" required>
+                    <input
+                      type="date"
+                      max={deliveryDate}
+                      value={placedOn}
+                      onChange={(e) => {
+                        setPlacedOnInput(e.target.value);
+                        setPlacedOnTouched(true);
+                      }}
+                      className={cn(inputClass, "min-w-0")}
+                    />
+                  </Field>
+                  <p className="col-span-2 -mt-1 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Past order: placed {formatDay(placedOn)}, saved as Delivered, bill dated{" "}
+                    {formatDay(deliveryDate)}.
+                  </p>
+                </>
               )}
 
               {fulfillment === "DELIVERY" && (

@@ -161,6 +161,13 @@ export function OrderDetailPage() {
               hour: "numeric",
               minute: "2-digit",
             })}
+            {order.invoiceDate &&
+              ` · bill generated ${new Date(order.invoiceDate).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                timeZone: "Asia/Kolkata",
+              })}`}
           </p>
         </div>
         <StatusChanger

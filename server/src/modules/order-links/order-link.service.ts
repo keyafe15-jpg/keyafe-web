@@ -753,6 +753,11 @@ export const placeOfflineOrderSchema = z.object({
   deliveryDate: z.string().min(1),
   deliverySlotKey: z.string().min(1),
   deliverySlotLabel: z.string().min(1),
+  // Day the order was taken (YYYY-MM-DD); only used for backdated orders.
+  placedOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 
   customerNotes: z.string().trim().max(500).optional().nullable(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
@@ -787,6 +792,23 @@ export type PlaceOfflineOrderInput = z.infer<typeof placeOfflineOrderSchema>;
 const WEST_BENGAL_PINCODE = /^7[0-4]\d{4}$/;
 const WEST_BENGAL_STATE_CODE = "19";
 
+/**
+ * When a backdated order was taken: `placedOn`, or the day before delivery.
+ * Noon IST, since the real time isn't known.
+ */
+function backdatedPlacedAt(deliveryDay: Date, placedOn: string | undefined): Date {
+  const delivery = deliveryDay.toISOString().slice(0, 10);
+  const prior = new Date(deliveryDay);
+  prior.setUTCDate(prior.getUTCDate() - 1);
+  const day = placedOn ?? prior.toISOString().slice(0, 10);
+  if (day > delivery) {
+    throw HttpError.badRequest("Order date can't be after the delivery date");
+  }
+  const at = new Date(`${day}T12:00:00+05:30`);
+  if (Number.isNaN(at.getTime())) throw HttpError.badRequest("Invalid order date");
+  return at;
+}
+
 export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   const dt = new Date(input.deliveryDate);
   if (Number.isNaN(dt.getTime())) throw HttpError.badRequest("Invalid delivery date");
@@ -795,6 +817,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   // A past date records an order that was already delivered (backdated bill).
   const isPastOrder = dt.getTime() < todayStart.getTime();
   if (!isPastOrder) await assertKitchenOpenOn(input.deliveryDate);
+  const placedAt = isPastOrder ? backdatedPlacedAt(dt, input.placedOn) : null;
 
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
     throw HttpError.badRequest("Delivery address is required for delivery orders");
@@ -1034,7 +1057,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       source: "OFFLINE_DIRECT",
       customerNotes: input.customerNotes ?? null,
       adminNotes: input.adminNotes ?? null,
-      ...(isPastOrder ? { status: "DELIVERED" as const, createdAt: dt } : {}),
+      ...(placedAt ? { status: "DELIVERED" as const, createdAt: placedAt } : {}),
       items: { create: itemCreates },
     },
     include: { items: true },
@@ -1055,7 +1078,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
 
   // Already delivered: issue the invoice (dated by delivery) and skip the
   // new-order alerts and customer confirmation.
-  if (isPastOrder) {
+  if (placedAt) {
     try {
       await ensureInvoiceNumber(order.id);
     } catch (err) {
