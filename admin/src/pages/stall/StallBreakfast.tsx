@@ -73,6 +73,7 @@ export function BreakfastForm({
   menu = [],
   itemNames = [],
   withDate,
+  minDate,
   maxDate,
   saving,
   submitLabel = "Add breakfast",
@@ -84,6 +85,7 @@ export function BreakfastForm({
   /** Names typed into earlier breakfasts. */
   itemNames?: string[];
   withDate?: boolean;
+  minDate?: string;
   maxDate?: string;
   saving: boolean;
   submitLabel?: string;
@@ -147,13 +149,14 @@ export function BreakfastForm({
       }}
       className="space-y-3"
     >
-      <div className={cn("grid gap-2 sm:gap-3", withDate ? "grid-cols-3" : "grid-cols-2")}>
+      <div className={cn("grid grid-cols-2 gap-2 sm:gap-3", withDate && "sm:grid-cols-3")}>
         {withDate && (
-          <label className="block">
+          <label className="col-span-2 block sm:col-span-1">
             <span className={labelClass}>Date</span>
             <input
               type="date"
               value={date}
+              min={minDate}
               max={maxDate}
               onChange={(e) => edit(setDate)(e.target.value)}
               className={fieldClass}
@@ -162,14 +165,14 @@ export function BreakfastForm({
         )}
         <label className="block">
           <span className={labelClass}>Plates</span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-stretch overflow-hidden rounded-lg border border-slate-200 bg-white focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
             <button
               type="button"
               aria-label="One plate fewer"
               onClick={() => edit(setPlates)(String(Math.max(plateCount - 1, 1)))}
-              className="rounded-lg border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"
+              className="shrink-0 px-2.5 text-slate-500 hover:bg-slate-50"
             >
-              <Minus className="h-4 w-4" />
+              <Minus className="h-3.5 w-3.5" />
             </button>
             <input
               type="number"
@@ -179,15 +182,15 @@ export function BreakfastForm({
               value={plates}
               onChange={(e) => edit(setPlates)(e.target.value)}
               aria-label="Plates"
-              className={cn(fieldClass, "text-center tabular-nums")}
+              className="w-full min-w-0 [appearance:textfield] bg-transparent py-2.5 text-center text-sm text-slate-900 tabular-nums outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
             <button
               type="button"
               aria-label="One plate more"
               onClick={() => edit(setPlates)(String(plateCount + 1))}
-              className="rounded-lg border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"
+              className="shrink-0 px-2.5 text-slate-500 hover:bg-slate-50"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
             </button>
           </span>
         </label>

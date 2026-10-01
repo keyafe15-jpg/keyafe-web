@@ -7,6 +7,7 @@ import {
   useDeleteStallBreakfast,
   useDownloadBreakfastStatement,
   useManageStalls,
+  useStalls,
   useStallBreakfastMonth,
   useUpdateStall,
   useUpdateStallBreakfast,
@@ -18,6 +19,7 @@ import { formatDayShort, toInputDate } from "@/lib/dateRange";
 import { formatINR } from "@/lib/money";
 import { cn } from "@/lib/cn";
 import { inputClass } from "@/components/form/Field";
+import { useStaffPermission } from "@/lib/permissions";
 import { STALL_KEY, Select } from "./stall-ui";
 import { BreakfastForm, breakfastLine } from "./StallBreakfast";
 
@@ -33,7 +35,10 @@ const PAYMENT_PILL: Record<string, string> = {
 
 /** Office breakfast by month: check the plates, then raise the company's bill. */
 export function StallBreakfastPanel() {
-  const { data: stalls = NO_STALLS, isLoading } = useManageStalls();
+  const canManage = useStaffPermission("stall.manage");
+  const managed = useManageStalls(canManage);
+  const counter = useStalls(!canManage);
+  const { data: stalls = NO_STALLS, isLoading } = canManage ? managed : counter;
   const offices = stalls.filter((s) => s.kind === "OFFICE");
   const [stallId, setStallId] = useState(() => localStorage.getItem(STALL_KEY));
   const stall = offices.find((s) => s.id === stallId) ?? offices[0] ?? null;
@@ -50,11 +55,17 @@ export function StallBreakfastPanel() {
   if (!stall) {
     return (
       <div className="rounded-card border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-        Breakfast billing is for office stalls. Add one under{" "}
-        <Link to="/stall/menu" className="font-medium text-brand-600 underline">
-          Stalls &amp; menus
-        </Link>
-        .
+        {canManage ? (
+          <>
+            Breakfast billing is for office stalls. Add one under{" "}
+            <Link to="/stall/menu" className="font-medium text-brand-600 underline">
+              Stalls &amp; menus
+            </Link>
+            .
+          </>
+        ) : (
+          "Breakfast is for office stalls, and none is running."
+        )}
       </div>
     );
   }
@@ -91,12 +102,25 @@ export function StallBreakfastPanel() {
           Breakfast is billed to the company monthly, not counted in daily cash/UPI.
         </p>
       </div>
-      <BreakfastMonth key={`${stall.id}:${month}`} stall={stall} month={month} />
+      <BreakfastMonth
+        key={`${stall.id}:${month}`}
+        stall={stall}
+        month={month}
+        canManage={canManage}
+      />
     </div>
   );
 }
 
-function BreakfastMonth({ stall, month }: { stall: Stall; month: string }) {
+function BreakfastMonth({
+  stall,
+  month,
+  canManage,
+}: {
+  stall: Stall;
+  month: string;
+  canManage: boolean;
+}) {
   const { data, isLoading, isError, error } = useStallBreakfastMonth(stall.id, month);
   const add = useAddStallBreakfast(stall.id);
   const update = useUpdateStallBreakfast();
@@ -108,7 +132,14 @@ function BreakfastMonth({ stall, month }: { stall: Stall; month: string }) {
   const [message, setMessage] = useState<{ tone: "error" | "ok"; text: string } | null>(null);
   const today = toInputDate(new Date());
   const monthEnd = toInputDate(new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0));
-  const maxDate = monthEnd < today ? monthEnd : today;
+  const monthStart = `${month}-01`;
+  // Counter staff can only log days inside the counter window, like sales.
+  const counterWindow = canManage ? null : stall.counterWindow;
+  const latest = counterWindow && counterWindow.to < today ? counterWindow.to : today;
+  const maxDate = monthEnd < latest ? monthEnd : latest;
+  const minDate =
+    counterWindow && counterWindow.from > monthStart ? counterWindow.from : monthStart;
+  const canAdd = (canManage || !!counterWindow) && minDate <= maxDate;
 
   if (isLoading) return <p className="py-6 text-center text-sm text-slate-500">Loading…</p>;
   if (isError || !data) {
@@ -178,23 +209,26 @@ function BreakfastMonth({ stall, month }: { stall: Stall; month: string }) {
         </p>
       )}
 
-      <BillToCard stall={stall} billTo={billTo} />
+      {canManage && <BillToCard stall={stall} billTo={billTo} />}
 
       <section className="rounded-card border border-slate-200 bg-white px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-sm font-semibold text-slate-900">{data.monthLabel}</h2>
-          <button
-            type="button"
-            onClick={() => setAdding((v) => !v)}
-            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-          >
-            <Plus className="h-3.5 w-3.5" /> Add a day
-          </button>
+          {canAdd && (
+            <button
+              type="button"
+              onClick={() => setAdding((v) => !v)}
+              className="ml-auto inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add a day
+            </button>
+          )}
         </div>
-        {adding && (
+        {adding && canAdd && (
           <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
             <BreakfastForm
               withDate
+              minDate={minDate}
               maxDate={maxDate}
               initial={data.last}
               menu={stall.menu}
@@ -253,8 +287,8 @@ function BreakfastMonth({ stall, month }: { stall: Stall; month: string }) {
                 <EntryRow
                   key={e.id}
                   entry={e}
-                  onEdit={() => setEditingId(e.id)}
-                  onDelete={() => remove(e)}
+                  onEdit={canManage ? () => setEditingId(e.id) : undefined}
+                  onDelete={canManage || e.date === today ? () => remove(e) : undefined}
                   deleting={del.isPending && del.variables === e.id}
                 />
               ),
@@ -263,19 +297,21 @@ function BreakfastMonth({ stall, month }: { stall: Stall; month: string }) {
         )}
       </section>
 
-      <BillsSection
-        data={data}
-        billReady={billReady}
-        creating={bill.isPending}
-        onCreate={createBill}
-        downloading={statement.isPending}
-        onStatement={() =>
-          statement.mutate(
-            { stallId: stall.id, month },
-            { onError: (err) => fail(err, "Could not download the statement") },
-          )
-        }
-      />
+      {canManage && (
+        <BillsSection
+          data={data}
+          billReady={billReady}
+          creating={bill.isPending}
+          onCreate={createBill}
+          downloading={statement.isPending}
+          onStatement={() =>
+            statement.mutate(
+              { stallId: stall.id, month },
+              { onError: (err) => fail(err, "Could not download the statement") },
+            )
+          }
+        />
+      )}
     </div>
   );
 }
@@ -287,8 +323,8 @@ function EntryRow({
   deleting,
 }: {
   entry: StallBreakfastEntry;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   deleting: boolean;
 }) {
   return (
@@ -309,23 +345,27 @@ function EntryRow({
         </span>
       ) : (
         <span className="flex shrink-0 items-center">
-          <button
-            type="button"
-            onClick={onEdit}
-            aria-label="Edit breakfast entry"
-            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={deleting}
-            aria-label="Remove breakfast entry"
-            className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Edit breakfast entry"
+              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={deleting}
+              aria-label="Remove breakfast entry"
+              className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </span>
       )}
     </li>

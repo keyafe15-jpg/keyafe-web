@@ -248,11 +248,12 @@ export function useStalls(enabled = true) {
 }
 
 /** Every stall and menu item, including switched-off ones. */
-export function useManageStalls() {
+export function useManageStalls(enabled = true) {
   return useQuery<Stall[]>({
     queryKey: [...STALLS, "manage"],
     queryFn: () => api.get<Stall[]>("/admin/stalls/manage"),
     staleTime: 30_000,
+    enabled,
   });
 }
 

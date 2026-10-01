@@ -176,8 +176,25 @@ const monthQuery = (value: unknown) => {
   return month.data;
 };
 
-adminStallRouter.get("/:stallId/breakfast", canManage, async (req, res) => {
-  res.json(await getBreakfastMonth(param(req, "stallId"), monthQuery(req.query.month)));
+adminStallRouter.get("/:stallId/breakfast", canSell, async (req, res) => {
+  const data = await getBreakfastMonth(param(req, "stallId"), monthQuery(req.query.month));
+  if (staffHasPermission(staffOf(req), "stall.manage")) {
+    res.json(data);
+    return;
+  }
+  // Counter staff log plates; the company's details and bills stay with managers.
+  res.json({
+    ...data,
+    stall: {
+      ...data.stall,
+      billToName: null,
+      billToPhone: null,
+      billToEmail: null,
+      billToGstin: null,
+      billToAddress: null,
+    },
+    bills: [],
+  });
 });
 
 adminStallRouter.post("/:stallId/breakfast/bill", canManage, async (req, res) => {
