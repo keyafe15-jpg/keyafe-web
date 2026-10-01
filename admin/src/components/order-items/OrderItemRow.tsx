@@ -85,6 +85,8 @@ export function OrderItemRow({
 
   // Cake configurator — flavour + pounds with auto price (all CAKE catalog items).
   const isCakeConfigurator = isCakeCatalog && !isPizza && !hasFixedSkus && !hasOptionGroupSize;
+  // Other cakes are one flat-priced size, like on the storefront.
+  const soldByPound = isCakeConfigurator && !!productDetail?.sellByPound;
   const hasAttachedFlavours = productFlavourIds.size > 0;
   const pickerFlavours = hasAttachedFlavours
     ? flavours.filter((f) => productFlavourIds.has(f.id))
@@ -174,11 +176,11 @@ export function OrderItemRow({
 
   // Default to 1 lb when cake product loads (pounds-only — no size dropdown).
   useEffect(() => {
-    if (!isCakeConfigurator) return;
+    if (!soldByPound) return;
     if (item.customPounds.trim()) return;
     onPatch({ customPounds: "1", cakeSizeId: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCakeConfigurator, productDetail?.id]);
+  }, [soldByPound, productDetail?.id]);
 
   // Preselect flavour when there's an obvious default.
   useEffect(() => {
@@ -199,6 +201,21 @@ export function OrderItemRow({
     const base = Number(productDetail.basePrice);
     const flavour = pickerFlavours.find((f) => f.id === item.flavourId);
     const flavourAdditional = flavour ? Number(flavour.additionalAmount) : 0;
+    const addonsDelta = allAddons
+      .filter((a) => item.addonSelections.includes(a.id))
+      .reduce((s, a) => s + Number(a.priceDelta), 0);
+
+    if (!soldByPound) {
+      const flat = base + (hasAttachedFlavours ? 0 : flavourAdditional);
+      onPatch({
+        unitPrice: (applyFactor(flat, factor) + addonsDelta).toFixed(0),
+        sizeGrams: "",
+        sizeLabel: "",
+        customPounds: "",
+        cakeSizeId: "",
+      });
+      return;
+    }
 
     const parsedPounds = parseCustomPounds(item.customPounds);
     if (parsedPounds == null) return;
@@ -206,9 +223,6 @@ export function OrderItemRow({
     if (!isGramsWithinBounds(grams, productDetail.minGrams, productDetail.maxGrams)) return;
 
     const computed = computeCakeUnitPrice(base, grams, flavourAdditional, hasAttachedFlavours);
-    const addonsDelta = allAddons
-      .filter((a) => item.addonSelections.includes(a.id))
-      .reduce((s, a) => s + Number(a.priceDelta), 0);
     onPatch({
       unitPrice: (applyFactor(computed, factor) + addonsDelta).toFixed(0),
       sizeGrams: String(grams),
@@ -218,6 +232,7 @@ export function OrderItemRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isCakeConfigurator,
+    soldByPound,
     item.customPounds,
     item.flavourId,
     item.addonSelections.join("|"),
@@ -359,7 +374,7 @@ export function OrderItemRow({
     productDetail != null &&
     !isGramsWithinBounds(customGrams, productDetail.minGrams, productDetail.maxGrams);
   const customPreviewPrice =
-    customGrams != null && !customOutOfRange
+    soldByPound && customGrams != null && !customOutOfRange
       ? computeCakeUnitPrice(cakeBasePrice, customGrams, cakeFlavourAdditional, hasAttachedFlavours)
       : null;
 
@@ -374,6 +389,13 @@ export function OrderItemRow({
         (pickedSize ? Number(pickedSize.price) : 0) +
         (pickedCrust ? Number(pickedCrust.price) : 0) +
         toppings +
+        pickedAddonsDelta
+      );
+    }
+    if (isCakeConfigurator && !soldByPound) {
+      return (
+        Number(productDetail.basePrice) +
+        (hasAttachedFlavours ? 0 : cakeFlavourAdditional) +
         pickedAddonsDelta
       );
     }
@@ -568,30 +590,39 @@ export function OrderItemRow({
         )}
 
         {isCakeConfigurator && productDetail && (
-          <div className="mt-3 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-2 gap-y-3 sm:grid-cols-[5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)] sm:gap-2">
-            <Field
-              label="Pounds"
-              required
-              error={
-                customOutOfRange
-                  ? `Between ${productDetail.minGrams != null ? (productDetail.minGrams / 500).toFixed(1) : "0.1"}–${productDetail.maxGrams != null ? (productDetail.maxGrams / 500).toFixed(1) : "any"} lb`
-                  : undefined
-              }
-            >
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min={productDetail.minGrams ? productDetail.minGrams / 500 : 0.1}
-                  max={productDetail.maxGrams ? productDetail.maxGrams / 500 : undefined}
-                  step={0.1}
-                  value={item.customPounds}
-                  onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
-                  placeholder="1"
-                  className={cn(inputClass, "w-full")}
-                />
-                <span className="shrink-0 text-xs text-slate-500">lb</span>
-              </div>
-            </Field>
+          <div
+            className={cn(
+              "mt-3 grid gap-x-2 gap-y-3 sm:gap-2",
+              soldByPound
+                ? "grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)]"
+                : "grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:grid-cols-[minmax(9rem,1fr)_minmax(14rem,1.8fr)]",
+            )}
+          >
+            {soldByPound && (
+              <Field
+                label="Pounds"
+                required
+                error={
+                  customOutOfRange
+                    ? `Between ${productDetail.minGrams != null ? (productDetail.minGrams / 500).toFixed(1) : "0.1"}–${productDetail.maxGrams != null ? (productDetail.maxGrams / 500).toFixed(1) : "any"} lb`
+                    : undefined
+                }
+              >
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={productDetail.minGrams ? productDetail.minGrams / 500 : 0.1}
+                    max={productDetail.maxGrams ? productDetail.maxGrams / 500 : undefined}
+                    step={0.1}
+                    value={item.customPounds}
+                    onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
+                    placeholder="1"
+                    className={cn(inputClass, "w-full")}
+                  />
+                  <span className="shrink-0 text-xs text-slate-500">lb</span>
+                </div>
+              </Field>
+            )}
             {pickerFlavours.length > 0 ? (
               <Field label="Flavour" required={!hasAttachedFlavours}>
                 <SearchableSelect
@@ -607,7 +638,7 @@ export function OrderItemRow({
                       label: hasAttachedFlavours
                         ? f.name
                         : delta > 0
-                          ? `${f.name} (+${formatINR(applyFactor(delta, factor))}/lb)`
+                          ? `${f.name} (+${formatINR(applyFactor(delta, factor))}${soldByPound ? "/lb" : ""})`
                           : f.name,
                       keywords: f.name,
                     };
@@ -615,9 +646,18 @@ export function OrderItemRow({
                 />
               </Field>
             ) : (
-              <div />
+              soldByPound && <div />
             )}
-            <Field label="Message on cake" className="col-span-2 sm:col-span-1">
+            <Field
+              label="Message on cake"
+              className={
+                soldByPound
+                  ? "col-span-2 sm:col-span-1"
+                  : pickerFlavours.length > 0
+                    ? undefined
+                    : "col-span-2"
+              }
+            >
               <input
                 value={item.messageOnCake}
                 onChange={(e) => onPatch({ messageOnCake: e.target.value })}
