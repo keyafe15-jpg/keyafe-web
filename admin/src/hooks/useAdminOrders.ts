@@ -6,7 +6,7 @@ export type OrderStatus =
 
 export type PaymentStatus = "PENDING" | "PARTIAL" | "PAID" | "FAILED" | "REFUNDED";
 export type OrderFulfillment = "DELIVERY" | "PICKUP";
-export type OrderSource = "STOREFRONT" | "OFFLINE_LINK" | "OFFLINE_DIRECT";
+export type OrderSource = "STOREFRONT" | "OFFLINE_LINK" | "OFFLINE_DIRECT" | "STALL_BILL";
 export type PaymentMode = "FULL" | "ADVANCE";
 
 export interface AdminOrderListItem {

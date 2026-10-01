@@ -11,6 +11,8 @@ export interface CollectionsSummary {
     pendingOrders: number;
     /** Stall counter sales, already included in `sales` and `received`. */
     stall: { sales: number; received: number; cash: number; upi: number; due: number };
+    /** Office breakfast by the day it was served, already included in the totals. */
+    breakfast: { sales: number; received: number; pending: number; unbilled: number };
   };
   outstandingAllTime: {
     pending: number;
@@ -18,6 +20,8 @@ export interface CollectionsSummary {
     /** Unpaid stall dues, every stall and date. */
     stallDue: number;
     stallDueEntries: number;
+    /** Breakfast served but not on a company bill yet, every stall and date. */
+    breakfastUnbilled: number;
   };
 }
 
@@ -42,9 +46,23 @@ export interface PendingCustomer {
   orders: PendingOrder[];
 }
 
+export interface UnbilledBreakfast {
+  stallId: string;
+  stallName: string;
+  billToName: string | null;
+  amount: number;
+  plates: number;
+  entries: number;
+  /** First and last breakfast day (YYYY-MM-DD). */
+  from: string;
+  to: string;
+}
+
 export interface PendingCollections {
+  /** Includes unbilled breakfast. */
   pending: number;
   customers: PendingCustomer[];
+  breakfast: UnbilledBreakfast[];
 }
 
 export type CollectionsScope = { from: string; to: string } | "all";

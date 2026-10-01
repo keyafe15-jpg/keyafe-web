@@ -32,6 +32,16 @@ import {
   settleDueSchema,
   updateStall,
 } from "./stall.service.js";
+import {
+  addBreakfast,
+  buildBreakfastStatement,
+  createBreakfastBill,
+  deleteBreakfast,
+  getBreakfastMonth,
+  monthSchema,
+  parseBreakfastInput,
+  updateBreakfast,
+} from "./stall.breakfast.js";
 
 export const adminStallRouter = Router();
 
@@ -134,6 +144,57 @@ adminStallRouter.post("/:stallId/today/close", canSell, async (req, res) => {
   await requireCounterDay(param(req, "stallId"), date);
   const id = await closeCounterDay(param(req, "stallId"), date, staffOf(req));
   res.json(await getDayView(id));
+});
+
+// ---------- Office breakfast ----------
+
+adminStallRouter.post("/:stallId/breakfast", canSell, async (req, res) => {
+  const staff = staffOf(req);
+  const stallId = param(req, "stallId");
+  const input = parseBreakfastInput(req.body);
+  const entry = await addBreakfast(stallId, input, staff, {
+    canManage: staffHasPermission(staff, "stall.manage"),
+  });
+  res.status(201).json(entry);
+});
+
+adminStallRouter.patch("/breakfast/:id", canManage, async (req, res) => {
+  await updateBreakfast(param(req, "id"), req.body);
+  res.json({ ok: true });
+});
+
+adminStallRouter.delete("/breakfast/:id", canSell, async (req, res) => {
+  await deleteBreakfast(param(req, "id"), {
+    canManage: staffHasPermission(staffOf(req), "stall.manage"),
+  });
+  res.json({ ok: true });
+});
+
+const monthQuery = (value: unknown) => {
+  const month = monthSchema.safeParse(value);
+  if (!month.success) throw HttpError.badRequest("Pick a month");
+  return month.data;
+};
+
+adminStallRouter.get("/:stallId/breakfast", canManage, async (req, res) => {
+  res.json(await getBreakfastMonth(param(req, "stallId"), monthQuery(req.query.month)));
+});
+
+adminStallRouter.post("/:stallId/breakfast/bill", canManage, async (req, res) => {
+  const order = await createBreakfastBill(param(req, "stallId"), monthQuery(req.body?.month));
+  res.status(201).json(order);
+});
+
+adminStallRouter.get("/:stallId/breakfast/statement", canManage, async (req, res) => {
+  const { pdf, filename } = await buildBreakfastStatement(
+    param(req, "stallId"),
+    monthQuery(req.query.month),
+  );
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Length", pdf.length);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.end(pdf);
 });
 
 // ---------- Admin: any day ----------

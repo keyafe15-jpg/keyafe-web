@@ -23,22 +23,54 @@ enum StallChargeBasis {
 }
 
 model Stall {
-  id           String           @id @default(cuid())
-  name         String
-  kind         StallKind        @default(OFFICE)
+  id            String           @id @default(cuid())
+  name          String
+  kind          StallKind        @default(OFFICE)
   // Venue and address, free text.
-  location     String?
+  location      String?
   // IST calendar days; set for exhibitions only.
-  startDate    DateTime?        @db.Date
-  endDate      DateTime?        @db.Date
-  chargeAmount Decimal          @default(0) @db.Decimal(10, 2)
-  chargeBasis  StallChargeBasis @default(TOTAL)
-  isActive     Boolean          @default(true)
-  sortOrder    Int              @default(0)
-  menuItems    StallMenuItem[]
-  days         StallDay[]
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  startDate     DateTime?        @db.Date
+  endDate       DateTime?        @db.Date
+  chargeAmount  Decimal          @default(0) @db.Decimal(10, 2)
+  chargeBasis   StallChargeBasis @default(TOTAL)
+  isActive      Boolean          @default(true)
+  sortOrder     Int              @default(0)
+  // Company billed at month end for office breakfast; printed on its invoice.
+  billToName    String?
+  billToPhone   String?
+  billToEmail   String?
+  billToGstin   String?
+  // { line1, line2?, city?, pincode? }, same keys as an order billing address.
+  billToAddress Json?
+  menuItems     StallMenuItem[]
+  days          StallDay[]
+  breakfasts    StallBreakfast[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+// Breakfast plates served at an office stall, billed to the company monthly.
+// Kept out of stall sales: the money is counted once, as the bill's order.
+model StallBreakfast {
+  id            String   @id @default(cuid())
+  stallId       String
+  stall         Stall    @relation(fields: [stallId], references: [id], onDelete: Restrict)
+  // IST calendar day the plates were served.
+  date          DateTime @db.Date
+  plates        Int
+  // The round figure charged per plate, not the sum of what was on it.
+  platePrice    Decimal  @db.Decimal(10, 2)
+  // What was on the plate, e.g. "Poha, boiled egg, toast, tea".
+  items         String
+  note          String?
+  // The month-end bill this entry went on. Billed entries are locked.
+  orderId       String?
+  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdByName String?
+  createdAt     DateTime @default(now())
+
+  @@index([stallId, date])
+  @@index([orderId])
 }
 
 model StallMenuItem {

@@ -1,4 +1,4 @@
-import { Gift, Globe, Hourglass, Link2, PhoneCall } from "lucide-react";
+import { Coffee, Gift, Globe, Hourglass, Link2, PhoneCall } from "lucide-react";
 import type { OrderSource, OrderStatus } from "@/hooks/useAdminOrders";
 import { cn } from "@/lib/cn";
 
@@ -89,6 +89,11 @@ export function SourceBadge({ source }: { source: OrderSource }) {
       label: "Offline",
       className: "bg-amber-100 text-amber-800",
       Icon: PhoneCall,
+    },
+    STALL_BILL: {
+      label: "Stall bill",
+      className: "bg-emerald-100 text-emerald-800",
+      Icon: Coffee,
     },
   };
   const cfg = map[source];

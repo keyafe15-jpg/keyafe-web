@@ -9,7 +9,8 @@ import { cancelOrderAsAdmin } from "./order.cancel.js";
 import { editOrderItems, editOrderItemsSchema } from "./order.edit-items.js";
 import { updateBuyerGst, updateBuyerGstSchema } from "./order.buyer-gst.js";
 import { deleteOrder, deleteOrderSchema } from "./order.delete.js";
-import { buildInvoicePdf, sendInvoiceEmail } from "./invoice.service.js";
+import { buildInvoicePdf, ensureInvoiceNumber, sendInvoiceEmail } from "./invoice.service.js";
+import { logger } from "../../utils/logger.js";
 import { buildGstExport } from "./gst-export.service.js";
 import { buildOrdersBackup, importOrdersBackup } from "./orders-backup.service.js";
 import { buildChallanPdf } from "./challan.service.js";
@@ -999,7 +1000,7 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
   const orderFields = Object.fromEntries(
     Object.entries(data).filter(([, value]) => value !== undefined),
   );
-  const updated =
+  let updated =
     Object.keys(orderFields).length > 0
       ? await prisma.order.update({
           where: { id },
@@ -1007,5 +1008,16 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
           include: { items: true },
         })
       : await getOrderById(id);
+
+  // Delivery is the supply, so the invoice number is issued then (dated today).
+  // That keeps invoice numbers and dates rising together for GST.
+  if (status === "DELIVERED" && !updated.invoiceNumber) {
+    try {
+      await ensureInvoiceNumber(id);
+      updated = await getOrderById(id);
+    } catch (err) {
+      logger.error({ err, orderId: id }, "invoice number on delivery failed");
+    }
+  }
   res.json(updated);
 });

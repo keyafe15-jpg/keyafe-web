@@ -41,7 +41,7 @@ export interface PublicOrderLink {
   deliveryFee: string | null;
   /** Bakery allowed Cashfree for this link; otherwise pay on delivery / pickup only. */
   allowOnlinePayment: boolean;
-  linkedOrder: { orderNumber: string } | null;
+  linkedOrder: { id: string; orderNumber: string } | null;
 }
 
 export function useOrderLink(token: string | undefined) {

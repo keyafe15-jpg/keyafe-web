@@ -25,6 +25,9 @@ import { formatINR } from "@/lib/money";
 import { cn } from "@/lib/cn";
 import { selectClass } from "@/components/form/Field";
 
+/** The stall last picked at the counter or breakfast tab, so both open on the same one. */
+export const STALL_KEY = "keyafe.stall.selected";
+
 /** `selectClass` hides the native arrow, so draw one to make it read as a dropdown. */
 export function Select({
   className,

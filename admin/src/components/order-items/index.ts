@@ -1,3 +1,4 @@
+export { AddonGroupPicker } from "./AddonGroupPicker";
 export { FormSection } from "./FormSection";
 export { OrderItemRow } from "./OrderItemRow";
 export { OrderItemsEditor } from "./OrderItemsEditor";

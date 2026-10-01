@@ -30,11 +30,13 @@ enum OrderSource {
   STOREFRONT // Customer self-serve on the storefront
   OFFLINE_LINK // Admin generated a link, customer redeemed it (/o/:token)
   OFFLINE_DIRECT // Admin filled everything in the offline order form
+  STALL_BILL // Month-end office breakfast bill raised from a stall
 }
 
 model Order {
   id          String @id @default(cuid())
-  // Human-friendly reference: KEY-YYMMDD-XXXXXX. Shared with customer.
+  // Human-friendly reference: KEY-YYMMDD-NNN (IST day + daily serial); older
+  // orders use KEY-YYMMDD-XXXXXX. Guessable, so never a public access key.
   orderNumber String @unique
 
   // Nullable link to registered user; guests keep this null and rely on the
@@ -85,8 +87,8 @@ model Order {
   // state for shipped orders, the seller's own state for pickup.
   placeOfSupply String?
 
-  // Tax invoice snapshot. Assigned lazily on first download/email so pending
-  // and cancelled orders never burn a number out of the FY series.
+  // Tax invoice snapshot. Assigned on delivery (or an earlier download/email)
+  // so pending and cancelled orders never burn a number out of the FY series.
   invoiceNumber String?   @unique
   invoiceDate   DateTime?
 
@@ -125,6 +127,8 @@ model Order {
   // Set (1:1) when this order was placed via a pre-filled OrderLink.
   sourceLink       OrderLink?
   paymentAttempts  PaymentAttempt[]
+  // Breakfast entries this order bills, when source is STALL_BILL.
+  breakfasts       StallBreakfast[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

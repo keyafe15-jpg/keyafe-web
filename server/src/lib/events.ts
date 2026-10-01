@@ -12,7 +12,7 @@ export interface NewOrderEvent {
   orderNumber: string;
   customerName: string;
   total: string | number;
-  source: "STOREFRONT" | "OFFLINE_LINK" | "OFFLINE_DIRECT";
+  source: "STOREFRONT" | "OFFLINE_LINK" | "OFFLINE_DIRECT" | "STALL_BILL";
   itemCount: number;
   createdAt: string;
 }

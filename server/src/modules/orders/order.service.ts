@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { customAlphabet } from "nanoid";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
+import { getWallTimeInZone } from "../../lib/time.js";
 import { HttpError } from "../../utils/httpError.js";
 import { checkPincode } from "../delivery/delivery.service.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
@@ -23,8 +24,6 @@ import {
 } from "./order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
 import { giftBillingFieldsSchema, orderAddressSchema, resolveGiftBilling } from "./order.gift.js";
-
-const orderNoSuffix = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
 
 const itemSchema = z.object({
   productId: z.string().min(1),
@@ -64,12 +63,23 @@ export const createOrderSchema = z.object({
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
-export function buildOrderNumber(): string {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `KEY-${yy}${mm}${dd}-${orderNoSuffix()}`;
+/**
+ * Next `KEY-YYMMDD-NNN` number: IST date plus a per-day serial shared by every
+ * order source. Pass the order's transaction so the serial rolls back with it.
+ */
+export async function nextOrderNumber(db: Prisma.TransactionClient = prisma): Promise<string> {
+  const day = getWallTimeInZone(new Date(), "Asia/Kolkata")
+    .dateKey.toISOString()
+    .slice(2, 10)
+    .replace(/-/g, "");
+  const series = `ORD-${day}`;
+  const { lastNumber } = await db.invoiceCounter.upsert({
+    where: { series },
+    create: { series, lastNumber: 1 },
+    update: { lastNumber: { increment: 1 } },
+    select: { lastNumber: true },
+  });
+  return `KEY-${day}-${String(lastNumber).padStart(3, "0")}`;
 }
 
 export async function createOrder(input: CreateOrderInput) {
@@ -237,9 +247,8 @@ export async function createOrder(input: CreateOrderInput) {
   );
   const total = roundMoney(subtotal - discount + deliveryFee + gstOnTop);
 
-  const orderNumber = buildOrderNumber();
-
   const created = await prisma.$transaction(async (tx) => {
+    const orderNumber = await nextOrderNumber(tx);
     const userId = await ensureCustomerForOrder(tx, {
       userId: input.userId ?? null,
       name: input.customerName,
@@ -326,6 +335,28 @@ export async function createOrder(input: CreateOrderInput) {
 export async function getOrderById(id: string) {
   const order = await prisma.order.findUnique({
     where: { id },
+    include: { items: true },
+  });
+  if (!order) throw HttpError.notFound("Order not found");
+  return order;
+}
+
+const LEGACY_ORDER_NUMBER = /^KEY-\d{6}-[A-HJKMNP-Z2-9]{6}$/;
+
+/**
+ * Lookup for public (no-login) routes: the order id, or an old random-suffix
+ * number so links already sent out keep working. Serial numbers are guessable,
+ * so they are never accepted here.
+ */
+export function publicOrderWhere(key: string): Prisma.OrderWhereUniqueInput {
+  if (!key.startsWith("KEY-")) return { id: key };
+  if (!LEGACY_ORDER_NUMBER.test(key)) throw HttpError.notFound("Order not found");
+  return { orderNumber: key };
+}
+
+export async function getPublicOrder(key: string) {
+  const order = await prisma.order.findUnique({
+    where: publicOrderWhere(key),
     include: { items: true },
   });
   if (!order) throw HttpError.notFound("Order not found");

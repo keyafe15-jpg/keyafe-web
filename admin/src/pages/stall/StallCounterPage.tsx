@@ -24,6 +24,7 @@ import {
   ItemPicker,
   LumpOverrideNote,
   LumpSumForm,
+  STALL_KEY,
   SaleList,
   Segmented,
   Select,
@@ -38,7 +39,6 @@ import {
 } from "./stall-ui";
 import { StallDuesPanel } from "./StallDuesPanel";
 
-const STALL_KEY = "keyafe.stall.selected";
 const NO_STALLS: Stall[] = [];
 
 type Mode = "items" | "lump";

@@ -35,7 +35,10 @@ export function composePizzaNotes(
   return parts.length ? parts.join(" · ") : null;
 }
 
-export function composeAddonNotes(item: OrderItemDraft, allAddons: AdminAddon[]): string | null {
+export function composeAddonNotes(
+  item: Pick<OrderItemDraft, "addonSelections">,
+  allAddons: AdminAddon[],
+): string | null {
   const picked = allAddons.filter((a) => (item.addonSelections ?? []).includes(a.id));
   if (picked.length === 0) return null;
   const groups = new Map<string, string[]>();
@@ -112,6 +115,7 @@ export function toOrderLinkItemPayload(
     referenceImageUrl,
     messageHint,
     description: customDescription(item),
+    customTemplate: item.kind === "CUSTOM" ? item.customTemplate : null,
     unitPrice: Number(item.unitPrice),
     qty: Number(item.qty) || 1,
   };

@@ -4,6 +4,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { calendarRange, type CalendarRange } from "../../lib/calendarDay.js";
 import { getStallTotals, listOpenDues } from "../stalls/stall.service.js";
+import { getBreakfastTotals, listUnbilledBreakfast } from "../stalls/stall.breakfast.js";
 
 // Money owed vs collected, bucketed by delivery date. An order belongs to the
 // day of its earliest delivery; pan-India orders (no delivery dates) fall back
@@ -68,6 +69,7 @@ type CollectionOrder = {
   pending: number;
   status: string;
   paymentStatus: string;
+  source: string;
 };
 
 async function loadOrders(range: Range | null): Promise<CollectionOrder[]> {
@@ -82,6 +84,7 @@ async function loadOrders(range: Range | null): Promise<CollectionOrder[]> {
       advanceAmount: true,
       status: true,
       paymentStatus: true,
+      source: true,
       createdAt: true,
       items: {
         where: { deliveryDate: { not: null } },
@@ -110,6 +113,7 @@ async function loadOrders(range: Range | null): Promise<CollectionOrder[]> {
       pending: roundMoney(total - received),
       status: r.status,
       paymentStatus: r.paymentStatus,
+      source: r.source,
     };
   });
 }
@@ -133,33 +137,40 @@ function summarise(orders: CollectionOrder[]) {
 }
 
 export async function getCollectionsSummary(range: Range) {
-  const [inRange, allTime, stall, stallDues] = await Promise.all([
+  const [inRange, allTime, stall, stallDues, breakfast, unbilledBreakfast] = await Promise.all([
     loadOrders(range),
     loadOrders(null),
     getStallTotals(range),
     listOpenDues(),
+    getBreakfastTotals(range),
+    listUnbilledBreakfast(null),
   ]);
   const owing = allTime.filter((o) => o.pending > 0);
-  const orders = summarise(inRange);
+  // Breakfast bills are counted per breakfast day in `breakfast`, not on the bill's dates.
+  const orders = summarise(inRange.filter((o) => o.source !== "STALL_BILL"));
   return {
     range: {
       ...orders,
-      sales: roundMoney(orders.sales + stall.sales),
-      received: roundMoney(orders.received + stall.received),
-      pending: roundMoney(orders.pending + stall.due),
+      sales: roundMoney(orders.sales + stall.sales + breakfast.sales),
+      received: roundMoney(orders.received + stall.received + breakfast.received),
+      pending: roundMoney(orders.pending + stall.due + breakfast.pending),
+      pendingOrders: inRange.filter((o) => o.pending > 0).length,
       stall,
+      breakfast,
     },
     outstandingAllTime: {
       pending: roundMoney(owing.reduce((sum, o) => sum + o.pending, 0)),
       customers: new Set(owing.map((o) => o.customerPhone)).size,
       stallDue: stallDues.total,
       stallDueEntries: stallDues.dues.length,
+      breakfastUnbilled: unbilledBreakfast.total,
     },
   };
 }
 
 export async function getPendingCollections(range: Range | null) {
-  const orders = (await loadOrders(range)).filter((o) => o.pending > 0);
+  const [loaded, breakfast] = await Promise.all([loadOrders(range), listUnbilledBreakfast(range)]);
+  const orders = loaded.filter((o) => o.pending > 0);
 
   const byPhone = new Map<
     string,
@@ -185,8 +196,9 @@ export async function getPendingCollections(range: Range | null) {
     .sort((a, b) => b.pending - a.pending);
 
   return {
-    pending: roundMoney(customers.reduce((sum, c) => sum + c.pending, 0)),
+    pending: roundMoney(customers.reduce((sum, c) => sum + c.pending, 0) + breakfast.total),
     customers,
+    breakfast: breakfast.stalls,
   };
 }
 

@@ -1,6 +1,8 @@
 import { Router, type Request } from "express";
 import { z } from "zod";
+import { prisma } from "../../config/db.js";
 import { requirePermission } from "../../middleware/auth.js";
+import { publicOrderWhere } from "../orders/order.service.js";
 import { HttpError } from "../../utils/httpError.js";
 import { logger } from "../../utils/logger.js";
 import { verifyCfWebhookSignature } from "./cashfree.client.js";
@@ -15,12 +17,17 @@ import {
 
 export type RawBodyRequest = Request & { rawBody?: Buffer };
 
-const orderNumberBody = z.object({ orderNumber: z.string().trim().min(3).max(40) });
+const orderIdBody = z.object({ orderId: z.string().trim().min(3).max(40) });
 
-function parseOrderNumber(body: unknown) {
-  const parsed = orderNumberBody.safeParse(body);
-  if (!parsed.success) throw HttpError.badRequest("Order number is required");
-  return parsed.data.orderNumber;
+async function parseOrderNumber(body: unknown) {
+  const parsed = orderIdBody.safeParse(body);
+  if (!parsed.success) throw HttpError.badRequest("Order id is required");
+  const order = await prisma.order.findUnique({
+    where: publicOrderWhere(parsed.data.orderId),
+    select: { orderNumber: true },
+  });
+  if (!order) throw HttpError.notFound("Order not found");
+  return order.orderNumber;
 }
 
 export const paymentRouter = Router();
@@ -29,19 +36,19 @@ paymentRouter.get("/config", (_req, res) => {
   res.json(paymentConfig());
 });
 
-// Public and keyed by order number, like GET /orders/:number — the amount is
-// always recomputed server-side, so knowing the number only lets you pay it.
+// Public and keyed by order id, like GET /orders/:key — the amount is always
+// recomputed server-side, so knowing the id only lets you pay it.
 paymentRouter.post("/cashfree/session", async (req, res) => {
-  res.json(await createPaymentSession(parseOrderNumber(req.body)));
+  res.json(await createPaymentSession(await parseOrderNumber(req.body)));
 });
 
 paymentRouter.post("/cashfree/verify", async (req, res) => {
-  const state = await reconcileByOrderNumber(parseOrderNumber(req.body));
+  const state = await reconcileByOrderNumber(await parseOrderNumber(req.body));
   res.json({ state });
 });
 
 paymentRouter.post("/cashfree/switch-to-cod", async (req, res) => {
-  await switchToCashOnDelivery(parseOrderNumber(req.body));
+  await switchToCashOnDelivery(await parseOrderNumber(req.body));
   res.json({ ok: true });
 });
 

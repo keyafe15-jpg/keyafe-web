@@ -1,13 +1,15 @@
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Link } from "react-router-dom";
-import { ChevronDown, MessageCircle, Phone, Search, X } from "lucide-react";
+import { ChevronDown, Coffee, MessageCircle, Phone, Search, X } from "lucide-react";
 import {
   usePendingCollections,
   type CollectionsScope,
   type PendingCustomer,
   type PendingOrder,
+  type UnbilledBreakfast,
 } from "@/hooks/useCollections";
+import { STALL_KEY } from "@/pages/stall/stall-ui";
 import { useUpdateOrder } from "@/hooks/useAdminOrders";
 import { StatusPill } from "@/pages/orders/order-ui";
 import { useStaffPermission } from "@/lib/permissions";
@@ -110,10 +112,23 @@ export function PendingPaymentsDrawer({
             {isError && (
               <p className="p-2 text-sm text-red-600">Could not load pending payments.</p>
             )}
-            {data && data.customers.length === 0 && (
+            {data && data.customers.length === 0 && data.breakfast.length === 0 && (
               <p className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">
                 Nothing pending — every order in this period is fully paid.
               </p>
+            )}
+            {data && data.breakfast.length > 0 && !needle && (
+              <section className="mb-3">
+                <h3 className="mb-1.5 flex items-center gap-1.5 px-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                  <Coffee className="h-3.5 w-3.5" />
+                  Breakfast not billed yet
+                </h3>
+                <ul className="space-y-2">
+                  {data.breakfast.map((b) => (
+                    <UnbilledBreakfastRow key={b.stallId} breakfast={b} />
+                  ))}
+                </ul>
+              </section>
             )}
             {data && data.customers.length > 0 && customers.length === 0 && (
               <p className="p-2 text-sm text-slate-500">No customer matches “{search}”.</p>
@@ -127,6 +142,39 @@ export function PendingPaymentsDrawer({
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+function UnbilledBreakfastRow({ breakfast }: { breakfast: UnbilledBreakfast }) {
+  const canBill = useStaffPermission("stall.manage");
+  const span =
+    breakfast.from === breakfast.to
+      ? formatDay(breakfast.from)
+      : `${formatDay(breakfast.from)} – ${formatDay(breakfast.to)}`;
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium text-slate-900">
+          {breakfast.billToName ?? breakfast.stallName}
+        </span>
+        <span className="block truncate text-xs text-slate-500">
+          {breakfast.billToName ? `${breakfast.stallName} · ` : ""}
+          {breakfast.plates} plate{breakfast.plates === 1 ? "" : "s"} · {span}
+        </span>
+      </span>
+      <span className="shrink-0 font-semibold text-amber-700 tabular-nums">
+        {formatINR(breakfast.amount)}
+      </span>
+      {canBill && (
+        <Link
+          to={`/stall?tab=breakfast&month=${breakfast.from.slice(0, 7)}`}
+          onClick={() => localStorage.setItem(STALL_KEY, breakfast.stallId)}
+          className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-medium text-brand-600 ring-1 ring-slate-200 transition hover:ring-brand-500"
+        >
+          Bill it
+        </Link>
+      )}
+    </li>
   );
 }
 

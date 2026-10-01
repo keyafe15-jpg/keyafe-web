@@ -82,7 +82,7 @@ export function orderLinkItemToDraft(it: OrderLinkItem): OrderItemDraft {
     productName: it.productName,
     sizeLabel: it.sizeLabel ?? "",
     sizeGrams: it.sizeGrams ? String(it.sizeGrams) : "",
-    customTemplate: "CAKE",
+    customTemplate: it.customTemplate ?? "CAKE",
     flavourId: it.flavourId ?? "",
     customFlavour: !it.flavourId && it.flavourName ? it.flavourName : "",
     messageOnCake: it.messageHint ?? "",
@@ -101,7 +101,7 @@ export function orderLinkItemToDraft(it: OrderLinkItem): OrderItemDraft {
     addonSelections: [],
     cakeSizeId: "",
     customPounds: it.sizeGrams ? String(Math.round((it.sizeGrams / 500) * 10) / 10) : "",
-    customPizzaSize: "",
+    customPizzaSize: it.customTemplate === "PIZZA" ? (it.sizeLabel ?? "") : "",
     variantId: "",
   };
 }

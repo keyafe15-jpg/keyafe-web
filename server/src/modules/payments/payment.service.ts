@@ -120,7 +120,7 @@ export async function createPaymentSession(
         phone: cfCustomerPhone(order.customerPhone),
         email: order.customerEmail,
       },
-      returnUrl: `${env.CLIENT_ORIGIN}/order/${encodeURIComponent(orderNumber)}/success?paid=1`,
+      returnUrl: `${env.CLIENT_ORIGIN}/order/${encodeURIComponent(order.id)}/success?paid=1`,
       notifyUrl: env.PUBLIC_BASE_URL.startsWith("https://")
         ? `${env.PUBLIC_BASE_URL}/api/payments/cashfree/webhook`
         : undefined,

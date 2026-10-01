@@ -114,8 +114,15 @@ export function DashboardPage() {
   const outstanding = collections.data?.outstandingAllTime;
   const collectedPct =
     money && money.sales > 0 ? Math.round((money.received / money.sales) * 100) : null;
-  const stallHint =
-    money && money.stall.sales > 0 ? `incl. stall ${formatINR(money.stall.sales)}` : undefined;
+  const includes = (stall: number | undefined, breakfast: number | undefined) =>
+    [
+      stall ? `stall ${formatINR(stall)}` : null,
+      breakfast ? `breakfast ${formatINR(breakfast)}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  const salesIncludes = includes(money?.stall.sales, money?.breakfast.sales);
+  const receivedIncludes = includes(money?.stall.received, money?.breakfast.received);
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -264,7 +271,7 @@ export function DashboardPage() {
         <MoneyCard
           label="Total sales"
           value={money ? formatINR(money.sales) : "—"}
-          hint={stallHint}
+          hint={salesIncludes ? `incl. ${salesIncludes}` : undefined}
         />
         <MoneyCard
           label="Received"
@@ -272,9 +279,7 @@ export function DashboardPage() {
           hint={
             [
               collectedPct == null ? null : `${collectedPct}% collected`,
-              money && money.stall.received > 0
-                ? `incl. stall ${formatINR(money.stall.received)}`
-                : null,
+              receivedIncludes ? `incl. ${receivedIncludes}` : null,
             ]
               .filter(Boolean)
               .join(" · ") || undefined
@@ -294,6 +299,9 @@ export function DashboardPage() {
                       ? `${money.pendingOrders} order${money.pendingOrders === 1 ? "" : "s"} · see who owes`
                       : null,
                     money.stall.due > 0 ? `stall dues ${formatINR(money.stall.due)}` : null,
+                    money.breakfast.unbilled > 0
+                      ? `breakfast not billed ${formatINR(money.breakfast.unbilled)}`
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")
@@ -301,7 +309,7 @@ export function DashboardPage() {
           valueClassName="text-amber-700"
           className="col-span-2 border-amber-200 bg-amber-50/40 sm:col-span-1"
           onClick={
-            money && money.pendingOrders > 0
+            money && (money.pendingOrders > 0 || money.breakfast.unbilled > 0)
               ? () =>
                   setDrawer({
                     scope: { from, to },
@@ -312,7 +320,7 @@ export function DashboardPage() {
         />
       </div>
 
-      {outstanding && outstanding.pending > 0 && (
+      {outstanding && (outstanding.pending > 0 || outstanding.breakfastUnbilled > 0) && (
         <button
           type="button"
           onClick={() => setDrawer({ scope: "all", label: "All orders, all time" })}
@@ -324,6 +332,15 @@ export function DashboardPage() {
               {formatINR(outstanding.pending)}
             </span>{" "}
             from {outstanding.customers} customer{outstanding.customers === 1 ? "" : "s"}
+            {outstanding.breakfastUnbilled > 0 && (
+              <>
+                {" "}
+                · breakfast not billed yet{" "}
+                <span className="font-semibold text-amber-700 tabular-nums">
+                  {formatINR(outstanding.breakfastUnbilled)}
+                </span>
+              </>
+            )}
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
         </button>

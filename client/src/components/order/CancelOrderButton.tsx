@@ -38,7 +38,7 @@ export function CancelOrderButton({ order }: { order: Order }) {
           ) {
             return;
           }
-          cancel.mutate(order.orderNumber);
+          cancel.mutate(order.id);
         }}
         className="rounded-full border border-red-200 px-4 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
       >

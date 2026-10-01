@@ -24,6 +24,19 @@ export interface StallFields {
   chargeAmount: number;
   chargeBasis: StallChargeBasis;
   isActive: boolean;
+  /** Company billed monthly for office breakfast. */
+  billToName?: string | null;
+  billToPhone?: string | null;
+  billToEmail?: string | null;
+  billToGstin?: string | null;
+  billToAddress?: BillToAddress | null;
+}
+
+export interface BillToAddress {
+  line1: string;
+  line2?: string | null;
+  city?: string | null;
+  pincode?: string | null;
 }
 
 export interface StallInfo extends StallFields {
@@ -114,6 +127,64 @@ export interface StallDayView {
   lumpOverride: boolean;
   tappedTotals: StallMoney;
   itemsSold: { name: string; qty: number; amount: number }[];
+}
+
+export interface StallBreakfastEntry {
+  id: string;
+  date: string;
+  plates: number;
+  platePrice: number;
+  items: string;
+  note: string | null;
+  /** The month-end bill this went on; billed entries are locked. */
+  orderId: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  amount: number;
+}
+
+export interface StallBreakfastBill {
+  id: string;
+  orderNumber: string;
+  invoiceNumber: string | null;
+  paymentStatus: "PENDING" | "PARTIAL" | "PAID" | "FAILED" | "REFUNDED";
+  total: number;
+  createdAt: string;
+}
+
+export interface StallBreakfastMonth {
+  stall: {
+    id: string;
+    name: string;
+    billToName: string | null;
+    billToPhone: string | null;
+    billToEmail: string | null;
+    billToGstin: string | null;
+    billToAddress: BillToAddress | null;
+  };
+  month: string;
+  monthLabel: string;
+  entries: StallBreakfastEntry[];
+  totals: {
+    plates: number;
+    amount: number;
+    days: number;
+    unbilledCount: number;
+    unbilledAmount: number;
+  };
+  bills: StallBreakfastBill[];
+  /** The stall's latest plate, any month, to prefill the add form. */
+  last: { plates: number; platePrice: number; items: string } | null;
+  /** Item names typed into recent breakfasts. */
+  itemNames: string[];
+}
+
+export interface StallBreakfastInput {
+  date?: string;
+  plates: number;
+  platePrice: number;
+  items: string;
+  note?: string | null;
 }
 
 export interface StallDaySummary extends StallTotals {
@@ -280,6 +351,85 @@ export function useSettleStallDue() {
   });
 }
 
+// ---------- Office breakfast ----------
+
+function refreshBreakfast(qc: QueryClient) {
+  void qc.invalidateQueries({ queryKey: [...STALLS, "breakfast"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "orders", "collections"] });
+}
+
+export function useStallBreakfastMonth(stallId: string | null, month: string) {
+  return useQuery<StallBreakfastMonth>({
+    queryKey: [...STALLS, "breakfast", stallId, month],
+    queryFn: () =>
+      api.get<StallBreakfastMonth>(`/admin/stalls/${stallId}/breakfast?month=${month}`),
+    enabled: !!stallId && !!month,
+    staleTime: 15_000,
+  });
+}
+
+export function useAddStallBreakfast(stallId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: StallBreakfastInput) =>
+      api.post<StallBreakfastEntry>(`/admin/stalls/${stallId}/breakfast`, input),
+    onSuccess: () => refreshBreakfast(qc),
+  });
+}
+
+export function useUpdateStallBreakfast() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & Partial<StallBreakfastInput>) =>
+      api.patch<{ ok: boolean }>(`/admin/stalls/breakfast/${id}`, body),
+    onSuccess: () => refreshBreakfast(qc),
+  });
+}
+
+export function useDeleteStallBreakfast() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ ok: boolean }>(`/admin/stalls/breakfast/${id}`),
+    onSuccess: () => refreshBreakfast(qc),
+  });
+}
+
+/** Raises the month's bill as an order; it then shows in Pending until paid. */
+export function useCreateStallBreakfastBill(stallId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (month: string) =>
+      api.post<{ id: string; orderNumber: string }>(`/admin/stalls/${stallId}/breakfast/bill`, {
+        month,
+      }),
+    onSuccess: () => {
+      refreshBreakfast(qc);
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+  });
+}
+
+export function useDownloadBreakfastStatement() {
+  return useMutation({
+    mutationFn: async ({ stallId, month }: { stallId: string; month: string }) => {
+      const { blob, filename } = await api.getBlob(
+        `/admin/stalls/${stallId}/breakfast/statement?month=${month}`,
+      );
+      const name = filename ?? `breakfast-${month}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // Revoking immediately can cancel the download in some browsers.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      return { filename: name };
+    },
+  });
+}
+
 // ---------- Admin: days ----------
 
 export function useAddStallDaySale() {
@@ -326,6 +476,7 @@ export function useUpdateStall() {
     onSuccess: () => {
       refreshStalls(qc);
       refreshSales(qc);
+      void qc.invalidateQueries({ queryKey: [...STALLS, "breakfast"] });
     },
   });
 }

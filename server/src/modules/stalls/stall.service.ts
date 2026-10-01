@@ -5,6 +5,7 @@ import { HttpError } from "../../utils/httpError.js";
 import { getWallTimeInZone } from "../../lib/time.js";
 import { calendarDay, dayToDate, type CalendarRange } from "../../lib/calendarDay.js";
 import type { StaffUser } from "../../middleware/auth.js";
+import { gstinIssue, normalizeGstin } from "../../lib/gstin.js";
 
 const toPaise = (value: Prisma.Decimal | number) => Math.round(Number(value) * 100);
 const fromPaise = (paise: number) => paise / 100;
@@ -38,9 +39,37 @@ const stallSelect = {
   chargeBasis: true,
   isActive: true,
   sortOrder: true,
+  billToName: true,
+  billToPhone: true,
+  billToEmail: true,
+  billToGstin: true,
+  billToAddress: true,
 } satisfies Prisma.StallSelect;
 
 type StallRow = Prisma.StallGetPayload<{ select: typeof stallSelect }>;
+
+export type BillToAddress = z.infer<typeof billToAddressSchema>;
+
+const billToAddressSchema = z.object({
+  line1: z.string().trim().min(1).max(200),
+  line2: z.string().trim().max(200).nullable().optional(),
+  city: z.string().trim().max(80).nullable().optional(),
+  pincode: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "PIN code must be 6 digits")
+    .nullable()
+    .optional(),
+});
+
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .optional()
+    .transform((v) => v || null);
 
 export type StallStatus = "live" | "upcoming" | "ended";
 
@@ -177,6 +206,22 @@ export const stallInputSchema = z.object({
   chargeAmount: z.number().min(0).max(10_000_000),
   chargeBasis: z.enum(["TOTAL", "PER_DAY"]),
   isActive: z.boolean(),
+  billToName: optionalText(160),
+  billToPhone: optionalText(15).refine((v) => v === null || /^[0-9+\-\s]{7,15}$/.test(v), {
+    message: "Enter a valid phone number",
+  }),
+  billToEmail: optionalText(160).refine(
+    (v) => v === null || z.string().email().safeParse(v).success,
+    {
+      message: "Enter a valid email",
+    },
+  ),
+  billToGstin: optionalText(20)
+    .transform((v) => (v ? normalizeGstin(v) : null))
+    .refine((v) => v === null || gstinIssue(v) === null, {
+      message: "Enter a valid 15-character GSTIN",
+    }),
+  billToAddress: billToAddressSchema.nullable().optional(),
 });
 
 type StallInput = z.infer<typeof stallInputSchema>;
@@ -201,6 +246,11 @@ function stallData(input: StallInput) {
     chargeAmount: office ? 0 : fromPaise(toPaise(input.chargeAmount)),
     chargeBasis: office ? ("TOTAL" as const) : input.chargeBasis,
     isActive: input.isActive,
+    billToName: input.billToName ?? null,
+    billToPhone: input.billToPhone ?? null,
+    billToEmail: input.billToEmail ?? null,
+    billToGstin: input.billToGstin ?? null,
+    billToAddress: input.billToAddress ?? Prisma.DbNull,
   };
 }
 
@@ -251,6 +301,11 @@ export async function updateStall(stallId: string, body: unknown) {
     chargeAmount: current.chargeAmount,
     chargeBasis: current.chargeBasis,
     isActive: current.isActive,
+    billToName: current.billToName,
+    billToPhone: current.billToPhone,
+    billToEmail: current.billToEmail,
+    billToGstin: current.billToGstin,
+    billToAddress: current.billToAddress as BillToAddress | null,
     ...parsed.data,
   });
   await prisma.stall.update({ where: { id: stallId }, data });

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import type { ProductTemplate } from "@/hooks/useAdminProducts";
 
 export type OrderLinkKind = "CUSTOM" | "CATALOG";
 export type OrderLinkStatus = "OPEN" | "ORDERED" | "EXPIRED" | "CANCELLED";
@@ -16,6 +17,7 @@ export interface OrderLinkItem {
   referenceImageUrl: string | null;
   messageHint: string | null;
   description: string | null;
+  customTemplate: ProductTemplate | null;
   unitPrice: string;
   qty: number;
 }
@@ -60,6 +62,7 @@ export interface OrderLinkItemPayload {
   referenceImageUrl?: string | null;
   messageHint?: string | null;
   description?: string | null;
+  customTemplate?: ProductTemplate | null;
   unitPrice: number;
   qty: number;
 }

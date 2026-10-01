@@ -390,16 +390,16 @@ export function CheckoutPage() {
         setRedirectingToPayment(order.orderNumber);
         clear();
         try {
-          const session = await createPaymentSession.mutateAsync(order.orderNumber);
+          const session = await createPaymentSession.mutateAsync(order.id);
           await payWithCashfree(session);
         } catch {
           // The order page offers "Retry payment" / "Pay on delivery".
-          navigate(`/order/${order.orderNumber}/success`, { replace: true });
+          navigate(`/order/${order.id}/success`, { replace: true });
         }
         return;
       }
       clear();
-      navigate(`/order/${order.orderNumber}/success`, { replace: true });
+      navigate(`/order/${order.id}/success`, { replace: true });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong");
     }

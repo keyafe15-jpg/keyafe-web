@@ -76,7 +76,7 @@ export function OrderLinkPage() {
         cta={
           link.linkedOrder ? (
             <Link
-              to={`/order/${link.linkedOrder.orderNumber}/success`}
+              to={`/order/${link.linkedOrder.id}/success`}
               className="rounded-full bg-brand-500 px-5 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
             >
               View your order
@@ -340,7 +340,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
           setRedirectingToPayment(false);
         }
       }
-      navigate(`/order/${order.orderNumber}/success`, { replace: true });
+      navigate(`/order/${order.id}/success`, { replace: true });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong");
     }

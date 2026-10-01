@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { Check, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import {
   useAdminAddons,
   useCreateAddon,
@@ -8,6 +8,7 @@ import {
   type AdminAddon,
 } from "@/hooks/useAddons";
 import { useAdminCategories, type AdminCategory } from "@/hooks/useAdminCategories";
+import type { ProductTemplate } from "@/hooks/useAdminProducts";
 import { NestedCategoryMultiSelect } from "@/components/form/NestedCategoryMultiSelect";
 import { uploadImage } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
@@ -52,6 +53,9 @@ export function AddonsPage() {
         </div>
         <p className="mt-1 max-w-3xl text-sm text-slate-500">
           Extras like candles and toppers. Default categories pre-select them on new products.
+          &ldquo;Offline custom items&rdquo; picks which custom Cake / Pizza / Other items in
+          offline orders can add them; types marked &ldquo;auto&rdquo; come from the products
+          they&rsquo;re linked to.
         </p>
       </div>
 
@@ -120,6 +124,7 @@ function NewAddonRow({
   const [priceDelta, setPriceDelta] = useState("0");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [customTemplates, setCustomTemplates] = useState<ProductTemplate[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -135,11 +140,13 @@ function NewAddonRow({
         priceDelta: Number(priceDelta) || 0,
         imageUrl,
         categoryIds,
+        customTemplates,
       });
       setName("");
       setPriceDelta("0");
       setImageUrl(null);
       setCategoryIds([]);
+      setCustomTemplates([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create");
     }
@@ -220,6 +227,12 @@ function NewAddonRow({
           onChange={setCategoryIds}
         />
       </div>
+      <CustomItemTypes
+        className="mt-3"
+        selected={customTemplates}
+        auto={[]}
+        onChange={setCustomTemplates}
+      />
       <div className="mt-4 sm:hidden">{addButton}</div>
       {error && <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
     </div>
@@ -285,6 +298,13 @@ function AddonRow({ addon, categories }: { addon: AdminAddon; categories: AdminC
             onChange={(categoryIds) => update.mutate({ id: addon.id, categoryIds })}
           />
         </div>
+        <CustomItemTypes
+          className="mt-2"
+          selected={addon.customTemplates ?? []}
+          auto={addon.autoTemplates ?? []}
+          disabled={update.isPending}
+          onChange={(customTemplates) => update.mutate({ id: addon.id, customTemplates })}
+        />
       </td>
       <td className="px-4 py-2 text-right">
         <input
@@ -337,6 +357,71 @@ function AddonRow({ addon, categories }: { addon: AdminAddon; categories: AdminC
         </button>
       </td>
     </tr>
+  );
+}
+
+const CUSTOM_TYPES: { key: ProductTemplate; label: string }[] = [
+  { key: "CAKE", label: "Cake" },
+  { key: "PIZZA", label: "Pizza" },
+  { key: "OTHER", label: "Other" },
+];
+
+/** Which offline custom-item types (Cake / Pizza / Other) can pick this add-on. */
+function CustomItemTypes({
+  selected,
+  auto,
+  onChange,
+  disabled,
+  className,
+}: {
+  selected: ProductTemplate[];
+  /** Already offered through linked products; shown ticked and locked. */
+  auto: ProductTemplate[];
+  onChange: (next: ProductTemplate[]) => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+      <span
+        className="mr-0.5 text-[11px] font-medium tracking-wide text-slate-500 uppercase"
+        title="Staff can pick this add-on on custom items of these types in offline orders"
+      >
+        Offline custom items
+      </span>
+      {CUSTOM_TYPES.map(({ key, label }) => {
+        const isAuto = auto.includes(key);
+        const on = isAuto || selected.includes(key);
+        return (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={on}
+            disabled={disabled || isAuto}
+            title={
+              isAuto
+                ? `Already offered — it's linked to ${label.toLowerCase()} products`
+                : on
+                  ? `Stop offering on custom ${label.toLowerCase()} items`
+                  : `Offer on custom ${label.toLowerCase()} items`
+            }
+            onClick={() => onChange(on ? selected.filter((t) => t !== key) : [...selected, key])}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition",
+              on
+                ? "border-brand-500 bg-brand-100 text-brand-700"
+                : "hover:border-brand-300 border-slate-200 bg-white text-slate-600",
+              isAuto && "cursor-default opacity-70",
+              disabled && !isAuto && "opacity-60",
+            )}
+          >
+            {on && <Check className="h-3 w-3" />}
+            {label}
+            {isAuto && <span className="text-[10px] font-normal text-brand-600/80">auto</span>}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

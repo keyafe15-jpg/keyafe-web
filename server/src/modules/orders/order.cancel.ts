@@ -7,6 +7,7 @@ import { getBusinessContact } from "../store/businessContact.js";
 import { logger } from "../../utils/logger.js";
 import { emitOrderCancelled } from "../../lib/events.js";
 import { sendStaffWhatsApp } from "../../lib/whatsapp.js";
+import { getPublicOrder } from "./order.service.js";
 
 /** Customers cannot cancel once the kitchen has started (or later). */
 const KITCHEN_OR_LATER: ReadonlySet<OrderStatus> = new Set([
@@ -132,19 +133,8 @@ export function withCustomerCancel<T extends Pick<OrderForCancel, "status" | "it
   return { ...order, customerCancel: getCustomerCancelState(order) };
 }
 
-export async function cancelOrderAsCustomer(idOrNumber: string) {
-  const key = idOrNumber;
-  const existing = key.startsWith("KEY-")
-    ? await prisma.order.findUnique({
-        where: { orderNumber: key },
-        include: { items: true },
-      })
-    : await prisma.order.findUnique({
-        where: { id: key },
-        include: { items: true },
-      });
-
-  if (!existing) throw HttpError.notFound("Order not found");
+export async function cancelOrderAsCustomer(key: string) {
+  const existing = await getPublicOrder(key);
 
   const state = getCustomerCancelState(existing);
   if (!state.allowed) {

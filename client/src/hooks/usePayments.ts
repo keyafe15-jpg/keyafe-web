@@ -21,18 +21,20 @@ export function usePaymentConfig() {
 
 export function useCreatePaymentSession() {
   return useMutation({
-    mutationFn: (orderNumber: string) =>
-      api.post<PaymentSession>("/payments/cashfree/session", { orderNumber }),
+    mutationFn: (orderId: string) =>
+      api.post<PaymentSession>("/payments/cashfree/session", { orderId }),
   });
 }
 
+// The order page may be keyed by id or a legacy order number, so refresh every
+// cached order rather than guessing which key it used.
 export function useVerifyPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (orderNumber: string) =>
-      api.post<{ state: PaymentState }>("/payments/cashfree/verify", { orderNumber }),
-    onSuccess: (_data, orderNumber) => {
-      void qc.invalidateQueries({ queryKey: ["order", orderNumber] });
+    mutationFn: (orderId: string) =>
+      api.post<{ state: PaymentState }>("/payments/cashfree/verify", { orderId }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["order"] });
     },
   });
 }
@@ -40,10 +42,10 @@ export function useVerifyPayment() {
 export function useSwitchToCod() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (orderNumber: string) =>
-      api.post<{ ok: true }>("/payments/cashfree/switch-to-cod", { orderNumber }),
-    onSuccess: (_data, orderNumber) => {
-      void qc.invalidateQueries({ queryKey: ["order", orderNumber] });
+    mutationFn: (orderId: string) =>
+      api.post<{ ok: true }>("/payments/cashfree/switch-to-cod", { orderId }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["order"] });
     },
   });
 }

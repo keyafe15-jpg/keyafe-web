@@ -113,15 +113,18 @@ model Topping {
 
 // Shared extras (candles, toppers, pizza extras). Group is a free-text label for admin/PDP.
 model Addon {
-  id                String     @id @default(cuid())
-  slug              String     @unique
+  id                String            @id @default(cuid())
+  slug              String            @unique
   name              String
   group             String
-  priceDelta        Decimal    @default(0) @db.Decimal(10, 2)
+  priceDelta        Decimal           @default(0) @db.Decimal(10, 2)
   imageUrl          String?
-  sortOrder         Int        @default(0)
-  isActive          Boolean    @default(true)
-  products          Product[]  @relation("ProductAddons")
-  defaultCategories Category[] @relation("CategoryDefaultAddons")
-  createdAt         DateTime   @default(now())
+  sortOrder         Int               @default(0)
+  isActive          Boolean           @default(true)
+  products          Product[]         @relation("ProductAddons")
+  defaultCategories Category[]        @relation("CategoryDefaultAddons")
+  // Offered on offline custom items of these types, on top of the types of the
+  // products it's linked to.
+  customTemplates   ProductTemplate[] @default([])
+  createdAt         DateTime          @default(now())
 }

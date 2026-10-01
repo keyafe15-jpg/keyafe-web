@@ -3,7 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import { optionalAuth, requireAuth, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
-import { createOrder, createOrderSchema, getOrderById, getOrderByNumber } from "./order.service.js";
+import { createOrder, createOrderSchema, getPublicOrder } from "./order.service.js";
 import { cancelOrderAsCustomer, withCustomerCancel } from "./order.cancel.js";
 import { buildInvoicePdf } from "./invoice.service.js";
 
@@ -36,27 +36,26 @@ orderRouter.get("/me", requireAuth, async (req, res) => {
   res.json(orders.map(withCustomerCancel));
 });
 
-orderRouter.post("/:idOrNumber/cancel", async (req, res) => {
-  const order = await cancelOrderAsCustomer(req.params.idOrNumber);
+orderRouter.post("/:key/cancel", async (req, res) => {
+  const order = await cancelOrderAsCustomer(req.params.key);
   res.json(order);
 });
 
 /**
  * Customer's own copy of the tax invoice.
  *
- * Authorisation matches GET /orders/:idOrNumber above — knowing the order
- * number is enough, because guests have no account and reach their order from
- * the confirmation link. The invoice contains nothing the order response
- * doesn't already expose.
+ * Authorisation matches GET /orders/:key below — knowing the order id is
+ * enough, because guests have no account and reach their order from the
+ * confirmation link. The invoice contains nothing the order response doesn't
+ * already expose.
  *
  * Unlike the admin route, this one only serves invoices for orders that are
  * fully paid. That matches when the supply actually happens, and it stops an
  * enumerated request from burning invoice numbers on orders that may never be
  * completed.
  */
-orderRouter.get("/:idOrNumber/invoice", async (req, res) => {
-  const key = req.params.idOrNumber ?? "";
-  const order = key.startsWith("KEY-") ? await getOrderByNumber(key) : await getOrderById(key);
+orderRouter.get("/:key/invoice", async (req, res) => {
+  const order = await getPublicOrder(req.params.key ?? "");
 
   if (order.status === "CANCELLED") {
     throw HttpError.badRequest("This order was cancelled, so there's no invoice for it.");
@@ -76,10 +75,8 @@ orderRouter.get("/:idOrNumber/invoice", async (req, res) => {
   res.end(pdf);
 });
 
-// Accepts either a cuid (order id) or KEY-YYMMDD-XXXXXX (order number)
-// so the confirmation link can use either.
-orderRouter.get("/:idOrNumber", async (req, res) => {
-  const key = req.params.idOrNumber;
-  const order = key.startsWith("KEY-") ? await getOrderByNumber(key) : await getOrderById(key);
-  res.json(withCustomerCancel(order));
+// The order id, or a legacy KEY-YYMMDD-XXXXXX number from older confirmation
+// links. Serial order numbers are guessable, so they are refused.
+orderRouter.get("/:key", async (req, res) => {
+  res.json(withCustomerCancel(await getPublicOrder(req.params.key)));
 });

@@ -86,6 +86,9 @@ model OrderLinkItem {
   messageHint       String?
   // What a custom item is, e.g. the contents of a gift hamper.
   description       String?
+  // Custom items only: Cake / Pizza / Other, so the editor reopens the right
+  // fields and offers that template's add-ons.
+  customTemplate    ProductTemplate?
 
   // Price locked at link-creation time. Customer sees + accepts this.
   unitPrice Decimal @db.Decimal(10, 2)

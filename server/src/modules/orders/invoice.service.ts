@@ -489,8 +489,9 @@ export async function buildInvoiceData(
       name: order.customerCompanyName || order.customerName,
       legalName: order.customerCompanyName ?? undefined,
       gstin: order.customerGstin,
+      // A stall bill is served on site but billed to the company's office.
       addressLines:
-        order.fulfillment === "PICKUP"
+        order.fulfillment === "PICKUP" && order.source !== "STALL_BILL"
           ? ["Collected at the bakery counter"]
           : addressLines(billingAddr),
       stateName: stateNameFromCode(placeCode),

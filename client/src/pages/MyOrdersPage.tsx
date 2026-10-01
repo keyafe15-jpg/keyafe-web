@@ -65,7 +65,7 @@ export function MyOrdersPage() {
                     {order.status.replace(/_/g, " ")}
                   </span>
                   <Link
-                    to={`/order/${order.orderNumber}/success`}
+                    to={`/order/${order.id}/success`}
                     className="hover:text-brand-600 text-sm font-medium text-brand-500"
                   >
                     View details

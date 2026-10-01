@@ -5,7 +5,13 @@ import {
   type AdminOrder,
   type AdminOrderItem,
 } from "@/hooks/useAdminOrders";
+import { useAdminAddons } from "@/hooks/useAddons";
 import { inputClass, textareaClass } from "@/components/form/Field";
+import {
+  AddonGroupPicker,
+  composeAddonNotes,
+  mergeInstructions,
+} from "@/components/order-items";
 import { uploadImage } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
 
@@ -26,6 +32,9 @@ type DraftLine = {
   referenceImageUrl: string | null;
   refFile: File | null;
   refPreview: string | null;
+  /** Add-ons picked in this edit; their price is already in unitPrice. */
+  addonSelections: string[];
+  showAddons: boolean;
 };
 
 function itemToDraft(it: AdminOrderItem): DraftLine {
@@ -46,6 +55,8 @@ function itemToDraft(it: AdminOrderItem): DraftLine {
     referenceImageUrl: it.referenceImageUrl ?? it.productImage,
     refFile: null,
     refPreview: it.referenceImageUrl ?? it.productImage,
+    addonSelections: [],
+    showAddons: false,
   };
 }
 
@@ -66,6 +77,8 @@ function newDraftLine(): DraftLine {
     referenceImageUrl: null,
     refFile: null,
     refPreview: null,
+    addonSelections: [],
+    showAddons: false,
   };
 }
 
@@ -81,6 +94,8 @@ export function OrderItemsEditPanel({
   onClose: () => void;
 }) {
   const editItems = useEditOrderItems();
+  const { data: allAddons } = useAdminAddons();
+  const addons = useMemo(() => (allAddons ?? []).filter((a) => a.isActive), [allAddons]);
   const [lines, setLines] = useState<DraftLine[]>(() => order.items.map(itemToDraft));
   const [collectedNow, setCollectedNow] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +109,17 @@ export function OrderItemsEditPanel({
 
   const patchLine = (key: string, patch: Partial<DraftLine>) => {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  };
+
+  const toggleAddon = (line: DraftLine, addonId: string) => {
+    const on = line.addonSelections.includes(addonId);
+    const delta = Number(addons.find((a) => a.id === addonId)?.priceDelta ?? 0);
+    patchLine(line.key, {
+      addonSelections: on
+        ? line.addonSelections.filter((id) => id !== addonId)
+        : [...line.addonSelections, addonId],
+      unitPrice: String(Math.max(0, (Number(line.unitPrice) || 0) + (on ? -delta : delta))),
+    });
   };
 
   const itemsSubtotal = useMemo(
@@ -147,7 +173,7 @@ export function OrderItemsEditPanel({
           sizeGrams,
           flavourName: line.flavourName.trim() || null,
           messageOnCake: line.messageOnCake.trim() || null,
-          instructions: line.instructions.trim() || null,
+          instructions: mergeInstructions(composeAddonNotes(line, addons), line.instructions),
           description: line.description.trim() || null,
           referenceImageUrl: referenceImageUrl || null,
           unitPrice: Number(line.unitPrice) || 0,
@@ -305,6 +331,44 @@ export function OrderItemsEditPanel({
                   className={cn(textareaClass, "mt-1")}
                 />
               </label>
+              {addons.length > 0 && (
+                <div className="sm:col-span-2">
+                  {line.showAddons || line.addonSelections.length > 0 ? (
+                    <div className="rounded-md border border-slate-200 bg-slate-50/60 p-2.5">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-slate-700">Add-ons</span>
+                        {line.addonSelections.length === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => patchLine(line.key, { showAddons: false })}
+                            className="text-[11px] text-slate-500 hover:text-slate-700"
+                          >
+                            Hide
+                          </button>
+                        )}
+                      </div>
+                      <AddonGroupPicker
+                        addons={addons}
+                        selected={line.addonSelections}
+                        onToggle={(id) => toggleAddon(line, id)}
+                      />
+                      {line.addonSelections.length > 0 && (
+                        <p className="mt-2 text-[11px] text-slate-500">
+                          Added to the unit price above and noted in the instructions on save.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => patchLine(line.key, { showAddons: true })}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:text-brand-900"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add add-ons (candles, toppers…)
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="sm:col-span-2">
                 <span className="text-xs font-medium text-slate-700">Reference image</span>
                 <div className="mt-1 flex items-center gap-3">

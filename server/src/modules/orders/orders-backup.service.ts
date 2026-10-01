@@ -25,7 +25,7 @@ const ORDER_STATUSES = new Set([
 const PAYMENT_STATUSES = new Set(["PENDING", "PARTIAL", "PAID", "FAILED", "REFUNDED"]);
 const FULFILLMENTS = new Set(["DELIVERY", "PICKUP"]);
 const PAYMENT_MODES = new Set(["FULL", "ADVANCE"]);
-const SOURCES = new Set(["STOREFRONT", "OFFLINE_LINK", "OFFLINE_DIRECT"]);
+const SOURCES = new Set(["STOREFRONT", "OFFLINE_LINK", "OFFLINE_DIRECT", "STALL_BILL"]);
 
 const ORDER_HEADERS = [
   "orderId",

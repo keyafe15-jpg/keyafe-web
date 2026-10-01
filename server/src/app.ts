@@ -180,7 +180,7 @@ export function createApp() {
     requirePermission("toppings.write"),
     adminToppingRouter,
   );
-  app.use("/api/admin/addons", requireStaff, requirePermission("addons.write"), adminAddonRouter);
+  app.use("/api/admin/addons", requireStaff, adminAddonRouter);
   app.use("/api/admin/tags", requireStaff, requirePermission("tags.write"), adminTagRouter);
   app.use("/api/admin/orders", requireStaff, adminOrderRouter);
   app.use("/api/admin/order-links", requireStaff, adminOrderLinkRouter);

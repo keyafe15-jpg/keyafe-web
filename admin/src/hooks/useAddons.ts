@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import type { ProductTemplate } from "@/hooks/useAdminProducts";
 
 export interface Addon {
   id: string;
@@ -15,6 +16,12 @@ export interface AdminAddon extends Addon {
   isActive: boolean;
   categoryIds: string[];
   productCount: number;
+  /** Ticked by hand on the Add-ons page for offline custom items. */
+  customTemplates: ProductTemplate[];
+  /** Types of the live products it's linked to (directly or via category defaults). */
+  autoTemplates: ProductTemplate[];
+  /** customTemplates + autoTemplates; custom order lines filter by this. */
+  templates: ProductTemplate[];
 }
 
 export function useAddons() {
@@ -40,6 +47,7 @@ export interface CreateAddonPayload {
   priceDelta: number;
   imageUrl?: string | null;
   categoryIds?: string[];
+  customTemplates?: ProductTemplate[];
   sortOrder?: number;
 }
 
@@ -60,6 +68,7 @@ export interface UpdateAddonPayload {
   priceDelta?: number;
   imageUrl?: string | null;
   categoryIds?: string[];
+  customTemplates?: ProductTemplate[];
   sortOrder?: number;
   isActive?: boolean;
 }

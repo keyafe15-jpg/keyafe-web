@@ -3,7 +3,7 @@ import type { PaymentSession } from "@/hooks/usePayments";
 
 /**
  * Sends the browser to Cashfree's hosted checkout. Cashfree brings the
- * customer back to /order/:number/success when the payment settles, so on
+ * customer back to /order/:id/success when the payment settles, so on
  * success this never resolves in practice; it throws if the SDK can't start.
  */
 export async function payWithCashfree(session: PaymentSession) {

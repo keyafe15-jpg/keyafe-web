@@ -4,7 +4,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { checkPincode } from "../delivery/delivery.service.js";
 import { logger } from "../../utils/logger.js";
-import { buildOrderNumber } from "../orders/order.service.js";
+import { nextOrderNumber } from "../orders/order.service.js";
 import { notifyOrderPlaced } from "../orders/order.notify.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import { cashfreeEnabled } from "../payments/cashfree.client.js";
@@ -84,6 +84,7 @@ const orderLinkItemSchema = z.object({
   referenceImageUrl: z.string().url().nullable().optional(),
   messageHint: z.string().trim().max(200).nullable().optional(),
   description: z.string().trim().max(1000).nullable().optional(),
+  customTemplate: z.enum(["CAKE", "PIZZA", "OTHER"]).nullable().optional(),
   unitPrice: z.coerce.number().nonnegative(),
   qty: z.coerce.number().int().positive().default(1),
 });
@@ -180,6 +181,7 @@ async function buildItemCreates(items: OrderLinkItemInput[]) {
       referenceImageUrl,
       messageHint: item.messageHint ?? null,
       description: item.description || null,
+      customTemplate: item.kind === "CUSTOM" ? (item.customTemplate ?? null) : null,
       unitPrice: item.unitPrice,
       qty: item.qty,
       sortOrder: index,
@@ -300,7 +302,7 @@ export async function getOrderLinkByToken(token: string) {
           product: { select: { gstRate: true, priceIsGstInclusive: true } },
         },
       },
-      linkedOrder: { select: { orderNumber: true } },
+      linkedOrder: { select: { id: true, orderNumber: true } },
     },
   });
   if (!link) throw HttpError.notFound("Order link not found");
@@ -535,9 +537,8 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
     ? ({ advanceAmount: 0, paymentStatus: "PENDING", paymentMethod: "cashfree" } as const)
     : resolvePayment(input.paymentMode, input.advanceAmount, total, false);
 
-  const orderNumber = buildOrderNumber();
-
   const order = await prisma.$transaction(async (tx) => {
+    const orderNumber = await nextOrderNumber(tx);
     const userId = await ensureCustomerForOrder(tx, {
       name: input.customerName,
       phone: input.customerPhone,
@@ -934,7 +935,6 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     resolvedItems.map((r) => r.inclusive),
   );
   const total = roundMoney(subtotal - discount + deliveryFee + gstOnTop);
-  const orderNumber = buildOrderNumber();
 
   const { advanceAmount, paymentStatus, paymentMethod } = resolvePayment(
     input.paymentMode,
@@ -954,7 +954,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   const order = await prisma.order.create({
     data: {
       userId,
-      orderNumber,
+      orderNumber: await nextOrderNumber(),
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       customerEmail: input.customerEmail ?? null,

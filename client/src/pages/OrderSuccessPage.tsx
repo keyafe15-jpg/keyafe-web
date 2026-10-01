@@ -23,7 +23,7 @@ export function OrderSuccessPage() {
   const contact = useStoreProfile();
   const awaitingPayment =
     !!order && order.paymentMethod === "cashfree" && !order.paidAt && order.status !== "CANCELLED";
-  const paymentCheck = usePaymentCheck(order?.orderNumber ?? "", awaitingPayment);
+  const paymentCheck = usePaymentCheck(order?.id ?? "", awaitingPayment);
 
   if (isLoading) {
     return (
@@ -277,7 +277,7 @@ type PaymentCheck = ReturnType<typeof usePaymentCheck>;
  * Asks the server to reconcile with Cashfree a few times after the customer
  * lands back here, since the payment can take a moment to settle.
  */
-function usePaymentCheck(orderNumber: string, enabled: boolean) {
+function usePaymentCheck(orderId: string, enabled: boolean) {
   const verify = useVerifyPayment();
   const [state, setState] = useState<PaymentState | null>(null);
   const [checks, setChecks] = useState(0);
@@ -289,7 +289,7 @@ function usePaymentCheck(orderNumber: string, enabled: boolean) {
     if (!enabled || done || checks >= PAYMENT_CHECKS) return;
     const timer = setTimeout(
       () => {
-        mutate(orderNumber, {
+        mutate(orderId, {
           onSuccess: (res) => setState(res.state),
           onSettled: () => setChecks((n) => n + 1),
         });
@@ -297,7 +297,7 @@ function usePaymentCheck(orderNumber: string, enabled: boolean) {
       checks === 0 ? 0 : PAYMENT_CHECK_INTERVAL_MS,
     );
     return () => clearTimeout(timer);
-  }, [enabled, done, checks, orderNumber, mutate]);
+  }, [enabled, done, checks, orderId, mutate]);
 
   return {
     checking: enabled && (state === "PAID" || (!done && checks < PAYMENT_CHECKS)),
@@ -320,7 +320,7 @@ function PaymentPendingCard({ order, check }: { order: Order; check: PaymentChec
     setError(null);
     setRedirecting(true);
     try {
-      const session = await createSession.mutateAsync(order.orderNumber);
+      const session = await createSession.mutateAsync(order.id);
       await payWithCashfree(session);
     } catch (err) {
       setRedirecting(false);
@@ -330,7 +330,7 @@ function PaymentPendingCard({ order, check }: { order: Order; check: PaymentChec
 
   const payByCash = () => {
     setError(null);
-    switchToCod.mutate(order.orderNumber, {
+    switchToCod.mutate(order.id, {
       onError: (err) => {
         setError(err instanceof Error ? err.message : "Couldn't switch to cash on delivery");
         check.recheck();

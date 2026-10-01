@@ -23,7 +23,7 @@ export function DownloadInvoiceButton({ order }: { order: Order }) {
       <button
         type="button"
         disabled={download.isPending}
-        onClick={() => download.mutate({ idOrNumber: order.orderNumber })}
+        onClick={() => download.mutate({ idOrNumber: order.id })}
         className="rounded-full border border-ink-700 px-4 py-1.5 text-sm font-medium text-ink-700 transition hover:bg-cream-100 disabled:opacity-50"
       >
         {download.isPending ? "Preparing…" : "Download invoice"}
