@@ -95,7 +95,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         to: "/products",
         label: "Products",
         icon: Package,
-        requiresPermission: "products.write",
+        requiresPermission: "products.read",
       },
       {
         to: "/stores",

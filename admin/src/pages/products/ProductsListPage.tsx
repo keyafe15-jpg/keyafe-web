@@ -24,6 +24,7 @@ import {
 } from "@/hooks/useAdminProducts";
 import { PaginationControls } from "@/components/ClientPagination";
 import { useListSearch } from "@/store/listSearch";
+import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
 import { ProductsBulkImport } from "@/components/products/ProductsBulkImport";
 
@@ -44,6 +45,7 @@ export function ProductsListPage() {
   const products = data?.items ?? [];
   const total = data?.total ?? 0;
   const navigate = useNavigate();
+  const canEdit = useStaffPermission("products.write");
 
   useEffect(() => {
     setPage(1);
@@ -66,29 +68,31 @@ export function ProductsListPage() {
                   : `Catalogue — ${total} product${total === 1 ? "" : "s"}.`}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 self-start">
-          <button
-            type="button"
-            onClick={() => setBulkOpen((o) => !o)}
-            className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition",
-              bulkOpen
-                ? "border-brand-400 bg-brand-50 text-brand-800"
-                : "hover:border-brand-300 border-slate-200 bg-white text-slate-700 hover:text-brand-700",
-            )}
-          >
-            <Layers className="h-4 w-4" /> Bulk upload
-          </button>
-          <Link
-            to="/products/new"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
-          >
-            <Plus className="h-4 w-4" /> New product
-          </Link>
-        </div>
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-2 self-start">
+            <button
+              type="button"
+              onClick={() => setBulkOpen((o) => !o)}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                bulkOpen
+                  ? "border-brand-400 bg-brand-50 text-brand-800"
+                  : "hover:border-brand-300 border-slate-200 bg-white text-slate-700 hover:text-brand-700",
+              )}
+            >
+              <Layers className="h-4 w-4" /> Bulk upload
+            </button>
+            <Link
+              to="/products/new"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
+            >
+              <Plus className="h-4 w-4" /> New product
+            </Link>
+          </div>
+        )}
       </div>
 
-      <ProductsBulkImport open={bulkOpen} onClose={() => setBulkOpen(false)} />
+      {canEdit && <ProductsBulkImport open={bulkOpen} onClose={() => setBulkOpen(false)} />}
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
@@ -121,7 +125,7 @@ export function ProductsListPage() {
               <>No products match “{search}”.</>
             ) : scope === "archived" ? (
               <>No archived products.</>
-            ) : (
+            ) : canEdit ? (
               <>
                 No products yet.{" "}
                 <Link to="/products/new" className="text-brand-500 hover:underline">
@@ -129,6 +133,8 @@ export function ProductsListPage() {
                 </Link>
                 .
               </>
+            ) : (
+              <>No products yet.</>
             )}
           </div>
         )}
@@ -198,17 +204,20 @@ export function ProductsListPage() {
                         isAvailable={p.isAvailable}
                         isFeatured={p.isFeatured}
                         isArchived={Boolean(p.archivedAt)}
+                        readOnly={!canEdit}
                       />
                     </td>
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                      <ProductRowActions
-                        productId={p.id}
-                        productName={p.name}
-                        isArchived={Boolean(p.archivedAt)}
-                        isActive={p.isActive}
-                        isAvailable={p.isAvailable}
-                        isFeatured={p.isFeatured}
-                      />
+                      {canEdit && (
+                        <ProductRowActions
+                          productId={p.id}
+                          productName={p.name}
+                          isArchived={Boolean(p.archivedAt)}
+                          isActive={p.isActive}
+                          isAvailable={p.isAvailable}
+                          isFeatured={p.isFeatured}
+                        />
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -260,15 +269,18 @@ export function ProductsListPage() {
                           isAvailable={p.isAvailable}
                           isFeatured={p.isFeatured}
                           isArchived={Boolean(p.archivedAt)}
+                          readOnly={!canEdit}
                         />
-                        <ProductRowActions
-                          productId={p.id}
-                          productName={p.name}
-                          isArchived={Boolean(p.archivedAt)}
-                          isActive={p.isActive}
-                          isAvailable={p.isAvailable}
-                          isFeatured={p.isFeatured}
-                        />
+                        {canEdit && (
+                          <ProductRowActions
+                            productId={p.id}
+                            productName={p.name}
+                            isArchived={Boolean(p.archivedAt)}
+                            isActive={p.isActive}
+                            isAvailable={p.isAvailable}
+                            isFeatured={p.isFeatured}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -553,12 +565,15 @@ function StatusToggles({
   isAvailable,
   isFeatured,
   isArchived,
+  readOnly,
 }: {
   productId: string;
   isActive: boolean;
   isAvailable: boolean;
   isFeatured: boolean;
   isArchived: boolean;
+  /** Plain labels for staff who can view products but not change them. */
+  readOnly?: boolean;
 }) {
   const update = useUpdateProduct();
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -581,6 +596,31 @@ function StatusToggles({
       <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
         Archived
       </span>
+    );
+  }
+
+  if (readOnly) {
+    const pill = "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium";
+    return (
+      <div className="flex flex-wrap gap-1">
+        <span
+          className={cn(
+            pill,
+            isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600",
+          )}
+        >
+          {isActive ? "Active" : "Draft"}
+        </span>
+        <span
+          className={cn(
+            pill,
+            isAvailable ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600",
+          )}
+        >
+          {isAvailable ? "In stock" : "Out of stock"}
+        </span>
+        {isFeatured && <span className={cn(pill, "bg-brand-100 text-brand-700")}>Featured</span>}
+      </div>
     );
   }
 

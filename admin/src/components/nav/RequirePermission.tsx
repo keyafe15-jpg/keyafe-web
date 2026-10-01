@@ -3,8 +3,14 @@ import { ADMIN_NAV } from "@/content/nav";
 import { staffHasPermission, firstAllowedPath } from "@/lib/permissions";
 import { useAdminAuth } from "@/store/adminAuth";
 
+/** Pages under a nav item that need more than the item itself. */
+const STRICTER_PATHS: { to: string; requiresPermission: string }[] = [
+  { to: "/products/new", requiresPermission: "products.write" },
+];
+
 function requiredPermissionForPath(pathname: string): string | undefined {
-  const matches = ADMIN_NAV.flatMap((g) => g.items).filter((item) => {
+  const items = [...ADMIN_NAV.flatMap((g) => g.items), ...STRICTER_PATHS];
+  const matches = items.filter((item) => {
     if (item.to === "/") return pathname === "/";
     return pathname === item.to || pathname.startsWith(`${item.to}/`);
   });

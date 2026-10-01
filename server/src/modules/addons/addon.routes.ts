@@ -28,7 +28,12 @@ addonRouter.get("/", async (_req, res) => {
 export const adminAddonRouter = Router();
 
 // Order editors pick add-ons too, so reading is open to them; changes need addons.write.
-const canReadAddons = requirePermission("addons.write", "orders.update", "offline-orders.write");
+const canReadAddons = requirePermission(
+  "addons.write",
+  "orders.update",
+  "offline-orders.write",
+  "products.read",
+);
 const canWriteAddons = requirePermission("addons.write");
 
 const addonSelect = {

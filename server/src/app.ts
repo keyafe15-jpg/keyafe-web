@@ -1,6 +1,6 @@
 import "express-async-errors";
 import path from "node:path";
-import express from "express";
+import express, { type RequestHandler } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
@@ -57,6 +57,12 @@ import {
 } from "./modules/payments/payment.routes.js";
 import { requirePermission, requireStaff } from "./middleware/auth.js";
 import { attachPushToOrderEvents } from "./lib/push.js";
+
+/** Changes need `writeKey`; reads are also open to product viewers, whose form shows these lists. */
+const catalogAccess =
+  (writeKey: string): RequestHandler =>
+  (req, res, next) =>
+    requirePermission(writeKey, ...(req.method === "GET" ? ["products.read"] : []))(req, res, next);
 
 export function createApp() {
   const app = express();
@@ -144,16 +150,11 @@ export function createApp() {
   app.use("/api/quotes", publicQuoteRouter);
   app.use("/api/coupons", couponRouter);
   app.use("/api/payments", paymentRouter);
-  app.use(
-    "/api/admin/products",
-    requireStaff,
-    requirePermission("products.write"),
-    adminProductRouter,
-  );
+  app.use("/api/admin/products", requireStaff, catalogAccess("products.write"), adminProductRouter);
   app.use(
     "/api/admin/categories",
     requireStaff,
-    requirePermission("categories.write"),
+    catalogAccess("categories.write"),
     adminCategoryRouter,
   );
   app.use(
@@ -174,12 +175,7 @@ export function createApp() {
     requirePermission("cake-sizes.write"),
     adminCakeSizeRouter,
   );
-  app.use(
-    "/api/admin/toppings",
-    requireStaff,
-    requirePermission("toppings.write"),
-    adminToppingRouter,
-  );
+  app.use("/api/admin/toppings", requireStaff, catalogAccess("toppings.write"), adminToppingRouter);
   app.use("/api/admin/addons", requireStaff, adminAddonRouter);
   app.use("/api/admin/tags", requireStaff, requirePermission("tags.write"), adminTagRouter);
   app.use("/api/admin/orders", requireStaff, adminOrderRouter);

@@ -49,6 +49,7 @@ import {
 } from "@/hooks/useAdminProducts";
 import { uploadImages } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
+import { useStaffPermission } from "@/lib/permissions";
 import { DiscountFields } from "@/components/products/DiscountFields";
 import { actualStartingPrice } from "@keyafe/shared";
 
@@ -108,6 +109,7 @@ export function ProductFormPage() {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
+  const viewOnly = !useStaffPermission("products.write");
   const openedFromDuplicate =
     isEdit && Boolean((location.state as { fromDuplicate?: boolean } | null)?.fromDuplicate);
 
@@ -430,7 +432,7 @@ export function ProductFormPage() {
       <div className="sticky top-14 z-10 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/85 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-            {isEdit ? "Edit product" : "New product"}
+            {viewOnly ? "Product" : isEdit ? "Edit product" : "New product"}
             {isEdit && (
               <span className="bg-brand-50 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-brand-700">
                 {template === "PIZZA" ? (
@@ -450,7 +452,9 @@ export function ProductFormPage() {
                 ? "Loading…"
                 : isArchived
                   ? `Archived — “${existing?.name ?? "…"}”`
-                  : `Editing “${existing?.name ?? "…"}”`
+                  : viewOnly
+                    ? `“${existing?.name ?? "…"}” · view only`
+                    : `Editing “${existing?.name ?? "…"}”`
               : "Fill in the details and save."}
           </p>
         </div>
@@ -458,12 +462,13 @@ export function ProductFormPage() {
           <button
             type="button"
             onClick={() => navigate("/products")}
-            title="Cancel"
+            title={viewOnly ? "Back to products" : "Cancel"}
             className={barButtonClass}
           >
-            <X className="h-4 w-4" /> <span className="hidden sm:inline">Cancel</span>
+            <X className="h-4 w-4" />{" "}
+            <span className="hidden sm:inline">{viewOnly ? "Back" : "Cancel"}</span>
           </button>
-          {isEdit && !openedFromDuplicate && !isArchived && (
+          {!viewOnly && isEdit && !openedFromDuplicate && !isArchived && (
             <button
               type="button"
               onClick={() => void onDuplicate()}
@@ -477,7 +482,7 @@ export function ProductFormPage() {
               </span>
             </button>
           )}
-          {isEdit && !isArchived && (
+          {!viewOnly && isEdit && !isArchived && (
             <button
               type="button"
               onClick={() => void onArchive()}
@@ -491,7 +496,7 @@ export function ProductFormPage() {
               </span>
             </button>
           )}
-          {isEdit && isArchived && (
+          {!viewOnly && isEdit && isArchived && (
             <button
               type="button"
               onClick={() => void onUnarchive()}
@@ -505,7 +510,7 @@ export function ProductFormPage() {
               </span>
             </button>
           )}
-          {isEdit && (
+          {!viewOnly && isEdit && (
             <button
               type="button"
               onClick={() => void onDelete()}
@@ -522,20 +527,22 @@ export function ProductFormPage() {
               </span>
             </button>
           )}
-          <button
-            type="submit"
-            disabled={busy}
-            className={cn(submitClass, "inline-flex items-center gap-1.5 py-1.5")}
-          >
-            <Save className="h-4 w-4" />
-            {isUploading
-              ? "Uploading…"
-              : isSubmitting
-                ? "Saving…"
-                : isEdit
-                  ? "Save changes"
-                  : "Save product"}
-          </button>
+          {!viewOnly && (
+            <button
+              type="submit"
+              disabled={busy}
+              className={cn(submitClass, "inline-flex items-center gap-1.5 py-1.5")}
+            >
+              <Save className="h-4 w-4" />
+              {isUploading
+                ? "Uploading…"
+                : isSubmitting
+                  ? "Saving…"
+                  : isEdit
+                    ? "Save changes"
+                    : "Save product"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -552,7 +559,7 @@ export function ProductFormPage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <fieldset disabled={viewOnly} className="group grid min-w-0 gap-4 lg:grid-cols-3">
         {/* Left: main details */}
         <div className="space-y-4 lg:col-span-2">
           {!isEdit && (
@@ -1134,7 +1141,7 @@ export function ProductFormPage() {
             </p>
           </Section>
         </aside>
-      </div>
+      </fieldset>
     </form>
   );
 }
@@ -1201,7 +1208,10 @@ function Section({
           aria-hidden
         />
       </button>
-      <div className={cn("space-y-3 p-3.5 sm:p-4", hiddenWhenClosed)}>{children}</div>
+      {/* A view-only form is a disabled fieldset; its toggles can't be tapped, so keep it open. */}
+      <div className={cn("space-y-3 p-3.5 sm:p-4", hiddenWhenClosed, "group-disabled:block")}>
+        {children}
+      </div>
     </section>
   );
 }
