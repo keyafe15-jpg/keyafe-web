@@ -14,6 +14,7 @@ import {
   reconcilePayment,
   switchToCashOnDelivery,
 } from "./payment.service.js";
+import { syncGatewayRefund, syncPendingRefunds } from "./refund.service.js";
 
 export type RawBodyRequest = Request & { rawBody?: Buffer };
 
@@ -68,8 +69,11 @@ paymentRouter.post("/cashfree/webhook", async (req, res) => {
   }
 
   const gatewayOrderId: unknown = req.body?.data?.order?.order_id;
-  logger.info({ type: req.body?.type, gatewayOrderId }, "cashfree webhook");
-  if (typeof gatewayOrderId === "string") {
+  const refundId: unknown = req.body?.data?.refund?.refund_id;
+  logger.info({ type: req.body?.type, gatewayOrderId, refundId }, "cashfree webhook");
+  if (typeof refundId === "string") {
+    await syncGatewayRefund(refundId);
+  } else if (typeof gatewayOrderId === "string") {
     // The payload is only a nudge — reconcile re-reads the truth from Cashfree.
     await reconcileByGatewayOrderId(gatewayOrderId);
   }
@@ -82,7 +86,9 @@ adminPaymentRouter.post(
   "/orders/:orderId/refresh",
   requirePermission("orders.update"),
   async (req, res) => {
-    const state = await reconcilePayment(req.params.orderId ?? "");
+    const orderId = req.params.orderId ?? "";
+    const state = await reconcilePayment(orderId);
+    await syncPendingRefunds(orderId);
     res.json({ state });
   },
 );

@@ -15,6 +15,16 @@ import { buildGstExport } from "./gst-export.service.js";
 import { buildOrdersBackup, importOrdersBackup } from "./orders-backup.service.js";
 import { buildChallanPdf } from "./challan.service.js";
 import {
+  buildCreditNotePdf,
+  creditLimits,
+  issueCreditNote,
+  issueCreditNoteSchema,
+  orderMoney,
+  voidCreditNote,
+  voidCreditNoteSchema,
+} from "./credit-note.service.js";
+import { onlineRefundable, syncPendingRefunds } from "../payments/refund.service.js";
+import {
   getCollectionsSummary,
   getPendingCollections,
   parseCollectionsQuery,
@@ -519,57 +529,72 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
   const chartEnd = new Date(rangeTo);
   chartEnd.setHours(23, 59, 59, 999);
 
-  const [allTime, thisMonth, selectedRange, chartRows] = await Promise.all([
-    prisma.order.aggregate({
-      _count: { id: true },
-      _sum: {
-        total: true,
-        cgstAmount: true,
-        sgstAmount: true,
-        igstAmount: true,
-      },
-    }),
-    prisma.order.aggregate({
-      where: {
-        createdAt: {
-          gte: monthStart,
-          lte: today,
+  // Active credit notes, counted against their order's date like the sale.
+  const creditsFor = (createdAt?: Prisma.DateTimeFilter) =>
+    prisma.creditNote.aggregate({
+      where: { voidedAt: null, ...(createdAt ? { order: { createdAt } } : {}) },
+      _sum: { amount: true, cgstAmount: true, sgstAmount: true, igstAmount: true },
+    });
+
+  const [allTime, thisMonth, selectedRange, chartRows, allTimeCredits, monthCredits, rangeCredits] =
+    await Promise.all([
+      prisma.order.aggregate({
+        _count: { id: true },
+        _sum: {
+          total: true,
+          cgstAmount: true,
+          sgstAmount: true,
+          igstAmount: true,
         },
-      },
-      _count: { id: true },
-      _sum: {
-        total: true,
-        cgstAmount: true,
-        sgstAmount: true,
-        igstAmount: true,
-      },
-    }),
-    prisma.order.aggregate({
-      where: {
-        createdAt: {
-          gte: chartStart,
-          lte: chartEnd,
+      }),
+      prisma.order.aggregate({
+        where: {
+          createdAt: {
+            gte: monthStart,
+            lte: today,
+          },
         },
-      },
-      _count: { id: true },
-      _sum: {
-        total: true,
-        cgstAmount: true,
-        sgstAmount: true,
-        igstAmount: true,
-      },
-    }),
-    prisma.order.findMany({
-      where: {
-        createdAt: {
-          gte: chartStart,
-          lte: chartEnd,
+        _count: { id: true },
+        _sum: {
+          total: true,
+          cgstAmount: true,
+          sgstAmount: true,
+          igstAmount: true,
         },
-      },
-      select: { createdAt: true, total: true },
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
+      }),
+      prisma.order.aggregate({
+        where: {
+          createdAt: {
+            gte: chartStart,
+            lte: chartEnd,
+          },
+        },
+        _count: { id: true },
+        _sum: {
+          total: true,
+          cgstAmount: true,
+          sgstAmount: true,
+          igstAmount: true,
+        },
+      }),
+      prisma.order.findMany({
+        where: {
+          createdAt: {
+            gte: chartStart,
+            lte: chartEnd,
+          },
+        },
+        select: {
+          createdAt: true,
+          total: true,
+          creditNotes: { where: { voidedAt: null }, select: { amount: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      creditsFor(),
+      creditsFor({ gte: monthStart, lte: today }),
+      creditsFor({ gte: chartStart, lte: chartEnd }),
+    ]);
 
   const toSafeNumber = (value: unknown): number => {
     if (value == null) return 0;
@@ -615,7 +640,8 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
   for (const row of chartRows) {
     const key = new Date(row.createdAt).toISOString().slice(0, 10);
     const current = salesByDate.get(key) ?? { sales: 0, orders: 0 };
-    current.sales += Number(row.total ?? 0);
+    current.sales +=
+      Number(row.total ?? 0) - row.creditNotes.reduce((s, n) => s + Number(n.amount), 0);
     current.orders += 1;
     salesByDate.set(key, current);
   }
@@ -645,14 +671,14 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
   res.json({
     summary: {
       totalOrdersReceived: allTime._count.id ?? 0,
-      totalSales: Number(allTime._sum.total ?? 0),
-      totalGstReceived: sumGst(allTime._sum),
+      totalSales: Number(allTime._sum.total ?? 0) - toSafeNumber(allTimeCredits._sum.amount),
+      totalGstReceived: sumGst(allTime._sum) - sumGst(allTimeCredits._sum),
       ordersThisMonth: thisMonth._count.id ?? 0,
-      monthlySales: Number(thisMonth._sum.total ?? 0),
-      monthlyGstReceived: sumGst(thisMonth._sum),
+      monthlySales: Number(thisMonth._sum.total ?? 0) - toSafeNumber(monthCredits._sum.amount),
+      monthlyGstReceived: sumGst(thisMonth._sum) - sumGst(monthCredits._sum),
       rangeOrders: selectedRange._count.id ?? 0,
-      rangeSales: Number(selectedRange._sum.total ?? 0),
-      rangeGstReceived: sumGst(selectedRange._sum),
+      rangeSales: Number(selectedRange._sum.total ?? 0) - toSafeNumber(rangeCredits._sum.amount),
+      rangeGstReceived: sumGst(selectedRange._sum) - sumGst(rangeCredits._sum),
     },
     chart,
   });
@@ -776,7 +802,28 @@ adminOrderRouter.post(
 adminOrderRouter.get("/:idOrNumber", requirePermission("orders.read"), async (req, res) => {
   const key = req.params.idOrNumber ?? "";
   if (!key) throw HttpError.badRequest("Missing order id");
-  const order = key.startsWith("KEY-") ? await getOrderByNumber(key) : await getOrderById(key);
+  let order = key.startsWith("KEY-") ? await getOrderByNumber(key) : await getOrderById(key);
+  const inFlight = await prisma.gatewayRefund.count({
+    where: { orderId: order.id, status: { in: ["PENDING", "ONHOLD"] } },
+  });
+  if (inFlight > 0) {
+    await syncPendingRefunds(order.id);
+    order = await getOrderById(order.id);
+  }
+  const gatewayRefunds = await prisma.gatewayRefund.findMany({
+    where: { orderId: order.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      amount: true,
+      status: true,
+      refundId: true,
+      creditNoteId: true,
+      note: true,
+      createdByName: true,
+      createdAt: true,
+    },
+  });
   const paymentAttempts = await prisma.paymentAttempt.findMany({
     where: { orderId: order.id },
     orderBy: { createdAt: "desc" },
@@ -791,8 +838,63 @@ adminOrderRouter.get("/:idOrNumber", requirePermission("orders.read"), async (re
       updatedAt: true,
     },
   });
-  res.json({ ...order, paymentAttempts });
+  res.json({
+    ...order,
+    paymentAttempts,
+    gatewayRefunds,
+    money: {
+      ...orderMoney(order, order.creditNotes),
+      ...creditLimits(order, order.creditNotes),
+      onlineRefundable: order.paymentMethod === "cashfree" ? await onlineRefundable(order.id) : 0,
+    },
+  });
 });
+
+// Credit notes lower the sale and its GST after the invoice is issued. The
+// invoice itself is never touched.
+adminOrderRouter.post("/:id/credit-notes", requirePermission("orders.adjust"), async (req, res) => {
+  const id = req.params.id ?? "";
+  if (!id) throw HttpError.badRequest("Missing order id");
+  const parsed = issueCreditNoteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Invalid credit note";
+    throw HttpError.badRequest(message, parsed.error.flatten());
+  }
+  const staff = (req as AuthenticatedRequest).staff;
+  res.status(201).json(await issueCreditNote(id, parsed.data, staff));
+});
+
+adminOrderRouter.post(
+  "/:id/credit-notes/:cnId/void",
+  requirePermission("orders.adjust"),
+  async (req, res) => {
+    const id = req.params.id ?? "";
+    const cnId = req.params.cnId ?? "";
+    if (!id || !cnId) throw HttpError.badRequest("Missing id");
+    const parsed = voidCreditNoteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? "Invalid reason";
+      throw HttpError.badRequest(message, parsed.error.flatten());
+    }
+    res.json(await voidCreditNote(id, cnId, parsed.data.reason));
+  },
+);
+
+adminOrderRouter.get(
+  "/:id/credit-notes/:cnId/pdf",
+  requirePermission("invoices.read"),
+  async (req, res) => {
+    const id = req.params.id ?? "";
+    const cnId = req.params.cnId ?? "";
+    if (!id || !cnId) throw HttpError.badRequest("Missing id");
+    const { pdf, filename } = await buildCreditNotePdf(id, cnId);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdf.length);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.end(pdf);
+  },
+);
 
 adminOrderRouter.patch("/:id/items", requirePermission("orders.update"), async (req, res) => {
   const id = req.params.id ?? "";

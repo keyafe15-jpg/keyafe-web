@@ -132,6 +132,9 @@ model Order {
   paymentAttempts  PaymentAttempt[]
   // Breakfast entries this order bills, when source is STALL_BILL.
   breakfasts       StallBreakfast[]
+  // Discounts and refunds given after the invoice was issued.
+  creditNotes      CreditNote[]
+  gatewayRefunds   GatewayRefund[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -188,4 +191,58 @@ model OrderItem {
   createdAt DateTime @default(now())
 
   @@index([orderId])
+}
+
+enum CreditNoteKind {
+  DISCOUNT // Charged less: the customer owes that much less
+  REFUND // Money paid back to the customer
+}
+
+enum CreditNoteReason {
+  QUALITY
+  DAMAGED
+  LATE_DELIVERY
+  WRONG_ITEM
+  GOODWILL
+  OTHER
+}
+
+// GST credit note against an issued tax invoice. The invoice itself never
+// changes; each credit note lowers the sale and its GST by `amount`.
+model CreditNote {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // `${invoicePrefix}-CN/${fy}/NNNN`, from the InvoiceCounter table.
+  creditNoteNumber String   @unique
+  creditNoteDate   DateTime
+
+  kind   CreditNoteKind
+  reason CreditNoteReason
+  note   String?
+
+  // Including GST.
+  amount        Decimal @db.Decimal(10, 2)
+  taxableAmount Decimal @db.Decimal(10, 2)
+  cgstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  sgstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  igstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  // Per-line split: [{ description, hsnCode, gstRate, taxableValue, cgstAmount, sgstAmount, igstAmount, total }]
+  lines         Json
+
+  // cash / upi / netbanking, or "online" when sent back through the gateway.
+  refundMethod  String?
+  proofUrl      String?
+  createdByName String?
+  gatewayRefund GatewayRefund?
+
+  // Voided notes keep their number so the series has no gap, but no longer count.
+  voidedAt   DateTime?
+  voidReason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([creditNoteDate])
 }

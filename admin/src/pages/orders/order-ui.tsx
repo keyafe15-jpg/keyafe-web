@@ -131,6 +131,8 @@ export function paymentMethodLabel(method: string): string {
       return "Netbanking";
     case "cashfree":
       return "Online";
+    case "online":
+      return "Original online payment";
     default:
       return method.toUpperCase();
   }

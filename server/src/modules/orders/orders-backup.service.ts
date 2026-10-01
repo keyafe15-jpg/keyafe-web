@@ -48,6 +48,8 @@ const ORDER_HEADERS = [
   "discount",
   "couponCode",
   "total",
+  "creditNotes",
+  "netTotal",
   "taxableAmount",
   "cgstAmount",
   "sgstAmount",
@@ -208,11 +210,15 @@ export async function buildOrdersBackup(params: OrdersBackupParams): Promise<{
 
   const orders = await prisma.order.findMany({
     where: createdAtFilter ? { createdAt: createdAtFilter } : undefined,
-    include: { items: true },
+    include: {
+      items: true,
+      creditNotes: { where: { voidedAt: null }, select: { creditNoteNumber: true, amount: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
 
   const orderRows = orders.map((o) => {
+    const credited = o.creditNotes.reduce((s, n) => s + num(n.amount), 0);
     const row: Record<string, string | number | boolean> = {};
     row.orderId = o.id;
     row.orderNumber = o.orderNumber;
@@ -234,6 +240,10 @@ export async function buildOrdersBackup(params: OrdersBackupParams): Promise<{
     row.discount = num(o.discount);
     row.couponCode = o.couponCode ?? "";
     row.total = num(o.total);
+    row.creditNotes = o.creditNotes
+      .map((n) => `${n.creditNoteNumber} (${num(n.amount).toFixed(2)})`)
+      .join("\n");
+    row.netTotal = Math.round((num(o.total) - credited) * 100) / 100;
     row.taxableAmount = num(o.taxableAmount);
     row.cgstAmount = num(o.cgstAmount);
     row.sgstAmount = num(o.sgstAmount);

@@ -26,6 +26,44 @@ model PaymentAttempt {
   // Last payload seen from the gateway (verify call or webhook).
   raw              Json?
 
+  refunds GatewayRefund[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+}
+
+enum GatewayRefundStatus {
+  PENDING // Accepted by the gateway, money not yet back with the customer
+  SUCCESS
+  CANCELLED // Gateway gave up; the money was not returned
+  ONHOLD
+}
+
+// Money sent back through the gateway against a successful online payment.
+model GatewayRefund {
+  id               String         @id @default(cuid())
+  orderId          String
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentAttemptId String
+  paymentAttempt   PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Cascade)
+  // Set when the refund was given as a credit note after billing; null when
+  // it came from editing items before the bill.
+  creditNoteId     String?        @unique
+  creditNote       CreditNote?    @relation(fields: [creditNoteId], references: [id], onDelete: SetNull)
+  provider         String         @default("cashfree")
+
+  gatewayOrderId  String
+  // Our id as sent to the gateway; also the idempotency key.
+  refundId        String              @unique
+  gatewayRefundId String?
+  amount          Decimal             @db.Decimal(10, 2)
+  status          GatewayRefundStatus @default(PENDING)
+  note            String?
+  createdByName   String?
+  raw             Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

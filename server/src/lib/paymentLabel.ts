@@ -15,6 +15,8 @@ const LABELS: Record<string, string> = {
   netbanking: "Netbanking",
   cashfree: "Online (Cashfree)",
   razorpay: "Online (Razorpay)",
+  // Refund method: back to the customer's original online payment.
+  online: "Original online payment",
 };
 
 export function paymentMethodLabel(method: string) {

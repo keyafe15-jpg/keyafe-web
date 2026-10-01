@@ -9,6 +9,7 @@ import {
   financialYearLabel,
   getSellerSettings,
 } from "./invoice.service.js";
+import { CREDIT_NOTE_REASON_LABEL, type CreditNoteLine } from "./credit-note.service.js";
 
 const IST = "Asia/Kolkata";
 
@@ -59,6 +60,24 @@ interface LineRow {
   cgstAmount: number;
   sgstAmount: number;
   igstAmount: number;
+}
+
+interface CreditNoteRow {
+  creditNoteNumber: string;
+  creditNoteDate: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  orderNumber: string;
+  buyerName: string;
+  buyerGstin: string;
+  placeOfSupplyCode: string;
+  kind: string;
+  reason: string;
+  taxableAmount: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  igstAmount: number;
+  amount: number;
 }
 
 interface HsnSummaryRow {
@@ -161,7 +180,7 @@ export async function buildGstExport(params: GstExportParams): Promise<{
   buffer: Buffer;
   contentType: string;
   filename: string;
-  meta: { orderCount: number; label: string };
+  meta: { orderCount: number; creditNoteCount: number; label: string };
 }> {
   const settings = await getSellerSettings();
   const range = resolveRange(params, settings.fyStartMonth);
@@ -275,6 +294,70 @@ export async function buildGstExport(params: GstExportParams): Promise<{
     }
   }
 
+  // Credit notes count in the period they were issued, not the invoice's.
+  const notes = await prisma.creditNote.findMany({
+    where: {
+      voidedAt: null,
+      creditNoteDate: { gte: range.from, lt: range.toExclusive },
+      order: { paymentMethod: { notIn: CASH_PAYMENT_METHODS } },
+    },
+    include: {
+      order: {
+        select: {
+          orderNumber: true,
+          invoiceNumber: true,
+          invoiceDate: true,
+          customerName: true,
+          customerCompanyName: true,
+          customerGstin: true,
+          placeOfSupply: true,
+        },
+      },
+    },
+    orderBy: [{ creditNoteDate: "asc" }, { creditNoteNumber: "asc" }],
+  });
+
+  const creditNotes: CreditNoteRow[] = [];
+  for (const note of notes) {
+    creditNotes.push({
+      creditNoteNumber: note.creditNoteNumber,
+      creditNoteDate: formatIstDate(note.creditNoteDate),
+      invoiceNumber: note.order.invoiceNumber ?? "",
+      invoiceDate: note.order.invoiceDate ? formatIstDate(note.order.invoiceDate) : "",
+      orderNumber: note.order.orderNumber,
+      buyerName: note.order.customerCompanyName?.trim() || note.order.customerName,
+      buyerGstin: note.order.customerGstin?.trim() || "",
+      placeOfSupplyCode: note.order.placeOfSupply ?? "",
+      kind: note.kind === "REFUND" ? "Refund" : "Discount",
+      reason: CREDIT_NOTE_REASON_LABEL[note.reason] + (note.note ? ` — ${note.note}` : ""),
+      taxableAmount: num(note.taxableAmount),
+      cgstAmount: num(note.cgstAmount),
+      sgstAmount: num(note.sgstAmount),
+      igstAmount: num(note.igstAmount),
+      amount: num(note.amount),
+    });
+
+    for (const line of note.lines as unknown as CreditNoteLine[]) {
+      if (line.isDelivery) continue;
+      const hsn = line.hsnCode?.trim() || "—";
+      const key = `${hsn}|${line.gstRate}`;
+      const agg = hsnMap.get(key) ?? {
+        hsnCode: hsn,
+        gstRate: line.gstRate,
+        taxableValue: 0,
+        cgstAmount: 0,
+        sgstAmount: 0,
+        igstAmount: 0,
+        lineCount: 0,
+      };
+      agg.taxableValue -= line.taxableValue;
+      agg.cgstAmount -= line.cgstAmount;
+      agg.sgstAmount -= line.sgstAmount;
+      agg.igstAmount -= line.igstAmount;
+      hsnMap.set(key, agg);
+    }
+  }
+
   const hsnSummary = [...hsnMap.values()].sort(
     (a, b) => a.hsnCode.localeCompare(b.hsnCode) || a.gstRate - b.gstRate,
   );
@@ -282,33 +365,75 @@ export async function buildGstExport(params: GstExportParams): Promise<{
   const stamp = formatIstDate(new Date()).replace(/-/g, "");
   const safeLabel = range.label.replace(/[^a-zA-Z0-9_-]+/g, "_");
 
+  const meta = {
+    orderCount: register.length,
+    creditNoteCount: creditNotes.length,
+    label: range.label,
+  };
+
   if (params.format === "xlsx") {
-    const buffer = buildXlsx(register, lines, hsnSummary, settings, range.label);
+    const buffer = buildXlsx(register, lines, creditNotes, hsnSummary, settings, range.label);
     return {
       buffer,
       contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       filename: `gst-register-${safeLabel}-${stamp}.xlsx`,
-      meta: { orderCount: register.length, label: range.label },
+      meta,
     };
   }
 
-  const buffer = await buildSummaryPdf(register, hsnSummary, settings, range.label);
+  const buffer = await buildSummaryPdf(register, creditNotes, hsnSummary, settings, range.label);
   return {
     buffer,
     contentType: "application/pdf",
     filename: `gst-register-${safeLabel}-${stamp}.pdf`,
-    meta: { orderCount: register.length, label: range.label },
+    meta,
   };
+}
+
+type Totals = { taxable: number; cgst: number; sgst: number; igst: number; total: number };
+
+function periodTotals(register: RegisterRow[], creditNotes: CreditNoteRow[]) {
+  const invoices: Totals = {
+    taxable: register.reduce((s, r) => s + r.taxableAmount, 0),
+    cgst: register.reduce((s, r) => s + r.cgstAmount, 0),
+    sgst: register.reduce((s, r) => s + r.sgstAmount, 0),
+    igst: register.reduce((s, r) => s + r.igstAmount, 0),
+    total: register.reduce((s, r) => s + r.grandTotal, 0),
+  };
+  const credits: Totals = {
+    taxable: creditNotes.reduce((s, r) => s + r.taxableAmount, 0),
+    cgst: creditNotes.reduce((s, r) => s + r.cgstAmount, 0),
+    sgst: creditNotes.reduce((s, r) => s + r.sgstAmount, 0),
+    igst: creditNotes.reduce((s, r) => s + r.igstAmount, 0),
+    total: creditNotes.reduce((s, r) => s + r.amount, 0),
+  };
+  const net: Totals = {
+    taxable: invoices.taxable - credits.taxable,
+    cgst: invoices.cgst - credits.cgst,
+    sgst: invoices.sgst - credits.sgst,
+    igst: invoices.igst - credits.igst,
+    total: invoices.total - credits.total,
+  };
+  return { invoices, credits, net };
 }
 
 function buildXlsx(
   register: RegisterRow[],
   lines: LineRow[],
+  creditNotes: CreditNoteRow[],
   hsnSummary: HsnSummaryRow[],
   settings: Awaited<ReturnType<typeof getSellerSettings>>,
   periodLabel: string,
 ): Buffer {
   const wb = XLSX.utils.book_new();
+  const { invoices, credits, net } = periodTotals(register, creditNotes);
+  const totalsRows = (label: string, t: Totals) => [
+    [`${label}: taxable`, money(t.taxable)],
+    [`${label}: CGST`, money(t.cgst)],
+    [`${label}: SGST`, money(t.sgst)],
+    [`${label}: IGST`, money(t.igst)],
+    [`${label}: total`, money(t.total)],
+  ];
 
   const cover = [
     ["GST invoice register"],
@@ -318,16 +443,15 @@ function buildXlsx(
     ["Period", periodLabel],
     ["Generated (IST)", formatIstDate(new Date())],
     ["Invoice count", register.length],
+    ["Credit note count", creditNotes.length],
     ["Note", "Cash/COD sales excluded from this register"],
+    ["HSN summary", "Net of credit notes issued in the period"],
     [],
-    [
-      "Taxable total",
-      money(register.reduce((s, r) => s + r.taxableAmount, 0)),
-    ],
-    ["CGST total", money(register.reduce((s, r) => s + r.cgstAmount, 0))],
-    ["SGST total", money(register.reduce((s, r) => s + r.sgstAmount, 0))],
-    ["IGST total", money(register.reduce((s, r) => s + r.igstAmount, 0))],
-    ["Grand total", money(register.reduce((s, r) => s + r.grandTotal, 0))],
+    ...totalsRows("Invoices", invoices),
+    [],
+    ...totalsRows("Credit notes", credits),
+    [],
+    ...totalsRows("Net", net),
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cover), "Summary");
 
@@ -374,6 +498,27 @@ function buildXlsx(
   );
   XLSX.utils.book_append_sheet(wb, linesSheet, "Line items");
 
+  const creditSheet = XLSX.utils.json_to_sheet(
+    creditNotes.map((r) => ({
+      "Credit note no.": r.creditNoteNumber,
+      "Credit note date": r.creditNoteDate,
+      "Invoice no.": r.invoiceNumber,
+      "Invoice date": r.invoiceDate,
+      "Order no.": r.orderNumber,
+      "Buyer name": r.buyerName,
+      "Buyer GSTIN": r.buyerGstin,
+      "Place of supply": r.placeOfSupplyCode,
+      Type: r.kind,
+      Taxable: r.taxableAmount,
+      CGST: r.cgstAmount,
+      SGST: r.sgstAmount,
+      IGST: r.igstAmount,
+      Total: r.amount,
+      Reason: r.reason,
+    })),
+  );
+  XLSX.utils.book_append_sheet(wb, creditSheet, "Credit notes");
+
   const hsnSheet = XLSX.utils.json_to_sheet(
     hsnSummary.map((r) => ({
       HSN: r.hsnCode,
@@ -392,6 +537,7 @@ function buildXlsx(
 
 function buildSummaryPdf(
   register: RegisterRow[],
+  creditNotes: CreditNoteRow[],
   hsnSummary: HsnSummaryRow[],
   settings: Awaited<ReturnType<typeof getSellerSettings>>,
   periodLabel: string,
@@ -409,21 +555,25 @@ function buildSummaryPdf(
     doc.text(settings.legalName);
     if (settings.gstin) doc.text(`GSTIN: ${settings.gstin}`);
     doc.text(`Period: ${periodLabel}`);
-    doc.text(`Invoices: ${register.length}`);
+    doc.text(`Invoices: ${register.length}   Credit notes: ${creditNotes.length}`);
     doc.moveDown();
 
-    const taxable = register.reduce((s, r) => s + r.taxableAmount, 0);
-    const cgst = register.reduce((s, r) => s + r.cgstAmount, 0);
-    const sgst = register.reduce((s, r) => s + r.sgstAmount, 0);
-    const igst = register.reduce((s, r) => s + r.igstAmount, 0);
-    const grand = register.reduce((s, r) => s + r.grandTotal, 0);
-
-    doc.fontSize(11).fillColor("#000").text("Period totals", { underline: true });
-    doc.fontSize(10).fillColor("#333");
-    doc.text(`Taxable: ₹${money(taxable)}`);
-    doc.text(`CGST: ₹${money(cgst)}   SGST: ₹${money(sgst)}   IGST: ₹${money(igst)}`);
-    doc.text(`Grand total: ₹${money(grand)}`);
-    doc.moveDown();
+    const { invoices, credits, net } = periodTotals(register, creditNotes);
+    const totalsBlock = (label: string, t: Totals) => {
+      doc.fontSize(11).fillColor("#000").text(label, { underline: true });
+      doc.fontSize(10).fillColor("#333");
+      doc.text(`Taxable: Rs. ${money(t.taxable)}`);
+      doc.text(`CGST: Rs. ${money(t.cgst)}   SGST: Rs. ${money(t.sgst)}   IGST: Rs. ${money(t.igst)}`);
+      doc.text(`Total: Rs. ${money(t.total)}`);
+      doc.moveDown();
+    };
+    if (creditNotes.length > 0) {
+      totalsBlock("Invoices", invoices);
+      totalsBlock("Less credit notes", credits);
+      totalsBlock("Net for the period", net);
+    } else {
+      totalsBlock("Period totals", invoices);
+    }
 
     doc.fontSize(11).fillColor("#000").text("Invoices", { underline: true });
     doc.moveDown(0.3);
@@ -433,20 +583,40 @@ function buildSummaryPdf(
       if (doc.y > 740) doc.addPage();
       doc.text(
         `${row.invoiceDate}  ${row.invoiceNumber}  ${row.buyerName.slice(0, 28)}  ` +
-          `${row.buyerGstin || "B2C"}  ₹${money(row.grandTotal)}`,
+          `${row.buyerGstin || "B2C"}  Rs. ${money(row.grandTotal)}`,
         { width: 520 },
       );
     }
 
+    if (creditNotes.length > 0) {
+      doc.moveDown();
+      doc.fontSize(11).fillColor("#000").text("Credit notes", { underline: true });
+      doc.moveDown(0.3);
+      doc.fontSize(8).fillColor("#333");
+      for (const row of creditNotes) {
+        if (doc.y > 740) doc.addPage();
+        doc.text(
+          `${row.creditNoteDate}  ${row.creditNoteNumber}  against ${row.invoiceNumber}  ` +
+            `${row.buyerGstin || "B2C"}  -Rs. ${money(row.amount)}  ${row.reason.slice(0, 40)}`,
+          { width: 520 },
+        );
+      }
+    }
+
     if (hsnSummary.length > 0) {
       doc.addPage();
-      doc.fontSize(11).fillColor("#000").text("HSN summary", { underline: true });
+      doc
+        .fontSize(11)
+        .fillColor("#000")
+        .text(creditNotes.length > 0 ? "HSN summary (net of credit notes)" : "HSN summary", {
+          underline: true,
+        });
       doc.moveDown(0.3);
       doc.fontSize(8).fillColor("#333");
       for (const h of hsnSummary) {
         doc.text(
-          `HSN ${h.hsnCode} @ ${h.gstRate}%  taxable ₹${money(h.taxableValue)}  ` +
-            `CGST ₹${money(h.cgstAmount)}  SGST ₹${money(h.sgstAmount)}  IGST ₹${money(h.igstAmount)}`,
+          `HSN ${h.hsnCode} @ ${h.gstRate}%  taxable Rs. ${money(h.taxableValue)}  ` +
+            `CGST Rs. ${money(h.cgstAmount)}  SGST Rs. ${money(h.sgstAmount)}  IGST Rs. ${money(h.igstAmount)}`,
         );
       }
     }

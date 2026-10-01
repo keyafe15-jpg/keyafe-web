@@ -17,6 +17,13 @@ export const PERMISSION_CATALOG = [
   // Also assigns a permanent number, but from the challan series rather than
   // the GST invoice series, so it is granted independently.
   { key: "challans.read", label: "Download delivery challans", category: "orders", sortOrder: 5 },
+  // Issues GST credit notes, which lower the sale and the GST owed.
+  {
+    key: "orders.adjust",
+    label: "Give discounts & refunds after billing",
+    category: "orders",
+    sortOrder: 6,
+  },
 
   { key: "offline-orders.read", label: "View offline orders", category: "offline", sortOrder: 0 },
   {

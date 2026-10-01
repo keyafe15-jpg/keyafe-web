@@ -31,6 +31,7 @@ import {
   useUpdateOrder,
   MAX_PAYMENT_SCREENSHOTS,
   type AdminOrder,
+  type GatewayRefundStatus,
   type PaymentAttemptStatus,
   type InvoiceEmailResult,
   type OrderStatus,
@@ -56,6 +57,12 @@ import { TIME_SLOTS } from "@/content/slots";
 import { useStaffPermission } from "@/lib/permissions";
 import { OrderItemsEditPanel } from "@/components/orders/OrderItemsEditPanel";
 import { OrderItemCard, SlotSelect, slotLabelFor } from "@/components/orders/OrderItemCard";
+import {
+  CreditNotesCard,
+  REFUND_STATUS,
+  canAddCreditNote,
+  creditNoteLabel,
+} from "@/components/orders/CreditNotesCard";
 
 export function OrderDetailPage() {
   const { idOrNumber = "" } = useParams<{ idOrNumber: string }>();
@@ -65,6 +72,9 @@ export function OrderDetailPage() {
   const canReadInvoices = useStaffPermission("invoices.read");
   const canReadChallans = useStaffPermission("challans.read");
   const canDelete = useStaffPermission("orders.delete");
+  const canAdjust = useStaffPermission("orders.adjust");
+  const [creditOpenRequest, setCreditOpenRequest] = useState(0);
+  const openCreditForm = () => setCreditOpenRequest((n) => n + 1);
   const scheduleLocked = order?.status === "DELIVERED" || order?.status === "CANCELLED";
   const itemsEditLocked =
     scheduleLocked || Boolean(order?.invoiceNumber) || order?.paymentStatus === "REFUNDED";
@@ -129,6 +139,7 @@ export function OrderDetailPage() {
     );
 
   const isDelivery = order.fulfillment === "DELIVERY";
+  const activeCredits = (order.creditNotes ?? []).filter((n) => !n.voidedAt);
   const billingSameAsDelivery = Boolean(
     isDelivery &&
     order.deliveryAddress &&
@@ -168,6 +179,12 @@ export function OrderDetailPage() {
                 year: "numeric",
                 timeZone: "Asia/Kolkata",
               })}`}
+            {activeCredits.length > 0 && (
+              <span className="font-medium text-slate-700">
+                {" "}
+                · net ₹{order.money.netTotal.toFixed(2)} after credit notes
+              </span>
+            )}
           </p>
         </div>
         <StatusChanger
@@ -195,11 +212,22 @@ export function OrderDetailPage() {
               </div>
             )}
             {itemsEditLocked && canUpdate && (
-              <p className="mb-3 text-[11px] text-slate-500">
-                {order.invoiceNumber
-                  ? "Items locked — invoice already issued."
-                  : "Items locked on delivered, cancelled, or refunded orders."}
-              </p>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] text-slate-500">
+                  {order.invoiceNumber
+                    ? "Items locked — invoice already issued. To charge less or refund, give a discount or refund instead."
+                    : "Items locked on delivered, cancelled, or refunded orders."}
+                </p>
+                {canAdjust && canAddCreditNote(order) && (
+                  <button
+                    type="button"
+                    onClick={openCreditForm}
+                    className="rounded-md border border-brand-300 bg-white px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
+                  >
+                    Give discount or refund
+                  </button>
+                )}
+              </div>
             )}
             {editingItems && canUpdate && !itemsEditLocked ? (
               <OrderItemsEditPanel order={order} onClose={() => setEditingItems(false)} />
@@ -243,7 +271,7 @@ export function OrderDetailPage() {
           <Card
             title="Totals"
             collapsible
-            summary={`₹${Number(order.total).toFixed(2)} · ${paymentMethodLabel(order.paymentMethod)} · ${
+            summary={`₹${(activeCredits.length > 0 ? order.money.netTotal : Number(order.total)).toFixed(2)} · ${paymentMethodLabel(order.paymentMethod)} · ${
               isAwaitingOnlinePayment(order) ? "Awaiting payment" : order.paymentStatus.toLowerCase()
             }`}
           >
@@ -291,6 +319,25 @@ export function OrderDetailPage() {
                   ₹{Number(order.total).toFixed(2)}
                 </span>
               </div>
+              {activeCredits.length > 0 && (
+                <>
+                  <div className="mt-1 space-y-1">
+                    {activeCredits.map((n) => (
+                      <Row
+                        key={n.id}
+                        label={`${creditNoteLabel(n)} · ${n.creditNoteNumber}`}
+                        value={-Number(n.amount)}
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between border-t border-slate-200 pt-1">
+                    <span className="text-sm font-semibold text-slate-900">Net amount</span>
+                    <span className="text-lg font-semibold text-slate-900 tabular-nums">
+                      ₹{order.money.netTotal.toFixed(2)}
+                    </span>
+                  </div>
+                </>
+              )}
               <p className="mt-1 text-[11px] text-slate-500">
                 Payment: {paymentMethodLabel(order.paymentMethod)} ·{" "}
                 {isAwaitingOnlinePayment(order) ? "Awaiting online payment" : order.paymentStatus}
@@ -298,17 +345,29 @@ export function OrderDetailPage() {
               {Number(order.advanceAmount) > 0 && (
                 <>
                   <Row label="Advance received" value={Number(order.advanceAmount)} muted />
-                  <Row
-                    label="Pending"
-                    value={Math.max(Number(order.total) - Number(order.advanceAmount), 0)}
-                    muted
-                  />
+                  {order.money.refunds > 0 && (
+                    <Row label="Kept after refunds" value={order.money.received} muted />
+                  )}
+                  <Row label="Pending" value={order.money.pending} muted />
                 </>
+              )}
+              {canAdjust && canAddCreditNote(order) && (
+                <button
+                  type="button"
+                  onClick={openCreditForm}
+                  className="mt-2 text-xs font-medium text-brand-700 hover:underline"
+                >
+                  Give discount or refund after billing
+                </button>
               )}
             </div>
           </Card>
 
           {canReadInvoices && <InvoiceCard order={order} canUpdate={canUpdate} />}
+
+          {order.status !== "CANCELLED" && (
+            <CreditNotesCard order={order} openRequest={creditOpenRequest} />
+          )}
 
           {/* Corporate orders need both documents: the tax invoice for the
               books and the challan to hand over with the goods. */}
@@ -581,7 +640,16 @@ export function OrderDetailPage() {
               </div>
               <p className="mt-1 text-[11px] text-slate-500">
                 Pending: ₹
-                {Math.max(Number(order.total) - (Number(advanceInput) || 0), 0).toFixed(2)}
+                {Math.max(
+                  order.money.netTotal -
+                    Math.max(
+                      Math.min(Number(advanceInput) || 0, Number(order.total)) -
+                        order.money.refunds,
+                      0,
+                    ),
+                  0,
+                ).toFixed(2)}
+                {order.money.discounts + order.money.refunds > 0 && " after credit notes"}
               </p>
             </div>
 
@@ -1098,14 +1166,15 @@ function DeleteOrderCard({ order }: { order: AdminOrder }) {
 
   const matches = typed.trim().toUpperCase() === order.orderNumber.toUpperCase();
   const paidAmount =
-    order.paymentStatus === "PAID"
-      ? Number(order.total)
-      : order.paymentStatus === "PARTIAL"
-        ? Number(order.advanceAmount)
-        : 0;
+    order.paymentStatus === "PAID" || order.paymentStatus === "PARTIAL"
+      ? order.money.received
+      : 0;
+  const creditCount = (order.creditNotes ?? []).length;
   const warnings = [
     order.invoiceNumber &&
       `Tax invoice ${order.invoiceNumber} has been issued. That number won't be reused, so your GST invoice series will have a gap — keep a copy of the invoice for your records.`,
+    creditCount > 0 &&
+      `${creditCount} credit note${creditCount === 1 ? "" : "s"} will be deleted with it, leaving gaps in the credit note series too.`,
     order.challanNumber && `Delivery challan ${order.challanNumber} will no longer exist.`,
     paidAmount > 0 &&
       `₹${paidAmount.toLocaleString("en-IN")} was collected on this order${
@@ -1444,7 +1513,9 @@ function Row({ label, value, muted }: { label: string; value: number; muted?: bo
       )}
     >
       <span>{label}</span>
-      <span className={cn("tabular-nums", !muted && "text-slate-900")}>₹{value.toFixed(2)}</span>
+      <span className={cn("tabular-nums", !muted && "text-slate-900")}>
+        {value < 0 ? "−" : ""}₹{Math.abs(value).toFixed(2)}
+      </span>
     </div>
   );
 }
@@ -1472,10 +1543,19 @@ const ATTEMPT_LABEL: Record<PaymentAttemptStatus, { label: string; className: st
   EXPIRED: { label: "Closed", className: "text-slate-400" },
 };
 
+const REFUND_STATUS_SHORT: Record<GatewayRefundStatus, string> = {
+  PENDING: "Processing",
+  ONHOLD: "On hold",
+  SUCCESS: "Refunded",
+  CANCELLED: "Failed",
+};
+
 function OnlinePaymentPanel({ order, canRefresh }: { order: AdminOrder; canRefresh: boolean }) {
   const refresh = useRefreshPayment();
   const attempts = order.paymentAttempts ?? [];
   const paid = attempts.find((a) => a.status === "SUCCESS");
+  const refunds = order.gatewayRefunds ?? [];
+  const refundsInFlight = refunds.some((r) => r.status === "PENDING" || r.status === "ONHOLD");
 
   return (
     <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-2.5 text-xs">
@@ -1517,7 +1597,31 @@ function OnlinePaymentPanel({ order, canRefresh }: { order: AdminOrder; canRefre
       {attempts.length === 0 && !order.paidAt && (
         <p className="text-slate-500">The customer hasn't opened the payment page yet.</p>
       )}
-      {canRefresh && !order.paidAt && attempts.length > 0 && (
+      {refunds.length > 0 && (
+        <div className="mt-2 border-t border-slate-200 pt-2">
+          <p className="font-medium text-slate-700">Refunds to their online payment</p>
+          <ul className="mt-1 space-y-0.5">
+            {refunds.map((r) => (
+              <li key={r.id} className="flex items-center justify-between gap-2">
+                <span className="truncate text-[11px] text-slate-500">
+                  {new Date(r.createdAt).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                  })}
+                  {r.creditNoteId ? " · credit note" : " · items changed"}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  ₹{Number(r.amount).toFixed(2)} ·{" "}
+                  <span className={REFUND_STATUS[r.status].className}>
+                    {REFUND_STATUS_SHORT[r.status]}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {canRefresh && ((!order.paidAt && attempts.length > 0) || refundsInFlight) && (
         <button
           type="button"
           onClick={() => refresh.mutate({ id: order.id, orderNumber: order.orderNumber })}

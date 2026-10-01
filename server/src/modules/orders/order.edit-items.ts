@@ -10,24 +10,19 @@ import {
   sumLineTax,
 } from "./order.tax.js";
 import { getOrderById } from "./order.service.js";
+import { cashfreeEnabled } from "../payments/cashfree.client.js";
+import {
+  keepRefundAfterFailure,
+  onlineRefundable,
+  refundRecord,
+  sendOnlineRefund,
+  type SentRefund,
+} from "../payments/refund.service.js";
 
 /** Defaults for free-form / custom lines (same as offline order-links). */
 const CUSTOM_GST_RATE = 5;
 const CUSTOM_GST_INCLUSIVE = true;
 const CUSTOM_HSN_CODE = "1905";
-
-/**
- * TODO(razorpay): when paymentMethod === "razorpay" and refundDue > 0,
- * call Razorpay Refunds API for `refundDue` against the original payment.
- * Until then admin refunds manually (UPI/cash) when the UI shows refund due.
- */
-function notePendingRazorpayRefund(_args: {
-  orderId: string;
-  paymentMethod: string;
-  refundDue: number;
-}): void {
-  // no-op stub — keeps the call site explicit for the future integration
-}
 
 export const editOrderItemsSchema = z.object({
   items: z
@@ -65,7 +60,10 @@ export type EditOrderItemsResult = {
   order: Awaited<ReturnType<typeof getOrderById>>;
   previousTotal: number;
   newTotal: number;
+  /** Still to be paid back by hand. */
   refundDue: number;
+  /** Sent back to the customer's online payment while saving. */
+  refundedOnline: number;
   collectedNow: number;
 };
 
@@ -271,84 +269,105 @@ export async function editOrderItems(
   const paymentStatus =
     advanceAfter <= 0 ? "PENDING" : advanceAfter >= newTotal ? "PAID" : "PARTIAL";
 
-  if (refundDue > 0) {
-    notePendingRazorpayRefund({
-      orderId,
-      paymentMethod: existing.paymentMethod,
-      refundDue,
-    });
+  // Paid online: the overpayment goes back to that payment. Anything beyond
+  // what was paid online (e.g. cash collected later) is refunded by hand.
+  let sent: SentRefund | null = null;
+  if (refundDue > 0 && existing.paymentMethod === "cashfree" && cashfreeEnabled()) {
+    const online = Math.min(refundDue, await onlineRefundable(orderId));
+    if (online > 0) {
+      sent = await sendOnlineRefund(
+        orderId,
+        online,
+        `Keyafe order ${existing.orderNumber}: items changed`,
+      );
+    }
   }
+  const refundedOnline = sent?.amount ?? 0;
 
   const toDelete = existing.items.filter((it) => !seenIds.has(it.id)).map((it) => it.id);
 
-  await prisma.$transaction(async (tx) => {
-    if (toDelete.length) {
-      await tx.orderItem.deleteMany({ where: { id: { in: toDelete } } });
-    }
-
-    for (let i = 0; i < resolved.length; i++) {
-      const r = resolved[i]!;
-      const tax = lineTaxes[i]!;
-      const data = {
-        productId: r.productId,
-        productName: r.productName,
-        productSlug: r.productSlug,
-        productImage: r.productImage,
-        sizeGrams: r.sizeGrams,
-        sizeLabel: r.sizeLabel,
-        flavourId: r.flavourId,
-        flavourName: r.flavourName,
-        messageOnCake: r.messageOnCake,
-        instructions: r.instructions,
-        description: r.description,
-        referenceImageUrl: r.referenceImageUrl,
-        deliveryDate: r.deliveryDate,
-        deliverySlotKey: r.deliverySlotKey,
-        deliverySlotLabel: r.deliverySlotLabel,
-        unitPrice: r.unitPrice,
-        qty: r.qty,
-        lineTotal: r.lineTotal,
-        hsnCode: r.hsnCode,
-        gstRate: r.gstRate,
-        taxableValue: tax.taxableValue,
-        cgstAmount: tax.cgstAmount,
-        sgstAmount: tax.sgstAmount,
-        igstAmount: tax.igstAmount,
-      };
-
-      if (r.id) {
-        await tx.orderItem.update({ where: { id: r.id }, data });
-      } else {
-        await tx.orderItem.create({
-          data: { orderId, ...data },
-        });
+  const save = () =>
+    prisma.$transaction(async (tx) => {
+      if (toDelete.length) {
+        await tx.orderItem.deleteMany({ where: { id: { in: toDelete } } });
       }
-    }
 
-    await tx.order.update({
-      where: { id: orderId },
-      data: {
-        subtotal,
-        discount: appliedDiscount,
-        deliveryPaidToRider,
-        total: newTotal,
-        taxableAmount,
-        cgstAmount,
-        sgstAmount,
-        igstAmount,
-        advanceAmount: advanceAfter,
-        paymentStatus,
-        paymentMode: advanceAfter > 0 && advanceAfter < newTotal ? "ADVANCE" : existing.paymentMode,
-      },
+      for (let i = 0; i < resolved.length; i++) {
+        const r = resolved[i]!;
+        const tax = lineTaxes[i]!;
+        const data = {
+          productId: r.productId,
+          productName: r.productName,
+          productSlug: r.productSlug,
+          productImage: r.productImage,
+          sizeGrams: r.sizeGrams,
+          sizeLabel: r.sizeLabel,
+          flavourId: r.flavourId,
+          flavourName: r.flavourName,
+          messageOnCake: r.messageOnCake,
+          instructions: r.instructions,
+          description: r.description,
+          referenceImageUrl: r.referenceImageUrl,
+          deliveryDate: r.deliveryDate,
+          deliverySlotKey: r.deliverySlotKey,
+          deliverySlotLabel: r.deliverySlotLabel,
+          unitPrice: r.unitPrice,
+          qty: r.qty,
+          lineTotal: r.lineTotal,
+          hsnCode: r.hsnCode,
+          gstRate: r.gstRate,
+          taxableValue: tax.taxableValue,
+          cgstAmount: tax.cgstAmount,
+          sgstAmount: tax.sgstAmount,
+          igstAmount: tax.igstAmount,
+        };
+
+        if (r.id) {
+          await tx.orderItem.update({ where: { id: r.id }, data });
+        } else {
+          await tx.orderItem.create({
+            data: { orderId, ...data },
+          });
+        }
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          subtotal,
+          discount: appliedDiscount,
+          deliveryPaidToRider,
+          total: newTotal,
+          taxableAmount,
+          cgstAmount,
+          sgstAmount,
+          igstAmount,
+          advanceAmount: advanceAfter,
+          paymentStatus,
+          paymentMode:
+            advanceAfter > 0 && advanceAfter < newTotal ? "ADVANCE" : existing.paymentMode,
+        },
+      });
+      if (sent) await tx.gatewayRefund.create({ data: refundRecord(sent) });
     });
-  });
+
+  if (sent) {
+    try {
+      await save();
+    } catch (err) {
+      await keepRefundAfterFailure(sent, err);
+    }
+  } else {
+    await save();
+  }
 
   const order = await getOrderById(orderId);
   return {
     order,
     previousTotal,
     newTotal,
-    refundDue,
+    refundDue: roundMoney(refundDue - refundedOnline),
+    refundedOnline,
     collectedNow,
   };
 }

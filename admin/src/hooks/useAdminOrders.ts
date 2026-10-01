@@ -147,6 +147,117 @@ export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
   adminNotes: string | null;
   updatedAt: string;
   items: AdminOrderItem[];
+  creditNotes: AdminCreditNote[];
+  /** Money sent back to the customer's online payment. */
+  gatewayRefunds?: AdminGatewayRefund[];
+  /** Net of active credit notes; limits are what a new credit note may be. */
+  money: {
+    discounts: number;
+    refunds: number;
+    netTotal: number;
+    received: number;
+    pending: number;
+    maxDiscount: number;
+    maxRefund: number;
+    /** Most that can go back to the customer's online payment in one refund. */
+    onlineRefundable: number;
+  };
+}
+
+export type GatewayRefundStatus = "PENDING" | "SUCCESS" | "CANCELLED" | "ONHOLD";
+
+export interface AdminGatewayRefund {
+  id: string;
+  amount: string;
+  status: GatewayRefundStatus;
+  refundId: string;
+  creditNoteId: string | null;
+  note: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type CreditNoteKind = "DISCOUNT" | "REFUND";
+export type CreditNoteReason =
+  | "QUALITY"
+  | "DAMAGED"
+  | "LATE_DELIVERY"
+  | "WRONG_ITEM"
+  | "GOODWILL"
+  | "OTHER";
+
+export interface AdminCreditNote {
+  id: string;
+  creditNoteNumber: string;
+  creditNoteDate: string;
+  kind: CreditNoteKind;
+  reason: CreditNoteReason;
+  note: string | null;
+  amount: string;
+  taxableAmount: string;
+  cgstAmount: string;
+  sgstAmount: string;
+  igstAmount: string;
+  refundMethod: string | null;
+  proofUrl: string | null;
+  createdByName: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+  createdAt: string;
+  gatewayRefund?: { status: GatewayRefundStatus; amount: string; refundId: string } | null;
+}
+
+export interface IssueCreditNotePayload {
+  kind: CreditNoteKind;
+  amount: number;
+  reason: CreditNoteReason;
+  note?: string | null;
+  refundMethod?: string | null;
+  proofUrl?: string | null;
+}
+
+type OrderRef = { id: string; orderNumber: string };
+
+function invalidateOrder(qc: ReturnType<typeof useQueryClient>, order: OrderRef) {
+  void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "order", order.id] });
+  void qc.invalidateQueries({ queryKey: ["admin", "order", order.orderNumber] });
+}
+
+export function useIssueCreditNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ order, payload }: { order: OrderRef; payload: IssueCreditNotePayload }) =>
+      api.post<AdminCreditNote>(`/admin/orders/${order.id}/credit-notes`, payload),
+    onSuccess: (_data, { order }) => invalidateOrder(qc, order),
+  });
+}
+
+export function useVoidCreditNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ order, id, reason }: { order: OrderRef; id: string; reason: string }) =>
+      api.post<AdminCreditNote>(`/admin/orders/${order.id}/credit-notes/${id}/void`, { reason }),
+    onSuccess: (_data, { order }) => invalidateOrder(qc, order),
+  });
+}
+
+export function useDownloadCreditNote() {
+  return useMutation({
+    mutationFn: async ({ orderId, note }: { orderId: string; note: AdminCreditNote }) => {
+      const { blob, filename } = await api.getBlob(
+        `/admin/orders/${orderId}/credit-notes/${note.id}/pdf`,
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename ?? `${note.creditNoteNumber.replace(/[^A-Za-z0-9-]+/g, "-")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    },
+  });
 }
 
 export interface AdminOrdersFilter {
@@ -303,7 +414,10 @@ export interface EditOrderItemsResult {
   order: AdminOrder;
   previousTotal: number;
   newTotal: number;
+  /** Still to be paid back by hand. */
   refundDue: number;
+  /** Sent back to the customer's online payment while saving. */
+  refundedOnline: number;
   collectedNow: number;
 }
 

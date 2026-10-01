@@ -5,6 +5,7 @@ import { HttpError } from "../../utils/httpError.js";
 import { calendarRange, type CalendarRange } from "../../lib/calendarDay.js";
 import { getStallTotals, listOpenDues } from "../stalls/stall.service.js";
 import { getBreakfastTotals, listUnbilledBreakfast } from "../stalls/stall.breakfast.js";
+import { orderMoney } from "./credit-note.service.js";
 
 // Money owed vs collected, bucketed by delivery date. An order belongs to the
 // day of its earliest delivery; pan-India orders (no delivery dates) fall back
@@ -92,13 +93,13 @@ async function loadOrders(range: Range | null): Promise<CollectionOrder[]> {
         orderBy: { deliveryDate: "asc" },
         take: 1,
       },
+      creditNotes: { select: { kind: true, amount: true, voidedAt: true } },
     },
   });
 
   return rows.map((r) => {
-    const total = Number(r.total);
-    const received =
-      r.paymentStatus === "PAID" ? total : Math.min(Math.max(Number(r.advanceAmount), 0), total);
+    // Credit notes come off the order's own day, so that day shows the real sale.
+    const { netTotal: total, received, pending } = orderMoney(r, r.creditNotes);
     const earliest = r.items[0]?.deliveryDate;
     return {
       id: r.id,
@@ -110,7 +111,7 @@ async function loadOrders(range: Range | null): Promise<CollectionOrder[]> {
         : new Date(r.createdAt.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10),
       total,
       received,
-      pending: roundMoney(total - received),
+      pending,
       status: r.status,
       paymentStatus: r.paymentStatus,
       source: r.source,

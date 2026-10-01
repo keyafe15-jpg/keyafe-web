@@ -118,6 +118,43 @@ export function terminateCfOrder(gatewayOrderId: string) {
   });
 }
 
+export type CfRefundStatus = "PENDING" | "SUCCESS" | "CANCELLED" | "ONHOLD";
+
+export interface CfRefund {
+  cf_refund_id?: string | number;
+  refund_id: string;
+  order_id: string;
+  refund_amount: number;
+  refund_status: CfRefundStatus;
+  status_description?: string;
+}
+
+/** Sends `amount` back against the successful payment on a gateway order. */
+export function createCfRefund(input: {
+  gatewayOrderId: string;
+  refundId: string;
+  amount: number;
+  note?: string;
+}) {
+  return cfRequest<CfRefund>(
+    "POST",
+    `/orders/${encodeURIComponent(input.gatewayOrderId)}/refunds`,
+    {
+      refund_amount: input.amount,
+      refund_id: input.refundId,
+      // Cashfree accepts 3–100 characters.
+      ...(input.note && input.note.length >= 3 ? { refund_note: input.note.slice(0, 100) } : {}),
+    },
+  );
+}
+
+export function getCfRefund(gatewayOrderId: string, refundId: string) {
+  return cfRequest<CfRefund>(
+    "GET",
+    `/orders/${encodeURIComponent(gatewayOrderId)}/refunds/${encodeURIComponent(refundId)}`,
+  );
+}
+
 /** base64(HMAC-SHA256(timestamp + rawBody, secret)) — Cashfree's webhook signature. */
 export function verifyCfWebhookSignature(
   rawBody: Buffer | string,

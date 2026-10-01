@@ -335,7 +335,13 @@ export async function createOrder(input: CreateOrderInput) {
 export async function getOrderById(id: string) {
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { items: true },
+    include: {
+      items: true,
+      creditNotes: {
+        orderBy: { createdAt: "desc" },
+        include: { gatewayRefund: { select: { status: true, amount: true, refundId: true } } },
+      },
+    },
   });
   if (!order) throw HttpError.notFound("Order not found");
   return order;
@@ -366,7 +372,13 @@ export async function getPublicOrder(key: string) {
 export async function getOrderByNumber(orderNumber: string) {
   const order = await prisma.order.findUnique({
     where: { orderNumber },
-    include: { items: true },
+    include: {
+      items: true,
+      creditNotes: {
+        orderBy: { createdAt: "desc" },
+        include: { gatewayRefund: { select: { status: true, amount: true, refundId: true } } },
+      },
+    },
   });
   if (!order) throw HttpError.notFound("Order not found");
   return order;

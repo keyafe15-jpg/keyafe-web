@@ -140,6 +140,11 @@ export function OrderItemsEditPanel({
   const paidBefore = Number(order.advanceAmount) || 0;
   const collect = Math.max(0, Number(collectedNow) || 0);
   const refundDue = Math.max(0, paidBefore - previewTotal);
+  const refundOnline =
+    order.paymentMethod === "cashfree"
+      ? Math.min(refundDue, order.money?.onlineRefundable ?? 0)
+      : 0;
+  const refundManual = Math.max(0, refundDue - refundOnline);
   const extraDue = Math.max(0, previewTotal - paidBefore);
   const balanceAfterCollect = Math.max(0, previewTotal - Math.min(paidBefore + collect, previewTotal));
 
@@ -158,6 +163,14 @@ export function OrderItemsEditPanel({
     setError(null);
     if (!valid) {
       setError("Each item needs a name, qty ≥ 1, and a price.");
+      return;
+    }
+    if (
+      refundOnline > 0 &&
+      !window.confirm(
+        `Saving sends ₹${refundOnline.toFixed(0)} back to the customer's online payment. This can't be undone. Continue?`,
+      )
+    ) {
       return;
     }
     try {
@@ -195,9 +208,17 @@ export function OrderItemsEditPanel({
         collectedNow: collect > 0 ? collect : 0,
         ...(hasDeliveryFee ? { deliveryPaidToRider } : {}),
       });
-      if (result.refundDue > 0) {
+      if (result.refundedOnline > 0 || result.refundDue > 0) {
         window.alert(
-          `Order updated. Refund due ₹${result.refundDue.toFixed(0)} — refund manually for now (Razorpay auto-refund later).`,
+          [
+            "Order updated.",
+            result.refundedOnline > 0 &&
+              `₹${result.refundedOnline.toFixed(0)} is on its way back to the customer's online payment.`,
+            result.refundDue > 0 &&
+              `Refund due ₹${result.refundDue.toFixed(0)} — pay the customer back manually.`,
+          ]
+            .filter(Boolean)
+            .join(" "),
         );
       }
       onClose();
@@ -450,10 +471,14 @@ export function OrderItemsEditPanel({
             <span className="tabular-nums">₹{extraDue.toFixed(0)}</span>
           </div>
         )}
-        {refundDue > 0 && (
+        {refundOnline > 0 && (
           <div className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-            Refund due ₹{refundDue.toFixed(0)}. Refund manually for now — Razorpay auto-refund when
-            online payments are live.
+            ₹{refundOnline.toFixed(0)} goes back to the customer&apos;s online payment when you save.
+          </div>
+        )}
+        {refundManual > 0 && (
+          <div className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+            Refund due ₹{refundManual.toFixed(0)} — pay the customer back manually.
           </div>
         )}
         {extraDue > 0 && (
