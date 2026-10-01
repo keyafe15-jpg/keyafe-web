@@ -260,7 +260,16 @@ export function OrderDetailPage() {
                 label={orderGstOnTop(order) > 0 ? "Subtotal" : "Subtotal (incl. GST)"}
                 value={Number(order.subtotal)}
               />
-              {isDelivery && <Row label="Delivery fee" value={Number(order.deliveryFee)} />}
+              {isDelivery &&
+                (order.deliveryPaidToRider ? (
+                  <Row
+                    label="Delivery fee · paid to rider, not in total"
+                    value={Number(order.deliveryFee)}
+                    muted
+                  />
+                ) : (
+                  <Row label="Delivery fee" value={Number(order.deliveryFee)} />
+                ))}
               {Number(order.discount) > 0 && (
                 <Row
                   label={order.couponCode ? `Discount (${order.couponCode})` : "Discount"}

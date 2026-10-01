@@ -151,10 +151,10 @@ function totalsBlock(order: OrderWithItems): string {
   const sgst = Number(order.sgstAmount);
   const igst = Number(order.igstAmount);
   const taxable = Number(order.taxableAmount);
+  const chargedDelivery = order.deliveryPaidToRider ? 0 : Number(order.deliveryFee);
   const gstOnTop =
     Math.round(
-      (Number(order.total) -
-        (Number(order.subtotal) - Number(order.discount) + Number(order.deliveryFee))) *
+      (Number(order.total) - (Number(order.subtotal) - Number(order.discount) + chargedDelivery)) *
         100,
     ) / 100;
   const hasIntraGst = cgst > 0 || sgst > 0;
@@ -181,10 +181,12 @@ function totalsBlock(order: OrderWithItems): string {
       }
       ${
         order.fulfillment === "DELIVERY"
-          ? row(
-              Number(order.deliveryFee) === 0 ? "Delivery (free)" : "Delivery",
-              money(order.deliveryFee),
-            )
+          ? order.deliveryPaidToRider
+            ? row("Delivery (pay the rider)", money(order.deliveryFee))
+            : row(
+                Number(order.deliveryFee) === 0 ? "Delivery (free)" : "Delivery",
+                money(order.deliveryFee),
+              )
           : ""
       }
       ${gstOnTop > 0 ? row("GST (added)", money(gstOnTop)) : ""}

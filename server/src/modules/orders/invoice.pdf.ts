@@ -329,6 +329,14 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
         width: fullWidth,
       },
     );
+    if (data.riderDeliveryFee > 0) {
+      doc.text(
+        `Delivery charge of ${money(data.riderDeliveryFee)} is paid directly to the delivery partner and is not part of this invoice.`,
+        left,
+        doc.y + 3,
+        { width: fullWidth },
+      );
+    }
     if (data.compositionNote) {
       doc.font("Helvetica-Bold").fillColor(INK);
       doc.text(data.compositionNote, left, doc.y + 3, { width: fullWidth });

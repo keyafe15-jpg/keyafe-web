@@ -16,6 +16,7 @@ import {
   textareaClass,
 } from "@/components/form/Field";
 import { ManualDiscountFields } from "@/components/form/ManualDiscountFields";
+import { DeliveryPaidToField } from "@/components/form/DeliveryPaidToField";
 import { manualDiscountRupees, type ManualDiscountType } from "@/lib/manualDiscount";
 import {
   OrderItemsEditor,
@@ -97,6 +98,7 @@ export function OfflineOrderDirectFormPage() {
   const [discountValue, setDiscountValue] = useState("");
   /** Editable delivery fee; prefilled from pincode table when the check succeeds. */
   const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
+  const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(true);
 
   useOrderItemRefPreviews(items, setItems);
 
@@ -171,7 +173,8 @@ export function OfflineOrderDirectFormPage() {
     [subtotal, discountType, discountValue],
   );
   const gstOnTop = useOrderItemsGstOnTop(items, discount);
-  const grandTotal = subtotal - discount + deliveryFee + gstOnTop;
+  const chargedDelivery = deliveryPaidToRider ? 0 : deliveryFee;
+  const grandTotal = subtotal - discount + chargedDelivery + gstOnTop;
 
   const advanceValid =
     paymentPlan !== "ADVANCE" ||
@@ -307,6 +310,7 @@ export function OfflineOrderDirectFormPage() {
         discountType: discount > 0 ? discountType : null,
         discountValue: discount > 0 ? Number(discountValue) : null,
         deliveryFee: fulfillment === "DELIVERY" ? deliveryFee : undefined,
+        deliveryPaidToRider,
       };
 
       const order = await create.mutateAsync(payload);
@@ -560,6 +564,13 @@ export function OfflineOrderDirectFormPage() {
                           : `${pincodeInfo?.city ?? ""}${pincodeInfo?.area ? ` · ${pincodeInfo.area}` : ""} · table rate ₹${Number(pincodeInfo?.deliveryFee ?? 0).toFixed(0)} — edit if charging differently`}
                     </p>
                   )}
+                  {pincodeInfo?.serviceable && (
+                    <DeliveryPaidToField
+                      paidToRider={deliveryPaidToRider}
+                      onChange={setDeliveryPaidToRider}
+                      className="col-span-2"
+                    />
+                  )}
 
                   <CheckboxRow
                     checked={billingSameAsDelivery}
@@ -809,16 +820,23 @@ export function OfflineOrderDirectFormPage() {
                   <span className="tabular-nums">−₹{discount.toFixed(0)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-700">
-                <span>Delivery</span>
-                <span className="tabular-nums">
-                  {fulfillment === "PICKUP"
-                    ? "—"
-                    : pincodeInfo?.serviceable
-                      ? `₹${deliveryFee.toFixed(0)}`
-                      : "—"}
-                </span>
-              </div>
+              {fulfillment === "DELIVERY" && pincodeInfo?.serviceable && deliveryPaidToRider ? (
+                <div className="flex justify-between text-slate-500">
+                  <span>Delivery · paid to rider, not in total</span>
+                  <span className="tabular-nums">₹{deliveryFee.toFixed(0)}</span>
+                </div>
+              ) : (
+                <div className="flex justify-between text-slate-700">
+                  <span>Delivery</span>
+                  <span className="tabular-nums">
+                    {fulfillment === "PICKUP"
+                      ? "—"
+                      : pincodeInfo?.serviceable
+                        ? `₹${deliveryFee.toFixed(0)}`
+                        : "—"}
+                  </span>
+                </div>
+              )}
               {gstOnTop > 0 && (
                 <div className="flex justify-between text-slate-700">
                   <span>GST (added)</span>

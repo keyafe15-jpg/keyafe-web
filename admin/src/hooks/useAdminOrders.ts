@@ -103,6 +103,8 @@ export interface AdminPaymentAttempt {
 // AdminOrderItem shape, not the trimmed one the list endpoint sends.
 export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
   paymentAttempts?: AdminPaymentAttempt[];
+  /** deliveryFee was paid to the rider, so it is not in total. */
+  deliveryPaidToRider: boolean;
   discount: string;
   couponCode: string | null;
   taxableAmount: string;
@@ -294,6 +296,7 @@ export interface EditOrderItemPayload {
 export interface EditOrderItemsPayload {
   items: EditOrderItemPayload[];
   collectedNow?: number;
+  deliveryPaidToRider?: boolean;
 }
 
 export interface EditOrderItemsResult {

@@ -225,7 +225,13 @@ export function OrderSuccessPage() {
         )}
         {isDelivery && (
           <SummaryRow
-            label={Number(order.deliveryFee) === 0 ? "Delivery (free)" : "Delivery"}
+            label={
+              order.deliveryPaidToRider
+                ? "Delivery (pay the rider)"
+                : Number(order.deliveryFee) === 0
+                  ? "Delivery (free)"
+                  : "Delivery"
+            }
             value={Number(order.deliveryFee)}
           />
         )}
@@ -237,6 +243,12 @@ export function OrderSuccessPage() {
             ₹{Number(order.total).toFixed(2)}
           </span>
         </div>
+        {isDelivery && order.deliveryPaidToRider && (
+          <p className="mt-1 text-xs text-ink-500">
+            Excludes ₹{Number(order.deliveryFee).toFixed(0)} delivery, which you pay the rider
+            directly.
+          </p>
+        )}
         <p className="mt-1 text-[11px] text-ink-500">
           Payment: {paymentMethodLabel(order.paymentMethod)} · {paymentStatusLabel(order)}
         </p>

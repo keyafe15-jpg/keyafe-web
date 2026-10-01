@@ -130,6 +130,7 @@ export const createOrderLinkSchema = z.object({
 
   // Optional locked delivery fee for this link (null = use pincode table).
   deliveryFee: z.coerce.number().nonnegative().nullable().optional(),
+  deliveryPaidToRider: z.boolean().optional().default(false),
 
   allowOnlinePayment: z.boolean().optional().default(false),
 
@@ -213,6 +214,7 @@ export async function createOrderLink(input: CreateOrderLinkInput) {
       discountType: discount.discountType,
       discountValue: discount.discountValue,
       deliveryFee: input.deliveryFee ?? null,
+      deliveryPaidToRider: input.deliveryPaidToRider,
       allowOnlinePayment: input.allowOnlinePayment,
       items: { create: itemCreates },
     },
@@ -282,6 +284,7 @@ export async function getOrderLinkByToken(token: string) {
       discountType: true,
       discountValue: true,
       deliveryFee: true,
+      deliveryPaidToRider: true,
       allowOnlinePayment: true,
       items: {
         orderBy: { sortOrder: "asc" },
@@ -514,7 +517,10 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
     lineTaxes,
     link.items.map((item) => item.product?.priceIsGstInclusive ?? CUSTOM_GST_INCLUSIVE),
   );
-  const total = roundMoney(subtotal - discount + deliveryFee + gstOnTop);
+  const deliveryPaidToRider = deliveryFee > 0 && link.deliveryPaidToRider;
+  const total = roundMoney(
+    subtotal - discount + (deliveryPaidToRider ? 0 : deliveryFee) + gstOnTop,
+  );
 
   // Anything paid upfront goes through Cashfree; the order is recorded as
   // unpaid and flips once the gateway confirms. Pay-on-delivery stays COD.
@@ -565,6 +571,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
         isSurpriseGift: giftBilling.isSurpriseGift,
         subtotal,
         deliveryFee,
+        deliveryPaidToRider,
         discount,
         total,
         taxableAmount,
@@ -623,6 +630,7 @@ export const updateOrderLinkSchema = z.object({
   customerName: z.string().trim().nullable().optional(),
   customerPhone: z.string().trim().nullable().optional(),
   deliveryFee: z.coerce.number().nonnegative().nullable().optional(),
+  deliveryPaidToRider: z.boolean().optional(),
   allowOnlinePayment: z.boolean().optional(),
   ...manualDiscountFields,
 });
@@ -647,6 +655,7 @@ export async function updateOrderLink(id: string, input: UpdateOrderLinkInput) {
   if (input.customerName !== undefined) data.customerName = input.customerName;
   if (input.customerPhone !== undefined) data.customerPhone = input.customerPhone;
   if (input.deliveryFee !== undefined) data.deliveryFee = input.deliveryFee;
+  if (input.deliveryPaidToRider !== undefined) data.deliveryPaidToRider = input.deliveryPaidToRider;
   if (input.allowOnlinePayment !== undefined) data.allowOnlinePayment = input.allowOnlinePayment;
   if (input.expiresInDays !== undefined) {
     data.expiresAt = input.expiresInDays
@@ -755,6 +764,7 @@ export const placeOfflineOrderSchema = z.object({
 
   // Optional override of the pincode-table delivery fee (admin offline only).
   deliveryFee: z.coerce.number().nonnegative().optional().nullable(),
+  deliveryPaidToRider: z.boolean().optional().default(false),
 
   ...manualDiscountFields,
 });
@@ -934,7 +944,10 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     lineTaxes,
     resolvedItems.map((r) => r.inclusive),
   );
-  const total = roundMoney(subtotal - discount + deliveryFee + gstOnTop);
+  const deliveryPaidToRider = deliveryFee > 0 && input.deliveryPaidToRider;
+  const total = roundMoney(
+    subtotal - discount + (deliveryPaidToRider ? 0 : deliveryFee) + gstOnTop,
+  );
 
   const { advanceAmount, paymentStatus, paymentMethod } = resolvePayment(
     input.paymentMode,
@@ -971,6 +984,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       isSurpriseGift: giftBilling.isSurpriseGift,
       subtotal,
       deliveryFee,
+      deliveryPaidToRider,
       discount,
       total,
       taxableAmount,

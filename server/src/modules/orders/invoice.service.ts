@@ -200,6 +200,8 @@ export interface InvoiceData {
   discount: number;
   couponCode: string | null;
   deliveryFee: number;
+  /** Delivery the customer paid the rider directly; noted, not billed. */
+  riderDeliveryFee: number;
   /** Balances the printed rows against the amount actually charged. */
   roundOff: number;
   grandTotal: number;
@@ -456,7 +458,7 @@ export async function buildInvoiceData(
     : useOrderLevelTax
       ? orderIgst
       : 0;
-  const deliveryFee = Number(order.deliveryFee);
+  const deliveryFee = order.deliveryPaidToRider ? 0 : Number(order.deliveryFee);
   const grandTotal = roundMoney(Number(order.total));
 
   // Delivery is charged without GST today, so it is shown as its own untaxed
@@ -528,6 +530,7 @@ export async function buildInvoiceData(
     discount: Number(order.discount),
     couponCode: order.couponCode,
     deliveryFee,
+    riderDeliveryFee: order.deliveryPaidToRider ? Number(order.deliveryFee) : 0,
     roundOff,
     grandTotal,
     amountInWords: amountInWords(grandTotal),

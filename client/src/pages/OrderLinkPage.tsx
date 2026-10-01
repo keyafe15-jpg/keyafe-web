@@ -169,7 +169,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
     })),
     discount,
   );
-  const total = subtotal - discount + deliveryFee + gstOnTop;
+  const total = subtotal - discount + (link.deliveryPaidToRider ? 0 : deliveryFee) + gstOnTop;
 
   const payNowAmount =
     payChoice === "FULL" ? total : payChoice === "ADVANCE" ? Number(advanceAmount) || 0 : 0;
@@ -738,7 +738,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
           )}
           {fulfillment === "DELIVERY" && (
             <SummaryRow
-              label="Delivery"
+              label={link.deliveryPaidToRider ? "Delivery (pay the rider)" : "Delivery"}
               value={pincodeResult?.serviceable ? deliveryFee : null}
               hint={pincodeResult?.serviceable ? undefined : "Enter pincode"}
             />
@@ -751,6 +751,11 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
               ₹{total.toFixed(2)}
             </span>
           </div>
+          {link.deliveryPaidToRider && fulfillment === "DELIVERY" && deliveryFee > 0 && (
+            <p className="mt-1 text-xs text-ink-500">
+              Excludes ₹{deliveryFee.toFixed(0)} delivery, which you pay the rider directly.
+            </p>
+          )}
           {payChoice === "ADVANCE" && Number(advanceAmount) > 0 && (
             <>
               <SummaryRow label="Paying now" value={Number(advanceAmount)} />
@@ -800,7 +805,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         subLabel={
           payingAdvance
             ? `₹${Math.max(total - Number(advanceAmount), 0).toFixed(0)} on delivery`
-            : deliveryFeePending
+            : deliveryFeePending && !link.deliveryPaidToRider
               ? "+ delivery"
               : payChoice === "COD"
                 ? "Pay on delivery"

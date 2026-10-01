@@ -42,7 +42,9 @@ model OrderLink {
   // Optional delivery fee locked by admin (e.g. after agreeing the address on
   // WhatsApp). When set, the customer sees this amount instead of the pincode
   // table rate — they are not told it was overridden.
-  deliveryFee Decimal? @db.Decimal(10, 2)
+  deliveryFee         Decimal? @db.Decimal(10, 2)
+  // Customer pays delivery to the rider; copied onto the order it creates.
+  deliveryPaidToRider Boolean  @default(false)
 
   // Cashfree charges a fee per payment, so online payment is opt-in per link.
   // When off, the customer can only pay on delivery / pickup.

@@ -12,6 +12,7 @@ import {
 import { useFlavours } from "@/hooks/useFlavours";
 import { Field, inputClass, textareaClass, submitClass } from "@/components/form/Field";
 import { ManualDiscountFields } from "@/components/form/ManualDiscountFields";
+import { DeliveryPaidToField } from "@/components/form/DeliveryPaidToField";
 import { manualDiscountRupees, type ManualDiscountType } from "@/lib/manualDiscount";
 import {
   OrderItemsEditor,
@@ -46,6 +47,7 @@ export function OrderLinkFormPage() {
   const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
   const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
+  const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(true);
   const [allowOnlinePayment, setAllowOnlinePayment] = useState(false);
   const { data: onlinePaymentAvailable = false } = useOnlinePaymentAvailable();
   const [uploading, setUploading] = useState(false);
@@ -71,6 +73,7 @@ export function OrderLinkFormPage() {
         : "",
     );
     setDeliveryFeeInput(existing.deliveryFee != null ? String(Number(existing.deliveryFee)) : "");
+    setDeliveryPaidToRider(existing.deliveryPaidToRider);
     setAllowOnlinePayment(existing.allowOnlinePayment);
     if (existing.expiresAt) {
       const daysLeft = Math.max(
@@ -94,7 +97,8 @@ export function OrderLinkFormPage() {
   const lockedDeliveryFee =
     deliveryFeeInput.trim() !== "" ? Math.max(0, Number(deliveryFeeInput) || 0) : null;
   const gstOnTop = useOrderItemsGstOnTop(items, discount);
-  const grandTotal = itemsTotal - discount + (lockedDeliveryFee ?? 0) + gstOnTop;
+  const billedDelivery = deliveryPaidToRider ? null : lockedDeliveryFee;
+  const grandTotal = itemsTotal - discount + (billedDelivery ?? 0) + gstOnTop;
 
   const discountPayload = {
     discountType: discount > 0 ? discountType : null,
@@ -102,6 +106,7 @@ export function OrderLinkFormPage() {
   };
   const deliveryFeePayload = {
     deliveryFee: lockedDeliveryFee,
+    deliveryPaidToRider,
   };
   const paymentPayload = { allowOnlinePayment };
 
@@ -202,6 +207,11 @@ export function OrderLinkFormPage() {
                     className={inputClass}
                   />
                 </Field>
+                <DeliveryPaidToField
+                  paidToRider={deliveryPaidToRider}
+                  onChange={setDeliveryPaidToRider}
+                  className="col-span-2 mt-3"
+                />
               </div>
             </div>
           </Section>
@@ -266,8 +276,17 @@ export function OrderLinkFormPage() {
               </div>
             )}
             {lockedDeliveryFee != null && (
-              <div className="mb-2 flex justify-between text-sm text-slate-700">
-                <span>Delivery (locked)</span>
+              <div
+                className={cn(
+                  "mb-2 flex justify-between text-sm",
+                  deliveryPaidToRider ? "text-slate-500" : "text-slate-700",
+                )}
+              >
+                <span>
+                  {deliveryPaidToRider
+                    ? "Delivery (locked) · paid to rider, not in total"
+                    : "Delivery (locked)"}
+                </span>
                 <span className="tabular-nums">₹{lockedDeliveryFee.toFixed(0)}</span>
               </div>
             )}
@@ -279,7 +298,7 @@ export function OrderLinkFormPage() {
             )}
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-slate-700">
-                {lockedDeliveryFee != null ? "Items + delivery" : "Locked items price"}
+                {billedDelivery != null ? "Items + delivery" : "Locked items price"}
               </span>
               <span className="text-2xl font-semibold text-slate-900 tabular-nums">
                 ₹{grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}
@@ -287,7 +306,9 @@ export function OrderLinkFormPage() {
             </div>
             {lockedDeliveryFee == null && (
               <p className="mt-1 text-[11px] text-slate-500">
-                Delivery still added from the customer’s pincode when they order.
+                {deliveryPaidToRider
+                  ? "Customer sees their pincode delivery rate to pay the rider; it isn’t added to the bill."
+                  : "Delivery still added from the customer’s pincode when they order."}
               </p>
             )}
 

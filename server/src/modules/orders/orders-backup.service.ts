@@ -44,6 +44,7 @@ const ORDER_HEADERS = [
   "isSurpriseGift",
   "subtotal",
   "deliveryFee",
+  "deliveryPaidToRider",
   "discount",
   "couponCode",
   "total",
@@ -229,6 +230,7 @@ export async function buildOrdersBackup(params: OrdersBackupParams): Promise<{
     row.isSurpriseGift = o.isSurpriseGift;
     row.subtotal = num(o.subtotal);
     row.deliveryFee = num(o.deliveryFee);
+    row.deliveryPaidToRider = o.deliveryPaidToRider;
     row.discount = num(o.discount);
     row.couponCode = o.couponCode ?? "";
     row.total = num(o.total);
@@ -350,6 +352,7 @@ interface OrderDraft {
   isSurpriseGift: boolean;
   subtotal: number;
   deliveryFee: number;
+  deliveryPaidToRider: boolean;
   discount: number;
   couponCode: string | null;
   total: number;
@@ -463,6 +466,7 @@ function parseOrderFromRow(raw: Record<string, unknown>): Omit<OrderDraft, "item
     isSurpriseGift: bool(r.isSurpriseGift),
     subtotal: num(r.subtotal),
     deliveryFee: num(r.deliveryFee),
+    deliveryPaidToRider: bool(r.deliveryPaidToRider),
     discount: num(r.discount),
     couponCode: str(r.couponCode),
     total: num(r.total),
@@ -695,6 +699,7 @@ export async function importOrdersBackup(buffer: Buffer): Promise<{
         isSurpriseGift: draft.isSurpriseGift,
         subtotal: draft.subtotal,
         deliveryFee: draft.deliveryFee,
+        deliveryPaidToRider: draft.deliveryPaidToRider,
         discount: draft.discount,
         couponCode: draft.couponCode,
         total: draft.total,

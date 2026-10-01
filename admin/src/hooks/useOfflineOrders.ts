@@ -66,6 +66,7 @@ export interface PlaceOfflineOrderPayload {
 
   /** Optional override of the pincode-table delivery fee. */
   deliveryFee?: number | null;
+  deliveryPaidToRider?: boolean;
 }
 
 export interface OfflineOrderResponse {

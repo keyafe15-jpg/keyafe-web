@@ -49,6 +49,8 @@ export interface Order {
   isSurpriseGift: boolean;
   subtotal: string;
   deliveryFee: string;
+  /** Customer paid deliveryFee to the rider, so it is not in total. */
+  deliveryPaidToRider: boolean;
   discount: string;
   total: string;
   taxableAmount: string;

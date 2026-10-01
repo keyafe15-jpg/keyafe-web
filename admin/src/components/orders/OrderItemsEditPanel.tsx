@@ -7,6 +7,7 @@ import {
 } from "@/hooks/useAdminOrders";
 import { useAdminAddons } from "@/hooks/useAddons";
 import { inputClass, textareaClass } from "@/components/form/Field";
+import { DeliveryPaidToField } from "@/components/form/DeliveryPaidToField";
 import {
   AddonGroupPicker,
   composeAddonNotes,
@@ -98,12 +99,14 @@ export function OrderItemsEditPanel({
   const addons = useMemo(() => (allAddons ?? []).filter((a) => a.isActive), [allAddons]);
   const [lines, setLines] = useState<DraftLine[]>(() => order.items.map(itemToDraft));
   const [collectedNow, setCollectedNow] = useState("");
+  const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(order.deliveryPaidToRider);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     setLines(order.items.map(itemToDraft));
     setCollectedNow("");
+    setDeliveryPaidToRider(order.deliveryPaidToRider);
     setError(null);
   }, [order.id]);
 
@@ -128,7 +131,11 @@ export function OrderItemsEditPanel({
   );
   const discount = Math.min(Number(order.discount) || 0, itemsSubtotal);
   const deliveryFee = Number(order.deliveryFee) || 0;
-  const previewTotal = Math.max(0, itemsSubtotal - discount + deliveryFee);
+  const hasDeliveryFee = order.fulfillment === "DELIVERY" && deliveryFee > 0;
+  const previewTotal = Math.max(
+    0,
+    itemsSubtotal - discount + (hasDeliveryFee && !deliveryPaidToRider ? deliveryFee : 0),
+  );
   const previousTotal = Number(order.total) || 0;
   const paidBefore = Number(order.advanceAmount) || 0;
   const collect = Math.max(0, Number(collectedNow) || 0);
@@ -186,6 +193,7 @@ export function OrderItemsEditPanel({
         id: order.id,
         items: payloadItems,
         collectedNow: collect > 0 ? collect : 0,
+        ...(hasDeliveryFee ? { deliveryPaidToRider } : {}),
       });
       if (result.refundDue > 0) {
         window.alert(
@@ -414,6 +422,14 @@ export function OrderItemsEditPanel({
       >
         <Plus className="h-3.5 w-3.5" /> Add item
       </button>
+
+      {hasDeliveryFee && (
+        <DeliveryPaidToField
+          paidToRider={deliveryPaidToRider}
+          onChange={setDeliveryPaidToRider}
+          className="mt-4 max-w-sm"
+        />
+      )}
 
       <div className="mt-4 space-y-1.5 rounded-lg border border-slate-200 bg-white p-3 text-sm">
         <div className="flex justify-between text-slate-600">

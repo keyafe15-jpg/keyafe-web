@@ -55,6 +55,8 @@ export const editOrderItemsSchema = z.object({
     .min(1, "Order must have at least one item"),
   /** Optional ₹ collected now (added to advance when saving). */
   collectedNow: z.coerce.number().nonnegative().optional().default(0),
+  /** Who collects the delivery charge; omit to keep the order's current choice. */
+  deliveryPaidToRider: z.boolean().optional(),
 });
 
 export type EditOrderItemsInput = z.infer<typeof editOrderItemsSchema>;
@@ -239,7 +241,9 @@ export async function editOrderItems(
   const subtotal = roundMoney(resolved.reduce((s, r) => s + r.lineTotal, 0));
   const discount = roundMoney(Number(existing.discount));
   const appliedDiscount = Math.min(discount, subtotal);
-  const deliveryFee = roundMoney(Number(existing.deliveryFee));
+  const deliveryPaidToRider =
+    Number(existing.deliveryFee) > 0 && (input.deliveryPaidToRider ?? existing.deliveryPaidToRider);
+  const deliveryFee = deliveryPaidToRider ? 0 : roundMoney(Number(existing.deliveryFee));
   const chargedLines = allocateCartDiscount(
     resolved.map((r) => r.lineTotal),
     appliedDiscount,
@@ -326,6 +330,7 @@ export async function editOrderItems(
       data: {
         subtotal,
         discount: appliedDiscount,
+        deliveryPaidToRider,
         total: newTotal,
         taxableAmount,
         cgstAmount,

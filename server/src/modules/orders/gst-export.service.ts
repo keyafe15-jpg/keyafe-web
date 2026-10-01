@@ -226,7 +226,7 @@ export async function buildGstExport(params: GstExportParams): Promise<{
       cgstAmount: cgst,
       sgstAmount: sgst,
       igstAmount: igst,
-      deliveryFee: num(order.deliveryFee),
+      deliveryFee: order.deliveryPaidToRider ? 0 : num(order.deliveryFee),
       discount: num(order.discount),
       grandTotal: num(order.total),
     });

@@ -38,6 +38,8 @@ export interface OrderLink {
   discountValue: string | null;
   /** Locked delivery fee when set; otherwise customer pays pincode table rate. */
   deliveryFee: string | null;
+  /** Customer pays delivery to the rider; left out of the order total. */
+  deliveryPaidToRider: boolean;
   /** Customer may pay online via Cashfree; otherwise pay on delivery / pickup only. */
   allowOnlinePayment: boolean;
   linkedOrder: {
@@ -82,6 +84,7 @@ export interface CreateOrderLinkPayload {
   discountValue?: number | null;
   /** Lock delivery fee for this link; null = use pincode table when customer orders. */
   deliveryFee?: number | null;
+  deliveryPaidToRider?: boolean;
   allowOnlinePayment?: boolean;
 }
 
@@ -116,6 +119,7 @@ export interface UpdateOrderLinkPayload {
   discountType?: "FLAT" | "PERCENT" | null;
   discountValue?: number | null;
   deliveryFee?: number | null;
+  deliveryPaidToRider?: boolean;
   allowOnlinePayment?: boolean;
 }
 

@@ -59,11 +59,12 @@ export function orderGstOnTop(order: {
   subtotal: Amount;
   discount: Amount;
   deliveryFee: Amount;
+  /** Delivery was paid to the rider, so it is not in total. */
+  deliveryPaidToRider?: boolean;
   total: Amount;
 }): number {
-  const extra =
-    Number(order.total) -
-    (Number(order.subtotal) - Number(order.discount) + Number(order.deliveryFee));
+  const delivery = order.deliveryPaidToRider ? 0 : Number(order.deliveryFee);
+  const extra = Number(order.total) - (Number(order.subtotal) - Number(order.discount) + delivery);
   const rounded = Math.round(extra * 100) / 100;
   return rounded > 0 ? rounded : 0;
 }

@@ -69,11 +69,14 @@ model Order {
   // Individual delivery dates/slots live on OrderItem (per-line).
 
   // Pricing snapshots
-  subtotal    Decimal @db.Decimal(10, 2)
-  deliveryFee Decimal @default(0) @db.Decimal(10, 2)
-  discount    Decimal @default(0) @db.Decimal(10, 2)
-  couponCode  String?
-  total       Decimal @db.Decimal(10, 2)
+  subtotal            Decimal @db.Decimal(10, 2)
+  deliveryFee         Decimal @default(0) @db.Decimal(10, 2)
+  // Customer pays deliveryFee to the rider (e.g. Rapido), not us: it is kept
+  // for the record but left out of total, sales and the invoice.
+  deliveryPaidToRider Boolean @default(false)
+  discount            Decimal @default(0) @db.Decimal(10, 2)
+  couponCode          String?
+  total               Decimal @db.Decimal(10, 2)
 
   // GST breakup snapshots. taxableAmount = subtotal minus GST when the item
   // prices are inclusive; equal to subtotal when exclusive. Same-state ships
