@@ -62,6 +62,14 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "2026-09-25" → "25 Sep 2026". */
+function formatDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} ${MONTHS[(m ?? 1) - 1]} ${y}`;
+}
+
 export function OfflineOrderDirectFormPage() {
   const navigate = useNavigate();
   const create = useCreateOfflineOrder();
@@ -99,6 +107,7 @@ export function OfflineOrderDirectFormPage() {
   const [pincodeChecking, setPincodeChecking] = useState(false);
 
   const [deliveryDate, setDeliveryDate] = useState(todayIso());
+  const isPastOrder = !!deliveryDate && deliveryDate < todayIso();
   const [slotKey, setSlotKey] = useState<string>(TIME_SLOTS[0].key);
 
   const [customerNotes, setCustomerNotes] = useState("");
@@ -514,7 +523,6 @@ export function OfflineOrderDirectFormPage() {
               <Field label="Date" required>
                 <input
                   type="date"
-                  min={todayIso()}
                   value={deliveryDate}
                   onChange={(e) => setDeliveryDate(e.target.value)}
                   className={cn(inputClass, "min-w-0")}
@@ -533,6 +541,11 @@ export function OfflineOrderDirectFormPage() {
                   ))}
                 </select>
               </Field>
+              {isPastOrder && (
+                <p className="col-span-2 -mt-1 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Past order: saved as Delivered, invoice dated {formatDay(deliveryDate)}.
+                </p>
+              )}
 
               {fulfillment === "DELIVERY" && (
                 <>
@@ -971,7 +984,15 @@ export function OfflineOrderDirectFormPage() {
               disabled={!canSubmit || create.isPending}
               className={cn(submitClass, "mt-4 w-full sm:mt-5")}
             >
-              {uploading ? "Uploading…" : create.isPending ? "Placing order…" : "Place order"}
+              {uploading
+                ? "Uploading…"
+                : create.isPending
+                  ? isPastOrder
+                    ? "Saving…"
+                    : "Placing order…"
+                  : isPastOrder
+                    ? "Save past order"
+                    : "Place order"}
             </button>
             <Link
               to="/offline-orders"

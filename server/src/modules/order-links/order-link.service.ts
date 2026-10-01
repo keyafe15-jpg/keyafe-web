@@ -5,7 +5,8 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { checkPincode } from "../delivery/delivery.service.js";
 import { logger } from "../../utils/logger.js";
-import { nextOrderNumber } from "../orders/order.service.js";
+import { getOrderById, nextOrderNumber } from "../orders/order.service.js";
+import { ensureInvoiceNumber } from "../orders/invoice.service.js";
 import { notifyOrderPlaced } from "../orders/order.notify.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import { cashfreeEnabled } from "../payments/cashfree.client.js";
@@ -788,12 +789,12 @@ const WEST_BENGAL_STATE_CODE = "19";
 
 export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   const dt = new Date(input.deliveryDate);
+  if (Number.isNaN(dt.getTime())) throw HttpError.badRequest("Invalid delivery date");
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  if (Number.isNaN(dt.getTime()) || dt.getTime() < todayStart.getTime()) {
-    throw HttpError.badRequest("Delivery date is in the past. Please pick a fresh date.");
-  }
-  await assertKitchenOpenOn(input.deliveryDate);
+  // A past date records an order that was already delivered (backdated bill).
+  const isPastOrder = dt.getTime() < todayStart.getTime();
+  if (!isPastOrder) await assertKitchenOpenOn(input.deliveryDate);
 
   if (input.fulfillment === "DELIVERY" && !input.deliveryAddress) {
     throw HttpError.badRequest("Delivery address is required for delivery orders");
@@ -1033,6 +1034,7 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       source: "OFFLINE_DIRECT",
       customerNotes: input.customerNotes ?? null,
       adminNotes: input.adminNotes ?? null,
+      ...(isPastOrder ? { status: "DELIVERED" as const, createdAt: dt } : {}),
       items: { create: itemCreates },
     },
     include: { items: true },
@@ -1049,6 +1051,17 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       .catch((err: unknown) => {
         logger.error({ err, pincode }, "saving delivery pincode from offline order failed");
       });
+  }
+
+  // Already delivered: issue the invoice (dated by delivery) and skip the
+  // new-order alerts and customer confirmation.
+  if (isPastOrder) {
+    try {
+      await ensureInvoiceNumber(order.id);
+    } catch (err) {
+      logger.error({ err, orderId: order.id }, "backdated order invoice number failed");
+    }
+    return getOrderById(order.id);
   }
 
   notifyOrderPlaced(order);

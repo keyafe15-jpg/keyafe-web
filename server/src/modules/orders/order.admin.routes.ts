@@ -1009,8 +1009,8 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
         })
       : await getOrderById(id);
 
-  // Delivery is the supply, so the invoice number is issued then (dated today).
-  // That keeps invoice numbers and dates rising together for GST.
+  // Delivery is the supply, so the invoice number is issued then, dated by the
+  // delivery date even when staff mark it a few days late.
   if (status === "DELIVERED" && !updated.invoiceNumber) {
     try {
       await ensureInvoiceNumber(id);

@@ -68,6 +68,19 @@ export async function getSellerSettings(): Promise<SellerSettings> {
 }
 
 /**
+ * The order's last delivery day, capped at now so an invoice issued before
+ * delivery is never future-dated. Orders without delivery dates use now.
+ */
+function supplyDate(items: { deliveryDate: Date | null }[]): Date {
+  const now = new Date();
+  let latest: Date | null = null;
+  for (const { deliveryDate } of items) {
+    if (deliveryDate && (!latest || deliveryDate > latest)) latest = deliveryDate;
+  }
+  return latest && latest < now ? latest : now;
+}
+
+/**
  * Assigns the order its permanent invoice number, or returns the existing one.
  *
  * GST requires numbers to be consecutive with no gaps and never reused, so the
@@ -79,11 +92,15 @@ export async function getSellerSettings(): Promise<SellerSettings> {
  */
 export async function ensureInvoiceNumber(
   orderId: string,
-  opts?: { invoiceDate?: Date },
 ): Promise<{ invoiceNumber: string; invoiceDate: Date; reused: boolean }> {
   const existing = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { invoiceNumber: true, invoiceDate: true, status: true },
+    select: {
+      invoiceNumber: true,
+      invoiceDate: true,
+      status: true,
+      items: { select: { deliveryDate: true } },
+    },
   });
   if (!existing) throw HttpError.notFound("Order not found");
 
@@ -105,9 +122,9 @@ export async function ensureInvoiceNumber(
   }
 
   const settings = await getSellerSettings();
-  // GST export may pass the order's supply date so the invoice lands in the
-  // correct return period instead of "today".
-  const invoiceDate = opts?.invoiceDate ?? new Date();
+  // Dated by the supply, not by when someone clicked, so the invoice lands in
+  // the return period the delivery happened in.
+  const invoiceDate = supplyDate(existing.items);
   const fy = financialYearLabel(invoiceDate, settings.fyStartMonth);
   const series = `${settings.invoicePrefix}/${fy}`;
 

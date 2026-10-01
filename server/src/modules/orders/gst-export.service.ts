@@ -152,7 +152,7 @@ function money(n: number): string {
 /**
  * Builds a GST invoice register for the given period.
  * Issues missing invoice numbers for paid/partial non-cancelled orders
- * whose order date falls in range, then keeps rows by invoiceDate.
+ * placed or delivered in range, then keeps rows by invoiceDate.
  *
  * Cash (COD) sales are intentionally excluded from this register — they still
  * carry GST on the order for invoices, but are left out of the CA export.
@@ -166,22 +166,24 @@ export async function buildGstExport(params: GstExportParams): Promise<{
   const settings = await getSellerSettings();
   const range = resolveRange(params, settings.fyStartMonth);
 
-  // Non-cash paid/partial orders in the period that never got an invoice number
-  // yet — mint one dated to the order so they land in this return window.
+  // Non-cash paid/partial orders placed or delivered in the period that never
+  // got an invoice number yet — mint one (dated by delivery) so they land in
+  // this return window.
+  const inRange = { gte: range.from, lt: range.toExclusive };
   const unnumbered = await prisma.order.findMany({
     where: {
       status: { not: "CANCELLED" },
       paymentStatus: { in: ["PAID", "PARTIAL"] },
       paymentMethod: { notIn: CASH_PAYMENT_METHODS },
       invoiceNumber: null,
-      createdAt: { gte: range.from, lt: range.toExclusive },
+      OR: [{ createdAt: inRange }, { items: { some: { deliveryDate: inRange } } }],
     },
-    select: { id: true, createdAt: true },
+    select: { id: true },
     orderBy: { createdAt: "asc" },
   });
 
   for (const c of unnumbered) {
-    await ensureInvoiceNumber(c.id, { invoiceDate: c.createdAt });
+    await ensureInvoiceNumber(c.id);
   }
 
   const orders = await prisma.order.findMany({
