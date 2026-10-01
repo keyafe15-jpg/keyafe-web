@@ -5,6 +5,7 @@ import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
 import { Field, inputClass, selectClass } from "@/components/form/Field";
 import { SearchableSelect } from "@/components/form/SearchableSelect";
+import { ImageLightboxThumb } from "@/components/ui/ImageLightboxThumb";
 import { resetCatalogProductPick, type CatalogPicker } from "@/lib/catalogProductOptions";
 import {
   availableFixedSkus,
@@ -398,6 +399,10 @@ export function OrderItemRow({
 
   const showCustomDetails = item.kind === "CUSTOM" && item.expanded;
   const refImage = item.refPreview ?? item.keptImageUrl;
+  const productImage =
+    item.kind === "CATALOG" && item.productId
+      ? (selectedProduct?.images[0] ?? productDetail?.images?.[0] ?? null)
+      : null;
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
@@ -430,34 +435,43 @@ export function OrderItemRow({
       <div>
         {item.kind === "CATALOG" && (
           <div className="mt-3 space-y-3">
-            <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2 sm:gap-3">
-              <Field label="Category">
-                <SearchableSelect
-                  value={item.catalogCategoryId}
-                  onChange={(catalogCategoryId) => {
-                    const keepProduct =
-                      !item.productId ||
-                      catalogPicker.inCategory(item.productId, catalogCategoryId);
-                    onPatch(
-                      keepProduct
-                        ? { catalogCategoryId }
-                        : { catalogCategoryId, productId: "", ...resetCatalogProductPick() },
-                    );
-                  }}
-                  searchPlaceholder="Search categories…"
-                  placeholder="All categories"
-                  options={catalogPicker.categoryOptions}
+            <div className="flex items-end gap-2 sm:gap-3">
+              {productImage && (
+                <ImageLightboxThumb
+                  src={productImage}
+                  alt={selectedProduct?.name ?? "Product"}
+                  className="h-16 w-16 rounded-lg border border-slate-200 bg-white"
                 />
-              </Field>
-              <Field label="Product" required>
-                <SearchableSelect
-                  value={item.productId}
-                  onChange={(productId) => onPatch({ productId, ...resetCatalogProductPick() })}
-                  searchPlaceholder="Search products…"
-                  placeholder="— Pick product —"
-                  options={catalogPicker.productOptions(item.catalogCategoryId)}
-                />
-              </Field>
+              )}
+              <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2 sm:gap-3">
+                <Field label="Category">
+                  <SearchableSelect
+                    value={item.catalogCategoryId}
+                    onChange={(catalogCategoryId) => {
+                      const keepProduct =
+                        !item.productId ||
+                        catalogPicker.inCategory(item.productId, catalogCategoryId);
+                      onPatch(
+                        keepProduct
+                          ? { catalogCategoryId }
+                          : { catalogCategoryId, productId: "", ...resetCatalogProductPick() },
+                      );
+                    }}
+                    searchPlaceholder="Search categories…"
+                    placeholder="All categories"
+                    options={catalogPicker.categoryOptions}
+                  />
+                </Field>
+                <Field label="Product" required>
+                  <SearchableSelect
+                    value={item.productId}
+                    onChange={(productId) => onPatch({ productId, ...resetCatalogProductPick() })}
+                    searchPlaceholder="Search products…"
+                    placeholder="— Pick product —"
+                    options={catalogPicker.productOptions(item.catalogCategoryId)}
+                  />
+                </Field>
+              </div>
             </div>
 
             {item.productId && productDetail && hasFixedSkus && (

@@ -88,6 +88,7 @@ export function buildCatalogPicker(products: AdminProduct[], tree: CategoryNode[
           label: formatCatalogProductLabel(p),
           keywords: `${p.name} ${p.categories.map((c) => c.name).join(" ")}`,
           group: categoryId ? undefined : group,
+          image: p.images[0] ?? null,
         })),
     inCategory: (productId, categoryId) => {
       const p = byId.get(productId);

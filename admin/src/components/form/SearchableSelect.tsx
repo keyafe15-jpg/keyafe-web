@@ -11,6 +11,8 @@ export interface SearchableSelectOption {
   keywords?: string;
   /** Consecutive options sharing a group get a heading row above them. */
   group?: string;
+  /** Thumbnail shown before the label; null keeps an empty slot so labels line up. */
+  image?: string | null;
 }
 
 export function SearchableSelect({
@@ -178,6 +180,17 @@ export function SearchableSelect({
                       <Check
                         className={cn("h-3.5 w-3.5 shrink-0", active ? "opacity-100" : "opacity-0")}
                       />
+                      {row.image !== undefined &&
+                        (row.image ? (
+                          <img
+                            src={row.image}
+                            alt=""
+                            loading="lazy"
+                            className="h-8 w-8 shrink-0 rounded object-cover"
+                          />
+                        ) : (
+                          <span className="h-8 w-8 shrink-0 rounded bg-slate-100" />
+                        ))}
                       <span className="min-w-0 truncate">{row.label}</span>
                     </button>
                   </Fragment>
