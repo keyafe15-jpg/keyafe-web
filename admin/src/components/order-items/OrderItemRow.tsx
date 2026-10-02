@@ -1,10 +1,19 @@
 import { useEffect, useMemo } from "react";
-import { ChevronDown, ChevronRight, ImagePlus, Package, Sparkles, Trash2, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ImagePlus,
+  Package,
+  PackagePlus,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
 import { Field, inputClass, selectClass } from "@/components/form/Field";
-import { SearchableSelect } from "@/components/form/SearchableSelect";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/form/SearchableSelect";
 import { ImageLightboxThumb } from "@/components/ui/ImageLightboxThumb";
 import { resetCatalogProductPick, type CatalogPicker } from "@/lib/catalogProductOptions";
 import {
@@ -28,6 +37,7 @@ export function OrderItemRow({
   item,
   products,
   catalogPicker,
+  shopCategoryOptions,
   flavours,
   allToppings,
   allAddons,
@@ -39,6 +49,8 @@ export function OrderItemRow({
   item: OrderItemDraft;
   products: AdminProduct[];
   catalogPicker: CatalogPicker;
+  /** Every shop category; null when this staff member can't add products. */
+  shopCategoryOptions: SearchableSelectOption[] | null;
   flavours: Array<{ id: string; name: string; additionalAmount: string }>;
   allToppings: AdminTopping[];
   allAddons: AdminAddon[];
@@ -1191,6 +1203,53 @@ export function OrderItemRow({
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {item.kind === "CUSTOM" && shopCategoryOptions && (
+          <div
+            className={cn(
+              "mt-3 rounded-lg border px-3 py-2 transition",
+              item.saveToCatalog
+                ? "border-emerald-200 bg-emerald-50/60"
+                : "border-dashed border-slate-200",
+            )}
+          >
+            <label className="flex cursor-pointer items-start gap-2">
+              <input
+                type="checkbox"
+                checked={item.saveToCatalog}
+                onChange={(e) => onPatch({ saveToCatalog: e.target.checked })}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
+              />
+              <span className="min-w-0 text-xs">
+                <span className="flex items-center gap-1 font-medium text-slate-700">
+                  <PackagePlus className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  Also add to product list
+                </span>
+                <span className="block text-slate-500">
+                  Saved hidden when the order is placed, with this name, price, photo and
+                  description. Switch it on in Products after a check.
+                </span>
+              </span>
+            </label>
+            {item.saveToCatalog && (
+              <Field
+                label="Shop category"
+                required
+                error={item.saveCategoryId ? undefined : "Pick where it goes in the shop"}
+                className="mt-2 sm:max-w-sm"
+              >
+                <SearchableSelect
+                  value={item.saveCategoryId}
+                  onChange={(saveCategoryId) => onPatch({ saveCategoryId })}
+                  searchPlaceholder="Search categories…"
+                  allowEmpty={false}
+                  placeholder="— Pick category —"
+                  options={shopCategoryOptions}
+                />
+              </Field>
+            )}
           </div>
         )}
       </div>

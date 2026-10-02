@@ -3,6 +3,7 @@ import type { OfflineOrderItemPayload } from "@/hooks/useOfflineOrders";
 import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
 import { uploadImage } from "@/lib/uploads";
+import { wantsCatalogSave } from "./saveToCatalog";
 import type { OrderItemDraft } from "./types";
 
 export function resolveFlavourName(
@@ -81,7 +82,8 @@ export function validateOrderItems(items: OrderItemDraft[]): boolean {
       it.productName.trim().length >= 2 &&
       Number(it.unitPrice) > 0 &&
       Number(it.qty) > 0 &&
-      (it.kind === "CUSTOM" || it.productId),
+      (it.kind === "CUSTOM" || it.productId) &&
+      (!wantsCatalogSave(it) || !!it.saveCategoryId),
   );
 }
 

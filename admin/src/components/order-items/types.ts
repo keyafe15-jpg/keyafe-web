@@ -38,6 +38,10 @@ export interface OrderItemDraft {
   /** Custom pizza — free-text size when not picking a preset (e.g. "7 inch"). */
   customPizzaSize: string;
   variantId: string;
+
+  /** Custom items only — also create a hidden product from this item once the order saves. */
+  saveToCatalog: boolean;
+  saveCategoryId: string;
 }
 
 export function newOrderItem(kind: OrderLinkKind = "CUSTOM"): OrderItemDraft {
@@ -70,6 +74,8 @@ export function newOrderItem(kind: OrderLinkKind = "CUSTOM"): OrderItemDraft {
     customPounds: kind === "CUSTOM" ? "1" : "",
     customPizzaSize: "",
     variantId: "",
+    saveToCatalog: false,
+    saveCategoryId: "",
   };
 }
 
@@ -103,5 +109,7 @@ export function orderLinkItemToDraft(it: OrderLinkItem): OrderItemDraft {
     customPounds: it.sizeGrams ? String(Math.round((it.sizeGrams / 500) * 10) / 10) : "",
     customPizzaSize: it.customTemplate === "PIZZA" ? (it.sizeLabel ?? "") : "",
     variantId: "",
+    saveToCatalog: false,
+    saveCategoryId: "",
   };
 }

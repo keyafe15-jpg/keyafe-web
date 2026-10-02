@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { OFFLINE_PAYMENT_METHODS, type OfflinePaymentMethod } from "@/pages/orders/order-ui";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
+import { useCreateProduct } from "@/hooks/useAdminProducts";
 import { MAX_PAYMENT_SCREENSHOTS } from "@/hooks/useAdminOrders";
 import { TIME_SLOTS } from "@/content/slots";
 import { api } from "@/lib/api";
@@ -31,11 +32,14 @@ import { manualDiscountRupees, type ManualDiscountType } from "@/lib/manualDisco
 import {
   OrderItemsEditor,
   resolveReferenceImageUrl,
+  saveItemsToCatalog,
   toOfflineOrderItemPayload,
   useOrderItemRefPreviews,
   useOrderItemsGstOnTop,
   useOrderItemsState,
   validateOrderItems,
+  wantsCatalogSave,
+  type CatalogSaveEntry,
 } from "@/components/order-items";
 import { useFlavours } from "@/hooks/useFlavours";
 import { useAdminToppings } from "@/hooks/useToppings";
@@ -91,11 +95,13 @@ function formatDay(iso: string): string {
 export function OfflineOrderDirectFormPage() {
   const navigate = useNavigate();
   const create = useCreateOfflineOrder();
+  const createProduct = useCreateProduct();
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
   const { items, patchItem, removeItem, addItem, setItems } = useOrderItemsState();
   const [uploading, setUploading] = useState(false);
+  const [addingProducts, setAddingProducts] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -293,9 +299,11 @@ export function OfflineOrderDirectFormPage() {
     setError(null);
     try {
       const itemPayloads = [];
+      const savedImages: CatalogSaveEntry[] = [];
       for (const it of items) {
         setUploading(true);
         const referenceImageUrl = await resolveReferenceImageUrl(it);
+        savedImages.push({ item: it, referenceImageUrl });
         itemPayloads.push(
           toOfflineOrderItemPayload(it, referenceImageUrl, flavours, allToppings, allAddons),
         );
@@ -391,6 +399,18 @@ export function OfflineOrderDirectFormPage() {
       };
 
       const order = await create.mutateAsync(payload);
+      setAddingProducts(savedImages.some(({ item }) => wantsCatalogSave(item)));
+      const failed = await saveItemsToCatalog(
+        savedImages,
+        allToppings,
+        allAddons,
+        createProduct.mutateAsync,
+      );
+      if (failed.length > 0) {
+        window.alert(
+          `Order placed, but these couldn't be added to the product list:\n\n${failed.join("\n")}`,
+        );
+      }
       navigate(`/orders/${order.orderNumber}`);
     } catch (err) {
       setUploading(false);
@@ -1036,18 +1056,20 @@ export function OfflineOrderDirectFormPage() {
             <button
               type="button"
               onClick={submit}
-              disabled={!canSubmit || create.isPending}
+              disabled={!canSubmit || create.isPending || addingProducts}
               className={cn(submitClass, "mt-4 w-full sm:mt-5")}
             >
               {uploading
                 ? "Uploading…"
-                : create.isPending
-                  ? isPastOrder
-                    ? "Saving…"
-                    : "Placing order…"
-                  : isPastOrder
-                    ? "Save past order"
-                    : "Place order"}
+                : addingProducts
+                  ? "Adding to product list…"
+                  : create.isPending
+                    ? isPastOrder
+                      ? "Saving…"
+                      : "Placing order…"
+                    : isPastOrder
+                      ? "Save past order"
+                      : "Place order"}
             </button>
             <Link
               to="/offline-orders"

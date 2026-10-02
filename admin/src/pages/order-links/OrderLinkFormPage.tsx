@@ -18,12 +18,16 @@ import {
   OrderItemsEditor,
   orderLinkItemToDraft,
   resolveReferenceImageUrl,
+  saveItemsToCatalog,
   toOrderLinkItemPayload,
   useOrderItemRefPreviews,
   useOrderItemsGstOnTop,
   useOrderItemsState,
   validateOrderItems,
+  wantsCatalogSave,
+  type CatalogSaveEntry,
 } from "@/components/order-items";
+import { useCreateProduct } from "@/hooks/useAdminProducts";
 import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
 import { cn } from "@/lib/cn";
@@ -35,6 +39,7 @@ export function OrderLinkFormPage() {
   const navigate = useNavigate();
   const create = useCreateOrderLink();
   const update = useUpdateOrderLink();
+  const createProduct = useCreateProduct();
   const { data: existing } = useAdminOrderLink(id);
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
@@ -51,6 +56,7 @@ export function OrderLinkFormPage() {
   const [allowOnlinePayment, setAllowOnlinePayment] = useState(false);
   const { data: onlinePaymentAvailable = false } = useOnlinePaymentAvailable();
   const [uploading, setUploading] = useState(false);
+  const [addingProducts, setAddingProducts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{
     token: string;
@@ -114,14 +120,32 @@ export function OrderLinkFormPage() {
     setError(null);
     try {
       const itemPayloads: OrderLinkItemPayload[] = [];
+      const savedImages: CatalogSaveEntry[] = [];
       for (const it of items) {
         setUploading(true);
         const referenceImageUrl = await resolveReferenceImageUrl(it);
+        savedImages.push({ item: it, referenceImageUrl });
         itemPayloads.push(
           toOrderLinkItemPayload(it, referenceImageUrl, flavours, allToppings, allAddons),
         );
       }
       setUploading(false);
+
+      const addToProductList = async () => {
+        setAddingProducts(savedImages.some(({ item }) => wantsCatalogSave(item)));
+        const failed = await saveItemsToCatalog(
+          savedImages,
+          allToppings,
+          allAddons,
+          createProduct.mutateAsync,
+        );
+        setAddingProducts(false);
+        if (failed.length > 0) {
+          window.alert(
+            `Link saved, but these couldn't be added to the product list:\n\n${failed.join("\n")}`,
+          );
+        }
+      };
 
       if (isEdit && id) {
         await update.mutateAsync({
@@ -135,6 +159,7 @@ export function OrderLinkFormPage() {
           ...deliveryFeePayload,
           ...paymentPayload,
         });
+        await addToProductList();
         navigate("/offline-orders");
         return;
       }
@@ -151,6 +176,7 @@ export function OrderLinkFormPage() {
       };
 
       const link = await create.mutateAsync(payload);
+      await addToProductList();
       setCreated({ token: link.token, url: orderLinkUrl(link.token) });
     } catch (err) {
       setUploading(false);
@@ -359,16 +385,18 @@ export function OrderLinkFormPage() {
             <button
               type="button"
               onClick={submit}
-              disabled={!canSubmit || create.isPending || update.isPending}
+              disabled={!canSubmit || create.isPending || update.isPending || addingProducts}
               className={cn(submitClass, "mt-4 w-full sm:mt-5")}
             >
               {uploading
                 ? "Uploading…"
-                : create.isPending || update.isPending
-                  ? "Saving…"
-                  : isEdit
-                    ? "Save changes"
-                    : "Create link"}
+                : addingProducts
+                  ? "Adding to product list…"
+                  : create.isPending || update.isPending
+                    ? "Saving…"
+                    : isEdit
+                      ? "Save changes"
+                      : "Create link"}
             </button>
             <Link
               to="/offline-orders"
