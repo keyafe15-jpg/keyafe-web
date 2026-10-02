@@ -10,6 +10,7 @@ import type {
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { MAX_PAYMENT_SCREENSHOTS } from "../../lib/paymentLabel.js";
+import { istToday } from "../../lib/time.js";
 
 export type OrdersBackupFormat = "xlsx" | "csv";
 
@@ -154,7 +155,7 @@ function parseDate(v: unknown): Date | null {
 }
 
 function stamp(): string {
-  return new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  return istToday().toISOString().slice(0, 10).replace(/-/g, "");
 }
 
 function istDayStart(isoDay: string): Date {

@@ -18,12 +18,14 @@ function money(v: unknown): string {
   return `₹${n.toFixed(2)}`;
 }
 
+/** For delivery dates, which are stored as midnight UTC. */
 function formatDate(d: Date): string {
   return d.toLocaleDateString("en-IN", {
     weekday: "short",
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 

@@ -26,6 +26,7 @@ import {
   sumLineTax,
 } from "../orders/order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
+import { istToday } from "../../lib/time.js";
 import {
   MAX_PAYMENT_SCREENSHOTS,
   OFFLINE_PAYMENT_METHODS,
@@ -415,9 +416,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
 
   // Reject past dates (mirrors createOrder guard).
   const dt = new Date(input.deliveryDate);
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  if (Number.isNaN(dt.getTime()) || dt.getTime() < todayStart.getTime()) {
+  if (Number.isNaN(dt.getTime()) || dt.getTime() < istToday().getTime()) {
     throw HttpError.badRequest("Delivery date is in the past. Please pick a fresh date.");
   }
   await assertKitchenOpenOn(input.deliveryDate);
@@ -812,10 +811,8 @@ function backdatedPlacedAt(deliveryDay: Date, placedOn: string | undefined): Dat
 export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
   const dt = new Date(input.deliveryDate);
   if (Number.isNaN(dt.getTime())) throw HttpError.badRequest("Invalid delivery date");
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
   // A past date records an order that was already delivered (backdated bill).
-  const isPastOrder = dt.getTime() < todayStart.getTime();
+  const isPastOrder = dt.getTime() < istToday().getTime();
   if (!isPastOrder) await assertKitchenOpenOn(input.deliveryDate);
   const placedAt = isPastOrder ? backdatedPlacedAt(dt, input.placedOn) : null;
 

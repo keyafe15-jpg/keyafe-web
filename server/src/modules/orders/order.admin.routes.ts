@@ -35,6 +35,7 @@ import multer from "multer";
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
 import { MAX_PAYMENT_SCREENSHOTS, OFFLINE_PAYMENT_METHODS } from "../../lib/paymentLabel.js";
+import { istDayOf, istDayStart, istToday } from "../../lib/time.js";
 import {
   requirePermission,
   staffHasPermission,
@@ -54,8 +55,9 @@ const ORDER_STATUSES = [
 ] as const satisfies readonly OrderStatus[];
 
 /**
- * A `YYYY-MM-DD` day as sent by `<input type="date">`, resolved to local
- * midnight. The refine rejects rollovers like 2026-02-31, which the regex
+ * A `YYYY-MM-DD` day as sent by `<input type="date">`, resolved to midnight
+ * UTC — the same form delivery dates are stored in, whatever the server's
+ * timezone. The refine rejects rollovers like 2026-02-31, which the regex
  * alone would let through and Date would silently turn into March 3rd.
  */
 const isoDay = z
@@ -63,15 +65,22 @@ const isoDay = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD")
   .superRefine((value, ctx) => {
     const [y, m, d] = value.split("-").map(Number);
-    const parsed = new Date(y!, m! - 1, d!);
-    if (parsed.getFullYear() !== y || parsed.getMonth() !== m! - 1 || parsed.getDate() !== d) {
+    const parsed = new Date(Date.UTC(y!, m! - 1, d!));
+    if (
+      parsed.getUTCFullYear() !== y ||
+      parsed.getUTCMonth() !== m! - 1 ||
+      parsed.getUTCDate() !== d
+    ) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Not a real date" });
     }
   })
   .transform((value) => {
     const [y, m, d] = value.split("-").map(Number);
-    return new Date(y!, m! - 1, d!, 0, 0, 0, 0);
+    return new Date(Date.UTC(y!, m! - 1, d!));
   });
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const nextDay = (day: Date) => new Date(day.getTime() + DAY_MS);
 
 /** Blank query params mean "unset" rather than "match the empty string". */
 const optionalText = z
@@ -127,12 +136,6 @@ export const scheduleQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
 
-function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 function addressField(addr: unknown, key: "pincode" | "city"): string | null {
   if (!addr || typeof addr !== "object") return null;
   const value = (addr as Record<string, unknown>)[key];
@@ -161,9 +164,7 @@ function deliveryDateFilter(
   }
   if (opts.deliveryTo) {
     // `deliveryTo` is inclusive, so the exclusive bound is the next midnight.
-    const next = new Date(opts.deliveryTo);
-    next.setDate(next.getDate() + 1);
-    filter.lt = next;
+    filter.lt = nextDay(opts.deliveryTo);
   }
   return filter.gte || filter.lt ? filter : null;
 }
@@ -337,15 +338,13 @@ adminOrderRouter.get("/schedule", requirePermission("orders.read"), async (req, 
   // Without an explicit lower bound the tab opens as a forward-looking prep
   // queue rather than replaying the whole delivery history. Free-text search
   // skips that default so matches outside "today onward" still appear.
-  const from = deliveryFrom ?? (search ? null : startOfToday());
+  const from = deliveryFrom ?? (search ? null : istToday());
   const deliveryDate: Prisma.DateTimeNullableFilter = { not: null };
   if (from) {
     deliveryDate.gte = from;
   }
   if (deliveryTo) {
-    const next = new Date(deliveryTo);
-    next.setDate(next.getDate() + 1);
-    deliveryDate.lt = next;
+    deliveryDate.lt = nextDay(deliveryTo);
   }
 
   // Kept as an AND list so `status` and `excludeStatus` can both apply.
@@ -502,12 +501,9 @@ adminOrderRouter.get("/counts", requirePermission("orders.read"), async (_req, r
 });
 
 adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (req, res) => {
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
-
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
+  // Days are India days; orders are instants, so each day spans its IST hours.
+  const today = istToday();
+  const monthFirst = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
 
   const parsed = analyticsQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -515,19 +511,16 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
   }
 
   // Defaults are month-to-date, so they depend on "now" and can't live in the
-  // schema. Both bounds get their time normalised below.
-  const rangeFrom = parsed.data.from ?? monthStart;
+  // schema.
+  const rangeFrom = parsed.data.from ?? monthFirst;
   const rangeTo = parsed.data.to ?? today;
 
   if (rangeFrom > rangeTo) {
     throw HttpError.badRequest("From date must be before or equal to To date.");
   }
 
-  const chartStart = new Date(rangeFrom);
-  chartStart.setHours(0, 0, 0, 0);
-
-  const chartEnd = new Date(rangeTo);
-  chartEnd.setHours(23, 59, 59, 999);
+  const monthWindow = { gte: istDayStart(monthFirst), lt: istDayStart(nextDay(today)) };
+  const rangeWindow = { gte: istDayStart(rangeFrom), lt: istDayStart(nextDay(rangeTo)) };
 
   // Active credit notes, counted against their order's date like the sale.
   const creditsFor = (createdAt?: Prisma.DateTimeFilter) =>
@@ -548,12 +541,7 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
         },
       }),
       prisma.order.aggregate({
-        where: {
-          createdAt: {
-            gte: monthStart,
-            lte: today,
-          },
-        },
+        where: { createdAt: monthWindow },
         _count: { id: true },
         _sum: {
           total: true,
@@ -563,12 +551,7 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
         },
       }),
       prisma.order.aggregate({
-        where: {
-          createdAt: {
-            gte: chartStart,
-            lte: chartEnd,
-          },
-        },
+        where: { createdAt: rangeWindow },
         _count: { id: true },
         _sum: {
           total: true,
@@ -578,12 +561,7 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
         },
       }),
       prisma.order.findMany({
-        where: {
-          createdAt: {
-            gte: chartStart,
-            lte: chartEnd,
-          },
-        },
+        where: { createdAt: rangeWindow },
         select: {
           createdAt: true,
           total: true,
@@ -592,8 +570,8 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
         orderBy: { createdAt: "asc" },
       }),
       creditsFor(),
-      creditsFor({ gte: monthStart, lte: today }),
-      creditsFor({ gte: chartStart, lte: chartEnd }),
+      creditsFor(monthWindow),
+      creditsFor(rangeWindow),
     ]);
 
   const toSafeNumber = (value: unknown): number => {
@@ -638,7 +616,7 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
 
   const salesByDate = new Map<string, { sales: number; orders: number }>();
   for (const row of chartRows) {
-    const key = new Date(row.createdAt).toISOString().slice(0, 10);
+    const key = istDayOf(row.createdAt).toISOString().slice(0, 10);
     const current = salesByDate.get(key) ?? { sales: 0, orders: 0 };
     current.sales +=
       Number(row.total ?? 0) - row.creditNotes.reduce((s, n) => s + Number(n.amount), 0);
@@ -652,20 +630,19 @@ adminOrderRouter.get("/analytics", requirePermission("dashboard.read"), async (r
     sales: number;
     orders: number;
   }> = [];
-  const cursor = new Date(chartStart);
-  while (cursor <= chartEnd) {
-    const key = new Date(cursor).toISOString().slice(0, 10);
+  for (let day = rangeFrom; day <= rangeTo; day = nextDay(day)) {
+    const key = day.toISOString().slice(0, 10);
     const bucket = salesByDate.get(key) ?? { sales: 0, orders: 0 };
     chart.push({
       date: key,
-      label: cursor.toLocaleDateString("en-IN", {
+      label: day.toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "short",
+        timeZone: "UTC",
       }),
       sales: Number(bucket.sales ?? 0),
       orders: bucket.orders ?? 0,
     });
-    cursor.setDate(cursor.getDate() + 1);
   }
 
   res.json({

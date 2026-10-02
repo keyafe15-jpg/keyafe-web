@@ -45,6 +45,28 @@ export function getWallTimeInZone(now: Date, timezone: string): WallTimeInZone {
   return { dayOfWeek, dateKey, hourMinute };
 }
 
+/**
+ * Midnight UTC of today's date in India, comparable with `new Date("YYYY-MM-DD")`.
+ * Don't use `setHours(0,0,0,0)` for this: production runs in UTC, where it is
+ * still yesterday until 05:30 IST.
+ */
+export function istToday(now: Date = new Date()): Date {
+  return getWallTimeInZone(now, "Asia/Kolkata").dateKey;
+}
+
+const IST_OFFSET_MS = 330 * 60 * 1000;
+
+/** The instant an India day starts, for a day given as midnight UTC (see `istToday`). */
+export function istDayStart(day: Date): Date {
+  return new Date(day.getTime() - IST_OFFSET_MS);
+}
+
+/** The India day an instant falls on, as midnight UTC of that date. */
+export function istDayOf(instant: Date): Date {
+  const shifted = new Date(instant.getTime() + IST_OFFSET_MS);
+  return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()));
+}
+
 // Compare two "HH:mm" strings lexicographically — works because zero-padded.
 export function hmBefore(a: string, b: string): boolean {
   return a < b;

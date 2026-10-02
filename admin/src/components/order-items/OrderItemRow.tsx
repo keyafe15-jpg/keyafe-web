@@ -20,7 +20,7 @@ import {
 import { Price, applyFactor, formatINR } from "@keyafe/shared";
 import { cn } from "@/lib/cn";
 import type { OrderItemDraft } from "./types";
-import { AddonGroupPicker } from "./AddonGroupPicker";
+import { AddonsPanel } from "./AddonGroupPicker";
 import { usePizzaCatalogOptions, pizzaSizeLabelForKey } from "./usePizzaCatalogOptions";
 
 export function OrderItemRow({
@@ -268,7 +268,7 @@ export function OrderItemRow({
 
   // Custom cake — sync size label/grams from pounds.
   useEffect(() => {
-    if (!isCustomCake || !item.expanded) return;
+    if (!isCustomCake) return;
 
     const parsedPounds = parseCustomPounds(item.customPounds);
     if (parsedPounds == null) return;
@@ -279,15 +279,15 @@ export function OrderItemRow({
       cakeSizeId: "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCustomCake, item.expanded, item.customPounds]);
+  }, [isCustomCake, item.customPounds]);
 
-  // Default 1 lb when custom cake details open.
+  // Default 1 lb for a custom cake.
   useEffect(() => {
-    if (!isCustomCake || !item.expanded) return;
+    if (!isCustomCake) return;
     if (item.customPounds.trim()) return;
     onPatch({ customPounds: "1", cakeSizeId: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCustomCake, item.expanded]);
+  }, [isCustomCake]);
 
   // Custom pizza — sync size label from preset or free text.
   useEffect(() => {
@@ -420,6 +420,27 @@ export function OrderItemRow({
     originalUnitPrice != null && item.unitPrice !== "" && unitPriceNum < originalUnitPrice;
 
   const showCustomDetails = item.kind === "CUSTOM" && item.expanded;
+
+  const changeCustomTemplate = (template: OrderItemDraft["customTemplate"]) =>
+    onPatch({
+      customTemplate: template,
+      cakeSizeId: "",
+      customPounds: template === "CAKE" ? item.customPounds || "1" : "",
+      customPizzaSize: "",
+      flavourId: "",
+      customFlavour: "",
+      messageOnCake: template === "CAKE" ? item.messageOnCake : "",
+      sizeLabel: "",
+      sizeGrams: "",
+      sizeOptionId: "",
+      crustOptionId: "",
+      crustLabel: "",
+      toppingSelections: [],
+      addonSelections: [],
+    });
+  // Cakes take pounds and "other" items a size in the first row; pizza sizes live under details.
+  const customMeasure =
+    item.kind !== "CUSTOM" ? null : isCustomCake ? "POUNDS" : isCustomPizza ? null : "SIZE";
   const refImage = item.refPreview ?? item.keptImageUrl;
   const productImage =
     item.kind === "CATALOG" && item.productId
@@ -443,11 +464,37 @@ export function OrderItemRow({
           {item.kind === "CATALOG" ? "Catalog" : "Custom"}
         </span>
         <span className="text-xs text-slate-400">#{index + 1}</span>
+        {item.kind === "CUSTOM" && (
+          <button
+            type="button"
+            onClick={() => onPatch({ expanded: !item.expanded })}
+            aria-expanded={item.expanded}
+            className="ml-auto inline-flex min-w-0 items-center gap-1 truncate text-xs font-medium text-slate-600 hover:text-brand-700"
+          >
+            {item.expanded ? (
+              <ChevronDown className="h-3 w-3 shrink-0" />
+            ) : (
+              <ChevronRight className="h-3 w-3 shrink-0" />
+            )}
+            <span className="truncate">
+              {item.expanded
+                ? "Hide details"
+                : isCustomCake
+                  ? "Flavour, message…"
+                  : isCustomPizza
+                    ? "Size, crust, toppings…"
+                    : "Description, notes…"}
+            </span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onRemove}
           disabled={!canRemove}
-          className="-my-1 ml-auto rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+          className={cn(
+            "-my-1 shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400",
+            item.kind !== "CUSTOM" && "ml-auto",
+          )}
           aria-label="Remove item"
         >
           <Trash2 className="h-4 w-4" />
@@ -535,11 +582,41 @@ export function OrderItemRow({
           </div>
         )}
 
-        <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-[2fr_1fr_1fr] sm:gap-3">
+        <div
+          className={cn(
+            "mt-3 grid gap-x-2 gap-y-3",
+            item.kind === "CATALOG"
+              ? "grid-cols-[minmax(0,1fr)_5.5rem_3.5rem] sm:grid-cols-[minmax(0,1fr)_7rem_4.5rem]"
+              : cn(
+                  // Phones: category + name, then the numbers. From sm up it's one row.
+                  "grid-cols-12",
+                  customMeasure === "POUNDS"
+                    ? "sm:grid-cols-[6.5rem_minmax(0,1fr)_5rem_7rem_4.5rem]"
+                    : customMeasure === "SIZE"
+                      ? "sm:grid-cols-[6.5rem_minmax(0,1fr)_9rem_7rem_4.5rem]"
+                      : "sm:grid-cols-[6.5rem_minmax(0,1fr)_7rem_4.5rem]",
+                ),
+          )}
+        >
+          {item.kind === "CUSTOM" && (
+            <Field label="Category" className={customSpan[4]}>
+              <select
+                value={item.customTemplate}
+                onChange={(e) =>
+                  changeCustomTemplate(e.target.value as OrderItemDraft["customTemplate"])
+                }
+                className={cn(selectClass, "pl-2.5")}
+              >
+                <option value="CAKE">Cake</option>
+                <option value="PIZZA">Pizza</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </Field>
+          )}
           <Field
             label={item.kind === "CATALOG" ? "Name (override)" : "Name"}
             required
-            className="col-span-2 sm:col-span-1"
+            className={item.kind === "CUSTOM" ? customSpan[8] : undefined}
           >
             <input
               value={item.productName}
@@ -556,7 +633,38 @@ export function OrderItemRow({
               className={inputClass}
             />
           </Field>
-          <Field label={autoPriced ? "Price (auto)" : "Price"} required>
+          {customMeasure === "POUNDS" && (
+            <Field label="Pounds" required className={customSpan[4]}>
+              <input
+                type="number"
+                min={0.1}
+                step={0.1}
+                value={item.customPounds}
+                onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
+                placeholder="1"
+                className={cn(inputClass, "px-2")}
+              />
+            </Field>
+          )}
+          {customMeasure === "SIZE" && (
+            <Field label="Size" className={customSpan[5]}>
+              <input
+                value={item.sizeLabel}
+                onChange={(e) => onPatch({ sizeLabel: e.target.value, sizeGrams: "" })}
+                placeholder="e.g. 500ml"
+                className={cn(inputClass, "px-2")}
+              />
+            </Field>
+          )}
+          <Field
+            label="Price"
+            required
+            className={
+              item.kind !== "CUSTOM"
+                ? undefined
+                : customSpan[customMeasure === "POUNDS" ? 5 : customMeasure === "SIZE" ? 4 : 9]
+            }
+          >
             <input
               type="text"
               inputMode="decimal"
@@ -564,17 +672,22 @@ export function OrderItemRow({
               onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
               placeholder="500"
               disabled={autoPriced}
-              className={cn(inputClass, autoPriced && "bg-slate-100 text-slate-600")}
+              title={autoPriced ? "Worked out from the product options" : undefined}
+              className={cn(inputClass, "px-2", autoPriced && "bg-slate-100 text-slate-600")}
             />
           </Field>
-          <Field label="Qty" required>
+          <Field
+            label="Qty"
+            required
+            className={item.kind === "CUSTOM" ? customSpan[3] : undefined}
+          >
             <input
               type="text"
               inputMode="numeric"
               value={item.qty}
               onChange={(e) => onPatch({ qty: e.target.value.replace(/\D/g, "") })}
               placeholder="1"
-              className={inputClass}
+              className={cn(inputClass, "px-2 text-center")}
             />
           </Field>
         </div>
@@ -781,7 +894,8 @@ export function OrderItemRow({
 
         {item.kind === "CATALOG" && catalogAddons.length > 0 && (
           <div className="mt-3">
-            <AddonGroupPicker
+            <AddonsPanel
+              key={item.productId}
               addons={catalogAddons}
               selected={item.addonSelections}
               onToggle={toggleAddon}
@@ -789,98 +903,11 @@ export function OrderItemRow({
           </div>
         )}
 
-        {item.kind === "CUSTOM" &&
-          item.expanded &&
-          customAddons.length === 0 &&
-          allAddons.some((a) => a.isActive) && (
-            <p className="mt-3 text-[11px] text-slate-400">
-              No add-ons for {TEMPLATE_LABEL[item.customTemplate]} items yet — tick{" "}
-              {TEMPLATE_LABEL[item.customTemplate]} under &ldquo;Offline custom items&rdquo; on the
-              Add-ons page.
-            </p>
-          )}
-
-        {item.kind === "CUSTOM" && customAddons.length > 0 && (
-          <div className="mt-3">
-            <p className="mb-1.5 text-[11px] text-slate-400">
-              Add-ons for the {TEMPLATE_LABEL[item.customTemplate]} category
-              {!item.expanded && " · change it under details"}
-            </p>
-            <AddonGroupPicker
-              addons={customAddons}
-              selected={item.addonSelections}
-              onToggle={toggleAddon}
-            />
-          </div>
-        )}
-
-        {item.kind === "CUSTOM" && (
-          <button
-            type="button"
-            onClick={() => onPatch({ expanded: !item.expanded })}
-            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-brand-700"
-          >
-            {item.expanded ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-            {item.expanded
-              ? "Hide details"
-              : isCustomCake
-                ? "Add pounds, flavour, message…"
-                : isCustomPizza
-                  ? "Add size, crust, toppings…"
-                  : "Add description, size, notes…"}
-          </button>
-        )}
-
         {showCustomDetails && (
-          <div className="mt-2 space-y-2">
+          <div className="mt-3 space-y-3">
             {isCustomCake ? (
               <>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-[7rem_5rem_minmax(9rem,1fr)_minmax(9rem,1fr)] sm:gap-2">
-                  <Field label="Category">
-                    <select
-                      value={item.customTemplate}
-                      onChange={(e) =>
-                        onPatch({
-                          customTemplate: e.target.value as OrderItemDraft["customTemplate"],
-                          cakeSizeId: "",
-                          customPounds: e.target.value === "CAKE" ? item.customPounds || "1" : "",
-                          customPizzaSize: "",
-                          flavourId: "",
-                          customFlavour: "",
-                          sizeLabel: "",
-                          sizeGrams: "",
-                          sizeOptionId: "",
-                          crustOptionId: "",
-                          crustLabel: "",
-                          toppingSelections: [],
-                          addonSelections: [],
-                        })
-                      }
-                      className={selectClass}
-                    >
-                      <option value="CAKE">Cake</option>
-                      <option value="PIZZA">Pizza</option>
-                      <option value="OTHER">Other</option>
-                    </select>
-                  </Field>
-                  <Field label="Pounds" required>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        min={0.1}
-                        step={0.1}
-                        value={item.customPounds}
-                        onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
-                        placeholder="1"
-                        className={cn(inputClass, "w-full")}
-                      />
-                      <span className="shrink-0 text-xs text-slate-500">lb</span>
-                    </div>
-                  </Field>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-[minmax(9rem,1fr)_minmax(8rem,0.8fr)_minmax(10rem,1.4fr)]">
                   {flavours.length > 0 ? (
                     <Field label="Flavour">
                       <SearchableSelect
@@ -920,7 +947,7 @@ export function OrderItemRow({
                       className={inputClass}
                     />
                   </Field>
-                  <Field label="Message on cake" className="col-span-2 sm:col-span-4">
+                  <Field label="Message on cake" className="col-span-2 sm:col-span-1">
                     <input
                       value={item.messageOnCake}
                       onChange={(e) => onPatch({ messageOnCake: e.target.value })}
@@ -932,34 +959,7 @@ export function OrderItemRow({
               </>
             ) : isCustomPizza ? (
               <>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-[7rem_minmax(8rem,11rem)_minmax(7rem,9rem)_minmax(8rem,1fr)] sm:gap-2">
-                  <Field label="Category">
-                    <select
-                      value={item.customTemplate}
-                      onChange={(e) =>
-                        onPatch({
-                          customTemplate: e.target.value as OrderItemDraft["customTemplate"],
-                          cakeSizeId: "",
-                          customPounds: e.target.value === "CAKE" ? "1" : "",
-                          customPizzaSize: "",
-                          flavourId: "",
-                          customFlavour: "",
-                          sizeLabel: "",
-                          sizeGrams: "",
-                          sizeOptionId: "",
-                          crustOptionId: "",
-                          crustLabel: "",
-                          toppingSelections: [],
-                          addonSelections: [],
-                        })
-                      }
-                      className={selectClass}
-                    >
-                      <option value="CAKE">Cake</option>
-                      <option value="PIZZA">Pizza</option>
-                      <option value="OTHER">Other</option>
-                    </select>
-                  </Field>
+                <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-2 gap-y-3 sm:grid-cols-[minmax(8rem,11rem)_minmax(7rem,9rem)_minmax(8rem,11rem)]">
                   {pizzaSizePresets.length > 0 ? (
                     <Field label="Size" required={!item.customPizzaSize.trim()}>
                       <SearchableSelect
@@ -1090,128 +1090,122 @@ export function OrderItemRow({
                   </div>
                 )}
               </>
-            ) : (
-              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[7rem_minmax(12rem,1fr)]">
-                <Field label="Category">
-                  <select
-                    value={item.customTemplate}
-                    onChange={(e) =>
-                      onPatch({
-                        customTemplate: e.target.value as OrderItemDraft["customTemplate"],
-                        cakeSizeId: "",
-                        customPounds: e.target.value === "CAKE" ? "1" : "",
-                        customPizzaSize: "",
-                        flavourId: "",
-                        customFlavour: "",
-                        sizeLabel: "",
-                        sizeGrams: "",
-                        sizeOptionId: "",
-                        crustOptionId: "",
-                        crustLabel: "",
-                        messageOnCake: "",
-                        toppingSelections: [],
-                        addonSelections: [],
-                      })
-                    }
-                    className={selectClass}
-                  >
-                    <option value="CAKE">Cake</option>
-                    <option value="PIZZA">Pizza</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </Field>
-                <Field label="Size / variant">
-                  <input
-                    value={item.sizeLabel}
-                    onChange={(e) => onPatch({ sizeLabel: e.target.value, sizeGrams: "" })}
-                    placeholder="e.g. half tray, 500ml"
-                    className={inputClass}
-                  />
-                </Field>
-              </div>
-            )}
+            ) : null}
 
-            <Field label="Description (optional)">
-              <textarea
-                value={item.description}
-                onChange={(e) => onPatch({ description: e.target.value })}
-                rows={3}
-                maxLength={1000}
-                placeholder={
-                  isCustomPizza
-                    ? "e.g. half veg, half paneer"
-                    : isCustomCake
-                      ? "e.g. 2-tier fondant, gold drip"
-                      : "e.g. Gift hamper: 6 cupcakes, 1 candle, chocolates…"
-                }
-                className={cn(inputClass, "resize-y")}
-              />
-            </Field>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
+              <Field label="Description (optional)">
+                <textarea
+                  value={item.description}
+                  onChange={(e) => onPatch({ description: e.target.value })}
+                  rows={2}
+                  maxLength={1000}
+                  placeholder={
+                    isCustomPizza
+                      ? "e.g. half veg, half paneer"
+                      : isCustomCake
+                        ? "e.g. 2-tier fondant, gold drip"
+                        : "e.g. Gift hamper: 6 cupcakes, 1 candle, chocolates…"
+                  }
+                  className={cn(inputClass, "resize-y")}
+                />
+              </Field>
 
-            <Field label="Instructions">
-              <input
-                value={item.instructions}
-                onChange={(e) => onPatch({ instructions: e.target.value })}
-                placeholder={
-                  isCustomPizza
-                    ? "Well done, light cheese…"
-                    : isCustomCake
-                      ? "Extra frosting, no nuts…"
-                      : "Any special notes…"
-                }
-                className={inputClass}
-              />
-            </Field>
+              <Field label="Instructions">
+                <input
+                  value={item.instructions}
+                  onChange={(e) => onPatch({ instructions: e.target.value })}
+                  placeholder={
+                    isCustomPizza
+                      ? "Well done, light cheese…"
+                      : isCustomCake
+                        ? "Extra frosting, no nuts…"
+                        : "Any special notes…"
+                  }
+                  className={inputClass}
+                />
+              </Field>
+            </div>
           </div>
         )}
 
         {item.kind === "CUSTOM" && (
-          <div className="mt-3 flex items-center gap-3">
-            <label className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition group-hover:border-brand-500 group-hover:text-brand-600">
-                {refImage ? (
-                  <img src={refImage} alt="Reference" className="h-full w-full object-cover" />
-                ) : (
-                  <ImagePlus className="h-5 w-5" />
-                )}
-              </span>
-              <span className="min-w-0 text-xs">
-                <span className="block font-medium text-slate-700">
-                  {refImage ? "Reference image" : "Add reference image"}
-                </span>
-                <span className="block truncate text-slate-500">
-                  {refImage
-                    ? (item.refFile?.name ?? "Tap to change")
-                    : "The photo the customer sent"}
-                </span>
-              </span>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] ?? null;
-                  e.target.value = "";
-                  if (file) onPatch({ refFile: file, keptImageUrl: null });
-                }}
-                className="sr-only"
-              />
-            </label>
-            {refImage && (
-              <button
-                type="button"
-                onClick={() => onPatch({ refFile: null, keptImageUrl: null })}
-                className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                aria-label="Remove image"
-              >
-                <X className="h-4 w-4" />
-              </button>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start">
+            {customAddons.length > 0 ? (
+              <div className="min-w-0 sm:flex-1">
+                <AddonsPanel
+                  key={item.customTemplate}
+                  addons={customAddons}
+                  selected={item.addonSelections}
+                  onToggle={toggleAddon}
+                  hint={`Add-ons for the ${TEMPLATE_LABEL[item.customTemplate]} category`}
+                />
+              </div>
+            ) : (
+              item.expanded &&
+              allAddons.some((a) => a.isActive) && (
+                <p className="text-[11px] text-slate-400 sm:flex-1 sm:self-center">
+                  No add-ons for {TEMPLATE_LABEL[item.customTemplate]} items yet — tick{" "}
+                  {TEMPLATE_LABEL[item.customTemplate]} under &ldquo;Offline custom items&rdquo; on
+                  the Add-ons page.
+                </p>
+              )
             )}
+            <div className="flex min-w-0 items-center gap-3 sm:max-w-xs sm:flex-1">
+              <label className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition group-hover:border-brand-500 group-hover:text-brand-600">
+                  {refImage ? (
+                    <img src={refImage} alt="Reference" className="h-full w-full object-cover" />
+                  ) : (
+                    <ImagePlus className="h-5 w-5" />
+                  )}
+                </span>
+                <span className="min-w-0 text-xs">
+                  <span className="block font-medium text-slate-700">
+                    {refImage ? "Reference image" : "Add reference image"}
+                  </span>
+                  <span className="block truncate text-slate-500">
+                    {refImage
+                      ? (item.refFile?.name ?? "Tap to change")
+                      : "The photo the customer sent"}
+                  </span>
+                </span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    e.target.value = "";
+                    if (file) onPatch({ refFile: file, keptImageUrl: null });
+                  }}
+                  className="sr-only"
+                />
+              </label>
+              {refImage && (
+                <button
+                  type="button"
+                  onClick={() => onPatch({ refFile: null, keptImageUrl: null })}
+                  className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                  aria-label="Remove image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
     </div>
   );
 }
+
+/** Spans in the custom item's 12-column phone grid; every field is one column from sm up. */
+const customSpan = {
+  3: "col-span-3 sm:col-span-1",
+  4: "col-span-4 sm:col-span-1",
+  5: "col-span-5 sm:col-span-1",
+  8: "col-span-8 sm:col-span-1",
+  9: "col-span-9 sm:col-span-1",
+} as const;
 
 const TEMPLATE_LABEL: Record<OrderItemDraft["customTemplate"], string> = {
   CAKE: "Cake",

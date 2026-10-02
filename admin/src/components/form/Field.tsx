@@ -39,7 +39,7 @@ export const inputClass =
 export const textareaClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-y min-h-24";
 
-export const selectClass = inputClass + " appearance-none";
+export const selectClass = inputClass + " appearance-none select-arrow cursor-pointer pr-8";
 
 export const submitClass =
   "rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-60";

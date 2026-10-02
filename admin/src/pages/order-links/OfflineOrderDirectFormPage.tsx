@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, HandCoins, Hourglass, ImagePlus, Store, Truck, Wallet, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  HandCoins,
+  Hourglass,
+  ImagePlus,
+  Store,
+  Truck,
+  Wallet,
+  X,
+} from "lucide-react";
 import { OFFLINE_PAYMENT_METHODS, type OfflinePaymentMethod } from "@/pages/orders/order-ui";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
 import { MAX_PAYMENT_SCREENSHOTS } from "@/hooks/useAdminOrders";
@@ -773,12 +783,13 @@ export function OfflineOrderDirectFormPage() {
           </Section>
 
           <Section title="Payment">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <ToggleButton
                 active={paymentPlan === "FULL"}
                 onClick={() => setPaymentPlan("FULL")}
                 icon={<Wallet className="h-4 w-4" />}
                 title="Full payment"
+                shortTitle="Full"
                 subtitle="All collected now"
               />
               <ToggleButton
@@ -786,6 +797,7 @@ export function OfflineOrderDirectFormPage() {
                 onClick={() => setPaymentPlan("ADVANCE")}
                 icon={<Hourglass className="h-4 w-4" />}
                 title="Advance"
+                shortTitle="Advance"
                 subtitle="Rest stays pending"
               />
               <ToggleButton
@@ -793,84 +805,78 @@ export function OfflineOrderDirectFormPage() {
                 onClick={() => setPaymentPlan("ON_DELIVERY")}
                 icon={<HandCoins className="h-4 w-4" />}
                 title="Pay on delivery"
+                shortTitle="On delivery"
                 subtitle="Collect later"
               />
             </div>
 
-            <div className="mt-3">
-              <p className="mb-1.5 text-xs font-medium text-slate-700">
-                {paymentPlan === "ON_DELIVERY" ? "Expected payment mode" : "Payment mode"}
-                <span className="ml-1 font-normal text-slate-400">· for your records</span>
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {OFFLINE_PAYMENT_METHODS.map((m) => (
-                  <button
-                    key={m.value}
-                    type="button"
-                    aria-pressed={paymentMethod === m.value}
-                    onClick={() => setPaymentMethod((cur) => (cur === m.value ? null : m.value))}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs font-medium transition",
-                      paymentMethod === m.value
-                        ? "border-brand-500 bg-brand-500 text-white"
-                        : "hover:border-brand-300 border-slate-200 bg-white text-slate-700",
-                    )}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-              {paymentPlan === "ON_DELIVERY" && (
-                <p className="mt-1.5 text-[11px] text-slate-500">
-                  Record the payment from the order page when it comes in, even weeks later.
-                </p>
-              )}
-            </div>
-
-            <div className={cn(pairGrid, "mt-3")}>
-              {paymentPlan === "ADVANCE" && (
-                <Field
-                  label="Advance amount"
-                  required
-                  error={
-                    advanceAmount.trim() !== "" && !advanceValid
-                      ? `Between ₹1 and ₹${grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}`
-                      : undefined
-                  }
-                  hint={`Max ₹${grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}`}
-                  className="col-span-2"
-                >
-                  <input
-                    inputMode="decimal"
-                    value={advanceAmount}
-                    onChange={(e) => setAdvanceAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                    placeholder="0"
-                    className={inputClass}
-                  />
-                </Field>
-              )}
-              <div className="col-span-2">
-                <ManualDiscountFields
-                  type={discountType}
-                  value={discountValue}
-                  onType={setDiscountType}
-                  onValue={setDiscountValue}
+            {paymentPlan === "ADVANCE" && (
+              <Field
+                label="Advance amount"
+                required
+                error={
+                  advanceAmount.trim() !== "" && !advanceValid
+                    ? `Between ₹1 and ₹${grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}`
+                    : undefined
+                }
+                hint={`Max ₹${grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}`}
+                className="mt-3 sm:max-w-xs"
+              >
+                <input
+                  inputMode="decimal"
+                  value={advanceAmount}
+                  onChange={(e) => setAdvanceAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                  placeholder="0"
+                  className={inputClass}
                 />
+              </Field>
+            )}
+
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6">
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-slate-700">
+                  {paymentPlan === "ON_DELIVERY" ? "Expected payment mode" : "Payment mode"}
+                  <span className="ml-1 font-normal text-slate-400">· for your records</span>
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {OFFLINE_PAYMENT_METHODS.map((m) => (
+                    <button
+                      key={m.value}
+                      type="button"
+                      aria-pressed={paymentMethod === m.value}
+                      onClick={() => setPaymentMethod((cur) => (cur === m.value ? null : m.value))}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-medium transition",
+                        paymentMethod === m.value
+                          ? "border-brand-500 bg-brand-500 text-white"
+                          : "hover:border-brand-300 border-slate-200 bg-white text-slate-700",
+                      )}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                {paymentPlan === "ON_DELIVERY" && (
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    Record the payment from the order page when it comes in, even weeks later.
+                  </p>
+                )}
               </div>
-              <div className="col-span-2">
-                <p className="text-xs font-medium text-slate-700">
-                  Payment screenshots{" "}
-                  <span className="font-normal text-slate-500">
-                    — optional, up to {MAX_PAYMENT_SCREENSHOTS} (advance, balance, spare)
+
+              <div className="flex items-center gap-3">
+                <p className="min-w-0 flex-1 text-xs font-medium text-slate-700">
+                  Payment screenshots
+                  <span className="block font-normal text-slate-400">
+                    optional · up to {MAX_PAYMENT_SCREENSHOTS}
                   </span>
                 </p>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex shrink-0 flex-wrap gap-2">
                   {screenshotPreviews.map((url, index) => (
                     <div key={url} className="relative">
                       <img
                         src={url}
                         alt={`Payment screenshot ${index + 1}`}
-                        className="h-14 w-14 rounded-lg border border-slate-200 object-cover"
+                        className="h-12 w-12 rounded-lg border border-slate-200 object-cover"
                       />
                       <button
                         type="button"
@@ -885,7 +891,7 @@ export function OfflineOrderDirectFormPage() {
                     </div>
                   ))}
                   {screenshotFiles.length < MAX_PAYMENT_SCREENSHOTS && (
-                    <label className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition hover:border-brand-500 hover:text-brand-600">
+                    <label className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition hover:border-brand-500 hover:text-brand-600">
                       <ImagePlus className="h-5 w-5" />
                       <span className="sr-only">Add payment screenshot</span>
                       <input
@@ -906,6 +912,24 @@ export function OfflineOrderDirectFormPage() {
                 </div>
               </div>
             </div>
+          </Section>
+
+          <Section
+            title="Discount"
+            subtitle="Optional · taken off the items, before delivery and GST"
+            collapsible
+            summary={
+              discount > 0
+                ? `₹${discount.toFixed(0)} off${discountType === "PERCENT" ? ` (${discountValue}%)` : ""}`
+                : "No discount"
+            }
+          >
+            <ManualDiscountFields
+              type={discountType}
+              value={discountValue}
+              onType={setDiscountType}
+              onValue={setDiscountValue}
+            />
           </Section>
 
           <Section title="Notes">
@@ -1041,11 +1065,62 @@ export function OfflineOrderDirectFormPage() {
 /** Two columns even on phones, so short fields pair up instead of stacking. */
 const pairGrid = "grid grid-cols-2 gap-x-2 gap-y-3 sm:gap-x-4";
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * With `collapsible`, the section folds down to its title and `summary` below
+ * the lg breakpoint, where the form is one long column. From lg up it stays open.
+ */
+function Section({
+  title,
+  subtitle,
+  summary,
+  collapsible = false,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  summary?: React.ReactNode;
+  collapsible?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(!collapsible);
+  const collapsed = collapsible && !open;
+
+  if (!collapsible) {
+    return (
+      <section className="rounded-card border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">{title}</h2>
+        {children}
+      </section>
+    );
+  }
+
   return (
     <section className="rounded-card border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">{title}</h2>
-      {children}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-2 text-left lg:pointer-events-none"
+      >
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+          {collapsed && summary && (
+            <p className="mt-0.5 truncate text-xs text-slate-500 lg:hidden">{summary}</p>
+          )}
+          {subtitle && (
+            <p className={cn("mt-0.5 text-xs text-slate-500", collapsed && "hidden lg:block")}>
+              {subtitle}
+            </p>
+          )}
+        </div>
+        <ChevronDown
+          className={cn(
+            "mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition-transform lg:hidden",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      <div className={cn("mt-3", collapsed && "hidden lg:block")}>{children}</div>
     </section>
   );
 }
@@ -1082,21 +1157,27 @@ function ToggleButton({
   onClick,
   icon,
   title,
+  shortTitle,
   subtitle,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   title: string;
+  /** With it, phones get a centred, icon-less button so three fit in a row. */
+  shortTitle?: string;
   subtitle: string;
 }) {
+  const compact = shortTitle !== undefined;
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      title={compact ? title : undefined}
       className={cn(
         "flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition",
+        compact && "justify-center px-1.5 sm:justify-start sm:px-2.5",
         active
           ? "bg-brand-50/50 border-brand-500 ring-1 ring-brand-500/30"
           : "hover:border-brand-300 border-slate-200 bg-white",
@@ -1104,14 +1185,29 @@ function ToggleButton({
     >
       <span
         className={cn(
-          "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+          "h-7 w-7 shrink-0 items-center justify-center rounded-md",
+          compact ? "hidden sm:flex" : "flex",
           active ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-500",
         )}
       >
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-medium text-slate-900">{title}</span>
+        <span
+          className={cn(
+            "block truncate text-sm font-medium",
+            active ? "text-brand-700 sm:text-slate-900" : "text-slate-900",
+          )}
+        >
+          {compact ? (
+            <>
+              <span className="sm:hidden">{shortTitle}</span>
+              <span className="hidden sm:inline">{title}</span>
+            </>
+          ) : (
+            title
+          )}
+        </span>
         <span className="hidden truncate text-xs text-slate-500 sm:block">{subtitle}</span>
       </span>
     </button>

@@ -1,11 +1,20 @@
-import { NavLink } from "react-router-dom";
+import { useEffect } from "react";
+import { NavLink, matchPath, useLocation } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { ADMIN_NAV } from "@/content/nav";
+import { ADMIN_NAV, type AdminNavItem } from "@/content/nav";
 import { useAdminAuth } from "@/store/adminAuth";
+import { useNavGroups } from "@/store/navGroups";
 import { staffHasPermission } from "@/lib/permissions";
+
+const isExact = (item: AdminNavItem) => item.to === "/" || Boolean(item.end);
 
 export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate?: () => void }) {
   const user = useAdminAuth((s) => s.user);
+  const openGroups = useNavGroups((s) => s.open);
+  const toggleGroup = useNavGroups((s) => s.toggle);
+  const visitGroup = useNavGroups((s) => s.visit);
+  const { pathname } = useLocation();
 
   const groups = ADMIN_NAV.map((group) => ({
     ...group,
@@ -13,6 +22,14 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate?: () =
       (item) => !item.requiresPermission || staffHasPermission(user, item.requiresPermission),
     ),
   })).filter((group) => group.items.length > 0);
+
+  const activeGroup = groups.find((group) =>
+    group.items.some((item) => matchPath({ path: item.to, end: isExact(item) }, pathname)),
+  )?.label;
+
+  useEffect(() => {
+    if (activeGroup) visitGroup(activeGroup);
+  }, [activeGroup, visitGroup]);
 
   return (
     <aside
@@ -31,37 +48,77 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate?: () =
         </div>
       </div>
 
-      <nav className="h-[calc(100vh-3.5rem)] overflow-y-auto py-4">
-        {groups.map((group) => (
-          <div key={group.label} className="mb-4 px-3">
-            <p className="mb-1 px-2 text-[10px] font-semibold tracking-widest text-slate-400 uppercase">
-              {group.label}
-            </p>
-            <ul className="space-y-0.5">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <li key={item.to}>
-                    <NavLink
-                      to={item.to}
-                      end={item.to === "/" || item.end}
-                      onClick={onNavigate}
-                      className={({ isActive }) =>
-                        cn(
-                          "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100",
-                          isActive && "bg-brand-100 font-medium text-brand-700 hover:bg-brand-100",
-                        )
-                      }
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </NavLink>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+      <nav className="h-[calc(100vh-3.5rem)] overflow-y-auto py-3">
+        {groups.map((group) => {
+          const expanded = openGroups.includes(group.label);
+          const hasActive = group.label === activeGroup;
+          const listId = `nav-group-${group.label.toLowerCase().replace(/\W+/g, "-")}`;
+          return (
+            <div key={group.label} className="mb-1 px-3">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.label)}
+                aria-expanded={expanded}
+                aria-controls={listId}
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-semibold tracking-widest text-slate-400 uppercase transition hover:bg-slate-50 hover:text-slate-600"
+              >
+                <span className="truncate">{group.label}</span>
+                {!expanded && hasActive && (
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500"
+                    title="The page you're on is in here"
+                  />
+                )}
+                {!expanded && (
+                  <span className="ml-auto font-medium tracking-normal normal-case">
+                    {group.items.length}
+                  </span>
+                )}
+                <ChevronDown
+                  className={cn(
+                    "h-3.5 w-3.5 shrink-0 transition-transform",
+                    expanded ? "ml-auto" : "-rotate-90",
+                  )}
+                />
+              </button>
+              <div
+                id={listId}
+                inert={!expanded}
+                className={cn(
+                  "grid transition-[grid-template-rows] duration-200",
+                  expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                )}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  <ul className="space-y-0.5 pb-2">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.to}>
+                          <NavLink
+                            to={item.to}
+                            end={isExact(item)}
+                            onClick={onNavigate}
+                            className={({ isActive }) =>
+                              cn(
+                                "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100",
+                                isActive &&
+                                  "bg-brand-100 font-medium text-brand-700 hover:bg-brand-100",
+                              )
+                            }
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{item.label}</span>
+                          </NavLink>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );

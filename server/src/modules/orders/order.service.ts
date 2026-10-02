@@ -23,6 +23,7 @@ import {
   sumLineTax,
 } from "./order.tax.js";
 import { buyerGstFields } from "../../lib/gstin.js";
+import { istToday } from "../../lib/time.js";
 import { giftBillingFieldsSchema, orderAddressSchema, resolveGiftBilling } from "./order.gift.js";
 
 const itemSchema = z.object({
@@ -112,10 +113,9 @@ export async function createOrder(input: CreateOrderInput) {
     throw err;
   }
 
-  // Reject items whose delivery date is in the past. Compares against
-  // midnight local (day-level check); slot-level expiry is enforced client-side.
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // Reject items whose delivery date is in the past. Day-level check against
+  // today in India; slot-level expiry is enforced client-side.
+  const todayStart = istToday();
   for (const item of input.items) {
     if (!item.deliveryDate) continue;
     const d = new Date(item.deliveryDate);

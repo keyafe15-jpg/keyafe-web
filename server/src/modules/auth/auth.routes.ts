@@ -21,6 +21,7 @@ import { getBusinessContact } from "../store/businessContact.js";
 import { isStaffRole, requireAuth, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { CUSTOMER_ROLE_SLUG } from "../staff/rbac.catalog.js";
 import { logger } from "../../utils/logger.js";
+import { istToday } from "../../lib/time.js";
 import { hashToken, revokeUserSessions } from "./sessions.js";
 
 export const authRouter = Router();
@@ -63,7 +64,7 @@ const otpRateStore = new Map<string, { lastSentAt: number; dayKey: string; count
 function assertOtpRateLimit(phone: string) {
   const key = normalizePhone(phone);
   const now = Date.now();
-  const dayKey = new Date().toISOString().slice(0, 10);
+  const dayKey = istToday().toISOString().slice(0, 10);
   const current = otpRateStore.get(key);
 
   if (current && now - current.lastSentAt < OTP_COOLDOWN_MS) {
@@ -79,7 +80,7 @@ function assertOtpRateLimit(phone: string) {
 
 function recordOtpSend(phone: string) {
   const key = normalizePhone(phone);
-  const dayKey = new Date().toISOString().slice(0, 10);
+  const dayKey = istToday().toISOString().slice(0, 10);
   const current = otpRateStore.get(key);
   const count = current && current.dayKey === dayKey ? current.count : 0;
   otpRateStore.set(key, { lastSentAt: Date.now(), dayKey, count: count + 1 });

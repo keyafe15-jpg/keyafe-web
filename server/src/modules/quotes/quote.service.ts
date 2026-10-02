@@ -4,6 +4,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { gstinIssue, normalizeGstin } from "../../lib/gstin.js";
 import { assertKitchenOpenOn } from "../store/store.service.js";
+import { istToday } from "../../lib/time.js";
 
 /** Occasions we ask about on /get-quote. Stored as a plain string column. */
 export const QUOTE_EVENT_TYPES = [
@@ -25,14 +26,12 @@ function normalizePhone(value: string) {
 function parseDeliveryDate(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
   if (!y || !m || !d) throw HttpError.badRequest("Invalid delivery date");
-  const date = new Date(y, m - 1, d, 12, 0, 0);
+  // Noon IST, so the day reads the same in any timezone.
+  const date = new Date(Date.UTC(y, m - 1, d, 6, 30, 0));
   if (Number.isNaN(date.getTime())) {
     throw HttpError.badRequest("Invalid delivery date");
   }
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(y, m - 1, d, 0, 0, 0);
-  if (start < today) {
+  if (Date.UTC(y, m - 1, d) < istToday().getTime()) {
     throw HttpError.badRequest("Delivery date can't be in the past");
   }
   return date;

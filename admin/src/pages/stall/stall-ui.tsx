@@ -1,16 +1,5 @@
 import { useState, type SelectHTMLAttributes } from "react";
-import {
-  Banknote,
-  ChevronDown,
-  Clock,
-  MapPin,
-  Minus,
-  Plus,
-  Search,
-  Smartphone,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Banknote, Clock, MapPin, Minus, Plus, Search, Smartphone, Trash2, X } from "lucide-react";
 import {
   useStallSummary,
   type StallInfo,
@@ -28,7 +17,6 @@ import { selectClass } from "@/components/form/Field";
 /** The stall last picked at the counter or breakfast tab, so both open on the same one. */
 export const STALL_KEY = "keyafe.stall.selected";
 
-/** `selectClass` hides the native arrow, so draw one to make it read as a dropdown. */
 export function Select({
   className,
   wrapperClassName,
@@ -37,10 +25,9 @@ export function Select({
 }: SelectHTMLAttributes<HTMLSelectElement> & { wrapperClassName?: string }) {
   return (
     <span className={cn("relative inline-block max-w-full", wrapperClassName)}>
-      <select {...props} className={cn(selectClass, "cursor-pointer pr-9", className)}>
+      <select {...props} className={cn(selectClass, "pr-9", className)}>
         {children}
       </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-slate-500" />
     </span>
   );
 }

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { PRODUCT_COPY } from "@/content/product";
 import { ProductGallery } from "@/components/product/ProductGallery";
@@ -1220,46 +1221,136 @@ function AddonsPicker({
     return [...map.entries()];
   }, [addons]);
 
+  const [open, setOpen] = useState(false);
+  // A lone group opens with the box; with several, the customer picks which to browse.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() =>
+    groups.length === 1 ? new Set([groups[0]![0]]) : new Set(),
+  );
+  const toggleGroup = (group: string) =>
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(group)) next.add(group);
+      return next;
+    });
+
+  const picked = addons.filter((a) => selected.has(a.id));
+  const pickedTotal = picked.reduce((s, a) => s + Number(a.priceDelta), 0);
+  const summary =
+    picked.length === 0
+      ? `${addons.length} optional extra${addons.length === 1 ? "" : "s"}`
+      : `${picked.length} added${pickedTotal > 0 ? ` · +₹${pickedTotal.toFixed(0)}` : ""}`;
+
   return (
-    <div className="space-y-4">
-      {groups.map(([group, items]) => (
-        <div key={group}>
-          <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
-            {group}{" "}
-            <span className="text-ink-400 font-normal tracking-normal normal-case">(optional)</span>
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {items.map((addon) => {
-              const on = selected.has(addon.id);
-              const delta = Number(addon.priceDelta);
-              return (
+    <div className="rounded-xl border border-cream-200 bg-cream-100/70">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-ink-900">Add-ons</span>
+          <span
+            className={cn(
+              "mt-0.5 block truncate text-xs",
+              picked.length > 0 ? "font-medium text-brand-700" : "text-ink-500",
+            )}
+          >
+            {summary}
+          </span>
+        </span>
+        <ChevronDown
+          className={cn("h-5 w-5 shrink-0 text-ink-500 transition-transform", open && "rotate-180")}
+        />
+      </button>
+
+      <Collapse open={open}>
+        <div className="divide-y divide-cream-200 border-t border-cream-200">
+          {groups.map(([group, items]) => {
+            const groupOpen = openGroups.has(group);
+            const groupPicked = items.filter((a) => selected.has(a.id)).length;
+            return (
+              <div key={group}>
                 <button
-                  key={addon.id}
                   type="button"
-                  onClick={() => onToggle(addon.id)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border py-1.5 pr-3 text-left text-xs font-medium transition",
-                    addon.imageUrl ? "pl-1.5" : "pl-3",
-                    on
-                      ? "border-brand-500 bg-brand-100 text-brand-700"
-                      : "border-cream-200 bg-white text-ink-700 hover:border-brand-300",
-                  )}
+                  onClick={() => toggleGroup(group)}
+                  aria-expanded={groupOpen}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left"
                 >
-                  {addon.imageUrl && (
-                    <img src={addon.imageUrl} alt="" className="h-8 w-8 rounded-md object-cover" />
-                  )}
-                  <span>
-                    <span className="block">{addon.name}</span>
-                    <span className="mt-0.5 block text-[11px] font-normal text-ink-500">
-                      {delta === 0 ? "no extra" : `+₹${delta.toFixed(0)}`}
-                    </span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium tracking-wide text-ink-700 uppercase">
+                    {group}
                   </span>
+                  <span
+                    className={cn(
+                      "shrink-0 text-[11px]",
+                      groupPicked > 0 ? "font-medium text-brand-700" : "text-ink-500",
+                    )}
+                  >
+                    {groupPicked > 0 ? `${groupPicked} added` : items.length}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-ink-500 transition-transform",
+                      groupOpen && "rotate-180",
+                    )}
+                  />
                 </button>
-              );
-            })}
-          </div>
+                <Collapse open={groupOpen}>
+                  <div className="flex flex-wrap gap-2 px-4 pb-3">
+                    {items.map((addon) => {
+                      const on = selected.has(addon.id);
+                      const delta = Number(addon.priceDelta);
+                      return (
+                        <button
+                          key={addon.id}
+                          type="button"
+                          onClick={() => onToggle(addon.id)}
+                          aria-pressed={on}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg border py-1.5 pr-3 text-left text-xs font-medium transition",
+                            addon.imageUrl ? "pl-1.5" : "pl-3",
+                            on
+                              ? "border-brand-500 bg-brand-100 text-brand-700"
+                              : "border-cream-200 bg-white text-ink-700 hover:border-brand-300",
+                          )}
+                        >
+                          {addon.imageUrl && (
+                            <img
+                              src={addon.imageUrl}
+                              alt=""
+                              className="h-8 w-8 rounded-md object-cover"
+                            />
+                          )}
+                          <span>
+                            <span className="block">{addon.name}</span>
+                            <span className="mt-0.5 block text-[11px] font-normal text-ink-500">
+                              {delta === 0 ? "no extra" : `+₹${delta.toFixed(0)}`}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Collapse>
+              </div>
+            );
+          })}
         </div>
-      ))}
+      </Collapse>
+    </div>
+  );
+}
+
+function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
+  return (
+    <div
+      inert={!open}
+      className={cn(
+        "grid transition-[grid-template-rows] duration-200",
+        open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+      )}
+    >
+      <div className="min-h-0 overflow-hidden">{children}</div>
     </div>
   );
 }
