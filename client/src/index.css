@@ -834,6 +834,27 @@ gmp-place-autocomplete:focus-within {
   animation: store-bridge-pulse 1.8s ease-in-out infinite;
 }
 
+.swipe-hint-arrow {
+  display: inline-block;
+  animation: store-bridge-pulse 1.4s ease-in-out infinite;
+}
+
+/* One-off slide-and-return that shows a flavour row has more chips off-screen. */
+@keyframes swipe-peek {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35%,
+  55% {
+    transform: translateX(-56px);
+  }
+}
+
+.swipe-peek {
+  animation: swipe-peek 1.2s ease-in-out 0.3s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-motif] {
     animation: none !important;
@@ -864,6 +885,8 @@ gmp-place-autocomplete:focus-within {
   .promise-bob,
   .delivery-route::after,
   .store-bridge-pulse,
+  .swipe-hint-arrow,
+  .swipe-peek,
   .hero-caption,
   .hero-caption::after,
   .hero-caption-title,

@@ -7,9 +7,10 @@ export const PRODUCT_COPY = {
       `Ordering a customised cake for the first time? Pick your favourite flavour inside, and the cake still looks exactly like the picture. That's the beauty of a customised cake! ${
         someCostExtra ? "A few cost a little extra." : "Same price for every flavour."
       }`,
-    seeAllFlavours: (count: number) => `See all ${count} flavours`,
-    showFewerFlavours: "Show fewer",
+    yourFlavour: "Your flavour",
     moreFlavoursGroup: "More flavours",
+    allFlavours: "All flavours",
+    swipeHint: "Swipe for more",
     messageOnCake: "Message on cake",
     messageHint: (max: number) => `Up to ${max} characters, optional.`,
     specialInstructions: "Special instructions",
@@ -19,6 +20,8 @@ export const PRODUCT_COPY = {
     pickup: "Store pickup",
     pincodeLabel: "Delivery pincode (optional)",
     pincodePlaceholder: "6-digit pincode",
+    pincodeCompactPlaceholder: "Pincode (optional) · check fee",
+    moreDates: "More dates",
     checkCta: "Check",
     date: "Delivery date",
     timeSlot: "Time slot",
@@ -31,6 +34,8 @@ export const PRODUCT_COPY = {
     {
       key: "morning",
       label: "Morning · 9 AM – 12 PM",
+      name: "Morning",
+      time: "9 AM–12 PM",
       surcharge: 0,
       endHour: 12,
       endMinute: 0,
@@ -38,6 +43,8 @@ export const PRODUCT_COPY = {
     {
       key: "afternoon",
       label: "Afternoon · 12 – 4 PM",
+      name: "Afternoon",
+      time: "12–4 PM",
       surcharge: 0,
       endHour: 16,
       endMinute: 0,
@@ -45,6 +52,8 @@ export const PRODUCT_COPY = {
     {
       key: "evening",
       label: "Evening · 4 – 8 PM",
+      name: "Evening",
+      time: "4–8 PM",
       surcharge: 0,
       endHour: 20,
       endMinute: 0,
@@ -52,6 +61,8 @@ export const PRODUCT_COPY = {
     {
       key: "late-evening",
       label: "Late Evening · 8 – 11 PM",
+      name: "Late evening",
+      time: "8–11 PM",
       surcharge: 30,
       endHour: 23,
       endMinute: 0,
@@ -59,6 +70,8 @@ export const PRODUCT_COPY = {
     {
       key: "midnight",
       label: "Midnight · 11 PM – 11:59 PM",
+      name: "Midnight",
+      time: "11–11:59 PM",
       surcharge: 200,
       endHour: 23,
       endMinute: 59,

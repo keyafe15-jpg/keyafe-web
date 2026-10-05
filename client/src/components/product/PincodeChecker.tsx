@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MapPin } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { usePincodeCheck, type PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import { inputClass } from "@/components/form/Field";
@@ -32,10 +33,8 @@ export function PincodeChecker({
 
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
-        {PRODUCT_COPY.labels.pincodeLabel}
-      </label>
-      <div className="flex gap-2">
+      <div className="relative">
+        <MapPin className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-500" />
         <input
           type="tel"
           inputMode="numeric"
@@ -48,34 +47,35 @@ export function PincodeChecker({
               submit();
             }
           }}
-          placeholder={PRODUCT_COPY.labels.pincodePlaceholder}
-          className={cn(inputClass, "flex-1")}
+          aria-label={PRODUCT_COPY.labels.pincodeLabel}
+          placeholder={PRODUCT_COPY.labels.pincodeCompactPlaceholder}
+          className={cn(inputClass, "pr-20 pl-9")}
         />
         <button
           type="button"
           onClick={submit}
           disabled={!isValid || mutation.isPending}
-          className="shrink-0 rounded-lg border border-ink-700 px-4 text-sm font-medium text-ink-700 transition hover:bg-cream-100 disabled:opacity-50"
+          className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-md bg-ink-700 px-3 py-1 text-xs font-medium text-white transition hover:bg-ink-900 disabled:bg-cream-200 disabled:text-ink-500"
         >
           {mutation.isPending ? "…" : PRODUCT_COPY.labels.checkCta}
         </button>
       </div>
 
-      {/* Status line */}
-      <p className="mt-1 text-xs">
-        {mutation.isError && <span className="text-brand-500">{PRODUCT_COPY.pincode.invalid}</span>}
-        {!mutation.isError && !result && (
-          <span className="text-ink-500">{PRODUCT_COPY.pincode.idle}</span>
-        )}
-        {result?.serviceable === false && (
-          <span className="text-brand-500">{PRODUCT_COPY.pincode.unserviceable}</span>
-        )}
-        {result?.serviceable === true && (
-          <span className="text-ink-700">
-            ✓ {PRODUCT_COPY.pincode.serviceable(result.city, result.deliveryFee)}
-          </span>
-        )}
-      </p>
+      {(mutation.isError || result) && (
+        <p className="mt-1 text-xs" aria-live="polite">
+          {mutation.isError && (
+            <span className="text-brand-500">{PRODUCT_COPY.pincode.invalid}</span>
+          )}
+          {result?.serviceable === false && (
+            <span className="text-brand-500">{PRODUCT_COPY.pincode.unserviceable}</span>
+          )}
+          {result?.serviceable === true && (
+            <span className="text-ink-700">
+              ✓ {PRODUCT_COPY.pincode.serviceable(result.city, result.deliveryFee)}
+            </span>
+          )}
+        </p>
+      )}
     </div>
   );
 }

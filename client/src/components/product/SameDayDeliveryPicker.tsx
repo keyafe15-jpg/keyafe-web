@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { PRODUCT_COPY } from "@/content/product";
 import { DateSlotPicker, todayIso } from "./DateSlotPicker";
+import { SegmentedChoice } from "./SegmentedChoice";
 import { useSameDayStatus } from "@/hooks/useSameDayStatus";
 import { computeSameDayEstimate, sameDaySlotLabel } from "@/lib/deliveryEstimate";
 import type { PincodeCheckResult } from "@/hooks/usePincodeCheck";
-import { cn } from "@/lib/cn";
 
 export interface DeliveryTimingValue {
   date: string;
@@ -89,19 +89,15 @@ export function SameDayDeliveryPicker({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <ModeButton
-          active={mode === "SAME_DAY"}
-          disabled={!sameDayAvailable}
-          onClick={() => setMode("SAME_DAY")}
-          label="Same-day"
-        />
-        <ModeButton
-          active={mode === "SCHEDULED"}
-          onClick={() => setMode("SCHEDULED")}
-          label="Choose date & time"
-        />
-      </div>
+      <SegmentedChoice
+        ariaLabel="Delivery timing"
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: "SAME_DAY", label: "Same-day", disabled: !sameDayAvailable },
+          { value: "SCHEDULED", label: "Choose date & time" },
+        ]}
+      />
 
       {mode === "SAME_DAY" ? (
         !sameDayAvailable ? (
@@ -125,34 +121,5 @@ export function SameDayDeliveryPicker({
         />
       )}
     </div>
-  );
-}
-
-function ModeButton({
-  active,
-  disabled,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "rounded-lg border px-3 py-2 text-sm font-medium transition",
-        active
-          ? "border-brand-500 bg-brand-100 text-brand-700"
-          : "border-cream-200 bg-white text-ink-700 hover:border-brand-300",
-        disabled && "cursor-not-allowed opacity-40",
-      )}
-    >
-      {label}
-    </button>
   );
 }

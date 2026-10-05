@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { flavourColour } from "@/lib/flavourColour";
 import { PRODUCT_COPY } from "@/content/product";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { ProductReviews } from "@/components/product/ProductReviews";
 import { PincodeChecker } from "@/components/product/PincodeChecker";
 import { SameDayDeliveryPicker } from "@/components/product/SameDayDeliveryPicker";
+import { SegmentedChoice } from "@/components/product/SegmentedChoice";
 import { ProductTagBadge } from "@/components/product/ProductTagBadge";
 import { Price, applyFactor } from "@keyafe/shared";
 import type { PincodeCheckResult } from "@/hooks/usePincodeCheck";
@@ -224,12 +226,12 @@ function PdpContent({ product }: { product: ProductDetail }) {
         <span className="text-ink-700">{product.name}</span>
       </nav>
 
-      <div className="grid items-start gap-8 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
         <div className="lg:sticky lg:top-24">
           <ProductGallery images={galleryImages} alt={product.name} />
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <div className="flex flex-wrap items-center gap-2">
             {product.supportsSameDayDelivery && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-3 py-1 text-xs font-medium text-brand-700">
@@ -415,9 +417,25 @@ function PdpContent({ product }: { product: ProductDetail }) {
             </div>
           ) : pickerFlavours.length > 0 ? (
             <div>
-              <p className="block text-xs font-medium tracking-wide text-ink-500 uppercase">
-                {PRODUCT_COPY.labels.chooseFlavour}
-              </p>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="shrink-0 text-xs font-medium tracking-wide text-ink-500 uppercase">
+                  {PRODUCT_COPY.labels.chooseFlavour}
+                </p>
+                {pickedFlavour && (
+                  <p
+                    aria-live="polite"
+                    className="inline-flex min-w-0 items-center gap-1.5 text-xs text-ink-500"
+                  >
+                    <span className="hidden shrink-0 sm:inline">
+                      {PRODUCT_COPY.labels.yourFlavour}:
+                    </span>
+                    <FlavourDot name={pickedFlavour.name} />
+                    <span className="truncate font-semibold text-brand-700">
+                      {pickedFlavour.name}
+                    </span>
+                  </p>
+                )}
+              </div>
               <p className="mt-0.5 mb-2 text-xs text-ink-500">
                 {PRODUCT_COPY.labels.flavourHint(anyPickerHasDelta)}
               </p>
@@ -468,24 +486,16 @@ function PdpContent({ product }: { product: ProductDetail }) {
           <hr className="border-cream-200" />
 
           {!product.canBeDeliveredPanIndia && (
-            <>
-              <div>
-                <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
-                  {PRODUCT_COPY.labels.deliveryOrPickup}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <FulfillmentButton
-                    active={fulfillment === "delivery"}
-                    onClick={() => setFulfillment("delivery")}
-                    label={PRODUCT_COPY.labels.delivery}
-                  />
-                  <FulfillmentButton
-                    active={fulfillment === "pickup"}
-                    onClick={() => setFulfillment("pickup")}
-                    label={PRODUCT_COPY.labels.pickup}
-                  />
-                </div>
-              </div>
+            <div className="space-y-3">
+              <SegmentedChoice
+                ariaLabel={PRODUCT_COPY.labels.deliveryOrPickup}
+                value={fulfillment}
+                onChange={setFulfillment}
+                options={[
+                  { value: "delivery", label: PRODUCT_COPY.labels.delivery },
+                  { value: "pickup", label: PRODUCT_COPY.labels.pickup },
+                ]}
+              />
 
               {fulfillment === "delivery" && <PincodeChecker onResult={setPincodeResult} />}
 
@@ -502,7 +512,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
                   setSlotSurcharge(v.surcharge);
                 }}
               />
-            </>
+            </div>
           )}
 
           {product.canBeDeliveredPanIndia && (
@@ -579,7 +589,10 @@ function PdpContent({ product }: { product: ProductDetail }) {
   );
 }
 
-const FLAVOURS_SHOWN = 6;
+/** Ungrouped lists this short just wrap; anything longer swipes. */
+const FLAVOURS_WRAP_MAX = 8;
+/** Swipe rows split into evenly filled lines of at most this many chips, scrolling together. */
+const FLAVOURS_PER_LINE_MAX = 8;
 
 interface FlavourSection {
   title: string | null;
@@ -615,7 +628,7 @@ function orderByGroup(flavours: ProductFlavour[]): ProductFlavour[] {
   return groupFlavours(flavours).flatMap((s) => s.flavours);
 }
 
-/** Long flavour lists start folded to a few chips; the picked one always stays visible. */
+/** One swipeable row per flavour group; short ungrouped lists simply wrap. */
 function FlavourPicker({
   flavours,
   value,
@@ -629,11 +642,7 @@ function FlavourPicker({
   deltaFor: (flavour: ProductFlavour) => number;
   perPound: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const sections = useMemo(() => groupFlavours(flavours), [flavours]);
-  const ordered = useMemo(() => sections.flatMap((s) => s.flavours), [sections]);
-  const foldable = ordered.length > FLAVOURS_SHOWN + 2;
-  const showHeadings = sections.length > 1;
 
   const chip = (f: ProductFlavour) => (
     <FlavourChip
@@ -646,46 +655,217 @@ function FlavourPicker({
     />
   );
 
-  let body: ReactNode;
-  if (foldable && !expanded) {
-    let visible = ordered.slice(0, FLAVOURS_SHOWN);
-    const picked = ordered.find((f) => f.id === value);
-    if (picked && !visible.includes(picked)) visible = [...visible.slice(0, -1), picked];
-    body = <div className="flex flex-wrap gap-2">{visible.map(chip)}</div>;
-  } else if (showHeadings) {
-    body = (
-      <div className="space-y-3">
-        {sections.map((s) => (
-          <div key={s.title ?? ""}>
-            <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-ink-500 uppercase">
-              {s.title}
-            </p>
-            <div className="flex flex-wrap gap-2">{s.flavours.map(chip)}</div>
-          </div>
-        ))}
-      </div>
-    );
-  } else {
-    body = <div className="flex flex-wrap gap-2">{ordered.map(chip)}</div>;
+  if (sections.length === 1 && sections[0].flavours.length <= FLAVOURS_WRAP_MAX) {
+    return <div className="flex flex-wrap gap-2">{sections[0].flavours.map(chip)}</div>;
   }
 
   return (
-    <div>
-      {body}
-      {foldable && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          className="mt-2.5 inline-flex items-center gap-1 text-sm font-medium text-brand-700 underline-offset-2 hover:underline"
-        >
-          {expanded
-            ? PRODUCT_COPY.labels.showFewerFlavours
-            : PRODUCT_COPY.labels.seeAllFlavours(ordered.length)}
-          <ChevronDown className={cn("h-4 w-4 transition", expanded && "rotate-180")} />
-        </button>
-      )}
+    <div className="space-y-3">
+      {sections.map((s) => (
+        <FlavourRow
+          key={s.title ?? ""}
+          title={s.title ?? PRODUCT_COPY.labels.allFlavours}
+          flavours={s.flavours}
+          chip={chip}
+        />
+      ))}
     </div>
+  );
+}
+
+const EDGE_FADE: Record<string, string | undefined> = {
+  none: undefined,
+  end: "linear-gradient(to right, #000 calc(100% - 40px), transparent)",
+  start: "linear-gradient(to right, transparent, #000 28px)",
+  both: "linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 40px), transparent)",
+};
+
+const SWIPE_PEEK_KEY = "keyafe-flavour-swipe-peek";
+
+/** True for the first caller per browser session, so only one row ever peeks. */
+function claimSwipePeek() {
+  try {
+    if (sessionStorage.getItem(SWIPE_PEEK_KEY)) return false;
+    sessionStorage.setItem(SWIPE_PEEK_KEY, "1");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Horizontally swipeable chips; edges fade while there is more to scroll. */
+function FlavourRow({
+  title,
+  flavours,
+  chip,
+}: {
+  title: string;
+  flavours: ProductFlavour[];
+  chip: (f: ProductFlavour) => ReactNode;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+  const lineCount = Math.ceil(flavours.length / FLAVOURS_PER_LINE_MAX);
+  const lines = Array.from({ length: lineCount }, (_, i) =>
+    flavours.slice(
+      Math.ceil((i * flavours.length) / lineCount),
+      Math.ceil(((i + 1) * flavours.length) / lineCount),
+    ),
+  );
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const update = () =>
+      setEdges({
+        start: el.scrollLeft > 4,
+        end: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+      });
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, [flavours]);
+
+  // Bring a pre-picked chip into view by scrolling the track only, so the page never jumps.
+  useEffect(() => {
+    const el = trackRef.current;
+    const picked = el?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!el || !picked) return;
+    const left = picked.offsetLeft;
+    const right = left + picked.offsetWidth;
+    if (left < el.scrollLeft || right > el.scrollLeft + el.clientWidth) {
+      el.scrollLeft = left - (el.clientWidth - picked.offsetWidth) / 2;
+    }
+  }, []);
+
+  const [peeking, setPeeking] = useState(false);
+  useEffect(() => {
+    const el = trackRef.current;
+    const touchWithMotion = window.matchMedia(
+      "(hover: none) and (prefers-reduced-motion: no-preference)",
+    ).matches;
+    if (!el || !touchWithMotion) return;
+    let dwell: number | undefined;
+    // Only peek once the row has settled well inside the screen, not while it is
+    // flashing past the bottom edge during load or a fast scroll.
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        window.clearTimeout(dwell);
+        if (!entry.isIntersecting) return;
+        dwell = window.setTimeout(() => {
+          if (el.scrollLeft > 4 || el.scrollWidth <= el.clientWidth + 4) return;
+          observer.disconnect();
+          if (claimSwipePeek()) setPeeking(true);
+        }, 500);
+      },
+      { threshold: 1, rootMargin: "0px 0px -25% 0px" },
+    );
+    observer.observe(el);
+    return () => {
+      window.clearTimeout(dwell);
+      observer.disconnect();
+    };
+  }, []);
+
+  const scrollBy = (dir: 1 | -1) => {
+    const el = trackRef.current;
+    el?.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
+  };
+  const fade =
+    EDGE_FADE[
+      edges.start && edges.end ? "both" : edges.end ? "end" : edges.start ? "start" : "none"
+    ];
+
+  return (
+    <div className="min-w-0">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">
+          {title}
+          <span className="font-normal text-ink-500/70"> · {flavours.length}</span>
+        </p>
+        {edges.end && !edges.start && (
+          <span
+            aria-hidden
+            className="flex items-center gap-0.5 text-[11px] font-medium text-brand-700 sm:hidden"
+          >
+            {PRODUCT_COPY.labels.swipeHint}
+            <ChevronsRight className="swipe-hint-arrow h-3.5 w-3.5" />
+          </span>
+        )}
+        {(edges.start || edges.end) && (
+          <div className="hidden items-center gap-1 sm:flex">
+            <RowArrow dir={-1} disabled={!edges.start} title={title} onClick={() => scrollBy(-1)} />
+            <RowArrow dir={1} disabled={!edges.end} title={title} onClick={() => scrollBy(1)} />
+          </div>
+        )}
+      </div>
+      <div
+        ref={trackRef}
+        role="group"
+        aria-label={title}
+        style={{ maskImage: fade, WebkitMaskImage: fade }}
+        className="relative -mx-4 snap-x snap-proximity scroll-px-4 [scrollbar-width:none] overflow-x-auto px-4 py-0.5 [-ms-overflow-style:none] sm:mx-0 sm:scroll-px-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+      >
+        <div
+          className={cn("flex w-max flex-col gap-2", peeking && "swipe-peek")}
+          onAnimationEnd={() => setPeeking(false)}
+        >
+          {lines.map((line, i) => (
+            <div key={i} className="flex gap-2">
+              {line.map(chip)}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RowArrow({
+  dir,
+  disabled,
+  title,
+  onClick,
+}: {
+  dir: 1 | -1;
+  disabled: boolean;
+  title: string;
+  onClick: () => void;
+}) {
+  const Icon = dir === 1 ? ChevronRight : ChevronLeft;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={`${dir === 1 ? "More" : "Previous"} ${title} flavours`}
+      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-cream-200 bg-white text-ink-700 transition hover:border-ink-500/40 disabled:opacity-35"
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+function FlavourDot({ name, ringed = false }: { name: string; ringed?: boolean }) {
+  const colour = flavourColour(name);
+  return (
+    <span
+      aria-hidden
+      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+      style={{
+        backgroundColor: colour.fill,
+        boxShadow: ringed
+          ? "0 0 0 1.5px #fff"
+          : colour.outlined
+            ? "inset 0 0 0 1px rgba(44, 53, 64, 0.22)"
+            : undefined,
+      }}
+    />
   );
 }
 
@@ -708,13 +888,14 @@ function FlavourChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition",
+        "inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap transition",
         active
           ? "border-brand-500 bg-brand-500 font-medium text-white shadow-sm"
           : "border-cream-200 bg-white text-ink-700 hover:border-ink-500/40 hover:bg-cream-50",
       )}
     >
-      {active && <Check className="-ml-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={3} />}
+      {active && <Check className="-mr-0.5 -ml-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={3} />}
+      <FlavourDot name={flavour.name} ringed={active} />
       {flavour.name}
       {delta > 0 && (
         <span className={cn("text-xs", active ? "text-white/85" : "text-ink-500")}>
@@ -745,8 +926,9 @@ function FlavourReadonlyList({ flavours }: { flavours: ProductFlavour[] }) {
         {flavours.map((f) => (
           <span
             key={f.id}
-            className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-sm font-medium text-ink-700 ring-1 ring-cream-200"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-sm font-medium text-ink-700 ring-1 ring-cream-200"
           >
+            <FlavourDot name={f.name} />
             {f.name}
             {f.isEggless && <span className="text-[10px] text-green-700">Eggless</span>}
             {f.isSugarFree && <span className="text-[10px] text-brand-700">Sugar-free</span>}
@@ -768,31 +950,6 @@ function VegBadge({ isVeg }: { isVeg: boolean }) {
     >
       <span className={cn("h-2 w-2 rounded-full", isVeg ? "bg-green-600" : "bg-red-600")} />
     </span>
-  );
-}
-
-function FulfillmentButton({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-lg border px-3 py-2 text-sm font-medium transition",
-        active
-          ? "border-brand-500 bg-brand-100 text-brand-700"
-          : "border-cream-200 bg-white text-ink-700 hover:border-brand-300",
-      )}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -1157,24 +1314,16 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
           <hr className="border-cream-200" />
 
           {!product.canBeDeliveredPanIndia && (
-            <>
-              <div>
-                <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
-                  {PRODUCT_COPY.labels.deliveryOrPickup}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <FulfillmentButton
-                    active={fulfillment === "delivery"}
-                    onClick={() => setFulfillment("delivery")}
-                    label={PRODUCT_COPY.labels.delivery}
-                  />
-                  <FulfillmentButton
-                    active={fulfillment === "pickup"}
-                    onClick={() => setFulfillment("pickup")}
-                    label={PRODUCT_COPY.labels.pickup}
-                  />
-                </div>
-              </div>
+            <div className="space-y-3">
+              <SegmentedChoice
+                ariaLabel={PRODUCT_COPY.labels.deliveryOrPickup}
+                value={fulfillment}
+                onChange={setFulfillment}
+                options={[
+                  { value: "delivery", label: PRODUCT_COPY.labels.delivery },
+                  { value: "pickup", label: PRODUCT_COPY.labels.pickup },
+                ]}
+              />
 
               {fulfillment === "delivery" && <PincodeChecker onResult={setPincodeResult} />}
 
@@ -1191,7 +1340,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
                   setSlotSurcharge(v.surcharge);
                 }}
               />
-            </>
+            </div>
           )}
 
           {product.canBeDeliveredPanIndia && (
