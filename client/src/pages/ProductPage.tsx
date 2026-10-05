@@ -4,7 +4,7 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsRight } from "lu
 import { cn } from "@/lib/cn";
 import { flavourColour } from "@/lib/flavourColour";
 import { PRODUCT_COPY } from "@/content/product";
-import { ProductGallery } from "@/components/product/ProductGallery";
+import { StickyProductGallery } from "@/components/product/StickyProductGallery";
 import { ProductReviews } from "@/components/product/ProductReviews";
 import { PincodeChecker } from "@/components/product/PincodeChecker";
 import { SameDayDeliveryPicker } from "@/components/product/SameDayDeliveryPicker";
@@ -226,10 +226,13 @@ function PdpContent({ product }: { product: ProductDetail }) {
         <span className="text-ink-700">{product.name}</span>
       </nav>
 
-      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
-        <div className="lg:sticky lg:top-24">
-          <ProductGallery images={galleryImages} alt={product.name} />
-        </div>
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10">
+        <StickyProductGallery
+          images={galleryImages}
+          alt={product.name}
+          subtitle={(pickedFlavour ?? product.flavors[0])?.name}
+          price={<Price amount={unitPrice} original={originalUnitPrice} />}
+        />
 
         <div className="min-w-0 space-y-6">
           <div className="flex flex-wrap items-center gap-2">
@@ -981,7 +984,7 @@ function PdpSkeleton() {
   return (
     <section className="mx-auto max-w-6xl px-4 pt-6 pb-16">
       <div className="mb-4 h-3 w-40 animate-pulse rounded bg-cream-100" />
-      <div className="grid items-start gap-8 lg:grid-cols-2">
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10">
         <div className="aspect-square animate-pulse rounded-card bg-cream-100" />
         <div className="space-y-4">
           <div className="h-8 w-2/3 animate-pulse rounded bg-cream-100" />
@@ -1159,10 +1162,13 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
         <span className="text-ink-700">{product.name}</span>
       </nav>
 
-      <div className="grid items-start gap-8 lg:grid-cols-2">
-        <div className="lg:sticky lg:top-24">
-          <ProductGallery images={galleryImages} alt={product.name} />
-        </div>
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10">
+        <StickyProductGallery
+          images={galleryImages}
+          alt={product.name}
+          subtitle={pickedSize?.label}
+          price={<Price amount={unitPrice} original={originalUnitPrice} />}
+        />
 
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-2">
