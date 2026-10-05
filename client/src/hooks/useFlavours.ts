@@ -6,6 +6,8 @@ export interface MasterFlavour {
   slug: string;
   name: string;
   description: string | null;
+  group: string | null;
+  groupOrder: number | null;
   isEggless: boolean;
   isSugarFree: boolean;
   isHealthy: boolean;

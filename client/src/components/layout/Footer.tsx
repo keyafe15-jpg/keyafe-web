@@ -3,6 +3,7 @@ import { FOOTER_COPY } from "@/content/footer";
 import { QUOTE_NAV, HEALTHY_NAV, PANINDIA_NAV, SAMEDAY_NAV, storeNavItem } from "@/content/nav";
 import { groupCategoriesByDepartment, useCategories, useDepartments } from "@/hooks/useCategories";
 import { useStoreProfile } from "@/hooks/useStoreProfile";
+import { trackContactClick } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 import {
   ArrowUp,
@@ -21,6 +22,7 @@ const ORDER_LINKS = [
   { to: QUOTE_NAV.to, label: "Custom & corporate orders" },
   { to: "/about", label: "About us" },
   { to: "/cancellation-policy", label: "Cancellation & refunds" },
+  { to: "/privacy", label: "Privacy" },
 ] as const;
 
 export function Footer() {
@@ -132,6 +134,7 @@ export function Footer() {
             </a>
             <a
               href={`tel:${profile.phoneHref}`}
+              onClick={() => trackContactClick("phone", "footer")}
               className="inline-flex items-center gap-1.5 text-[13px] text-cream-100/80 transition hover:text-white"
             >
               <Phone className="h-3.5 w-3.5 text-brand-300" />
@@ -144,6 +147,9 @@ export function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label={label}
+                onClick={
+                  Icon === MessageCircle ? () => trackContactClick("whatsapp", "footer") : undefined
+                }
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/5 transition hover:border-brand-300 hover:bg-brand-500 hover:text-white"
               >
                 <Icon className="h-3.5 w-3.5" />

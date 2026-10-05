@@ -2,6 +2,14 @@ export const PRODUCT_COPY = {
   labels: {
     size: "Size",
     flavour: "Flavour",
+    chooseFlavour: "Choose a flavour",
+    flavourHint: (someCostExtra: boolean) =>
+      `Ordering a customised cake for the first time? Pick your favourite flavour inside, and the cake still looks exactly like the picture. That's the beauty of a customised cake! ${
+        someCostExtra ? "A few cost a little extra." : "Same price for every flavour."
+      }`,
+    seeAllFlavours: (count: number) => `See all ${count} flavours`,
+    showFewerFlavours: "Show fewer",
+    moreFlavoursGroup: "More flavours",
     messageOnCake: "Message on cake",
     messageHint: (max: number) => `Up to ${max} characters, optional.`,
     specialInstructions: "Special instructions",

@@ -1,4 +1,5 @@
 import {
+  ChartNoAxesColumn,
   LayoutDashboard,
   ShoppingBag,
   Package,
@@ -32,6 +33,8 @@ export interface AdminNavItem {
   requiresPermission?: string;
   /** Highlight only on an exact match, when other nav items live under this path. */
   end?: boolean;
+  /** `to` is an outside URL, opened in a new tab. */
+  external?: boolean;
 }
 
 export interface AdminNavGroup {
@@ -44,6 +47,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Overview",
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard, requiresPermission: "dashboard.read" },
+      {
+        to: "https://analytics.google.com/analytics/web/",
+        label: "Website analytics",
+        icon: ChartNoAxesColumn,
+        requiresPermission: "dashboard.read",
+        external: true,
+      },
       {
         to: "/orders",
         label: "Orders",

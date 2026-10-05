@@ -18,6 +18,7 @@ import { MyOrdersPage } from "@/pages/MyOrdersPage";
 import { AboutPage } from "@/pages/AboutPage";
 import { CancellationPolicyPage } from "@/pages/CancellationPolicyPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { PrivacyPage } from "@/pages/PrivacyPage";
 import { OrderLinkPage } from "@/pages/OrderLinkPage";
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
       { path: "search", element: <SearchPage /> },
       { path: "about", element: <AboutPage /> },
       { path: "cancellation-policy", element: <CancellationPolicyPage /> },
+      { path: "privacy", element: <PrivacyPage /> },
       { path: "saved-addresses", element: <SavedAddressesPage /> },
       { path: "my-orders", element: <MyOrdersPage /> },
       { path: "o/:token", element: <OrderLinkPage /> },

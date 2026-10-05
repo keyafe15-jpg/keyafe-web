@@ -7,6 +7,7 @@ import { useSavedAddresses } from "@/store/addresses";
 import { useCreateOrder } from "@/hooks/useOrders";
 import { useCreatePaymentSession, usePaymentConfig } from "@/hooks/usePayments";
 import { payWithCashfree } from "@/lib/cashfree";
+import { trackBeginCheckout } from "@/lib/analytics";
 import { useFreeDelivery, usePreviewCoupon } from "@/hooks/useCoupons";
 import { usePincodeCheck, type PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
@@ -34,6 +35,11 @@ export function CheckoutPage() {
   const savedAddresses = useSavedAddresses((s) => s.addresses);
   const addSavedAddress = useSavedAddresses((s) => s.addAddress);
   const fetchSavedAddresses = useSavedAddresses((s) => s.fetchAddresses);
+
+  useEffect(() => {
+    if (lines.length > 0) trackBeginCheckout(lines);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Seed defaults from the first cart line so smooth-return-from-PDP flow works.
   const seed = lines[0];

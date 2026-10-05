@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Mail, MessageCircle, Phone } from "lucide-react";
 import { Seo } from "@/components/seo/Seo";
 import { useStoreProfile } from "@/hooks/useStoreProfile";
+import { trackContactClick } from "@/lib/analytics";
 
 /** Must match CUSTOMER_CANCEL_CUTOFF_HOURS in server/src/modules/orders/order.cancel.ts. */
 const CANCEL_CUTOFF_HOURS = 4;
@@ -94,6 +95,7 @@ export function CancellationPolicyPage() {
             </a>
             <a
               href={`tel:${contact.phoneHref}`}
+              onClick={() => trackContactClick("phone", "cancellation_policy")}
               className="flex items-center gap-2 rounded-lg border border-cream-200 px-3 py-2.5 text-ink-900 transition hover:border-brand-300"
             >
               <Phone className="h-4 w-4 shrink-0 text-brand-500" />
@@ -103,6 +105,7 @@ export function CancellationPolicyPage() {
               href={contact.whatsappHref}
               target="_blank"
               rel="noreferrer"
+              onClick={() => trackContactClick("whatsapp", "cancellation_policy")}
               className="flex items-center gap-2 rounded-lg border border-cream-200 px-3 py-2.5 text-ink-900 transition hover:border-brand-300"
             >
               <MessageCircle className="h-4 w-4 shrink-0 text-brand-500" />
@@ -112,7 +115,11 @@ export function CancellationPolicyPage() {
           {contact.altPhone && (
             <p className="text-xs text-ink-500">
               You can also reach us on{" "}
-              <a href={`tel:${contact.altPhoneHref}`} className="font-medium text-ink-700">
+              <a
+                href={`tel:${contact.altPhoneHref}`}
+                onClick={() => trackContactClick("phone", "cancellation_policy")}
+                className="font-medium text-ink-700"
+              >
                 {contact.altPhone}
               </a>
               .

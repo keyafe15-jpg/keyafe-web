@@ -10,6 +10,7 @@ import {
   type PaymentState,
 } from "@/hooks/usePayments";
 import { payWithCashfree } from "@/lib/cashfree";
+import { trackContactClick, trackPurchase } from "@/lib/analytics";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
 import { SurpriseGiftBadge } from "@/components/order/SurpriseGiftBadge";
@@ -24,6 +25,12 @@ export function OrderSuccessPage() {
   const awaitingPayment =
     !!order && order.paymentMethod === "cashfree" && !order.paidAt && order.status !== "CANCELLED";
   const paymentCheck = usePaymentCheck(order?.id ?? "", awaitingPayment);
+
+  const purchased = !!order && !awaitingPayment && order.status !== "CANCELLED";
+  useEffect(() => {
+    if (purchased && order) trackPurchase(order);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purchased, order?.id]);
 
   if (isLoading) {
     return (
@@ -274,6 +281,7 @@ export function OrderSuccessPage() {
         </Link>
         <a
           href={`tel:${contact.phoneHref}`}
+          onClick={() => trackContactClick("phone", "order_success")}
           className="rounded-full bg-brand-500 px-5 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
         >
           Call the bakery

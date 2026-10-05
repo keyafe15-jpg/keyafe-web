@@ -194,6 +194,8 @@ export interface ProductFlavour {
   id: string;
   slug: string;
   name: string;
+  group?: string | null;
+  groupOrder?: number | null;
   additionalAmount: string;
   isEggless: boolean;
   isSugarFree: boolean;

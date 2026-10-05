@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { NavLink, matchPath, useLocation } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ADMIN_NAV, type AdminNavItem } from "@/content/nav";
 import { useAdminAuth } from "@/store/adminAuth";
@@ -24,7 +24,9 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate?: () =
   })).filter((group) => group.items.length > 0);
 
   const activeGroup = groups.find((group) =>
-    group.items.some((item) => matchPath({ path: item.to, end: isExact(item) }, pathname)),
+    group.items.some(
+      (item) => !item.external && matchPath({ path: item.to, end: isExact(item) }, pathname),
+    ),
   )?.label;
 
   useEffect(() => {
@@ -93,6 +95,26 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate?: () =
                   <ul className="space-y-0.5 pb-2">
                     {group.items.map((item) => {
                       const Icon = item.icon;
+                      if (item.external) {
+                        return (
+                          <li key={item.to}>
+                            <a
+                              href={item.to}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={onNavigate}
+                              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
+                            >
+                              <Icon className="h-4 w-4 shrink-0" />
+                              <span className="truncate">{item.label}</span>
+                              <ExternalLink
+                                className="ml-auto h-3 w-3 shrink-0 text-slate-400"
+                                aria-label="Opens in a new tab"
+                              />
+                            </a>
+                          </li>
+                        );
+                      }
                       return (
                         <li key={item.to}>
                           <NavLink

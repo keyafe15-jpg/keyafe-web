@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { PRODUCT_COPY } from "@/content/product";
 import { ProductGallery } from "@/components/product/ProductGallery";
@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useProducts";
 import { useMasterFlavours } from "@/hooks/useFlavours";
 import { useCart } from "@/store/cart";
+import { trackAddToCart, trackViewItem } from "@/lib/analytics";
 import {
   CAKE_BASE_GRAMS,
   cakeVolumeDiscount,
@@ -31,6 +32,11 @@ type Fulfillment = "delivery" | "pickup";
 export function ProductPage() {
   const { slug = "" } = useParams<{ slug: string }>();
   const { data: product, isLoading, isError, error } = useProduct(slug);
+
+  useEffect(() => {
+    if (product) trackViewItem(product);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   if (isLoading) return <PdpSkeleton />;
   if (isError || !product)
@@ -51,21 +57,27 @@ function PdpContent({ product }: { product: ProductDetail }) {
       ? (product.sizes.find((s) => s.grams === CAKE_BASE_GRAMS) ?? product.sizes[0])
       : null;
 
-  // Attached flavours = fixed recipe (read-only). None attached = customer
-  // picks from the master list, and the picked flavour's delta is applied.
+  // Attached flavours are priced into the cake: one is a fixed recipe, several
+  // are the customer's choices at no extra cost. None attached = customer picks
+  // from the master list, and the picked flavour's delta is applied.
   const hasSpecificFlavours = product.flavors.length > 0;
-  const { data: masterFlavoursData = [] } = useMasterFlavours();
-  const pickerFlavours: ProductFlavour[] = hasSpecificFlavours
-    ? []
-    : masterFlavoursData.map((f) => ({
-        id: f.id,
-        slug: f.slug,
-        name: f.name,
-        additionalAmount: f.additionalAmount,
-        isEggless: f.isEggless,
-        isSugarFree: f.isSugarFree,
-        isHealthy: f.isHealthy,
-      }));
+  const fixedFlavour = product.flavors.length === 1;
+  const { data: masterFlavoursData } = useMasterFlavours();
+  const pickerFlavours = useMemo<ProductFlavour[]>(() => {
+    if (hasSpecificFlavours) return fixedFlavour ? [] : orderByGroup(product.flavors);
+    const master = (masterFlavoursData ?? []).map((f) => ({
+      id: f.id,
+      slug: f.slug,
+      name: f.name,
+      group: f.group,
+      groupOrder: f.groupOrder,
+      additionalAmount: f.additionalAmount,
+      isEggless: f.isEggless,
+      isSugarFree: f.isSugarFree,
+      isHealthy: f.isHealthy,
+    }));
+    return orderByGroup(master);
+  }, [hasSpecificFlavours, fixedFlavour, product.flavors, masterFlavoursData]);
 
   const [sizeId, setSizeId] = useState<string | null>(defaultSize?.id ?? null);
   // Free-form pound entry when the product opts in via `allowCustomSize`.
@@ -73,10 +85,10 @@ function PdpContent({ product }: { product: ProductDetail }) {
   const [customPounds, setCustomPounds] = useState<string>("");
   const [flavourId, setFlavourId] = useState<string | null>(null);
   useEffect(() => {
-    if (!hasSpecificFlavours && !flavourId && pickerFlavours.length > 0) {
+    if (!flavourId && pickerFlavours.length > 0) {
       setFlavourId(pickerFlavours[0].id);
     }
-  }, [hasSpecificFlavours, flavourId, pickerFlavours]);
+  }, [flavourId, pickerFlavours]);
 
   const [fulfillment, setFulfillment] = useState<Fulfillment>("delivery");
   const [pincodeResult, setPincodeResult] = useState<PincodeCheckResult | null>(null);
@@ -107,14 +119,14 @@ function PdpContent({ product }: { product: ProductDetail }) {
       (product.maxGrams != null && customGrams > product.maxGrams));
 
   const effectiveGrams = customGrams && !customOutOfRange ? customGrams : size ? size.grams : null;
-  // Only picker selections drive the price delta — attached "fixed recipe"
-  // flavours are considered priced-in.
+  // Only master-list picks drive the price delta — attached flavours are priced-in.
   const pickedFlavour = useMemo(
     () => pickerFlavours.find((f) => f.id === flavourId) ?? null,
     [pickerFlavours, flavourId],
   );
 
-  const flavourDelta = pickedFlavour ? Number(pickedFlavour.additionalAmount) : 0;
+  const flavourDelta =
+    pickedFlavour && !hasSpecificFlavours ? Number(pickedFlavour.additionalAmount) : 0;
   const factor = product.priceFactor;
   const cakePrice = effectiveGrams
     ? computeCakeUnitPrice(basePrice, effectiveGrams, flavourDelta)
@@ -153,7 +165,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
         ? `${addonNotes}\n${extraNotes}`
         : addonNotes || extraNotes || undefined;
 
-    addLine({
+    const line = {
       productId: product.id,
       slug: product.slug,
       name: product.name,
@@ -175,11 +187,14 @@ function PdpContent({ product }: { product: ProductDetail }) {
       gstRate: Number(product.gstRate),
       priceIsGstInclusive: product.priceIsGstInclusive,
       qty,
-    });
+    };
+    addLine(line);
+    trackAddToCart(line);
     navigate("/cart");
   };
 
-  const anyPickerHasDelta = pickerFlavours.some((f) => Number(f.additionalAmount) > 0);
+  const anyPickerHasDelta =
+    !hasSpecificFlavours && pickerFlavours.some((f) => Number(f.additionalAmount) > 0);
   const productIsEggless = product.isEggless;
   const galleryImages =
     product.images.length > 0
@@ -391,7 +406,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
             </div>
           )}
 
-          {hasSpecificFlavours ? (
+          {fixedFlavour ? (
             <div>
               <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {PRODUCT_COPY.labels.flavour}
@@ -400,39 +415,21 @@ function PdpContent({ product }: { product: ProductDetail }) {
             </div>
           ) : pickerFlavours.length > 0 ? (
             <div>
-              <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
-                {PRODUCT_COPY.labels.flavour}
-              </label>
-              {pickerFlavours.length <= 8 && !anyPickerHasDelta ? (
-                <div className="flex flex-wrap gap-2">
-                  {pickerFlavours.map((f) => (
-                    <FlavourChip
-                      key={f.id}
-                      flavour={f}
-                      active={f.id === flavourId}
-                      onClick={() => setFlavourId(f.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <select
-                  value={flavourId ?? ""}
-                  onChange={(e) => setFlavourId(e.target.value)}
-                  className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
-                >
-                  {pickerFlavours.map((f) => {
-                    const delta = applyFactor(Number(f.additionalAmount), factor);
-                    return (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                        {delta > 0 && ` (+₹${delta.toFixed(0)}/500g)`}
-                        {f.isEggless && " · Eggless"}
-                        {f.isSugarFree && " · Sugar-free"}
-                      </option>
-                    );
-                  })}
-                </select>
-              )}
+              <p className="block text-xs font-medium tracking-wide text-ink-500 uppercase">
+                {PRODUCT_COPY.labels.chooseFlavour}
+              </p>
+              <p className="mt-0.5 mb-2 text-xs text-ink-500">
+                {PRODUCT_COPY.labels.flavourHint(anyPickerHasDelta)}
+              </p>
+              <FlavourPicker
+                flavours={pickerFlavours}
+                value={flavourId}
+                onChange={setFlavourId}
+                deltaFor={(f) =>
+                  anyPickerHasDelta ? applyFactor(Number(f.additionalAmount), factor) : 0
+                }
+                perPound={effectiveGrams != null}
+              />
             </div>
           ) : null}
 
@@ -582,28 +579,159 @@ function PdpContent({ product }: { product: ProductDetail }) {
   );
 }
 
+const FLAVOURS_SHOWN = 6;
+
+interface FlavourSection {
+  title: string | null;
+  flavours: ProductFlavour[];
+}
+
+/** Sections in admin group order (flavour order kept inside each); ungrouped flavours go last. */
+function groupFlavours(flavours: ProductFlavour[]): FlavourSection[] {
+  const byGroup = new Map<string, { order: number; flavours: ProductFlavour[] }>();
+  const ungrouped: ProductFlavour[] = [];
+  for (const f of flavours) {
+    const group = f.group?.trim();
+    if (!group) {
+      ungrouped.push(f);
+      continue;
+    }
+    const entry = byGroup.get(group);
+    if (entry) entry.flavours.push(f);
+    else byGroup.set(group, { order: f.groupOrder ?? Number.MAX_SAFE_INTEGER, flavours: [f] });
+  }
+  const sections: FlavourSection[] = [...byGroup]
+    .sort(([, a], [, b]) => a.order - b.order)
+    .map(([title, entry]) => ({ title, flavours: entry.flavours }));
+  if (sections.length === 0) return [{ title: null, flavours: ungrouped }];
+  if (ungrouped.length > 0) {
+    sections.push({ title: PRODUCT_COPY.labels.moreFlavoursGroup, flavours: ungrouped });
+  }
+  return sections;
+}
+
+/** Display order, so the default pick is the first chip the customer sees. */
+function orderByGroup(flavours: ProductFlavour[]): ProductFlavour[] {
+  return groupFlavours(flavours).flatMap((s) => s.flavours);
+}
+
+/** Long flavour lists start folded to a few chips; the picked one always stays visible. */
+function FlavourPicker({
+  flavours,
+  value,
+  onChange,
+  deltaFor,
+  perPound,
+}: {
+  flavours: ProductFlavour[];
+  value: string | null;
+  onChange: (id: string) => void;
+  deltaFor: (flavour: ProductFlavour) => number;
+  perPound: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const sections = useMemo(() => groupFlavours(flavours), [flavours]);
+  const ordered = useMemo(() => sections.flatMap((s) => s.flavours), [sections]);
+  const foldable = ordered.length > FLAVOURS_SHOWN + 2;
+  const showHeadings = sections.length > 1;
+
+  const chip = (f: ProductFlavour) => (
+    <FlavourChip
+      key={f.id}
+      flavour={f}
+      active={f.id === value}
+      delta={deltaFor(f)}
+      perPound={perPound}
+      onClick={() => onChange(f.id)}
+    />
+  );
+
+  let body: ReactNode;
+  if (foldable && !expanded) {
+    let visible = ordered.slice(0, FLAVOURS_SHOWN);
+    const picked = ordered.find((f) => f.id === value);
+    if (picked && !visible.includes(picked)) visible = [...visible.slice(0, -1), picked];
+    body = <div className="flex flex-wrap gap-2">{visible.map(chip)}</div>;
+  } else if (showHeadings) {
+    body = (
+      <div className="space-y-3">
+        {sections.map((s) => (
+          <div key={s.title ?? ""}>
+            <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-ink-500 uppercase">
+              {s.title}
+            </p>
+            <div className="flex flex-wrap gap-2">{s.flavours.map(chip)}</div>
+          </div>
+        ))}
+      </div>
+    );
+  } else {
+    body = <div className="flex flex-wrap gap-2">{ordered.map(chip)}</div>;
+  }
+
+  return (
+    <div>
+      {body}
+      {foldable && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="mt-2.5 inline-flex items-center gap-1 text-sm font-medium text-brand-700 underline-offset-2 hover:underline"
+        >
+          {expanded
+            ? PRODUCT_COPY.labels.showFewerFlavours
+            : PRODUCT_COPY.labels.seeAllFlavours(ordered.length)}
+          <ChevronDown className={cn("h-4 w-4 transition", expanded && "rotate-180")} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function FlavourChip({
   flavour,
   active,
+  delta,
+  perPound,
   onClick,
 }: {
   flavour: ProductFlavour;
   active: boolean;
+  delta: number;
+  perPound: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "rounded-full border px-3 py-1.5 text-sm transition",
+        "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition",
         active
-          ? "border-brand-500 bg-brand-100 text-brand-700"
-          : "border-cream-200 bg-white text-ink-700 hover:border-brand-300",
+          ? "border-brand-500 bg-brand-500 font-medium text-white shadow-sm"
+          : "border-cream-200 bg-white text-ink-700 hover:border-ink-500/40 hover:bg-cream-50",
       )}
     >
+      {active && <Check className="-ml-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={3} />}
       {flavour.name}
-      {flavour.isEggless && <span className="ml-1 text-xs text-green-700">· Eggless</span>}
+      {delta > 0 && (
+        <span className={cn("text-xs", active ? "text-white/85" : "text-ink-500")}>
+          +₹{delta.toFixed(0)}
+          {perPound ? "/lb" : ""}
+        </span>
+      )}
+      {flavour.isEggless && !/eggless/i.test(flavour.name) && (
+        <span className={cn("text-xs", active ? "text-white/85" : "text-green-700")}>
+          · Eggless
+        </span>
+      )}
+      {flavour.isSugarFree && !/sugar[\s-]?free/i.test(flavour.name) && (
+        <span className={cn("text-xs", active ? "text-white/85" : "text-brand-700")}>
+          · Sugar-free
+        </span>
+      )}
     </button>
   );
 }
@@ -831,7 +959,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
   };
 
   const handleAddToCart = () => {
-    addLine({
+    const line = {
       productId: product.id,
       slug: product.slug,
       name: product.name,
@@ -850,7 +978,9 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
       gstRate: Number(product.gstRate),
       priceIsGstInclusive: product.priceIsGstInclusive,
       qty,
-    });
+    };
+    addLine(line);
+    trackAddToCart(line);
     navigate("/cart");
   };
 

@@ -769,7 +769,6 @@ export function ProductFormPage() {
                   priceMode="ABSOLUTE"
                   suggestKey={(label) => sizeKeyFromLabel(label)}
                   labelPlaceholder='e.g. 8"'
-                  keyPlaceholder="8in"
                   showDiameter
                 />
               </Section>
@@ -789,7 +788,6 @@ export function ProductFormPage() {
                       .replace(/^-|-$/g, "")
                   }
                   labelPlaceholder="Thin / Regular / Stuffed"
-                  keyPlaceholder="regular"
                 />
               </Section>
               <div className="grid gap-4 md:grid-cols-2">
@@ -876,7 +874,6 @@ export function ProductFormPage() {
                     .replace(/^-|-$/g, "")
                 }
                 labelPlaceholder="250g / Small / Regular"
-                keyPlaceholder="250g"
               />
             </Section>
           )}
@@ -1315,18 +1312,18 @@ function OptionRow({
   opt,
   priceMode,
   labelPlaceholder,
-  keyPlaceholder,
   showDiameter,
-  suggestKey,
+  gridClass,
+  onLabel,
   onPatch,
   onRemove,
 }: {
   opt: ProductOptionInput;
   priceMode: "ABSOLUTE" | "DELTA";
   labelPlaceholder: string;
-  keyPlaceholder: string;
   showDiameter?: boolean;
-  suggestKey: (label: string) => string;
+  gridClass: string;
+  onLabel: (label: string) => void;
   onPatch: (patch: Partial<ProductOptionInput>) => void;
   onRemove: () => void;
 }) {
@@ -1340,32 +1337,19 @@ function OptionRow({
   }, [opt.price]);
 
   return (
-    <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5 rounded-md border border-slate-200 bg-slate-50/50 p-1.5 sm:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
+    <div
+      className={cn(
+        "grid items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50/50 p-1.5",
+        gridClass,
+      )}
+    >
       <input
         value={opt.label}
-        onChange={(e) => {
-          const label = e.target.value;
-          const patch: Partial<ProductOptionInput> = { label };
-          if (!opt.key) patch.key = suggestKey(label);
-          onPatch(patch);
-        }}
+        onChange={(e) => onLabel(e.target.value)}
         placeholder={labelPlaceholder}
+        aria-label="Label"
         className={cn(inputClass, "py-1.5")}
       />
-      <input
-        value={opt.key}
-        onChange={(e) => onPatch({ key: e.target.value })}
-        placeholder={keyPlaceholder}
-        className={cn(inputClass, "py-1.5 font-mono text-xs")}
-      />
-      <button
-        type="button"
-        onClick={onRemove}
-        className="row-span-2 inline-flex h-8 w-8 items-center justify-center self-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600 sm:order-last sm:row-span-1"
-        aria-label="Remove"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
       <input
         type="text"
         inputMode="decimal"
@@ -1377,9 +1361,10 @@ function OptionRow({
           onPatch({ price: Number.isFinite(n) ? n : 0 });
         }}
         placeholder={priceMode === "ABSOLUTE" ? "e.g. 500" : "e.g. 50"}
-        className={cn(inputClass, "py-1.5")}
+        aria-label="Price"
+        className={cn(inputClass, "px-2 py-1.5")}
       />
-      {showDiameter ? (
+      {showDiameter && (
         <input
           type="number"
           min={1}
@@ -1390,13 +1375,28 @@ function OptionRow({
             })
           }
           placeholder="mm"
-          className={cn(inputClass, "py-1.5")}
+          aria-label="Diameter in mm"
+          className={cn(inputClass, "px-2 py-1.5")}
         />
-      ) : (
-        <div />
       )}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"
+        aria-label="Remove"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
     </div>
   );
+}
+
+/** Keys are hidden: derived from the label, and must be unique within the group. */
+function uniqueOptionKey(base: string, taken: Set<string>) {
+  const root = base || "option";
+  let key = root;
+  for (let n = 2; taken.has(key); n++) key = `${root}-${n}`;
+  return key;
 }
 
 function OptionsEditor({
@@ -1405,7 +1405,6 @@ function OptionsEditor({
   priceMode,
   suggestKey,
   labelPlaceholder,
-  keyPlaceholder,
   showDiameter,
 }: {
   options: ProductOptionInput[];
@@ -1413,16 +1412,22 @@ function OptionsEditor({
   priceMode: "ABSOLUTE" | "DELTA";
   suggestKey: (label: string) => string;
   labelPlaceholder: string;
-  keyPlaceholder: string;
   showDiameter?: boolean;
 }) {
   const addRow = () =>
     onChange([...options, normalizeOption({ sortOrder: options.length, isActive: true })]);
   const patchRow = (idx: number, patch: Partial<ProductOptionInput>) =>
     onChange(options.map((o, i) => (i === idx ? { ...o, ...patch } : o)));
+  const setLabel = (idx: number, label: string) => {
+    const taken = new Set(options.filter((_, i) => i !== idx).map((o) => o.key));
+    patchRow(idx, { label, key: uniqueOptionKey(suggestKey(label), taken) });
+  };
   const removeRow = (idx: number) => onChange(options.filter((_, i) => i !== idx));
 
   const priceHeader = priceMode === "ABSOLUTE" ? "Price (₹)" : "Extra (₹)";
+  const gridClass = showDiameter
+    ? "grid-cols-[minmax(0,1fr)_5.5rem_4.5rem_2rem] sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2rem]"
+    : "grid-cols-[minmax(0,1fr)_7rem_2rem] sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_2rem]";
 
   return (
     <div className="space-y-2">
@@ -1430,11 +1435,15 @@ function OptionsEditor({
         <p className="text-xs text-slate-500">No options yet — add one below.</p>
       )}
       {options.length > 0 && (
-        <div className="hidden gap-2 px-2 text-[10px] font-medium tracking-wide text-slate-500 uppercase sm:grid sm:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
+        <div
+          className={cn(
+            "grid gap-1.5 px-1.5 text-[10px] font-medium tracking-wide text-slate-500 uppercase",
+            gridClass,
+          )}
+        >
           <span>Label</span>
-          <span>Key</span>
           <span>{priceHeader}</span>
-          <span>{showDiameter ? "Diameter (mm)" : ""}</span>
+          {showDiameter && <span>Diameter</span>}
           <span />
         </div>
       )}
@@ -1444,18 +1453,18 @@ function OptionsEditor({
           opt={opt}
           priceMode={priceMode}
           labelPlaceholder={labelPlaceholder}
-          keyPlaceholder={keyPlaceholder}
           showDiameter={showDiameter}
-          suggestKey={suggestKey}
+          gridClass={gridClass}
+          onLabel={(label) => setLabel(idx, label)}
           onPatch={(patch) => patchRow(idx, patch)}
           onRemove={() => removeRow(idx)}
         />
       ))}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={addRow}
-          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-slate-700 hover:border-brand-500 hover:text-brand-700"
         >
           + Add option
         </button>

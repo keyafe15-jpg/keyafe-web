@@ -5,6 +5,9 @@ import { RouterProvider } from "react-router-dom";
 import "./index.css";
 import { router } from "@/routes/router";
 import { queryClient } from "@/lib/queryClient";
+import { initAnalytics } from "@/lib/analytics";
+
+initAnalytics();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

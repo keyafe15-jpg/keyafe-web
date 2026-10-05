@@ -1,84 +1,106 @@
-import { useEffect, useState } from "react";
-import { Plus, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronsDownUp, ChevronsUpDown, Plus, X } from "lucide-react";
 import {
   useAdminFlavours,
-  useCreateFlavour,
-  useDeleteFlavour,
+  useCreateFlavourGroup,
+  useFlavourGroups,
+  useReorderFlavourGroups,
   useReorderFlavours,
-  useUpdateFlavour,
   type AdminFlavour,
+  type FlavourGroup,
 } from "@/hooks/useFlavours";
-import {
-  ReorderHandle,
-  ReorderList,
-  type ReorderItemContext,
-} from "@/components/reorder/ReorderList";
-import { ActiveSwitch } from "@/components/ui/ActiveSwitch";
-import { cn } from "@/lib/cn";
+import { ReorderList } from "@/components/reorder/ReorderList";
+import { FlavourGroupCard } from "./FlavourGroupCard";
+import { flavourInputClass } from "./FlavourRow";
 
-const inputClass =
-  "w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20";
-
-const emptyNew = {
-  name: "",
-  additionalAmount: "0",
-  isEggless: false,
-  isSugarFree: false,
-  isHealthy: false,
-};
+const SUGGESTED_GROUPS = ["Classic", "Chocolate", "Fruity", "Cheesecake & mousse", "Indian fusion"];
 
 const NO_FLAVOURS: AdminFlavour[] = [];
+const NO_GROUPS: FlavourGroup[] = [];
+
+const COLLAPSED_STORAGE_KEY = "keyafe-admin-flavour-groups-collapsed";
+const UNGROUPED_KEY = "ungrouped";
+
+function readCollapsed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function useCollapsedGroups() {
+  const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsed);
+  const save = (next: Set<string>) => {
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify([...next]));
+    } catch {
+      // Private mode / quota: collapsing still works for this visit.
+    }
+  };
+  const toggle = (key: string) => {
+    const next = new Set(collapsed);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    save(next);
+  };
+  return { collapsed, toggle, setAll: (keys: string[]) => save(new Set(keys)) };
+}
 
 export function FlavoursPage() {
-  const { data: flavours = NO_FLAVOURS, isLoading } = useAdminFlavours();
-  const createFlavour = useCreateFlavour();
+  const { data: flavours = NO_FLAVOURS, isLoading: flavoursLoading } = useAdminFlavours();
+  const { data: groups = NO_GROUPS, isLoading: groupsLoading } = useFlavourGroups();
   const reorderFlavours = useReorderFlavours();
+  const reorderGroups = useReorderFlavourGroups();
   const [items, setItems] = useState<AdminFlavour[]>([]);
-  const [adding, setAdding] = useState(false);
-  const [newFlavour, setNewFlavour] = useState(emptyNew);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [groupItems, setGroupItems] = useState<FlavourGroup[]>([]);
   const [reorderError, setReorderError] = useState<string | null>(null);
+  const isLoading = flavoursLoading || groupsLoading;
+  const { collapsed, toggle, setAll } = useCollapsedGroups();
 
   useEffect(() => {
     setItems(flavours);
   }, [flavours]);
+  useEffect(() => {
+    setGroupItems(groups);
+  }, [groups]);
 
-  const submitNew = async () => {
-    setFormError(null);
-    const name = newFlavour.name.trim();
-    if (name.length < 2) return setFormError("Name is required");
-    const additionalAmount = Number(newFlavour.additionalAmount);
-    if (Number.isNaN(additionalAmount) || additionalAmount < 0) {
-      return setFormError("Additional amount must be 0 or more");
-    }
-    try {
-      await createFlavour.mutateAsync({
-        name,
-        additionalAmount,
-        isEggless: newFlavour.isEggless,
-        isSugarFree: newFlavour.isSugarFree,
-        isHealthy: newFlavour.isHealthy,
-        isActive: true,
-      });
-      setNewFlavour(emptyNew);
-      setAdding(false);
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Failed to create");
-    }
-  };
+  const groupIds = useMemo(() => new Set(groupItems.map((g) => g.id)), [groupItems]);
+  const keyOf = (f: AdminFlavour) => (f.groupId && groupIds.has(f.groupId) ? f.groupId : null);
+  const flavoursIn = (key: string | null) => items.filter((f) => keyOf(f) === key);
+  const ungrouped = flavoursIn(null);
+  const endSortOrder = items.reduce((max, f) => Math.max(max, f.sortOrder), 0) + 10;
+  const hiddenCount = items.filter((f) => !f.isActive).length;
 
-  const onReorder = (next: AdminFlavour[]) => {
+  const onReorderWithin = (key: string | null, next: AdminFlavour[]) => {
     const prev = items;
-    setItems(next);
+    const ordered = [...groupItems.map((g) => g.id), null].flatMap((k) =>
+      k === key ? next : flavoursIn(k),
+    );
+    setItems(ordered);
     setReorderError(null);
-    void reorderFlavours.mutateAsync(next.map((f) => f.id)).catch((err) => {
+    void reorderFlavours.mutateAsync(ordered.map((f) => f.id)).catch((err) => {
       setItems(prev);
       setReorderError(err instanceof Error ? err.message : "Failed to save order");
     });
   };
 
-  const showTable = !isLoading && (items.length > 0 || adding);
-  const hiddenCount = items.filter((f) => !f.isActive).length;
+  const onReorderGroups = (next: FlavourGroup[]) => {
+    const prev = groupItems;
+    setGroupItems(next);
+    setReorderError(null);
+    void reorderGroups.mutateAsync(next.map((g) => g.id)).catch((err) => {
+      setGroupItems(prev);
+      setReorderError(err instanceof Error ? err.message : "Failed to save group order");
+    });
+  };
+
+  const reorderDisabled = reorderFlavours.isPending || reorderGroups.isPending;
+  const showUngrouped = ungrouped.length > 0 || groupItems.length === 0;
+  const cardKeys = [...groupItems.map((g) => g.id), ...(showUngrouped ? [UNGROUPED_KEY] : [])];
+  const allCollapsed = cardKeys.length > 0 && cardKeys.every((k) => collapsed.has(k));
 
   return (
     <div>
@@ -89,30 +111,42 @@ export function FlavoursPage() {
             {!isLoading && (
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 tabular-nums">
                 {items.length} {items.length === 1 ? "flavour" : "flavours"}
+                {groupItems.length > 0 && (
+                  <>
+                    {" "}
+                    · {groupItems.length} {groupItems.length === 1 ? "group" : "groups"}
+                  </>
+                )}
                 {hiddenCount > 0 && <span className="text-slate-400"> · {hiddenCount} hidden</span>}
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            Master flavour list. Drag rows to set storefront order. The{" "}
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            Each card is a group, shown as a heading on the cake page in this order. Drag cards to
+            reorder groups and rows to reorder flavours; use{" "}
+            <span className="font-medium">Move to</span> to put a flavour in another group. The{" "}
             <span className="font-medium">Additional amount</span> is added on top of the product
             base price (per pound) whenever a customer picks this flavour. Delete only works when no
-            products offer the flavour — otherwise deactivate it, or remove it from those products
-            first.
+            products offer the flavour — otherwise turn Active off.
           </p>
         </div>
-        {!adding && (
-          <button
-            type="button"
-            onClick={() => {
-              setFormError(null);
-              setAdding(true);
-            }}
-            className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
-          >
-            <Plus className="h-4 w-4" /> Add flavour
-          </button>
-        )}
+        <div className="flex shrink-0 flex-wrap items-start gap-2 self-start">
+          {cardKeys.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setAll(allCollapsed ? [] : cardKeys)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              {allCollapsed ? (
+                <ChevronsUpDown className="h-4 w-4" />
+              ) : (
+                <ChevronsDownUp className="h-4 w-4" />
+              )}
+              {allCollapsed ? "Expand all" : "Collapse all"}
+            </button>
+          )}
+          <AddGroupButton existing={groupItems} />
+        </div>
       </div>
 
       {reorderError && (
@@ -121,342 +155,146 @@ export function FlavoursPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-card border border-slate-200 bg-white">
-        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
-        {!isLoading && items.length === 0 && !adding && (
-          <div className="p-8 text-center text-sm text-slate-500">
-            No flavours yet.{" "}
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className="text-brand-500 hover:underline"
+      {isLoading ? (
+        <div className="rounded-card border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+          Loading…
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {groupItems.length > 0 && (
+            <ReorderList
+              items={groupItems}
+              onReorder={onReorderGroups}
+              disabled={reorderDisabled}
+              className="space-y-4"
             >
-              Add your first flavour
-            </button>
-            .
-          </div>
-        )}
-        {showTable && (
-          <table className="w-full text-left text-sm">
-            <thead className="hidden border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase md:table-header-group">
-              <tr>
-                <th className="w-10 px-2 py-2 font-medium">
-                  <span className="sr-only">Reorder</span>
-                </th>
-                <th className="px-4 py-2 font-medium">Flavour</th>
-                <th className="px-4 py-2 font-medium">Tags</th>
-                <th className="w-40 px-4 py-2 text-right font-medium">Additional (₹)</th>
-                <th className="w-24 px-4 py-2 text-center font-medium">Active</th>
-                <th className="w-20 px-4 py-2 text-right font-medium">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            {items.length > 0 && (
-              <ReorderList
-                as="tbody"
-                className="divide-y divide-slate-100"
-                items={items}
-                onReorder={onReorder}
-                disabled={reorderFlavours.isPending}
-              >
-                {(flavour, ctx) => <FlavourRow key={flavour.id} flavour={flavour} reorder={ctx} />}
-              </ReorderList>
-            )}
-            {adding && (
-              <tbody className="divide-y divide-slate-100 border-t border-slate-100">
-                <tr className="block bg-slate-50/70 p-4 md:table-row md:p-0">
-                  <td className="hidden md:table-cell md:px-2 md:py-3" />
-                  <td className="block md:table-cell md:px-4 md:py-3">
-                    <label className="block">
-                      <span className="mb-1 block text-xs font-medium text-slate-500 md:sr-only">
-                        Name
-                      </span>
-                      <input
-                        autoFocus
-                        value={newFlavour.name}
-                        onChange={(e) => setNewFlavour({ ...newFlavour, name: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            void submitNew();
-                          }
-                        }}
-                        placeholder="e.g. Belgian Chocolate"
-                        className={inputClass}
-                      />
-                    </label>
-                    {formError && (
-                      <p className="mt-1 text-xs text-brand-700 md:hidden">{formError}</p>
-                    )}
-                  </td>
-                  <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3">
-                    <div className="flex flex-wrap gap-3">
-                      <FlagCheck
-                        label="Eggless"
-                        checked={newFlavour.isEggless}
-                        onChange={(isEggless) => setNewFlavour({ ...newFlavour, isEggless })}
-                      />
-                      <FlagCheck
-                        label="Sugar-free"
-                        checked={newFlavour.isSugarFree}
-                        onChange={(isSugarFree) => setNewFlavour({ ...newFlavour, isSugarFree })}
-                      />
-                      <FlagCheck
-                        label="Healthy"
-                        checked={newFlavour.isHealthy}
-                        onChange={(isHealthy) => setNewFlavour({ ...newFlavour, isHealthy })}
-                      />
-                    </div>
-                  </td>
-                  <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-2 md:text-right">
-                    <div className="flex items-center justify-between gap-2 md:justify-end">
-                      <span className="text-xs font-medium text-slate-500 md:hidden">
-                        Additional
-                      </span>
-                      <div className="relative">
-                        <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-slate-400">
-                          +₹
-                        </span>
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={newFlavour.additionalAmount}
-                          onChange={(e) =>
-                            setNewFlavour({ ...newFlavour, additionalAmount: e.target.value })
-                          }
-                          className={cn(inputClass, "w-28 pr-2 pl-7 text-right tabular-nums")}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="mt-3 hidden md:table-cell md:px-4 md:py-3 md:text-center">
-                    <span className="text-xs text-slate-400">On</span>
-                  </td>
-                  <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3 md:text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAdding(false);
-                          setNewFlavour(emptyNew);
-                          setFormError(null);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-white"
-                      >
-                        <X className="h-3.5 w-3.5" /> Cancel
-                      </button>
-                      <button
-                        type="button"
-                        disabled={createFlavour.isPending}
-                        onClick={() => void submitNew()}
-                        className="inline-flex items-center gap-1 rounded-md bg-brand-500 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-                      >
-                        {createFlavour.isPending ? "Saving…" : "Save"}
-                      </button>
-                    </div>
-                    {formError && (
-                      <p className="mt-1 hidden text-xs text-brand-700 md:block">{formError}</p>
-                    )}
-                  </td>
-                </tr>
-              </tbody>
-            )}
-          </table>
-        )}
-      </div>
+              {(group, ctx) => (
+                <FlavourGroupCard
+                  key={group.id}
+                  group={group}
+                  flavours={flavoursIn(group.id)}
+                  groups={groupItems}
+                  endSortOrder={endSortOrder}
+                  reorder={ctx}
+                  onReorderFlavours={(next) => onReorderWithin(group.id, next)}
+                  reorderDisabled={reorderDisabled}
+                  collapsed={collapsed.has(group.id)}
+                  onToggleCollapsed={() => toggle(group.id)}
+                />
+              )}
+            </ReorderList>
+          )}
+          {showUngrouped && (
+            <FlavourGroupCard
+              group={null}
+              flavours={ungrouped}
+              groups={groupItems}
+              endSortOrder={endSortOrder}
+              onReorderFlavours={(next) => onReorderWithin(null, next)}
+              reorderDisabled={reorderDisabled}
+              collapsed={collapsed.has(UNGROUPED_KEY)}
+              onToggleCollapsed={() => toggle(UNGROUPED_KEY)}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function FlagCheck({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-3.5 w-3.5 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-      />
-      {label}
-    </label>
-  );
-}
-
-function FlavourRow({ flavour, reorder }: { flavour: AdminFlavour; reorder: ReorderItemContext }) {
-  const update = useUpdateFlavour();
-  const del = useDeleteFlavour();
-  const [amount, setAmount] = useState<string>(Number(flavour.additionalAmount).toString());
-  const [dirty, setDirty] = useState(false);
+function AddGroupButton({ existing }: { existing: FlavourGroup[] }) {
+  const createGroup = useCreateFlavourGroup();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const inUse = flavour.productCount > 0;
+  const taken = new Set(existing.map((g) => g.name.toLowerCase()));
+  const suggestions = SUGGESTED_GROUPS.filter((s) => !taken.has(s.toLowerCase()));
 
-  const commit = async () => {
-    const parsed = Number(amount);
-    if (Number.isNaN(parsed) || parsed < 0) {
-      setError("Enter a non-negative number");
-      return;
-    }
+  const close = () => {
+    setOpen(false);
+    setName("");
+    setError(null);
+  };
+
+  const create = async (value: string, keepOpen = false) => {
+    const next = value.trim();
+    if (!next) return setError("Group name is required");
     setError(null);
     try {
-      await update.mutateAsync({ id: flavour.id, additionalAmount: parsed });
-      setDirty(false);
+      await createGroup.mutateAsync(next);
+      if (!keepOpen) close();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
+      setError(err instanceof Error ? err.message : "Failed to create group");
     }
   };
 
-  const onDelete = async () => {
-    setError(null);
-    if (inUse) {
-      setError(
-        `Used by ${flavour.productCount} product${flavour.productCount === 1 ? "" : "s"}. Remove it from those products first, or turn Active off.`,
-      );
-      return;
-    }
-    if (!confirm(`Delete flavour “${flavour.name}”? This cannot be undone.`)) return;
-    try {
-      await del.mutateAsync(flavour.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete");
-    }
-  };
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
+      >
+        <Plus className="h-4 w-4" /> Add group
+      </button>
+    );
+  }
 
   return (
-    <tr
-      ref={reorder.setNodeRef}
-      style={reorder.style}
-      className={cn(
-        "grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-x-2 px-2 py-2 hover:bg-slate-50 md:table-row md:p-0",
-        reorder.isDragging && "bg-white shadow-md",
-      )}
-    >
-      <td className="row-span-2 md:table-cell md:px-2 md:py-3 md:align-middle">
-        <ReorderHandle {...reorder.handleProps} />
-      </td>
-      <td className="min-w-0 md:table-cell md:px-4 md:py-3">
-        <p
-          className={cn(
-            "truncate font-medium text-slate-900 md:whitespace-normal",
-            !flavour.isActive && "text-slate-400",
-          )}
+    <div className="w-full shrink-0 rounded-card border border-slate-200 bg-white p-3 sm:w-80">
+      <div className="flex items-center gap-1.5">
+        <input
+          autoFocus
+          value={name}
+          maxLength={40}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void create(name);
+            }
+            if (e.key === "Escape") close();
+          }}
+          placeholder="Group name, e.g. Chocolate"
+          aria-label="New group name"
+          className={flavourInputClass}
+        />
+        <button
+          type="button"
+          onClick={() => void create(name)}
+          disabled={createGroup.isPending}
+          className="shrink-0 rounded-md bg-brand-500 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
-          {flavour.name}
-        </p>
-        <p className="hidden text-xs text-slate-500 md:block">/{flavour.slug}</p>
-        {inUse && (
-          <p className="mt-0.5 hidden text-[11px] text-slate-400 md:block">
-            On {flavour.productCount} product{flavour.productCount === 1 ? "" : "s"}
-          </p>
-        )}
-      </td>
-      <td className="col-start-2 row-start-2 min-w-0 md:table-cell md:px-4 md:py-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-1 md:flex-nowrap">
-          <span className="truncate text-[11px] text-slate-400 md:hidden">
-            /{flavour.slug}
-            {inUse
-              ? ` · ${flavour.productCount} product${flavour.productCount === 1 ? "" : "s"}`
-              : ""}
-          </span>
-          {flavour.isEggless && <Tag label="Eggless" tone="green" />}
-          {flavour.isSugarFree && <Tag label="Sugar-free" tone="brand" />}
-          {flavour.isHealthy && <Tag label="Healthy" tone="emerald" />}
-        </div>
-      </td>
-      <td className="col-start-3 row-span-2 row-start-1 md:table-cell md:px-4 md:py-2 md:text-right">
-        <div className="flex items-center justify-end gap-2">
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-slate-400">
-                +₹
-              </span>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                value={amount}
-                onChange={(e) => {
-                  setAmount(e.target.value);
-                  setDirty(true);
-                }}
-                onBlur={() => dirty && commit()}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    (e.target as HTMLInputElement).blur();
-                  }
-                }}
-                aria-label={`Additional amount for ${flavour.name}`}
-                className={cn(
-                  "w-20 rounded-md border border-slate-200 bg-white py-1.5 pr-2 pl-7 text-right text-sm text-slate-900 tabular-nums outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 md:w-28",
-                  error && "border-brand-500",
-                )}
-              />
-            </div>
-            {update.isPending && <span className="hidden text-xs text-slate-400 md:inline">…</span>}
+          {createGroup.isPending ? "Adding…" : "Add"}
+        </button>
+        <button
+          type="button"
+          onClick={close}
+          title="Cancel"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      {error && <p className="mt-1.5 text-xs text-brand-700">{error}</p>}
+      {suggestions.length > 0 && (
+        <div className="mt-2.5">
+          <p className="mb-1.5 text-[11px] text-slate-500">Quick add</p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                disabled={createGroup.isPending}
+                onClick={() => void create(s, true)}
+                className="hover:border-brand-300 inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-700 hover:bg-brand-100/40 disabled:opacity-60"
+              >
+                <Plus className="h-3 w-3" /> {s}
+              </button>
+            ))}
           </div>
         </div>
-      </td>
-      <td className="col-start-4 row-span-2 row-start-1 md:table-cell md:px-4 md:py-3 md:text-center">
-        <ActiveSwitch
-          checked={flavour.isActive}
-          label={`${flavour.name} active`}
-          onChange={(isActive) => update.mutate({ id: flavour.id, isActive })}
-        />
-      </td>
-      <td className="col-start-5 row-span-2 row-start-1 md:table-cell md:px-4 md:py-3 md:text-right">
-        <div className="flex items-center justify-end">
-          <button
-            type="button"
-            onClick={() => void onDelete()}
-            disabled={del.isPending}
-            title={
-              inUse
-                ? `Used by ${flavour.productCount} product(s) — remove from products or deactivate`
-                : `Delete “${flavour.name}”`
-            }
-            className={cn(
-              "inline-flex h-8 w-8 items-center justify-center rounded-md transition disabled:opacity-50",
-              inUse
-                ? "text-slate-300 hover:bg-slate-50 hover:text-slate-500"
-                : "text-red-500 hover:bg-red-50 hover:text-red-700",
-            )}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-        {error && <p className="mt-1 hidden text-xs text-brand-700 md:block">{error}</p>}
-      </td>
-      {error && (
-        <td className="col-span-4 col-start-2 text-xs text-brand-700 md:hidden">{error}</td>
       )}
-    </tr>
-  );
-}
-
-function Tag({ label, tone }: { label: string; tone: "green" | "brand" | "emerald" }) {
-  const tones: Record<string, string> = {
-    green: "bg-emerald-50 text-emerald-700",
-    brand: "bg-brand-100 text-brand-700",
-    emerald: "bg-emerald-50 text-emerald-700",
-  };
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium",
-        tones[tone],
-      )}
-    >
-      {label}
-    </span>
+    </div>
   );
 }

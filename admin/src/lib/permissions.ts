@@ -20,6 +20,7 @@ export function useStaffPermission(key: string) {
 export function firstAllowedPath(user: AdminUser | null): string {
   if (!user) return "/login";
   for (const item of ADMIN_NAV.flatMap((g) => g.items)) {
+    if (item.external) continue;
     if (!item.requiresPermission || staffHasPermission(user, item.requiresPermission)) {
       return item.to;
     }

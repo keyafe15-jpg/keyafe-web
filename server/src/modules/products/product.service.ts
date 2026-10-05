@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
+import { flattenFlavorGroup, flavorGroupSelect } from "../flavors/flavor.group.js";
 
 const optionSchema = z.object({
   key: z.string().trim().min(1),
@@ -771,6 +772,7 @@ export async function getPublicProductBySlug(slug: string) {
           id: true,
           slug: true,
           name: true,
+          group: flavorGroupSelect,
           additionalAmount: true,
           isEggless: true,
           isSugarFree: true,
@@ -856,7 +858,7 @@ export async function getPublicProductBySlug(slug: string) {
       })
     : [];
 
-  const { categoryLinks, addons: attachedAddons, ...rest } = product;
+  const { categoryLinks, addons: attachedAddons, flavors, ...rest } = product;
   const categoryAddons = await addonsDefaultedToCategories(categoryLinks.map((l) => l.category.id));
   const factor = priceFactor(
     actualStartingPrice(
@@ -868,6 +870,7 @@ export async function getPublicProductBySlug(slug: string) {
 
   return {
     ...rest,
+    flavors: flavors.map(flattenFlavorGroup),
     discountedPrice: factor ? product.discountedPrice : null,
     priceFactor: factor,
     categories: categoryLinks.map((l) => l.category),

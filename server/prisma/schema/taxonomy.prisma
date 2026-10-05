@@ -64,6 +64,9 @@ model Flavor {
   slug             String    @unique
   name             String // "Chocolate Truffle", "Vanilla", "Red Velvet"
   description      String?
+  // Storefront heading the flavour is listed under. Null = "More flavours".
+  groupId          String?
+  group            FlavorGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   isEggless        Boolean   @default(false)
   isSugarFree      Boolean   @default(false)
   isHealthy        Boolean   @default(false) // recipe attribute (jaggery / sugar-free / whole grain). Product.isHealthyTreat drives the Healthy Treats section.
@@ -75,6 +78,18 @@ model Flavor {
   products         Product[] @relation("ProductFlavors") // flavours this product offers
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @default(now()) @updatedAt
+
+  @@index([groupId])
+}
+
+// Admin-defined flavour sections ("Classic", "Chocolate"); shown as headings on the cake page.
+model FlavorGroup {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  flavors   Flavor[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 // Sizes offered on any product with `sellByPound = true`. Stored in grams.
