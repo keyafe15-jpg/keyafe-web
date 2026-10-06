@@ -24,6 +24,7 @@ import { DeliveryPincodesPage } from "@/pages/delivery/DeliveryPincodesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { AnnouncementPage } from "@/pages/AnnouncementPage";
 import { HeroSlidesPage } from "@/pages/HeroSlidesPage";
+import { HighlightsPage } from "@/pages/HighlightsPage";
 import { StoreHoursPage } from "@/pages/store/StoreHoursPage";
 import { CouponsPage } from "@/pages/coupons/CouponsPage";
 import { CustomersListPage } from "@/pages/customers/CustomersListPage";
@@ -140,6 +141,10 @@ export const router = createBrowserRouter([
           {
             path: "hero-slides",
             element: <HeroSlidesPage />,
+          },
+          {
+            path: "highlights",
+            element: <HighlightsPage />,
           },
           {
             path: "announcement",

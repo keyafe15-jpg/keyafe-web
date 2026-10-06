@@ -645,10 +645,101 @@ export async function listHomeTagShowcase(limitPerTag = 8) {
 const HOME_FEATURED_LIMIT = 12;
 const HOME_RAIL_LIMIT = 10;
 
+// Live "Trending" highlights: active and inside their date window. Each row is
+// hand-picked products first, then its category (with sub-categories) and tag,
+// de-duplicated. Highlights left with no products are dropped.
+async function listLiveHighlights(now = new Date()) {
+  const highlights = await prisma.highlight.findMany({
+    where: {
+      isActive: true,
+      AND: [
+        { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+        { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+      ],
+    },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      title: true,
+      tagline: true,
+      themeColor: true,
+      bannerImage: true,
+      products: { select: { id: true } },
+      category: {
+        select: {
+          id: true,
+          slug: true,
+          isActive: true,
+          children: { where: { isActive: true }, select: { id: true } },
+        },
+      },
+      tag: { select: { id: true, slug: true } },
+    },
+  });
+
+  const order = [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }] as const;
+  const sections = await Promise.all(
+    highlights.map(async (h) => {
+      const category = h.category?.isActive ? h.category : null;
+      const [picked, fromCategory, fromTag] = await Promise.all([
+        h.products.length
+          ? prisma.product.findMany({
+              where: { ...PUBLIC_LIST_WHERE, id: { in: h.products.map((p) => p.id) } },
+              orderBy: [...order],
+              take: HOME_RAIL_LIMIT,
+              select: PUBLIC_CARD_SELECT,
+            })
+          : [],
+        category
+          ? prisma.product.findMany({
+              where: {
+                ...PUBLIC_LIST_WHERE,
+                categoryLinks: {
+                  some: {
+                    categoryId: { in: [category.id, ...category.children.map((c) => c.id)] },
+                  },
+                },
+              },
+              orderBy: [...order],
+              take: HOME_RAIL_LIMIT,
+              select: PUBLIC_CARD_SELECT,
+            })
+          : [],
+        h.tag
+          ? prisma.product.findMany({
+              where: { ...PUBLIC_LIST_WHERE, tags: { some: { id: h.tag.id } } },
+              orderBy: [...order],
+              take: HOME_RAIL_LIMIT,
+              select: PUBLIC_CARD_SELECT,
+            })
+          : [],
+      ]);
+
+      const seen = new Set<string>();
+      const products = [...picked, ...fromCategory, ...fromTag]
+        .filter((p) => !seen.has(p.id) && seen.add(p.id))
+        .slice(0, HOME_RAIL_LIMIT)
+        .map((p) => decorateCard(p as unknown as PublicCardRow));
+
+      return {
+        id: h.id,
+        title: h.title,
+        tagline: h.tagline,
+        themeColor: h.themeColor,
+        bannerImage: h.bannerImage,
+        seeAllTo: category ? `/category/${category.slug}` : h.tag ? `/tag/${h.tag.slug}` : null,
+        products,
+      };
+    }),
+  );
+
+  return sections.filter((s) => s.products.length > 0);
+}
+
 // Everything the product-first landing page renders, in one round trip:
 // featured picks, tag rails and category rails. Empty sections are dropped.
 export async function listHomeSections() {
-  const [featuredRows, tags, categories] = await Promise.all([
+  const [featuredRows, tags, categories, highlights] = await Promise.all([
     prisma.product.findMany({
       where: { ...PUBLIC_LIST_WHERE, isFeatured: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
@@ -669,6 +760,7 @@ export async function listHomeSections() {
         children: { where: { isActive: true }, select: { id: true } },
       },
     }),
+    listLiveHighlights(),
   ]);
 
   const categorySections = await Promise.all(
@@ -700,6 +792,7 @@ export async function listHomeSections() {
     featured: featuredRows.map((p) => decorateCard(p as unknown as PublicCardRow)),
     tags,
     categories: categorySections.filter((section) => section.products.length > 0),
+    highlights,
   };
 }
 

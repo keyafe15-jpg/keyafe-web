@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { HeroSlider, type HeroSlideView } from "@/components/hero/HeroSlider";
 import { HeroStaticBanner } from "@/components/hero/HeroStaticBanner";
 import { HomePromoBanner } from "@/components/home/HomePromoBanner";
+import { HighlightSpotlight } from "@/components/home/HighlightSpotlight";
 import { CategoryIconRow } from "@/components/home/CategoryIconRow";
 import { ProductRail, RailChip } from "@/components/home/ProductRail";
 import { QuickTiles } from "@/components/home/QuickTiles";
@@ -171,6 +172,8 @@ export function HomePage() {
           className="w-full max-w-xl border-white/60 bg-white/70 backdrop-blur-sm"
         />
       </section>
+
+      <HighlightSpotlight highlights={home?.highlights ?? []} />
 
       <CategoryIconRow />
 

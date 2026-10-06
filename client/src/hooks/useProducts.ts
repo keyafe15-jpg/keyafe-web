@@ -128,10 +128,21 @@ export interface CategoryRailSection {
   products: ProductCard[];
 }
 
+export interface HomeHighlight {
+  id: string;
+  title: string;
+  tagline: string | null;
+  themeColor: string;
+  bannerImage: string | null;
+  seeAllTo: string | null;
+  products: ProductCard[];
+}
+
 export interface HomeSections {
   featured: ProductCard[];
   tags: TagShowcaseSection[];
   categories: CategoryRailSection[];
+  highlights: HomeHighlight[];
 }
 
 /** Featured picks, tag rails and category rails for the landing page, in one request. */

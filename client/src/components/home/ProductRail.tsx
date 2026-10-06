@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { CatalogProductCard } from "@/components/product/CatalogProductCard";
 import type { ProductCard } from "@/hooks/useProducts";
+import { useScrollEdges } from "@/hooks/useScrollEdges";
 import { HOME_COPY } from "@/content/home";
 import { cn } from "@/lib/cn";
 
@@ -22,28 +23,6 @@ export function RailChip({ label, accent = DEFAULT_ACCENT }: { label: string; ac
       {label}
     </span>
   );
-}
-
-function useScrollEdges(ref: React.RefObject<HTMLDivElement | null>, deps: unknown) {
-  const [edges, setEdges] = useState({ start: false, end: false });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () =>
-      setEdges({
-        start: el.scrollLeft > 4,
-        end: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
-      });
-    update();
-    el.addEventListener("scroll", update, { passive: true });
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => {
-      el.removeEventListener("scroll", update);
-      observer.disconnect();
-    };
-  }, [ref, deps]);
-  return edges;
 }
 
 /** Flips to true the first time the element scrolls into view. */
@@ -67,7 +46,7 @@ function useSeenOnce(ref: React.RefObject<HTMLElement | null>, deps: unknown) {
   return seen;
 }
 
-function RailArrow({
+export function RailArrow({
   dir,
   disabled,
   label,
@@ -208,7 +187,7 @@ export function RailShell({
   );
 }
 
-function SeeAllTile({ to, accent, label }: { to: string; accent: string; label: string }) {
+export function SeeAllTile({ to, accent, label }: { to: string; accent: string; label: string }) {
   return (
     <Link
       to={to}

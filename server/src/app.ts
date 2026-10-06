@@ -13,6 +13,7 @@ import { healthRouter } from "./modules/health/health.routes.js";
 import { sitemapRouter } from "./modules/seo/sitemap.routes.js";
 import { uploadRouter } from "./modules/uploads/upload.routes.js";
 import { adminHeroRouter, heroRouter } from "./modules/hero/hero.routes.js";
+import { adminHighlightRouter } from "./modules/highlights/highlight.routes.js";
 import {
   storeRouter,
   adminBusinessRouter,
@@ -202,6 +203,12 @@ export function createApp() {
     requireStaff,
     requirePermission("settings.update"),
     adminHeroRouter,
+  );
+  app.use(
+    "/api/admin/highlights",
+    requireStaff,
+    requirePermission("settings.update"),
+    adminHighlightRouter,
   );
   app.use("/api/admin/quotes", requireStaff, adminQuoteRouter);
   app.use("/api/admin/reviews", requireStaff, adminReviewRouter);

@@ -1,0 +1,26 @@
+// Home page "Trending" spotlight. Each live highlight is a tab with a themed
+// header and a product row. Products come from hand-picked items, a category
+// (sub-categories included) and/or a tag. The admin API caps the table at 6 rows.
+model Highlight {
+  id          String    @id @default(cuid())
+  title       String // "Christmas Specials", "Brownie Week"
+  tagline     String?
+  themeColor  String    @default("#E31C79")
+  bannerImage String?
+  // Optional window. Null start = live now; null end = no end.
+  startsAt    DateTime?
+  endsAt      DateTime?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tagId      String?
+  tag        Tag?      @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  products   Product[] @relation("HighlightProducts")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}

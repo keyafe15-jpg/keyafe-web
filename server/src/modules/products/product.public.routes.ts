@@ -52,7 +52,7 @@ publicProductRouter.get("/showcase", async (req, res) => {
   res.json(sections);
 });
 
-// Featured picks, tag rails and category rails for the landing page.
+// Featured picks, highlights, tag rails and category rails for the landing page.
 publicProductRouter.get("/home", async (_req, res) => {
   const sections = await listHomeSections();
   res.setHeader("Cache-Control", "public, max-age=30");

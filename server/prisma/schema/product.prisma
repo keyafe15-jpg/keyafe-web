@@ -97,6 +97,7 @@ model Product {
   addons         Addon[]           @relation("ProductAddons")
   tags           Tag[]             @relation("ProductTags")
   festivals      Festival[]        @relation("FestivalProducts")
+  highlights     Highlight[]       @relation("HighlightProducts")
   orderLinkItems OrderLinkItem[]
   reviews        ProductReview[]
 

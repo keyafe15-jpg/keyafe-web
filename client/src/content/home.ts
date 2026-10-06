@@ -133,6 +133,10 @@ export const HOME_COPY = {
   categoryRow: {
     heading: "Shop by category",
   },
+  highlights: {
+    chip: "Trending",
+    tabsLabel: "Trending highlights",
+  },
   rails: {
     swipeHint: "Swipe",
     seeAllTile: "See all",

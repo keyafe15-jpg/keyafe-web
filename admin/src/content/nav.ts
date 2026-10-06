@@ -21,6 +21,7 @@ import {
   Megaphone,
   MessageSquareQuote,
   GalleryHorizontal,
+  Flame,
   ChefHat,
   UtensilsCrossed,
   type LucideIcon,
@@ -169,6 +170,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         to: "/hero-slides",
         label: "Hero slider",
         icon: GalleryHorizontal,
+        requiresPermission: "settings.update",
+      },
+      {
+        to: "/highlights",
+        label: "Highlights",
+        icon: Flame,
         requiresPermission: "settings.update",
       },
       {

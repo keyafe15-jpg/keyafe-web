@@ -37,6 +37,7 @@ model Category {
 
   productLinks  ProductCategory[]
   defaultAddons Addon[]           @relation("CategoryDefaultAddons")
+  highlights    Highlight[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -48,40 +49,41 @@ model Category {
 
 // Cross-cutting labels: "2-Tier", "Fondant", "Eggless", "Same-Day", "Bestseller"
 model Tag {
-  id         String    @id @default(cuid())
-  slug       String    @unique
+  id         String      @id @default(cuid())
+  slug       String      @unique
   name       String
   colorHex   String?
   // Tags flagged here become product sections on the storefront landing page,
   // ordered by sortOrder. Admins curate this from the Tags page.
-  showOnHome Boolean   @default(false)
-  sortOrder  Int       @default(0)
-  products   Product[] @relation("ProductTags")
-  createdAt  DateTime  @default(now())
+  showOnHome Boolean     @default(false)
+  sortOrder  Int         @default(0)
+  products   Product[]   @relation("ProductTags")
+  highlights Highlight[]
+  createdAt  DateTime    @default(now())
 
   @@index([showOnHome, sortOrder])
 }
 
 // Shared master list of flavours. A product references the flavours it offers.
 model Flavor {
-  id               String    @id @default(cuid())
-  slug             String    @unique
+  id               String       @id @default(cuid())
+  slug             String       @unique
   name             String // "Chocolate Truffle", "Vanilla", "Red Velvet"
   description      String?
   // Storefront heading the flavour is listed under. Null = "More flavours".
   groupId          String?
   group            FlavorGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  isEggless        Boolean   @default(false)
-  isSugarFree      Boolean   @default(false)
-  isHealthy        Boolean   @default(false) // recipe attribute (jaggery / sugar-free / whole grain). Product.isHealthyTreat drives the Healthy Treats section.
+  isEggless        Boolean      @default(false)
+  isSugarFree      Boolean      @default(false)
+  isHealthy        Boolean      @default(false) // recipe attribute (jaggery / sugar-free / whole grain). Product.isHealthyTreat drives the Healthy Treats section.
   imageUrl         String?
   // Per-pound premium added on top of the product's base price when this flavour is picked.
-  additionalAmount Decimal   @default(0) @db.Decimal(10, 2)
-  sortOrder        Int       @default(0)
-  isActive         Boolean   @default(true)
-  products         Product[] @relation("ProductFlavors") // flavours this product offers
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @default(now()) @updatedAt
+  additionalAmount Decimal      @default(0) @db.Decimal(10, 2)
+  sortOrder        Int          @default(0)
+  isActive         Boolean      @default(true)
+  products         Product[]    @relation("ProductFlavors") // flavours this product offers
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @default(now()) @updatedAt
 
   @@index([groupId])
 }
