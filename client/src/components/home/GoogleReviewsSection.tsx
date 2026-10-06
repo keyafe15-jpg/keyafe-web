@@ -46,16 +46,21 @@ function RatingPill({
     <Tag
       {...(href ? { href, target: "_blank", rel: "noopener noreferrer" } : {})}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-cream-200 bg-white px-3 py-1.5 text-xs shadow-sm",
+        "flex min-w-0 flex-1 basis-0 flex-col items-center rounded-xl border border-cream-200 bg-white px-1.5 py-1.5 text-xs shadow-sm",
+        "sm:flex-none sm:basis-auto sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-3",
         href && "transition hover:-translate-y-0.5 hover:border-brand-300",
       )}
     >
-      <span className="font-semibold" style={{ color: accent }}>
+      <span className="text-[11px] font-semibold sm:text-xs" style={{ color: accent }}>
         {name}
       </span>
-      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
-      <span className="font-semibold text-ink-900">{rating.toFixed(1)}</span>
-      <span className="text-ink-500">({count.toLocaleString("en-IN")})</span>
+      <span className="flex items-center gap-1 whitespace-nowrap sm:gap-1.5">
+        <Star className="h-3 w-3 fill-amber-400 text-amber-400 sm:h-3.5 sm:w-3.5" aria-hidden />
+        <span className="font-semibold text-ink-900">{rating.toFixed(1)}</span>
+        <span className="text-[10px] text-ink-500 sm:text-xs">
+          ({count.toLocaleString("en-IN")})
+        </span>
+      </span>
     </Tag>
   );
 }
@@ -128,7 +133,7 @@ export function GoogleReviewsSection() {
                 {copy.heading}
               </h2>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-stretch gap-1.5 sm:items-center sm:gap-2">
               {data && (
                 <RatingPill
                   name="Google"
@@ -161,7 +166,7 @@ export function GoogleReviewsSection() {
                   href={data.writeReviewUri}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-full bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700"
+                  className="basis-full rounded-full bg-brand-500 px-3.5 py-1.5 text-center text-xs font-semibold text-white transition hover:bg-brand-700 sm:basis-auto"
                 >
                   {copy.writeCta}
                 </a>
