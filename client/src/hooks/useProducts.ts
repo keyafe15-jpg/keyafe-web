@@ -227,6 +227,7 @@ export interface ProductOption {
   price: string;
   weightGrams: number | null;
   diameterMm: number | null;
+  imageUrl?: string | null;
   isDefault: boolean;
 }
 

@@ -52,6 +52,15 @@ export function SameDayDeliveryPicker({
     if (mode === "SAME_DAY" && !sameDayAvailable) setMode("SCHEDULED");
   }, [mode, sameDayAvailable]);
 
+  // Without same-day, today can't be delivered: drop it (e.g. left over from
+  // the same-day track) so the customer picks tomorrow or later.
+  useEffect(() => {
+    if (mode === "SCHEDULED" && !sameDayAvailable && value.date === todayIso()) {
+      onChange({ ...value, date: "" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, sameDayAvailable, value.date]);
+
   const estimate = computeSameDayEstimate(leadTimeHours, extraLeadHours);
 
   // Keep the parent's committed value in sync while in same-day mode.
@@ -83,6 +92,7 @@ export function SameDayDeliveryPicker({
         onDateChange={(date) => onChange({ ...value, date })}
         slot={value.slotKey}
         onSlotChange={handleScheduledSlotChange}
+        allowToday={false}
       />
     );
   }
@@ -118,6 +128,7 @@ export function SameDayDeliveryPicker({
           onDateChange={(date) => onChange({ ...value, date })}
           slot={value.slotKey === SAME_DAY_SLOT_KEY ? "" : value.slotKey}
           onSlotChange={handleScheduledSlotChange}
+          allowToday={sameDayAvailable}
         />
       )}
     </div>

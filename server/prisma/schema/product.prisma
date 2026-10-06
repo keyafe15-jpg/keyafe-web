@@ -182,6 +182,9 @@ model Option {
   weightGrams Int?
   diameterMm  Int?
 
+  // One of Product.images, shown on the PDP when this option is picked.
+  imageUrl String?
+
   isDefault Boolean @default(false)
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)

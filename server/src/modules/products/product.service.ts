@@ -10,6 +10,7 @@ const optionSchema = z.object({
   price: z.coerce.number().default(0),
   weightGrams: z.coerce.number().int().positive().nullable().optional(),
   diameterMm: z.coerce.number().int().positive().nullable().optional(),
+  imageUrl: z.string().url().nullable().optional(),
   isDefault: z.boolean().default(false),
   isActive: z.boolean().default(true),
   sortOrder: z.coerce.number().int().default(0),
@@ -883,6 +884,7 @@ export async function getPublicProductBySlug(slug: string) {
               price: true,
               weightGrams: true,
               diameterMm: true,
+              imageUrl: true,
               isDefault: true,
             },
           },
@@ -1021,8 +1023,8 @@ export async function createProduct(input: CreateProductInput) {
     },
   });
 
-  await syncOptionGroup(product.id, "size", "Size", "ABSOLUTE", sizeOptions);
-  await syncOptionGroup(product.id, "crust", "Crust", "DELTA", crustOptions);
+  await syncOptionGroup(product.id, "size", "Size", "ABSOLUTE", sizeOptions, input.images);
+  await syncOptionGroup(product.id, "crust", "Crust", "DELTA", crustOptions, input.images);
 
   return product;
 }
@@ -1327,18 +1329,20 @@ function stripOptionIds(
     price: number;
     weightGrams?: number | null;
     diameterMm?: number | null;
+    imageUrl?: string | null;
     isDefault: boolean;
     isActive: boolean;
     sortOrder: number;
   }>,
 ) {
   return options.map(
-    ({ key, label, price, weightGrams, diameterMm, isDefault, isActive, sortOrder }) => ({
+    ({ key, label, price, weightGrams, diameterMm, imageUrl, isDefault, isActive, sortOrder }) => ({
       key,
       label,
       price,
       weightGrams: weightGrams ?? null,
       diameterMm: diameterMm ?? null,
+      imageUrl: imageUrl ?? null,
       isDefault,
       isActive,
       sortOrder,
@@ -1408,8 +1412,10 @@ async function syncOptionGroup(
   label: string,
   priceMode: "ABSOLUTE" | "DELTA",
   options: Array<z.infer<typeof optionSchema>> | undefined,
+  productImages: string[],
 ) {
   if (options === undefined) return;
+  const images = new Set(productImages);
   await prisma.optionGroup.deleteMany({ where: { productId, key } });
   if (!options.length) return;
   await prisma.optionGroup.create({
@@ -1428,6 +1434,7 @@ async function syncOptionGroup(
           price: o.price,
           weightGrams: o.weightGrams ?? null,
           diameterMm: o.diameterMm ?? null,
+          imageUrl: o.imageUrl && images.has(o.imageUrl) ? o.imageUrl : null,
           isDefault: o.isDefault,
           isActive: o.isActive,
           sortOrder: o.sortOrder,
@@ -1487,6 +1494,7 @@ export async function getAdminProductById(id: string) {
     price: Number(o.price),
     weightGrams: o.weightGrams,
     diameterMm: o.diameterMm,
+    imageUrl: o.imageUrl,
     isDefault: o.isDefault,
     isActive: o.isActive,
     sortOrder: o.sortOrder,
@@ -1617,13 +1625,15 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
       isActive: true,
       isAvailable: true,
       updatedAt: true,
+      images: true,
     },
   });
 
-  await syncOptionGroup(id, "size", "Size", "ABSOLUTE", sizeOptions);
-  await syncOptionGroup(id, "crust", "Crust", "DELTA", crustOptions);
+  const { images, ...result } = updated;
+  await syncOptionGroup(id, "size", "Size", "ABSOLUTE", sizeOptions, images);
+  await syncOptionGroup(id, "crust", "Crust", "DELTA", crustOptions, images);
 
-  return updated;
+  return result;
 }
 
 export async function archiveProduct(id: string) {

@@ -13,11 +13,13 @@ export function StickyProductGallery({
   alt,
   subtitle,
   price,
+  focusSrc,
 }: {
   images: string[];
   alt: string;
   subtitle?: string | null;
   price: ReactNode;
+  focusSrc?: string | null;
 }) {
   const galleryRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
@@ -54,7 +56,7 @@ export function StickyProductGallery({
   return (
     <div className="lg:sticky lg:top-24">
       <div ref={galleryRef}>
-        <ProductGallery images={images} alt={alt} />
+        <ProductGallery images={images} alt={alt} focusSrc={focusSrc} />
       </div>
 
       <button
@@ -71,7 +73,7 @@ export function StickyProductGallery({
       >
         <span className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2 text-left">
           <img
-            src={images[0]}
+            src={focusSrc && images.includes(focusSrc) ? focusSrc : images[0]}
             alt=""
             className="h-11 w-11 shrink-0 rounded-lg border border-cream-200 object-cover"
           />

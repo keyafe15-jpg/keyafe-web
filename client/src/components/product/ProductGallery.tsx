@@ -1,11 +1,27 @@
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 
-export function ProductGallery({ images, alt }: { images: string[]; alt: string }) {
-  const [active, setActive] = useState(0);
+export function ProductGallery({
+  images,
+  alt,
+  focusSrc,
+}: {
+  images: string[];
+  alt: string;
+  /** Jumps to this photo whenever it changes (e.g. the picked variant's photo). */
+  focusSrc?: string | null;
+}) {
+  const [active, setActive] = useState(() => Math.max(0, focusSrc ? images.indexOf(focusSrc) : 0));
+  const [lastFocus, setLastFocus] = useState(focusSrc);
+  if (focusSrc !== lastFocus) {
+    setLastFocus(focusSrc);
+    const index = focusSrc ? images.indexOf(focusSrc) : -1;
+    if (index >= 0) setActive(index);
+  }
   if (images.length === 0) return null;
 
   const showThumbs = images.length > 1;
+  const current = images[active] ?? images[0];
 
   return (
     <div className={cn("grid gap-3", showThumbs && "sm:grid-cols-[72px_1fr]")}>
@@ -33,7 +49,7 @@ export function ProductGallery({ images, alt }: { images: string[]; alt: string 
       )}
 
       <div className="order-1 overflow-hidden rounded-card border border-cream-200 bg-cream-50 sm:order-2">
-        <img src={images[active]} alt={alt} className="aspect-square w-full object-cover" />
+        <img src={current} alt={alt} className="aspect-square w-full object-cover" />
       </div>
     </div>
   );

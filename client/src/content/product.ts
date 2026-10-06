@@ -22,6 +22,7 @@ export const PRODUCT_COPY = {
     pincodePlaceholder: "6-digit pincode",
     pincodeCompactPlaceholder: "Pincode (optional) · check fee",
     moreDates: "More dates",
+    noSameDay: "Same-day delivery isn't available for this item. Pick tomorrow or later.",
     checkCta: "Check",
     date: "Delivery date",
     timeSlot: "Time slot",

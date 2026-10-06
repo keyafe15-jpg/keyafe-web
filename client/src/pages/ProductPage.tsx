@@ -1137,7 +1137,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
       productId: product.id,
       slug: product.slug,
       name: product.name,
-      image: product.images[0],
+      image: pickedSize?.imageUrl ?? product.images[0],
       categorySlug: product.categories[0]?.slug ?? "",
       sizeGrams: pickedSize?.weightGrams ?? undefined,
       sizeLabel: pickedSize?.label,
@@ -1182,6 +1182,7 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
           alt={product.name}
           subtitle={pickedSize?.label}
           price={<Price amount={unitPrice} original={originalUnitPrice} />}
+          focusSrc={pickedSize?.imageUrl}
         />
 
         <div className="space-y-6">

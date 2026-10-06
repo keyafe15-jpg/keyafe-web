@@ -19,15 +19,24 @@ export function todayIso() {
   return isoOf(d);
 }
 
+export function tomorrowIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 1);
+  return isoOf(d);
+}
+
 function dateFromIso(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d);
 }
 
-function quickDays() {
+function quickDays(allowToday: boolean) {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
-  return Array.from({ length: QUICK_DAYS }, (_, i) => {
+  const firstOffset = allowToday ? 0 : 1;
+  return Array.from({ length: QUICK_DAYS }, (_, n) => {
+    const i = n + firstOffset;
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     const top =
@@ -51,21 +60,28 @@ export function DateSlotPicker({
   onDateChange,
   slot,
   onSlotChange,
+  allowToday = true,
 }: {
   date: string;
   onDateChange: (v: string) => void;
   slot: string;
   onSlotChange: (v: string) => void;
+  /** False when today isn't deliverable (no same-day for this product right now). */
+  allowToday?: boolean;
 }) {
   const { data: closures = [] } = useShopClosures();
   const selectedHit = closureForDate(closures, date);
   const [pickError, setPickError] = useState<string | null>(null);
   const calendarRef = useRef<HTMLInputElement>(null);
-  const days = quickDays();
+  const days = quickDays(allowToday);
   const pickedOutsideQuick = date !== "" && !days.some((d) => d.iso === date);
 
   const handleDate = (next: string) => {
     if (!next) return;
+    if (!allowToday && next < tomorrowIso()) {
+      setPickError(PRODUCT_COPY.labels.noSameDay);
+      return;
+    }
     const hit = closureForDate(closures, next);
     if (hit) {
       setPickError(closedDayMessage(hit));
@@ -116,7 +132,7 @@ export function DateSlotPicker({
               ref={calendarRef}
               type="date"
               value={date}
-              min={todayIso()}
+              min={allowToday ? todayIso() : tomorrowIso()}
               onChange={(e) => handleDate(e.target.value)}
               onClick={openCalendar}
               aria-label={PRODUCT_COPY.labels.moreDates}

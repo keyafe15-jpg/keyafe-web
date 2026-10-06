@@ -14,6 +14,7 @@ import {
   Archive,
   ArchiveRestore,
   ChevronDown,
+  ImagePlus,
 } from "lucide-react";
 import {
   Field,
@@ -97,6 +98,13 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const MAX_PRODUCT_IMAGES = 5;
+
+type PhotoChoice = { value: string; src: string };
+
+/** Stands in for a not-yet-uploaded photo; swapped for its URL on save. */
+const pendingImageToken = (f: File) => `pending:${f.name}:${f.size}:${f.lastModified}`;
+
 const slugify = (s: string) =>
   s
     .toLowerCase()
@@ -137,6 +145,39 @@ export function ProductFormPage() {
   const [crustOptions, setCrustOptions] = useState<ProductOptionInput[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
+
+  useEffect(() => {
+    const urls = newImages.map((f) => URL.createObjectURL(f));
+    setNewPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [newImages]);
+
+  const photoChoices: PhotoChoice[] = [
+    ...keptImages.map((url) => ({ value: url, src: url })),
+    ...newImages.map((f, i) => ({ value: pendingImageToken(f), src: newPreviews[i] ?? "" })),
+  ];
+
+  const forgetVariantPhoto = (value: string) =>
+    setSizeOptions((prev) =>
+      prev.some((o) => o.imageUrl === value)
+        ? prev.map((o) => (o.imageUrl === value ? { ...o, imageUrl: null } : o))
+        : prev,
+    );
+
+  const removeKeptImage = (url: string) => {
+    setKeptImages(keptImages.filter((u) => u !== url));
+    forgetVariantPhoto(url);
+  };
+
+  const changeNewImages = (files: File[]) => {
+    const still = new Set(files.map(pendingImageToken));
+    for (const f of newImages) {
+      const token = pendingImageToken(f);
+      if (!still.has(token)) forgetVariantPhoto(token);
+    }
+    setNewImages(files);
+  };
 
   const {
     register,
@@ -307,6 +348,14 @@ export function ProductFormPage() {
       setIsUploading(true);
       const uploaded = newImages.length ? await uploadImages(newImages, "product") : [];
       setIsUploading(false);
+      const images = [...keptImages, ...uploaded.map((u) => u.publicUrl)];
+      const uploadedByToken = new Map(
+        newImages.map((f, i) => [pendingImageToken(f), uploaded[i]!.publicUrl]),
+      );
+      const resolvePhoto = (value: string | null | undefined) => {
+        const url = value ? (uploadedByToken.get(value) ?? value) : null;
+        return url && images.includes(url) ? url : null;
+      };
 
       const payload = {
         name: values.name,
@@ -314,7 +363,7 @@ export function ProductFormPage() {
         shortDescription: values.shortDescription || null,
         description: values.description || null,
         categoryIds: values.categoryIds,
-        images: [...keptImages, ...uploaded.map((u) => u.publicUrl)],
+        images,
         basePrice: values.basePrice,
         discountedPrice,
         productType: values.productType,
@@ -351,7 +400,10 @@ export function ProductFormPage() {
         tagIds: [...tagIds],
         toppingIds: [...toppingIds],
         addonIds: [...addonIds],
-        sizeOptions: values.template !== "CAKE" ? sizeOptions : undefined,
+        sizeOptions:
+          values.template !== "CAKE"
+            ? sizeOptions.map((o) => ({ ...o, imageUrl: resolvePhoto(o.imageUrl) }))
+            : undefined,
         crustOptions: values.template === "PIZZA" ? crustOptions : undefined,
       };
 
@@ -641,7 +693,7 @@ export function ProductFormPage() {
                     <img src={url} alt="" className="h-full w-full object-cover" />
                     <button
                       type="button"
-                      onClick={() => setKeptImages(keptImages.filter((u) => u !== url))}
+                      onClick={() => removeKeptImage(url)}
                       className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-slate-900/70 text-white transition sm:opacity-0 sm:group-hover:opacity-100"
                       aria-label="Remove image"
                     >
@@ -651,12 +703,18 @@ export function ProductFormPage() {
                 ))}
               </div>
             )}
-            <MultiImageUpload
-              value={newImages}
-              onChange={setNewImages}
-              max={Math.max(1, 5 - keptImages.length)}
-              compact
-            />
+            {keptImages.length < MAX_PRODUCT_IMAGES ? (
+              <MultiImageUpload
+                value={newImages}
+                onChange={changeNewImages}
+                max={MAX_PRODUCT_IMAGES - keptImages.length}
+                compact
+              />
+            ) : (
+              <p className="text-xs text-slate-500">
+                {MAX_PRODUCT_IMAGES} photos is the limit. Remove one to add another.
+              </p>
+            )}
           </Section>
 
           <Section title="Customization" collapseOnMobile>
@@ -770,6 +828,7 @@ export function ProductFormPage() {
                   suggestKey={(label) => sizeKeyFromLabel(label)}
                   labelPlaceholder='e.g. 8"'
                   showDiameter
+                  photos={photoChoices}
                 />
               </Section>
               <Section
@@ -860,7 +919,7 @@ export function ProductFormPage() {
           {template === "OTHER" && (
             <Section
               title="Variants"
-              description="Optional. Add rows if this product ships in multiple sizes/portions/flavours — each with its own price."
+              description="Optional. Add rows if this product ships in multiple sizes/portions/flavours — each with its own price, and optionally its own photo."
               collapseOnMobile
             >
               <OptionsEditor
@@ -874,6 +933,7 @@ export function ProductFormPage() {
                     .replace(/^-|-$/g, "")
                 }
                 labelPlaceholder="250g / Small / Regular"
+                photos={photoChoices}
               />
             </Section>
           )}
@@ -1295,6 +1355,7 @@ function normalizeOption(
     price: typeof o.price === "string" ? Number(o.price) : (o.price ?? 0),
     weightGrams: o.weightGrams ?? null,
     diameterMm: o.diameterMm ?? null,
+    imageUrl: o.imageUrl ?? null,
     isDefault: o.isDefault ?? false,
     isActive: o.isActive ?? true,
     sortOrder: o.sortOrder ?? 0,
@@ -1312,11 +1373,112 @@ function sizeKeyFromLabel(label: string): string {
 
 // Own its own price-input state so decimal typing ("5.", "5.9") isn't lost
 // by number coercion round-trips through parent state.
+function VariantPhotoPicker({
+  value,
+  photos,
+  onChange,
+}: {
+  value: string | null | undefined;
+  photos: PhotoChoice[];
+  onChange: (value: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = photos.find((p) => p.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const pick = (next: string | null) => {
+    onChange(next);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={current ? "Change variant photo" : "Pick variant photo"}
+        aria-expanded={open}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center overflow-hidden rounded-md border bg-white text-slate-400 transition hover:border-brand-500 hover:text-brand-700",
+          current ? "border-slate-200" : "border-dashed border-slate-300",
+        )}
+      >
+        {current ? (
+          <img src={current.src} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <ImagePlus className="h-4 w-4" />
+        )}
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Variant photo"
+          className="absolute top-full left-0 z-20 mt-1 w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-lg"
+        >
+          <p className="text-[11px] leading-snug text-slate-500">
+            {photos.length > 0
+              ? "Optional. Shown when the customer picks this variant."
+              : "Add photos in the Images section first, then pick one for this variant."}
+          </p>
+          <div className={cn("mt-1.5 grid grid-cols-4 gap-1.5", photos.length === 0 && "hidden")}>
+            <button
+              type="button"
+              onClick={() => pick(null)}
+              aria-pressed={!current}
+              className={cn(
+                "flex aspect-square flex-col items-center justify-center rounded-md border-2 bg-slate-50 text-[9px] leading-tight text-slate-500",
+                !current ? "border-brand-500" : "border-transparent hover:border-slate-300",
+              )}
+            >
+              <X className="h-3.5 w-3.5" />
+              No photo
+            </button>
+            {photos.map((p, i) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => pick(p.value)}
+                aria-label={`Photo ${i + 1}`}
+                aria-pressed={p.value === value}
+                className={cn(
+                  "aspect-square overflow-hidden rounded-md border-2",
+                  p.value === value
+                    ? "border-brand-500"
+                    : "border-transparent hover:border-slate-300",
+                )}
+              >
+                <img src={p.src} alt="" className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OptionRow({
   opt,
   priceMode,
   labelPlaceholder,
   showDiameter,
+  photos,
   gridClass,
   onLabel,
   onPatch,
@@ -1326,6 +1488,7 @@ function OptionRow({
   priceMode: "ABSOLUTE" | "DELTA";
   labelPlaceholder: string;
   showDiameter?: boolean;
+  photos?: PhotoChoice[];
   gridClass: string;
   onLabel: (label: string) => void;
   onPatch: (patch: Partial<ProductOptionInput>) => void;
@@ -1347,6 +1510,13 @@ function OptionRow({
         gridClass,
       )}
     >
+      {photos && (
+        <VariantPhotoPicker
+          value={opt.imageUrl}
+          photos={photos}
+          onChange={(imageUrl) => onPatch({ imageUrl })}
+        />
+      )}
       <input
         value={opt.label}
         onChange={(e) => onLabel(e.target.value)}
@@ -1410,6 +1580,7 @@ function OptionsEditor({
   suggestKey,
   labelPlaceholder,
   showDiameter,
+  photos,
 }: {
   options: ProductOptionInput[];
   onChange: (next: ProductOptionInput[]) => void;
@@ -1417,7 +1588,10 @@ function OptionsEditor({
   suggestKey: (label: string) => string;
   labelPlaceholder: string;
   showDiameter?: boolean;
+  /** Product photos a row can be linked to. */
+  photos?: PhotoChoice[];
 }) {
+  const rowPhotos = photos;
   const addRow = () =>
     onChange([...options, normalizeOption({ sortOrder: options.length, isActive: true })]);
   const patchRow = (idx: number, patch: Partial<ProductOptionInput>) =>
@@ -1429,9 +1603,13 @@ function OptionsEditor({
   const removeRow = (idx: number) => onChange(options.filter((_, i) => i !== idx));
 
   const priceHeader = priceMode === "ABSOLUTE" ? "Price (₹)" : "Extra (₹)";
-  const gridClass = showDiameter
-    ? "grid-cols-[minmax(0,1fr)_5.5rem_4.5rem_2rem] sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2rem]"
-    : "grid-cols-[minmax(0,1fr)_7rem_2rem] sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_2rem]";
+  const gridClass = rowPhotos
+    ? showDiameter
+      ? "grid-cols-[2rem_minmax(0,1fr)_5rem_4rem_2rem] sm:grid-cols-[2rem_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2rem]"
+      : "grid-cols-[2rem_minmax(0,1fr)_6rem_2rem] sm:grid-cols-[2rem_minmax(0,2fr)_minmax(0,1fr)_2rem]"
+    : showDiameter
+      ? "grid-cols-[minmax(0,1fr)_5.5rem_4.5rem_2rem] sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2rem]"
+      : "grid-cols-[minmax(0,1fr)_7rem_2rem] sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_2rem]";
 
   return (
     <div className="space-y-2">
@@ -1445,6 +1623,7 @@ function OptionsEditor({
             gridClass,
           )}
         >
+          {rowPhotos && <span>Pic</span>}
           <span>Label</span>
           <span>{priceHeader}</span>
           {showDiameter && <span>Diameter</span>}
@@ -1458,6 +1637,7 @@ function OptionsEditor({
           priceMode={priceMode}
           labelPlaceholder={labelPlaceholder}
           showDiameter={showDiameter}
+          photos={rowPhotos}
           gridClass={gridClass}
           onLabel={(label) => setLabel(idx, label)}
           onPatch={(patch) => patchRow(idx, patch)}

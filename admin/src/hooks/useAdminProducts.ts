@@ -10,6 +10,8 @@ export interface ProductOptionInput {
   price: number;
   weightGrams?: number | null;
   diameterMm?: number | null;
+  /** One of the product's images; shown on the storefront when this option is picked. */
+  imageUrl?: string | null;
   isDefault: boolean;
   isActive: boolean;
   sortOrder: number;
