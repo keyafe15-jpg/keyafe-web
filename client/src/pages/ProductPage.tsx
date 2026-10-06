@@ -24,8 +24,12 @@ import { useCart } from "@/store/cart";
 import { trackAddToCart, trackViewItem } from "@/lib/analytics";
 import { rememberRecentProduct } from "@/lib/recentlyViewed";
 import { CAKE_BASE_GRAMS, cakeVolumeDiscount, computeCakeUnitPrice } from "@/lib/cakePrice";
+import { BlockedTooltip } from "@/components/ui/BlockedTooltip";
 
 type Fulfillment = "delivery" | "pickup";
+
+const addToCartClass =
+  "w-full rounded-full bg-brand-500 py-3 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:hover:bg-brand-500";
 
 export function ProductPage() {
   const { slug = "" } = useParams<{ slug: string }>();
@@ -553,19 +557,25 @@ function PdpContent({ product }: { product: ProductDetail }) {
               <span className="text-sm text-ink-700">{PRODUCT_COPY.labels.total}</span>
               <Price amount={total} original={originalTotal} className="text-xl text-ink-900" />
             </div>
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={!canOrder}
-              className="w-full rounded-full bg-brand-500 py-3 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            <BlockedTooltip
+              message={
+                !product.isAvailable || canOrder
+                  ? null
+                  : customOutOfRange
+                    ? "Enter pounds within the allowed range"
+                    : "Pick a delivery date and slot"
+              }
             >
-              {product.isAvailable ? PRODUCT_COPY.labels.addToCart : "Out of stock"}
-            </button>
-            {product.isAvailable && !canOrder && (
-              <p className="mt-2 text-center text-xs text-ink-500">
-                {product.canBeDeliveredPanIndia ? "" : "Pick a delivery date and slot to continue."}
-              </p>
-            )}
+              <button
+                type="button"
+                onClick={canOrder ? handleAddToCart : undefined}
+                disabled={!product.isAvailable}
+                aria-disabled={!canOrder}
+                className={addToCartClass}
+              >
+                {product.isAvailable ? PRODUCT_COPY.labels.addToCart : "Out of stock"}
+              </button>
+            </BlockedTooltip>
           </div>
         </div>
       </div>
@@ -1384,23 +1394,25 @@ function ConfiguredPdp({ product }: { product: ProductDetail }) {
               <span className="text-sm text-ink-700">{PRODUCT_COPY.labels.total}</span>
               <Price amount={total} original={originalTotal} className="text-xl text-ink-900" />
             </div>
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={!canOrder}
-              className="w-full rounded-full bg-brand-500 py-3 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            <BlockedTooltip
+              message={
+                !product.isAvailable || canOrder
+                  ? null
+                  : sizeGroup && !pickedSize
+                    ? "Pick a size"
+                    : "Pick a delivery date and slot"
+              }
             >
-              {product.isAvailable ? PRODUCT_COPY.labels.addToCart : "Out of stock"}
-            </button>
-            {product.isAvailable && !canOrder && (
-              <p className="mt-2 text-center text-xs text-ink-500">
-                {sizeGroup && !pickedSize
-                  ? "Pick a size to continue."
-                  : product.canBeDeliveredPanIndia
-                    ? ""
-                    : "Pick a delivery date and slot to continue."}
-              </p>
-            )}
+              <button
+                type="button"
+                onClick={canOrder ? handleAddToCart : undefined}
+                disabled={!product.isAvailable}
+                aria-disabled={!canOrder}
+                className={addToCartClass}
+              >
+                {product.isAvailable ? PRODUCT_COPY.labels.addToCart : "Out of stock"}
+              </button>
+            </BlockedTooltip>
           </div>
         </div>
       </div>

@@ -11,6 +11,7 @@ export {
   resolveReferenceImageUrl,
   toOfflineOrderItemPayload,
   toOrderLinkItemPayload,
+  orderItemsIssue,
   validateOrderItems,
 } from "./payload";
 export { saveItemsToCatalog, wantsCatalogSave, type CatalogSaveEntry } from "./saveToCatalog";

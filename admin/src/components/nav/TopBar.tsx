@@ -150,7 +150,8 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           <Dropdown.Trigger asChild>
             <button
               type="button"
-              className="hover:border-brand-300 flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pr-3 pl-1 text-sm text-slate-700 transition"
+              aria-label={user?.name ? `Account: ${user.name}` : "Account"}
+              className="hover:border-brand-300 flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white p-1 text-sm text-slate-700 transition sm:pr-3"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white">
                 {initial}

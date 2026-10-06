@@ -77,14 +77,20 @@ function customDescription(item: OrderItemDraft): string | null {
 }
 
 export function validateOrderItems(items: OrderItemDraft[]): boolean {
-  return items.every(
-    (it) =>
-      it.productName.trim().length >= 2 &&
-      Number(it.unitPrice) > 0 &&
-      Number(it.qty) > 0 &&
-      (it.kind === "CUSTOM" || it.productId) &&
-      (!wantsCatalogSave(it) || !!it.saveCategoryId),
-  );
+  return orderItemsIssue(items) === null;
+}
+
+/** Short reason the first incomplete item blocks submit, or null when all are complete. */
+export function orderItemsIssue(items: OrderItemDraft[]): string | null {
+  for (const [i, it] of items.entries()) {
+    const n = `Item #${i + 1}`;
+    if (it.kind === "CATALOG" && !it.productId) return `${n}: pick a product`;
+    if (it.productName.trim().length < 2) return `${n}: add a name`;
+    if (!(Number(it.unitPrice) > 0)) return `${n}: add a price`;
+    if (!(Number(it.qty) > 0)) return `${n}: add a quantity`;
+    if (wantsCatalogSave(it) && !it.saveCategoryId) return `${n}: pick a category to save`;
+  }
+  return null;
 }
 
 export async function resolveReferenceImageUrl(item: OrderItemDraft): Promise<string | null> {

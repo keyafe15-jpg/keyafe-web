@@ -37,7 +37,7 @@ import {
   useOrderItemRefPreviews,
   useOrderItemsGstOnTop,
   useOrderItemsState,
-  validateOrderItems,
+  orderItemsIssue,
   wantsCatalogSave,
   type CatalogSaveEntry,
 } from "@/components/order-items";
@@ -259,39 +259,51 @@ export function OfflineOrderDirectFormPage() {
         ? grandTotal
         : Math.max(grandTotal - (Number(advanceAmount) || 0), 0);
 
-  const addressValid =
-    fulfillment === "PICKUP" ||
-    (line1.trim().length >= 3 &&
-      mapSearchQuery.trim().length >= 3 &&
-      /^\d{6}$/.test(pincode) &&
-      (pincodeInfo?.serviceable === true ||
-        (unlistedPincode &&
-          deliveryFeeInput.trim() !== "" &&
-          (!canSavePincode || !savePincode || zoneCity.trim().length >= 2))) &&
-      (recipientIsCustomer ||
-        (recipientName.trim().length >= 2 && /^[0-9+\-\s]{7,15}$/.test(deliveryPhone.trim()))) &&
-      (billingSameAsDelivery ||
-        (billLine1.trim().length >= 3 &&
-          billMapSearchQuery.trim().length >= 3 &&
-          /^\d{6}$/.test(billPincode))));
-
-  const itemsValid = validateOrderItems(items);
+  const addressIssue = ((): string | null => {
+    if (fulfillment === "PICKUP") return null;
+    if (mapSearchQuery.trim().length < 3) return "Search the delivery address";
+    if (line1.trim().length < 3) return "Add address line 1";
+    if (!/^\d{6}$/.test(pincode)) return "Enter a 6-digit pincode";
+    if (pincodeChecking) return "Checking pincode…";
+    if (pincodeInfo?.serviceable !== true) {
+      if (!unlistedPincode) return "Check the pincode";
+      if (deliveryFeeInput.trim() === "") return "Set the delivery charge";
+      if (canSavePincode && savePincode && zoneCity.trim().length < 2)
+        return "Add the city for this pincode";
+    }
+    if (!recipientIsCustomer) {
+      if (recipientName.trim().length < 2) return "Add recipient name";
+      if (!/^[0-9+\-\s]{7,15}$/.test(deliveryPhone.trim())) return "Enter a valid recipient phone";
+    }
+    if (!billingSameAsDelivery) {
+      if (billMapSearchQuery.trim().length < 3) return "Search the billing address";
+      if (billLine1.trim().length < 3) return "Add billing address line 1";
+      if (!/^\d{6}$/.test(billPincode)) return "Enter a 6-digit billing pincode";
+    }
+    return null;
+  })();
 
   // Only checked when the GST block is open, so ordinary orders are unaffected.
   const gstinError = isBusinessOrder ? gstinIssue(customerGstin) : null;
-  const businessValid =
-    !isBusinessOrder || (customerCompanyName.trim().length >= 2 && gstinError === null);
 
-  const canSubmit =
-    itemsValid &&
-    customerName.trim().length >= 2 &&
-    /^[0-9+\-\s]{7,15}$/.test(customerPhone.trim()) &&
-    !!deliveryDate &&
-    addressValid &&
-    advanceValid &&
-    businessValid &&
-    !uploading &&
-    !pincodeChecking;
+  /** First thing stopping submit, in form order — shown as the button's tooltip. */
+  const submitBlocker = ((): string | null => {
+    const itemIssue = orderItemsIssue(items);
+    if (itemIssue) return itemIssue;
+    if (customerName.trim().length < 2) return "Add customer name";
+    if (!/^[0-9+\-\s]{7,15}$/.test(customerPhone.trim())) return "Enter a valid customer phone";
+    if (isBusinessOrder && customerCompanyName.trim().length < 2) return "Add company name";
+    if (gstinError !== null) return "Fix the GSTIN";
+    if (!deliveryDate) return `Pick a ${fulfillment === "PICKUP" ? "pickup" : "delivery"} date`;
+    if (addressIssue) return addressIssue;
+    if (!advanceValid) return "Enter an advance up to the total";
+    if (uploading) return "Uploading…";
+    if (pincodeChecking) return "Checking pincode…";
+    return null;
+  })();
+
+  const canSubmit = submitBlocker === null;
+  const showBlocker = submitBlocker !== null && !uploading && !create.isPending;
 
   const slot = useMemo(() => TIME_SLOTS.find((s) => s.key === slotKey) ?? TIME_SLOTS[0], [slotKey]);
 
@@ -1053,24 +1065,39 @@ export function OfflineOrderDirectFormPage() {
               <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
             )}
 
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!canSubmit || create.isPending || addingProducts}
-              className={cn(submitClass, "mt-4 w-full sm:mt-5")}
+            <div
+              className="group relative mt-4 sm:mt-5"
+              tabIndex={showBlocker ? 0 : undefined}
+              aria-describedby={showBlocker ? "submit-blocker" : undefined}
             >
-              {uploading
-                ? "Uploading…"
-                : addingProducts
-                  ? "Adding to product list…"
-                  : create.isPending
-                    ? isPastOrder
-                      ? "Saving…"
-                      : "Placing order…"
-                    : isPastOrder
-                      ? "Save past order"
-                      : "Place order"}
-            </button>
+              <button
+                type="button"
+                onClick={submit}
+                disabled={!canSubmit || create.isPending || addingProducts}
+                className={cn(submitClass, "w-full", showBlocker && "pointer-events-none")}
+              >
+                {uploading
+                  ? "Uploading…"
+                  : addingProducts
+                    ? "Adding to product list…"
+                    : create.isPending
+                      ? isPastOrder
+                        ? "Saving…"
+                        : "Placing order…"
+                      : isPastOrder
+                        ? "Save past order"
+                        : "Place order"}
+              </button>
+              {showBlocker && (
+                <span
+                  id="submit-blocker"
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition group-focus-within:opacity-100 group-hover:opacity-100 group-focus:opacity-100 after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-slate-900"
+                >
+                  {submitBlocker}
+                </span>
+              )}
+            </div>
             <Link
               to="/offline-orders"
               className="mt-2 block text-center text-xs text-slate-500 hover:text-brand-500"

@@ -17,6 +17,8 @@ import { gstinIssue } from "@/lib/gstin";
 import { PRODUCT_COPY } from "@/content/product";
 import { cn } from "@/lib/cn";
 import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
+import { missingDetailsHint, scrollToFirstFieldError } from "@/lib/missingDetails";
+import { BlockedTooltip } from "@/components/ui/BlockedTooltip";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
 
@@ -75,6 +77,7 @@ export function CheckoutPage() {
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [notes, setNotes] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
@@ -192,7 +195,7 @@ export function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pincode, fulfillment]);
 
-  const errors = useMemo(() => {
+  const allErrors = useMemo(() => {
     const e: Record<string, string> = {};
     if (name.trim().length < 2) e.name = "Enter your name";
     if (!PHONE_RE.test(phone.trim())) e.phone = "Enter a valid phone";
@@ -262,7 +265,10 @@ export function CheckoutPage() {
     billMapSearchQuery,
     billStateCode,
   ]);
-  const isValid = Object.keys(errors).length === 0 && lines.length > 0;
+  const isValid = Object.keys(allErrors).length === 0 && lines.length > 0;
+  // Errors stay hidden until the first submit attempt so a fresh form isn't all red.
+  const errors: Record<string, string> = showErrors ? allErrors : {};
+  const missingHint = missingDetailsHint(allErrors, pincodeResult);
 
   if (redirectingToPayment) {
     return (
@@ -324,7 +330,11 @@ export function CheckoutPage() {
   };
 
   const submit = async () => {
-    if (!isValid) return;
+    if (!isValid) {
+      setShowErrors(true);
+      scrollToFirstFieldError();
+      return;
+    }
     setSubmitError(null);
     try {
       const deliveryAddress =
@@ -1193,18 +1203,21 @@ export function CheckoutPage() {
               </p>
             )}
 
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!isValid || createOrder.isPending}
-              className="mt-5 block w-full rounded-full bg-brand-500 py-3 text-center text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {createOrder.isPending
-                ? "Placing order…"
-                : effectivePayMethod === "cashfree"
-                  ? `Pay ₹${total.toFixed(gstOnTop > 0 ? 2 : 0)} securely`
-                  : "Place order"}
-            </button>
+            <BlockedTooltip message={missingHint} className="mt-5">
+              <button
+                type="button"
+                onClick={submit}
+                disabled={createOrder.isPending}
+                aria-disabled={!isValid}
+                className="block w-full rounded-full bg-brand-500 py-3 text-center text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:hover:bg-brand-500"
+              >
+                {createOrder.isPending
+                  ? "Placing order…"
+                  : effectivePayMethod === "cashfree"
+                    ? `Pay ₹${total.toFixed(gstOnTop > 0 ? 2 : 0)} securely`
+                    : "Place order"}
+              </button>
+            </BlockedTooltip>
             <p className="mt-2 text-center text-[11px] text-ink-500">
               By placing this order you agree to our{" "}
               <a
@@ -1328,7 +1341,10 @@ function Field({
       </span>
       {children}
       {(hint || error) && (
-        <span className={cn("mt-1 block text-[11px]", error ? "text-brand-700" : "text-ink-500")}>
+        <span
+          data-field-error={error ? true : undefined}
+          className={cn("mt-1 block text-[11px]", error ? "text-brand-700" : "text-ink-500")}
+        >
           {error ?? hint}
         </span>
       )}

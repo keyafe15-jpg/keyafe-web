@@ -9,6 +9,8 @@ import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
 import { BusinessGstFields } from "@/components/checkout/BusinessGstFields";
 import { gstinIssue } from "@/lib/gstin";
 import { cn } from "@/lib/cn";
+import { missingDetailsHint, scrollToFirstFieldError } from "@/lib/missingDetails";
+import { BlockedTooltip } from "@/components/ui/BlockedTooltip";
 import { manualDiscountRupees } from "@/lib/manualDiscount";
 import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
 import { gstAddedOnTop } from "@keyafe/shared";
@@ -19,35 +21,6 @@ type PayChoice = "FULL" | "ADVANCE" | "COD";
 const PHONE_RE = /^[0-9+\-\s]{7,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PINCODE_RE = /^\d{6}$/;
-
-const MISSING_DETAILS: [fields: string[], label: string][] = [
-  [["date"], "a date"],
-  [["name"], "your name"],
-  [["phone"], "your phone number"],
-  [["email"], "a valid email"],
-  [["companyName", "gstin"], "your GST details"],
-  [["recipientName", "deliveryPhone"], "the recipient's details"],
-  [["mapSearchQuery", "line1", "pincode"], "your delivery address"],
-  [["billMapSearchQuery", "billLine1", "billPincode"], "the billing address"],
-  [["advanceAmount"], "an advance amount"],
-];
-
-/** "Add your name, phone number and delivery address to continue", or null when complete. */
-function missingDetailsHint(
-  errors: Record<string, string>,
-  pincodeResult: PincodeCheckResult | null,
-): string | null {
-  if (errors.pincode && pincodeResult && !pincodeResult.serviceable) return errors.pincode;
-  const missing = MISSING_DETAILS.filter(([fields]) => fields.some((f) => errors[f])).map(
-    ([, label]) => label,
-  );
-  if (missing.length === 0) return null;
-  const list =
-    missing.length === 1
-      ? missing[0]
-      : `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}`;
-  return `Add ${list} to continue`;
-}
 
 function todayIso() {
   const d = new Date();
@@ -262,12 +235,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
   const submit = async () => {
     if (!isValid) {
       setShowErrors(true);
-      requestAnimationFrame(() => {
-        document
-          .querySelector("[data-field-error]")
-          ?.closest("label")
-          ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
+      scrollToFirstFieldError();
       return;
     }
     setSubmitError(null);
@@ -773,16 +741,18 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
             </p>
           )}
 
-          <button
-            ref={summaryButtonRef}
-            type="button"
-            onClick={submit}
-            disabled={place.isPending || !isValid}
-            className="mt-4 block w-full rounded-full bg-brand-500 py-3 text-center text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitLabel}
-          </button>
-          {missingHint && <p className="mt-2 text-center text-xs text-brand-700">{missingHint}</p>}
+          <BlockedTooltip message={missingHint} className="mt-4">
+            <button
+              ref={summaryButtonRef}
+              type="button"
+              onClick={submit}
+              disabled={place.isPending}
+              aria-disabled={!isValid}
+              className="block w-full rounded-full bg-brand-500 py-3 text-center text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:hover:bg-brand-500"
+            >
+              {submitLabel}
+            </button>
+          </BlockedTooltip>
           <p className="mt-2 text-center text-[11px] text-ink-500">
             By confirming you agree to the price locked above and our{" "}
             <a
@@ -813,7 +783,8 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         }
         buttonLabel={submitLabel}
         hint={missingHint}
-        disabled={place.isPending || !isValid}
+        disabled={place.isPending}
+        incomplete={!isValid}
         onSubmit={submit}
       />
     </section>
@@ -879,6 +850,7 @@ function StickyPayBar({
   hint,
   buttonLabel,
   disabled,
+  incomplete,
   onSubmit,
 }: {
   hidden: boolean;
@@ -888,6 +860,8 @@ function StickyPayBar({
   hint?: string | null;
   buttonLabel: string;
   disabled: boolean;
+  /** Looks disabled but stays tappable, so a tap can point at what's missing. */
+  incomplete: boolean;
   onSubmit: () => void;
 }) {
   return (
@@ -898,11 +872,6 @@ function StickyPayBar({
         hidden && "pointer-events-none translate-y-full",
       )}
     >
-      {hint && (
-        <p className="mx-auto mb-2 max-w-3xl text-center text-xs text-brand-700 sm:text-left">
-          {hint}
-        </p>
-      )}
       <div className="mx-auto flex max-w-3xl items-center gap-3 sm:gap-6">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] text-ink-500">{amountLabel}</p>
@@ -911,15 +880,18 @@ function StickyPayBar({
           </p>
           {subLabel && <p className="truncate text-[11px] text-ink-500">{subLabel}</p>}
         </div>
-        <button
-          type="button"
-          tabIndex={hidden ? -1 : undefined}
-          onClick={onSubmit}
-          disabled={disabled}
-          className="shrink-0 rounded-full bg-brand-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-56 sm:px-8"
-        >
-          {buttonLabel}
-        </button>
+        <BlockedTooltip message={hidden ? null : (hint ?? null)} align="end" className="shrink-0">
+          <button
+            type="button"
+            tabIndex={hidden ? -1 : undefined}
+            onClick={onSubmit}
+            disabled={disabled}
+            aria-disabled={incomplete}
+            className="rounded-full bg-brand-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:hover:bg-brand-500 sm:min-w-56 sm:px-8"
+          >
+            {buttonLabel}
+          </button>
+        </BlockedTooltip>
       </div>
     </div>
   );
