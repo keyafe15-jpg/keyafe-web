@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
 import { HOME_COPY } from "@/content/home";
 
 /** Delivery clip as a short inset band with the same-day pitch overlaid. */
