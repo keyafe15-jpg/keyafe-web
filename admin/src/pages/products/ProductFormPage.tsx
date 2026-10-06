@@ -1132,9 +1132,13 @@ export function ProductFormPage() {
                 />
               </Field>
             </div>
+            <Checkbox
+              {...register("isFeatured")}
+              label="Featured on homepage"
+              hint="Listed in the Keyafe picks row on the storefront homepage."
+            />
             <p className="text-[11px] text-slate-500">
-              Active, stock and featured are toggled from the products table. Lower sort order shows
-              first.
+              Active and stock are toggled from the products table. Lower sort order shows first.
             </p>
           </Section>
         </aside>

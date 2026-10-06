@@ -168,73 +168,230 @@
   }
 }
 
-@keyframes hero-word-reveal {
+/* Shop-front awning hanging under the header, in the four store colours
+   (dessert, savoury, gift hamper, festive) between white stripes, each stripe
+   ending in a pennant point. The shadow lives on the element and the masked
+   stripes on ::before, because a mask also clips its own drop-shadow. It
+   unrolls once on load, then ::after sweeps a soft shine across it. */
+.shop-awning {
+  --awning-stripe: 22px;
+  --awning-band: 8px;
+  --s: var(--awning-stripe);
+  --awning-mask:
+    linear-gradient(#000 0 0) top / 100% var(--awning-band) no-repeat,
+    conic-gradient(from -45deg at 50% 100%, #000 90deg, transparent 0) 0
+      calc(var(--awning-band) - 1px) / var(--s) calc(var(--s) / 2 + 1px) repeat-x;
+  position: relative;
+  height: calc(var(--awning-band) + var(--awning-stripe) / 2);
+  filter: drop-shadow(0 3px 3px rgba(26, 33, 42, 0.14));
+}
+
+.shop-awning::before,
+.shop-awning::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  -webkit-mask: var(--awning-mask);
+  mask: var(--awning-mask);
+  animation: awning-unroll 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.shop-awning::after {
+  background: linear-gradient(
+      100deg,
+      transparent 42%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 58%
+    )
+    0 0 / 300% 100% no-repeat;
+  animation:
+    awning-unroll 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both,
+    awning-shine 7s ease-in-out 1.2s infinite;
+}
+
+@keyframes awning-unroll {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes awning-shine {
+  0% {
+    background-position: 100% 0;
+  }
+  30%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+.shop-awning::before {
+  background: repeating-linear-gradient(
+    90deg,
+    #e31c79 0 var(--s),
+    #fff var(--s) calc(var(--s) * 2),
+    #d97706 calc(var(--s) * 2) calc(var(--s) * 3),
+    #fff calc(var(--s) * 3) calc(var(--s) * 4),
+    #0f766e calc(var(--s) * 4) calc(var(--s) * 5),
+    #fff calc(var(--s) * 5) calc(var(--s) * 6),
+    #b91c1c calc(var(--s) * 6) calc(var(--s) * 7),
+    #fff calc(var(--s) * 7) calc(var(--s) * 8)
+  );
+}
+
+@media (min-width: 768px) {
+  .shop-awning {
+    --awning-stripe: 28px;
+    --awning-band: 10px;
+  }
+}
+
+/* Landing page motion. `--i` is the item's index, for staggering. */
+@keyframes pop-in {
   0% {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px) scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.06);
   }
   100% {
     opacity: 1;
+    transform: none;
+  }
+}
+
+.cat-pop {
+  animation: pop-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: calc(min(var(--i, 0), 10) * 55ms + 150ms);
+}
+
+.pop-on-reveal {
+  opacity: 0;
+}
+
+.reveal-visible .pop-on-reveal {
+  animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: calc(var(--i, 0) * 90ms + 350ms);
+}
+
+@keyframes icon-wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-12deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+
+.group:hover .icon-wiggle {
+  animation: icon-wiggle 0.5s ease-in-out;
+}
+
+@keyframes rail-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rail-rise {
+  opacity: 0;
+}
+
+[data-inview] .rail-rise {
+  animation: rail-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(min(var(--i, 0), 6) * 70ms);
+}
+
+@keyframes tile-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  30% {
+    transform: translateY(-5px) rotate(-10deg);
+  }
+  60% {
+    transform: translateY(0) rotate(6deg);
+  }
+}
+
+.group:hover .tile-bounce {
+  animation: tile-bounce 0.6s ease-in-out;
+}
+
+@keyframes heartbeat {
+  0%,
+  42%,
+  100% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.12);
+  }
+  28% {
+    transform: scale(1.04);
+  }
+}
+
+.heartbeat {
+  animation: heartbeat 2.4s ease-in-out infinite;
+}
+
+@keyframes soft-bob {
+  0%,
+  100% {
     transform: translateY(0);
   }
-}
-
-.hero-headline-wrap {
-  position: relative;
-  display: block;
-}
-
-.hero-headline {
-  position: relative;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  font-size: clamp(2.4rem, 5vw, 3.75rem);
-  line-height: 0.95;
-  letter-spacing: -0.04em;
-}
-
-@media (max-width: 767px) {
-  .hero-headline {
-    max-width: 100%;
-    font-size: clamp(1.85rem, 8.6vw, 3rem);
-    line-height: 0.95;
+  50% {
+    transform: translateY(-3px);
   }
 }
 
-.hero-word {
-  opacity: 0;
-  animation: hero-word-reveal 0.7s ease forwards;
+.soft-bob {
+  animation: soft-bob 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 0.45s);
 }
 
-/* The "what we make" line inside the h1. Sized well below the display lines so
-   it reads as supporting text, and never animated — see HomePage.tsx. */
-.hero-offering {
-  font-size: clamp(0.95rem, 2.1vw, 1.15rem);
-  font-weight: 500;
-  line-height: 1.45;
-  letter-spacing: 0;
+@keyframes nudge-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
 }
 
-.hero-word-1 {
-  animation-delay: 0.12s;
+.nudge-x {
+  animation: nudge-x 1.6s ease-in-out infinite;
 }
 
-.hero-word-2 {
-  animation-delay: 0.8s;
+@keyframes chip-pulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 5px transparent;
+  }
 }
 
-.hero-word-3 {
-  animation-delay: 1.5s;
-}
-
-.hero-word-4 {
-  animation-delay: 0.42s;
-}
-
-.hero-word-5 {
-  animation-delay: 2.9s;
+.chip-pulse {
+  animation: chip-pulse 2s ease-out infinite;
 }
 
 .hero-showcase {
@@ -420,20 +577,6 @@
 .film-ken {
   animation: delivery-ken 18s ease-in-out infinite;
   transform-origin: center;
-}
-
-@keyframes promise-bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-
-.promise-bob {
-  animation: promise-bob 3.6s ease-in-out infinite;
 }
 
 .delivery-route {
@@ -878,11 +1021,9 @@ gmp-place-autocomplete:focus-within {
   .home-pill,
   .home-list-item,
   .home-cta-glow,
-  .hero-word,
   .delivery-float,
   .delivery-ken,
   .film-ken,
-  .promise-bob,
   .delivery-route::after,
   .store-bridge-pulse,
   .swipe-hint-arrow,
@@ -897,7 +1038,18 @@ gmp-place-autocomplete:focus-within {
   .about-year-in,
   .about-year-ghost,
   .about-candle,
-  .about-marquee-track {
+  .about-marquee-track,
+  .shop-awning::before,
+  .shop-awning::after,
+  .cat-pop,
+  .pop-on-reveal,
+  .icon-wiggle,
+  .rail-rise,
+  .tile-bounce,
+  .heartbeat,
+  .soft-bob,
+  .nudge-x,
+  .chip-pulse {
     animation: none !important;
   }
 
@@ -913,12 +1065,13 @@ gmp-place-autocomplete:focus-within {
     transform: none;
   }
 
-  /* .hero-word starts at opacity 0, so killing its animation without this
-     would hide the headline outright. */
+  /* These start at opacity 0, so killing their animation without this would
+     hide them outright. */
   .home-rise,
   .home-pill,
   .home-list-item,
-  .hero-word {
+  .pop-on-reveal,
+  .rail-rise {
     opacity: 1;
     transform: none;
   }

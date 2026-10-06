@@ -13,8 +13,9 @@ export type HeroSlideView = {
   to: string | null;
 };
 
+/** Slim promo-banner height, so products start within the first screen. */
 export const slideFrame =
-  "relative aspect-[16/9] min-h-[280px] w-full sm:aspect-auto sm:min-h-0 sm:h-[400px] md:h-[440px] lg:h-[480px]";
+  "relative aspect-[21/9] min-h-[150px] w-full sm:aspect-auto sm:min-h-0 sm:h-[240px] md:h-[270px] lg:h-[300px]";
 
 const MOBILE_QUERY = "(max-width: 639px)";
 
@@ -59,13 +60,13 @@ function NavArrow({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full",
+        "pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full",
         "border border-white/35 bg-white/15 text-white backdrop-blur-md",
         "shadow-[0_8px_24px_rgba(26,33,42,0.18)] transition",
         "hover:border-white/60 hover:bg-white/30 hover:scale-105",
         "active:scale-95",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
-        "md:h-11 md:w-11",
+        "md:h-10 md:w-10",
       )}
     >
       <ChevronIcon direction={direction} />
@@ -270,27 +271,27 @@ export function HeroSlider({ slides }: { slides: HeroSlideView[] }) {
                       )}
 
                       {active && slide.title && (
-                        <div className="absolute inset-0 z-[1] flex items-end justify-center p-3 pb-10 sm:items-center sm:p-4 sm:pb-12">
-                          <div className="w-full max-w-[17rem] text-center sm:max-w-lg">
-                            <div className="hero-caption relative overflow-hidden border border-white/20 bg-[#1a1614]/35 px-5 py-3.5 shadow-[0_18px_40px_rgba(20,14,10,0.35)] backdrop-blur-md sm:px-10 sm:py-6">
+                        <div className="absolute inset-0 z-[1] flex items-end justify-center p-3 pb-7 sm:items-center sm:p-4 sm:pb-10">
+                          <div className="w-full max-w-[15rem] text-center sm:max-w-md">
+                            <div className="hero-caption relative overflow-hidden border border-white/20 bg-[#1a1614]/35 px-4 py-2 shadow-[0_18px_40px_rgba(20,14,10,0.35)] backdrop-blur-md sm:px-8 sm:py-4">
                               <span
                                 aria-hidden
                                 className="pointer-events-none absolute inset-1 border border-white/15 sm:inset-1.5"
                               />
-                              <h2 className="hero-caption-title font-display text-xl leading-tight font-medium text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.35)] sm:text-4xl">
+                              <h2 className="hero-caption-title font-display text-base leading-tight font-medium text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.35)] sm:text-3xl">
                                 {slide.title}
                               </h2>
                               {slide.line && (
                                 <>
                                   <div
                                     aria-hidden
-                                    className="mx-auto my-2 flex w-28 items-center gap-2 sm:my-3 sm:w-44"
+                                    className="mx-auto my-1.5 hidden w-28 items-center gap-2 sm:my-2.5 sm:flex sm:w-40"
                                   >
                                     <span className="hero-caption-rule hero-caption-rule-left h-px flex-1 bg-gradient-to-r from-transparent to-amber-200/90" />
                                     <span className="hero-caption-gem size-1.5 bg-amber-200 sm:size-2" />
                                     <span className="hero-caption-rule hero-caption-rule-right h-px flex-1 bg-gradient-to-l from-transparent to-amber-200/90" />
                                   </div>
-                                  <p className="hero-caption-line line-clamp-2 text-[10px] leading-4 font-medium tracking-[0.18em] text-white/90 uppercase sm:line-clamp-none sm:text-xs sm:leading-5 sm:tracking-[0.22em]">
+                                  <p className="hero-caption-line hidden text-xs leading-5 font-medium tracking-[0.22em] text-white/90 uppercase sm:line-clamp-2">
                                     {slide.line}
                                   </p>
                                 </>
@@ -325,7 +326,7 @@ export function HeroSlider({ slides }: { slides: HeroSlideView[] }) {
             <div
               role="tablist"
               aria-label="Slides"
-              className="pointer-events-none absolute inset-x-0 bottom-3 z-[2] flex items-center justify-center gap-2 sm:bottom-4"
+              className="pointer-events-none absolute inset-x-0 bottom-2 z-[2] flex items-center justify-center gap-1.5 sm:bottom-3"
             >
               {slides.map((slide, index) => {
                 const active = index === selectedIndex;

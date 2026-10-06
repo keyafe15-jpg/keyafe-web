@@ -57,8 +57,8 @@ export const QUOTE_COPY = {
         body: "Each delivery carries a challan cross-referenced to the invoice.",
       },
       {
-        title: "Delivered across Kolkata",
-        body: "We deliver to offices and venues across the city.",
+        title: "Kolkata, Howrah & Hooghly",
+        body: "We deliver to offices and venues across all three.",
       },
     ],
   },
@@ -86,8 +86,8 @@ export const QUOTE_COPY = {
         body: "Upload inspiration photos for colour, theme and finish.",
       },
       {
-        title: "Delivered across Kolkata",
-        body: "City delivery, plus pan-India for selected shelf-stable treats.",
+        title: "Kolkata, Howrah & Hooghly",
+        body: "Delivered across all three, plus pan-India for selected shelf-stable treats.",
       },
     ],
   },

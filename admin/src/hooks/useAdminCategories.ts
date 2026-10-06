@@ -15,6 +15,7 @@ export interface AdminCategory {
   imageUrl: string | null;
   sortOrder: number;
   isActive: boolean;
+  showOnHome: boolean;
   parentId: string | null;
   departmentId: string | null;
   department: CategoryDepartment | null;
@@ -41,6 +42,7 @@ export interface CategoryPayload {
   departmentId?: string | null;
   sortOrder?: number;
   isActive?: boolean;
+  showOnHome?: boolean;
 }
 
 const invalidate = (qc: ReturnType<typeof useQueryClient>) => {

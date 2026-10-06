@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 import { HOME_COPY } from "@/content/home";
 
-/**
- * Full-bleed landscape strip — the delivery clip is wide and short,
- * so it sits edge-to-edge under the hero rather than in a tall frame.
- */
+/** Delivery clip as a short inset band with the same-day pitch overlaid. */
 export function DeliveryReel() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -44,8 +43,8 @@ export function DeliveryReel() {
   const copy = HOME_COPY.delivery;
 
   return (
-    <section className="relative isolate w-full overflow-hidden" aria-label={copy.title}>
-      <div className="relative w-full sm:h-[7.5rem] md:h-[11.5rem] lg:h-[25rem]">
+    <section className="relative z-10 mx-auto max-w-6xl px-4 py-5 sm:py-7">
+      <div className="relative isolate h-[13rem] overflow-hidden rounded-2xl shadow-sm sm:h-[15rem] lg:h-[18rem]">
         <video
           ref={videoRef}
           src={copy.src}
@@ -54,10 +53,10 @@ export function DeliveryReel() {
           playsInline
           preload="metadata"
           aria-hidden
-          className="h-full w-full object-cover object-center"
+          className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink-900/55 via-ink-900/20 to-transparent"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink-900/80 via-ink-900/45 to-ink-900/5"
           aria-hidden
         />
       </div>

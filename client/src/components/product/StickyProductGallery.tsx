@@ -52,7 +52,7 @@ export function StickyProductGallery({
   };
 
   return (
-    <div className="lg:sticky lg:top-20">
+    <div className="lg:sticky lg:top-24">
       <div ref={galleryRef}>
         <ProductGallery images={images} alt={alt} />
       </div>

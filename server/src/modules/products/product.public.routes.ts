@@ -8,6 +8,7 @@ import {
   listSameDayProducts,
   listHealthyTreatProducts,
   listHomeTagShowcase,
+  listHomeSections,
   listPublicProductsByTagSlug,
   listPublicProductsBySearch,
   parsePublicCatalogFilters,
@@ -47,6 +48,13 @@ publicProductRouter.get("/healthy", async (_req, res) => {
 publicProductRouter.get("/showcase", async (req, res) => {
   const { limit } = req.query;
   const sections = await listHomeTagShowcase(limit ? Number(limit) : undefined);
+  res.setHeader("Cache-Control", "public, max-age=30");
+  res.json(sections);
+});
+
+// Featured picks, tag rails and category rails for the landing page.
+publicProductRouter.get("/home", async (_req, res) => {
+  const sections = await listHomeSections();
   res.setHeader("Cache-Control", "public, max-age=30");
   res.json(sections);
 });

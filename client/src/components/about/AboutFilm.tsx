@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Reveal } from "@/components/motion/Reveal";
-import { HOME_COPY } from "@/content/home";
+import { ABOUT_FILM } from "@/content/about";
 
 function CountUp({
   value,
@@ -55,7 +55,8 @@ function CountUp({
   );
 }
 
-export function HomeFilm() {
+/** "15000+ orders delivered" film with a count-up, after the story timeline. */
+export function AboutFilm() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -113,15 +114,15 @@ export function HomeFilm() {
   return (
     <section
       ref={sectionRef}
-      className="bg-cream-50 py-10 md:py-16"
-      aria-labelledby="home-film-heading"
+      className="mt-14 bg-cream-50 py-10 md:mt-20 md:py-16"
+      aria-labelledby="about-film-heading"
     >
       <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 md:grid-cols-2 md:gap-12 lg:gap-16">
         <Reveal from="left">
           <div className="relative justify-self-start overflow-hidden rounded-[1.25rem] border border-white/60 shadow-[0_22px_50px_-24px_rgba(28,25,23,0.45)] ring-1 ring-ink-900/5">
             <video
               ref={videoRef}
-              src={HOME_COPY.film.src}
+              src={ABOUT_FILM.src}
               muted
               loop
               playsInline
@@ -134,22 +135,27 @@ export function HomeFilm() {
 
         <Reveal from="right" delay={120}>
           <div>
-            <p className="text-brand-600 text-[11px] font-semibold tracking-[0.28em] uppercase">
-              {HOME_COPY.film.eyebrow}
+            <p className="text-sm font-medium tracking-[0.2em] text-brand-500 uppercase">
+              {ABOUT_FILM.eyebrow}
             </p>
             <h2
-              id="home-film-heading"
-              className="mt-2 font-display text-3xl leading-tight text-ink-900 md:text-4xl"
+              id="about-film-heading"
+              className="mt-2 text-3xl leading-tight text-ink-900 md:text-5xl"
             >
-              <CountUp value={15000} suffix="+" active={inView} instant={reduceMotion} /> orders
-              delivered
+              <CountUp
+                value={ABOUT_FILM.orders}
+                suffix="+"
+                active={inView}
+                instant={reduceMotion}
+              />{" "}
+              {ABOUT_FILM.ordersLabel}
             </h2>
-            <p className="text-ink-600 mt-4 max-w-md text-base leading-7">{HOME_COPY.film.body}</p>
+            <p className="mt-4 max-w-md text-base leading-7 text-ink-700">{ABOUT_FILM.body}</p>
             <ul className="mt-6 space-y-2.5">
-              {HOME_COPY.film.points.map((point, index) => (
+              {ABOUT_FILM.points.map((point, index) => (
                 <li
                   key={point}
-                  className="home-list-item text-ink-800 flex items-start gap-2.5 text-sm leading-6"
+                  className="home-list-item flex items-start gap-2.5 text-sm leading-6 text-ink-700"
                   style={{ animationDelay: `${280 + index * 120}ms` }}
                   data-active={inView && !reduceMotion ? "true" : undefined}
                 >

@@ -641,6 +641,67 @@ export async function listHomeTagShowcase(limitPerTag = 8) {
   return sections.filter((section) => section.products.length > 0);
 }
 
+const HOME_FEATURED_LIMIT = 12;
+const HOME_RAIL_LIMIT = 10;
+
+// Everything the product-first landing page renders, in one round trip:
+// featured picks, tag rails and category rails. Empty sections are dropped.
+export async function listHomeSections() {
+  const [featuredRows, tags, categories] = await Promise.all([
+    prisma.product.findMany({
+      where: { ...PUBLIC_LIST_WHERE, isFeatured: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      take: HOME_FEATURED_LIMIT,
+      select: PUBLIC_CARD_SELECT,
+    }),
+    listHomeTagShowcase(HOME_RAIL_LIMIT),
+    prisma.category.findMany({
+      where: { showOnHome: true, isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        department: { select: { accentHex: true } },
+        parent: { select: { department: { select: { accentHex: true } } } },
+        children: { where: { isActive: true }, select: { id: true } },
+      },
+    }),
+  ]);
+
+  const categorySections = await Promise.all(
+    categories.map(async (category) => {
+      const categoryIds = [category.id, ...category.children.map((c) => c.id)];
+      const products = await prisma.product.findMany({
+        where: {
+          ...PUBLIC_LIST_WHERE,
+          categoryLinks: { some: { categoryId: { in: categoryIds } } },
+        },
+        orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+        take: HOME_RAIL_LIMIT,
+        select: PUBLIC_CARD_SELECT,
+      });
+      return {
+        category: {
+          slug: category.slug,
+          name: category.name,
+          description: category.description,
+          accentHex:
+            category.department?.accentHex ?? category.parent?.department?.accentHex ?? null,
+        },
+        products: products.map((p) => decorateCard(p as unknown as PublicCardRow)),
+      };
+    }),
+  );
+
+  return {
+    featured: featuredRows.map((p) => decorateCard(p as unknown as PublicCardRow)),
+    tags,
+    categories: categorySections.filter((section) => section.products.length > 0),
+  };
+}
+
 const MIN_PUBLIC_SEARCH_LENGTH = 2;
 
 function buildPublicProductSearchWhere(search: string) {

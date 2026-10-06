@@ -31,6 +31,19 @@ export const ABOUT_BANNER = {
   focus: "center 40%",
 };
 
+export const ABOUT_FILM = {
+  src: "/hero/keyafeoverall.mp4",
+  eyebrow: "Six years with you",
+  orders: 15000,
+  ordersLabel: "orders delivered",
+  body: "15000+ bakes from our kitchen — for 2,000+ customers, most of whom come back and send the kindest words.",
+  points: [
+    "2,000+ customers since we started",
+    "Most of you return — that’s the bit we’re proudest of",
+    "Baked fresh for Kolkata, Howrah and Hooghly, one order at a time",
+  ],
+};
+
 export const ABOUT_BIRTHDAY_COPY = {
   eyebrow: "Every 16 December",
   title: "Keyafe’s birthday is our team’s day out.",

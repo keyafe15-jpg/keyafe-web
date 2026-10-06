@@ -20,52 +20,30 @@ export const KEYAFE_OFFERINGS = [
 export const HOME_SEO = {
   title: "Custom Cakes, Cookies, Brownies & Hampers in Kolkata",
   description:
-    "Keyafe bakes custom celebration cakes, cookies, brownies, hampers, pizzas and party trays in Kolkata. Small party and corporate orders welcome, with GST invoices for businesses.",
+    "Keyafe bakes custom celebration cakes, cookies, brownies, hampers, pizzas and party trays, delivered across Kolkata, Howrah and Hooghly. Small party and corporate orders welcome, with GST invoices for businesses.",
 };
 
 export const HOME_COPY = {
   hero: {
-    eyebrow: "Handcrafted daily",
-    heading: ["Baked fresh,", "Made just for you!"] as const,
-    // The plain-language line: what we make and where. Kept deliberately
-    // literal so both first-time visitors and search engines can tell at a
-    // glance what this bakery actually sells.
-    offering: "Custom cakes, cookies, brownies, hampers & pizzas in Kolkata",
-    sub: "Celebration and custom cakes, cookies, cake tubs, brownies, hampers, pizzas and house snacks — for homes, small parties and corporate orders across Kolkata.",
+    // The home page h1: what we make and where. Kept deliberately literal so
+    // both first-time visitors and search engines can tell at a glance what
+    // this bakery actually sells.
+    offering: "Custom cakes, cookies, brownies, hampers & pizzas in Kolkata, Howrah & Hooghly",
     primaryCta: { to: "/store/dessert", label: "Dessert store" },
     secondaryCta: { to: "/store/savory", label: "Savoury store" },
-    coverage: {
-      beforeLink: "Delivering all over Kolkata. A few treats also ",
-      linkLabel: "ship pan-India",
-      afterLink: ".",
-      to: "/pan-india",
-    },
   },
   // Hero fallback when no slides are live in admin → Hero slider.
   banner: {
-    eyebrow: "Keyafe · Belur, Kolkata",
+    eyebrow: "Kolkata · Howrah · Hooghly",
     title: "Freshly baked, every single day",
-    line: "Cakes, cookies, brownies, hampers and pizzas — delivered across Kolkata.",
-  },
-  film: {
-    src: "/hero/keyafeoverall.mp4",
-    eyebrow: "Six years with you",
-    title: "15000+ orders delivered",
-    body: "15000+ bakes from our Belur kitchen — for 2,000+ customers, most of whom come back and send the kindest words.",
-    points: [
-      "2,000+ customers since we started",
-      "Most of you return — that’s the bit we’re proudest of",
-      "Baked fresh for Kolkata, one order at a time",
-    ],
+    line: "Cakes, cookies, brownies, hampers and pizzas — baked to order, never off a shelf.",
   },
   delivery: {
     src: "/hero/deliveryvideo.mp4",
-    eyebrow: "Our own riders",
-    title: "From Belur to your door",
-    body: "We don’t hand your cake to a stranger’s bag. Keyafe rides deliver across Kolkata so everything arrives the way it left the kitchen — fresh, upright and on time.",
+    body: "We deliver across Kolkata, Howrah and Hooghly. Every box is packed to travel and sent with a trusted delivery partner, or brought over by us — fresh, upright and on time.",
     points: [
-      "Same-day slots across Kolkata",
-      "Handled by our team, not a marketplace bag",
+      "Same-day slots across Kolkata, Howrah and Hooghly",
+      "Trusted delivery partners, or we bring it ourselves",
       "Packed to travel — boxes stay upright",
     ],
     cta: { to: "/same-day", label: "Shop same-day" },
@@ -151,6 +129,71 @@ export const HOME_COPY = {
     cta: { to: "/get-quote?type=corporate", label: "Corporate enquiry" },
     secondaryCta: { to: "/get-quote?type=custom", label: "Custom order enquiry" },
   },
+  categoryRow: {
+    heading: "Shop by category",
+  },
+  rails: {
+    swipeHint: "Swipe",
+    seeAllTile: "See all",
+    featured: {
+      chip: "Keyafe picks",
+      heading: "Handpicked from our kitchen",
+    },
+    category: {
+      chip: "Category",
+    },
+    recent: {
+      chip: "Recently viewed",
+      heading: "Pick up where you left off",
+      clear: "Clear",
+    },
+  },
+  quickTiles: {
+    heading: "Shop your way",
+    tiles: [
+      {
+        key: "same-day",
+        to: "/same-day",
+        title: "Same-day delivery",
+        line: "Order today, enjoy today",
+      },
+      {
+        key: "healthy",
+        to: "/healthy",
+        title: "Healthy treats",
+        line: "Lighter bakes, same joy",
+      },
+      {
+        key: "pan-india",
+        to: "/pan-india",
+        title: "Ships pan-India",
+        line: "Send a treat anywhere",
+      },
+    ],
+  },
+  why: {
+    custom: {
+      eyebrow: "Why custom cakes & hampers?",
+      title: "It’s an emotion, not just a cake",
+      body: "It shows who they are, what they love and how well you know them.",
+      cta: { to: "/get-quote", label: "Plan a custom order" },
+    },
+    fresh: {
+      eyebrow: "And everything else",
+      title: "Baked only when you order",
+      body: "Nothing waits on a shelf. Every order starts its own batch.",
+      points: [
+        { key: "batch", label: "Fresh batch" },
+        { key: "pure", label: "No preservatives" },
+        { key: "quality", label: "Quality ingredients" },
+      ],
+    },
+  },
+  trust: [
+    { key: "batch", label: "Baked to order" },
+    { key: "pure", label: "Preservative-free" },
+    { key: "packed", label: "Packed with care" },
+  ],
   tagSections: {
     seeAll: "See all",
     // Headline per tag slug. Tags an admin flags later fall back to their own

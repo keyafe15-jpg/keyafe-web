@@ -22,6 +22,7 @@ import {
 import { useMasterFlavours } from "@/hooks/useFlavours";
 import { useCart } from "@/store/cart";
 import { trackAddToCart, trackViewItem } from "@/lib/analytics";
+import { rememberRecentProduct } from "@/lib/recentlyViewed";
 import {
   CAKE_BASE_GRAMS,
   cakeVolumeDiscount,
@@ -36,7 +37,15 @@ export function ProductPage() {
   const { data: product, isLoading, isError, error } = useProduct(slug);
 
   useEffect(() => {
-    if (product) trackViewItem(product);
+    if (!product) return;
+    trackViewItem(product);
+    rememberRecentProduct({
+      slug: product.slug,
+      name: product.name,
+      image: product.images[0] ?? null,
+      category: product.categories[0]?.name ?? null,
+      isEggless: product.isEggless,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 

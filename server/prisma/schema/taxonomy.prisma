@@ -22,6 +22,9 @@ model Category {
   imageUrl     String?
   sortOrder    Int         @default(0)
   isActive     Boolean     @default(true)
+  // Flagged categories get their own product rail on the storefront landing
+  // page, ordered by sortOrder. Admins curate this from the Categories page.
+  showOnHome   Boolean     @default(false)
   // Set on top-level categories only. Children inherit via parent.
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
@@ -39,6 +42,7 @@ model Category {
 
   @@index([isActive, sortOrder])
   @@index([parentId, isActive, sortOrder])
+  @@index([showOnHome, sortOrder])
   @@index([departmentId])
 }
 

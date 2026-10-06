@@ -1,6 +1,7 @@
 import { Star } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { SlideCarousel } from "@/components/ui/SlideCarousel";
+import { RailChip } from "@/components/home/ProductRail";
 import { useStoreProfile } from "@/hooks/useStoreProfile";
 import { HOME_COPY } from "@/content/home";
 import {
@@ -10,15 +11,14 @@ import {
 } from "@/hooks/useGooglePlaceReviews";
 import { cn } from "@/lib/cn";
 
-function Stars({ value, size = "md" }: { value: number; size?: "sm" | "md" }) {
-  const icon = size === "sm" ? "h-3.5 w-3.5" : "h-5 w-5";
+function Stars({ value }: { value: number }) {
   return (
     <span className="inline-flex items-center gap-0.5" aria-label={`${value} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
           className={cn(
-            icon,
+            "h-3 w-3",
             n <= Math.round(value) ? "fill-brand-500 text-brand-500" : "text-cream-200",
           )}
           aria-hidden
@@ -28,7 +28,7 @@ function Stars({ value, size = "md" }: { value: number; size?: "sm" | "md" }) {
   );
 }
 
-function PlatformBadge({
+function RatingPill({
   name,
   rating,
   count,
@@ -46,46 +46,38 @@ function PlatformBadge({
     <Tag
       {...(href ? { href, target: "_blank", rel: "noopener noreferrer" } : {})}
       className={cn(
-        "flex min-w-[9.5rem] flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/70 px-4 py-3 shadow-sm backdrop-blur-md",
+        "inline-flex items-center gap-1.5 rounded-full border border-cream-200 bg-white px-3 py-1.5 text-xs shadow-sm",
         href && "transition hover:-translate-y-0.5 hover:border-brand-300",
       )}
     >
-      <span className={cn("text-[11px] font-semibold tracking-[0.18em] uppercase", accent)}>
+      <span className="font-semibold" style={{ color: accent }}>
         {name}
       </span>
-      <span className="flex items-center gap-1.5">
-        <Stars value={rating} size="sm" />
-        <span className="text-lg font-semibold text-ink-900">{rating.toFixed(1)}</span>
-      </span>
-      <span className="text-xs text-ink-500">
-        {count.toLocaleString("en-IN")} rating{count === 1 ? "" : "s"}
-      </span>
+      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
+      <span className="font-semibold text-ink-900">{rating.toFixed(1)}</span>
+      <span className="text-ink-500">({count.toLocaleString("en-IN")})</span>
     </Tag>
   );
 }
 
 function ReviewCard({ review }: { review: GooglePlaceReview }) {
   return (
-    <blockquote className="flex h-full flex-col rounded-2xl border border-cream-200 bg-white/70 p-5 shadow-sm backdrop-blur-md">
-      <Stars value={review.rating} size="sm" />
-      <p className="mt-3 flex-1 text-sm leading-6 text-ink-700">
-        “{review.text.length > 220 ? `${review.text.slice(0, 220).trim()}…` : review.text}”
-      </p>
-      <footer className="mt-4 flex items-center gap-3 border-t border-cream-100 pt-3">
+    <blockquote className="flex h-full flex-col rounded-2xl border border-cream-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-2.5">
         {review.photoUri ? (
           <img
             src={review.photoUri}
             alt=""
-            className="h-9 w-9 rounded-full object-cover"
+            className="h-8 w-8 rounded-full object-cover"
             loading="lazy"
             referrerPolicy="no-referrer"
           />
         ) : (
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
             {review.authorName.charAt(0).toUpperCase()}
           </span>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {review.authorUri ? (
             <a
               href={review.authorUri}
@@ -98,117 +90,123 @@ function ReviewCard({ review }: { review: GooglePlaceReview }) {
           ) : (
             <p className="truncate text-sm font-medium text-ink-900">{review.authorName}</p>
           )}
-          {review.relativeTime && <p className="text-xs text-ink-500">{review.relativeTime}</p>}
+          <div className="flex items-center gap-1.5">
+            <Stars value={review.rating} />
+            {review.relativeTime && (
+              <span className="text-[11px] text-ink-500">{review.relativeTime}</span>
+            )}
+          </div>
         </div>
-      </footer>
+      </div>
+      <p className="mt-2.5 line-clamp-4 text-sm leading-6 text-ink-700">“{review.text}”</p>
     </blockquote>
   );
 }
 
 /**
- * Home social proof: manual Zomato/Swiggy badges + live Google reviews when configured.
+ * Compact social proof: Zomato/Swiggy rating pills, plus the live Google
+ * rating and review quotes when configured.
  */
 export function GoogleReviewsSection() {
   const configured = googleReviewsConfigured();
   const { data, isLoading, isError } = useGooglePlaceReviews();
-  const showGoogle = configured && !isError && (isLoading || Boolean(data));
   const copy = HOME_COPY.googleReviews;
   const profile = useStoreProfile();
   const { zomato, swiggy } = profile.ratings;
+  const loadingGoogle = configured && !isError && isLoading;
+
+  if (!data && !zomato && !swiggy && !loadingGoogle) return null;
 
   return (
-    <section className="relative z-10 mx-auto max-w-6xl px-4 py-12">
+    <section className="relative z-10 mx-auto max-w-6xl px-4 py-5 sm:py-7">
       <Reveal>
-        <div className="mx-auto mb-8 max-w-xl rounded-2xl border border-white/50 bg-white/40 px-4 py-4 text-center shadow-sm backdrop-blur-md sm:mb-10">
-          <p className="mb-2 text-xs font-semibold tracking-[0.28em] text-brand-500 uppercase">
-            {copy.eyebrow}
-          </p>
-          <h2 className="font-display text-2xl text-ink-900 sm:text-3xl">{copy.heading}</h2>
-          <p className="mt-2 text-sm text-ink-500">{copy.sub}</p>
-        </div>
-      </Reveal>
+        <div className="rounded-2xl border border-cream-200 bg-white/60 p-4 shadow-sm backdrop-blur-md sm:p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <RailChip label={copy.eyebrow} />
+              <h2 className="mt-1.5 font-display text-lg leading-tight text-ink-900 sm:text-xl">
+                {copy.heading}
+              </h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {data && (
+                <RatingPill
+                  name="Google"
+                  rating={data.rating}
+                  count={data.reviewCount}
+                  href={data.mapsUri ?? data.writeReviewUri}
+                  accent="#4285F4"
+                />
+              )}
+              {zomato && (
+                <RatingPill
+                  name="Zomato"
+                  rating={zomato.rating}
+                  count={zomato.count}
+                  href={profile.socials.zomato}
+                  accent="#E23744"
+                />
+              )}
+              {swiggy && (
+                <RatingPill
+                  name="Swiggy"
+                  rating={swiggy.rating}
+                  count={swiggy.count}
+                  href={profile.socials.swiggy}
+                  accent="#FC8019"
+                />
+              )}
+              {data && (
+                <a
+                  href={data.writeReviewUri}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700"
+                >
+                  {copy.writeCta}
+                </a>
+              )}
+            </div>
+          </div>
 
-      <Reveal>
-        <div className="mb-8 flex flex-wrap items-stretch justify-center gap-3 sm:gap-4">
-          {data && (
-            <PlatformBadge
-              name="Google"
-              rating={data.rating}
-              count={data.reviewCount}
-              href={data.mapsUri ?? data.writeReviewUri}
-              accent="text-[#4285F4]"
-            />
-          )}
-          {zomato && (
-            <PlatformBadge
-              name="Zomato"
-              rating={zomato.rating}
-              count={zomato.count}
-              href={profile.socials.zomato}
-              accent="text-[#E23744]"
-            />
-          )}
-          {swiggy && (
-            <PlatformBadge
-              name="Swiggy"
-              rating={swiggy.rating}
-              count={swiggy.count}
-              href={profile.socials.swiggy}
-              accent="text-[#FC8019]"
-            />
-          )}
-        </div>
-      </Reveal>
+          {loadingGoogle && <p className="mt-4 text-sm text-ink-500">Loading Google reviews…</p>}
 
-      {showGoogle && isLoading && (
-        <p className="mb-6 text-center text-sm text-ink-500">Loading Google reviews…</p>
-      )}
-
-      {data && data.reviews.length > 0 && (
-        <Reveal>
-          <SlideCarousel
-            ariaLabel="Guest reviews"
-            snapAlign="start"
-            slideClassName="w-[min(100%,22rem)] sm:w-[calc((100%-0.75rem)/2)] lg:w-[calc((100%-1.5rem)/3)]"
-          >
-            {data.reviews.map((review, index) => (
-              <ReviewCard key={`${review.authorName}-${index}`} review={review} />
-            ))}
-          </SlideCarousel>
-        </Reveal>
-      )}
-
-      {data && (
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <a
-            href={data.writeReviewUri}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
-          >
-            {copy.writeCta}
-          </a>
-          {data.mapsUri && (
-            <a
-              href={data.mapsUri}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border border-cream-200 bg-white/70 px-5 py-2.5 text-sm font-medium text-ink-700 transition hover:border-brand-300 hover:text-brand-700"
+          {data && data.reviews.length > 0 && (
+            <SlideCarousel
+              ariaLabel="Guest reviews"
+              snapAlign="start"
+              className="mt-4"
+              slideClassName="w-[min(85%,20rem)] sm:w-[calc((100%-0.75rem)/2)] lg:w-[calc((100%-1.5rem)/3)]"
             >
-              {copy.seeAllCta}
-            </a>
+              {data.reviews.map((review, index) => (
+                <ReviewCard key={`${review.authorName}-${index}`} review={review} />
+              ))}
+            </SlideCarousel>
           )}
-        </div>
-      )}
 
-      {data && (
-        <p className="mt-4 text-center text-[11px] text-ink-500">
-          Review quotes from Google · <span className="text-ink-700">{data.placeName}</span>
-        </p>
-      )}
-      <p className="mt-2 text-center text-[11px] text-ink-500">
-        Zomato &amp; Swiggy ratings are updated periodically from our listings.
-      </p>
+          <p className="mt-3 text-[11px] text-ink-500">
+            {data && (
+              <>
+                Review quotes from Google ·{" "}
+                {data.mapsUri ? (
+                  <a
+                    href={data.mapsUri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-ink-700 underline-offset-2 hover:underline"
+                  >
+                    {copy.seeAllCta}
+                  </a>
+                ) : (
+                  <span className="text-ink-700">{data.placeName}</span>
+                )}{" "}
+                ·{" "}
+              </>
+            )}
+            Zomato &amp; Swiggy ratings are updated periodically from our listings.
+          </p>
+        </div>
+      </Reveal>
     </section>
   );
 }

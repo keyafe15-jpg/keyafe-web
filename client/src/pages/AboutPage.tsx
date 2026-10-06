@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { AboutBanner } from "@/components/about/AboutBanner";
+import { AboutFilm } from "@/components/about/AboutFilm";
 import { BirthdayCelebrations } from "@/components/about/BirthdayCelebrations";
 import { MomentsMarquee } from "@/components/about/MomentsMarquee";
 import { PageMotifs } from "@/components/decor/PageMotifs";
@@ -9,7 +10,7 @@ const timeline = [
   {
     year: "2019",
     title: "A small idea, baked with intention",
-    body: "Keyafe was born in Belur, Howrah, as a family dream built around joyful celebration cakes, fresh bakes, and honest service.",
+    body: "Keyafe was born as a family dream built around joyful celebration cakes, fresh bakes, and honest service.",
   },
   {
     year: "2020-2023",
@@ -79,7 +80,7 @@ const principles = [
   },
   {
     title: "Service without stress",
-    text: "We manage our own deliveries and keep the experience warm, timely and dependable across our service areas.",
+    text: "We pack every order to travel and send it with trusted delivery partners, or bring it over ourselves, so it arrives on time across our service areas.",
   },
 ];
 
@@ -140,6 +141,8 @@ export function AboutPage() {
           ))}
         </div>
       </section>
+
+      <AboutFilm />
 
       <BirthdayCelebrations />
 

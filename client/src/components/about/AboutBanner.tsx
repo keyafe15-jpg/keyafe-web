@@ -1,11 +1,6 @@
 import { ABOUT_BANNER, KEYAFE_FOUNDED_YEAR } from "@/content/about";
 
-const stats = [
-  `Since ${KEYAFE_FOUNDED_YEAR}`,
-  "Belur, Howrah",
-  "Kolkata · Howrah · Hooghly",
-  "Family-led",
-];
+const stats = [`Since ${KEYAFE_FOUNDED_YEAR}`, "Kolkata · Howrah · Hooghly", "Family-led"];
 
 export function AboutBanner() {
   return (
@@ -44,8 +39,8 @@ export function AboutBanner() {
             className="home-rise mt-3 max-w-xl text-sm leading-6 text-white/85 sm:mt-4 sm:text-base sm:leading-7"
             style={{ animationDelay: "380ms" }}
           >
-            What began on 16 December 2019 in Belur, Howrah, has grown into a heartfelt bakery built
-            with love, patience and a lot of togetherness.
+            What began on 16 December 2019 has grown into a heartfelt bakery built with love,
+            patience and a lot of togetherness, delivering across Kolkata, Howrah and Hooghly.
           </p>
           <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 sm:mt-6 sm:gap-x-6">
             {stats.map((stat, index) => (

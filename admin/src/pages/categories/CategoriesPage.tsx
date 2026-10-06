@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Pencil, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Pencil, X, ChevronDown, ChevronRight, House } from "lucide-react";
 import {
   useAdminCategories,
   useCreateCategory,
@@ -71,7 +71,9 @@ export function CategoriesPage() {
           <h1 className="text-2xl font-semibold text-slate-900">Categories</h1>
           <p className="mt-1 text-sm text-slate-500">
             Main catalogue taxonomy. Two levels supported — top-level and sub-categories. Assign
-            each top-level to a store. Drag rows to set their order.
+            each top-level to a store. Drag rows to set their order. Tap{" "}
+            <span className="font-medium">Home</span> to show a category as a product row on the
+            storefront homepage.
           </p>
         </div>
         <button
@@ -281,7 +283,7 @@ function CategoryRow({
     // Phones: name + switch on the first line, details + edit/delete underneath.
     <div
       className={cn(
-        "grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto_auto_auto] items-center gap-x-1.5 gap-y-0.5 py-2 pr-2 pl-1 transition sm:gap-x-3 sm:py-3 sm:pr-4 sm:pl-2",
+        "grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto_auto_auto_auto] items-center gap-x-1.5 gap-y-0.5 py-2 pr-2 pl-1 transition sm:gap-x-3 sm:py-3 sm:pr-4 sm:pl-2",
         isTop ? "bg-slate-50/40" : "pl-3 sm:pl-8",
         isEditing && "bg-brand-100/30",
       )}
@@ -312,7 +314,7 @@ function CategoryRow({
 
       <p
         className={cn(
-          "col-[4/7] row-[1] truncate font-medium text-slate-900 sm:col-[4]",
+          "col-[4/8] row-[1] truncate font-medium text-slate-900 sm:col-[4]",
           isTop ? "text-sm sm:text-base" : "text-sm",
           !category.isActive && "text-slate-400",
         )}
@@ -342,7 +344,27 @@ function CategoryRow({
         )}
       </p>
 
-      <div className="col-[7] row-[1] justify-self-end sm:col-[5] sm:row-[1/3]">
+      <button
+        type="button"
+        aria-pressed={category.showOnHome}
+        onClick={() => update.mutate({ id: category.id, showOnHome: !category.showOnHome })}
+        title={
+          category.showOnHome
+            ? "Shown as a product row on the homepage — tap to remove"
+            : "Tap to show this category as a product row on the homepage"
+        }
+        className={cn(
+          "col-[6] row-[2] inline-flex items-center gap-1 justify-self-end rounded-full border px-2 py-0.5 text-[11px] font-medium transition sm:col-[5] sm:row-[1/3]",
+          category.showOnHome
+            ? "border-brand-500/40 bg-brand-100 text-brand-700"
+            : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600",
+        )}
+      >
+        <House className="h-3 w-3" />
+        Home
+      </button>
+
+      <div className="col-[8] row-[1] justify-self-end sm:col-[6] sm:row-[1/3]">
         <ActiveSwitch
           checked={category.isActive}
           label={`${category.name} active`}
@@ -353,7 +375,7 @@ function CategoryRow({
       <button
         onClick={onEdit}
         className={cn(
-          "col-[6] row-[2] rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-brand-500 sm:row-[1/3]",
+          "col-[7] row-[2] rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-brand-500 sm:row-[1/3]",
           isEditing && "bg-brand-100/60 text-brand-500",
         )}
         title="Edit"
@@ -375,7 +397,7 @@ function CategoryRow({
             });
           }
         }}
-        className="col-[7] row-[2] rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-brand-500 sm:row-[1/3]"
+        className="col-[8] row-[2] rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-brand-500 sm:row-[1/3]"
         title="Delete"
       >
         <Trash2 className="h-4 w-4" />

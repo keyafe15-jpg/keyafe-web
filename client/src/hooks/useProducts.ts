@@ -123,13 +123,22 @@ export interface TagShowcaseSection {
   products: ProductCard[];
 }
 
-// One row per tag the admin flagged "show on homepage". Empty tags are already
-// filtered out server-side, so anything returned here is safe to render.
-// Three per tag: one feature tile plus the two stacked beside it.
-export function useTagShowcase(limitPerTag = 3) {
-  return useQuery<TagShowcaseSection[]>({
-    queryKey: ["products", "showcase", limitPerTag],
-    queryFn: () => api.get<TagShowcaseSection[]>(`/products/showcase?limit=${limitPerTag}`),
+export interface CategoryRailSection {
+  category: { slug: string; name: string; description: string | null; accentHex: string | null };
+  products: ProductCard[];
+}
+
+export interface HomeSections {
+  featured: ProductCard[];
+  tags: TagShowcaseSection[];
+  categories: CategoryRailSection[];
+}
+
+/** Featured picks, tag rails and category rails for the landing page, in one request. */
+export function useHomeSections() {
+  return useQuery<HomeSections>({
+    queryKey: ["products", "home"],
+    queryFn: () => api.get<HomeSections>("/products/home"),
     staleTime: 30_000,
   });
 }

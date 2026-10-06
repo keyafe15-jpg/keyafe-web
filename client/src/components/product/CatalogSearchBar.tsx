@@ -14,8 +14,6 @@ type CatalogSearchBarProps = {
    * `icon` — compact header control: icon expands into an input.
    */
   variant?: "bar" | "icon";
-  /** Glass styling for the header over the home hero. */
-  overlay?: boolean;
   /** Called after navigating to /search (e.g. close the mobile drawer). */
   onNavigate?: () => void;
 };
@@ -28,7 +26,6 @@ export function CatalogSearchBar({
   className,
   placeholder = "Search cakes, cookies, pizzas…",
   variant = "bar",
-  overlay = false,
   onNavigate,
 }: CatalogSearchBarProps) {
   const navigate = useNavigate();
@@ -78,10 +75,7 @@ export function CatalogSearchBar({
         aria-label="Search products"
         onClick={() => setOpen(true)}
         className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition",
-          overlay
-            ? "text-ink-800 border border-white/50 bg-white/40 backdrop-blur-md hover:bg-white/60"
-            : "border border-[#e7d6b4] bg-white text-ink-700 shadow-sm hover:bg-cream-50",
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#e7d6b4] bg-white text-ink-700 shadow-sm transition hover:bg-cream-50",
           className,
         )}
       >
@@ -99,9 +93,8 @@ export function CatalogSearchBar({
           goNow();
         }}
         className={cn(
-          "flex h-10 items-center gap-1 rounded-full border bg-white pr-1 pl-3 shadow-sm",
+          "flex h-10 items-center gap-1 rounded-full border border-[#e7d6b4] bg-white pr-1 pl-3 shadow-sm",
           "max-sm:absolute max-sm:inset-x-4 max-sm:top-1/2 max-sm:z-10 max-sm:h-11 max-sm:-translate-y-1/2 max-sm:shadow-md",
-          overlay ? "border-white/60" : "border-[#e7d6b4]",
           className,
         )}
       >

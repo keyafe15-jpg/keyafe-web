@@ -21,6 +21,7 @@ adminCategoryRouter.get("/", async (_req, res) => {
       imageUrl: true,
       sortOrder: true,
       isActive: true,
+      showOnHome: true,
       parentId: true,
       departmentId: true,
       department: { select: departmentSelect },
@@ -46,6 +47,7 @@ adminCategoryRouter.get("/", async (_req, res) => {
         imageUrl: r.imageUrl,
         sortOrder: r.sortOrder,
         isActive: r.isActive,
+        showOnHome: r.showOnHome,
         parentId: r.parentId,
         departmentId: department?.id ?? null,
         department,
@@ -69,6 +71,7 @@ const createSchema = z.object({
   departmentId: z.string().nullable().optional(),
   sortOrder: z.coerce.number().int().default(0),
   isActive: z.boolean().default(true),
+  showOnHome: z.boolean().default(false),
 });
 
 async function assertDepartment(id: string) {
