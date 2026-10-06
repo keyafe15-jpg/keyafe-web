@@ -69,7 +69,7 @@ export function StoreDoor({
             backgroundColor: "var(--door-soft)",
           }}
         >
-          <div className="relative aspect-[3/4]">
+          <div className={`relative ${compact ? "aspect-[4/5]" : "aspect-[3/4]"}`}>
             <Awning accent={colors.accentHex} soft={colors.softHex} deep={colors.deepHex} compact={compact} />
             <div
               className={`absolute left-1/2 z-20 w-[82%] -translate-x-1/2 ${
@@ -91,7 +91,7 @@ export function StoreDoor({
                   Welcome to
                 </p>
                 <p
-                  className="brand-wordmark mt-0.5 block leading-none"
+                  className="store-sign-name mt-0.5 block"
                   style={{
                     fontSize: compact
                       ? "clamp(1.05rem, 3.5vw, 1.35rem)"
@@ -143,50 +143,89 @@ export function StoreDoor({
               </div>
             </div>
 
-            {/* Compact: category peek only on hover — no extra layout height */}
+            {/* Compact: categories as window stickers on the glass; they step
+                aside when the doors swing open on hover. */}
             {compact && categories.length > 0 ? (
-              <div className="pointer-events-none absolute inset-x-2 bottom-[10%] z-30 flex translate-y-1 flex-wrap justify-center gap-1 opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-                {categories.slice(0, 2).map((category) => (
-                  <span
+              <ul className="pointer-events-none absolute inset-x-[9%] top-[56%] bottom-[12%] z-10 flex flex-col items-center justify-center gap-1 transition duration-300 group-hover:opacity-0 sm:inset-x-[12%] sm:top-[50%]">
+                {categories.slice(0, 3).map((category, i) => (
+                  <li
                     key={category.id}
-                    className="rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-medium text-ink-700 shadow-sm"
+                    className={`max-w-full truncate rounded-full border bg-white/90 px-2 py-0.5 text-[10px] leading-tight font-semibold shadow-sm sm:text-[11px] ${
+                      i % 2 ? "rotate-2" : "-rotate-2"
+                    } ${i === 2 ? "hidden sm:block" : ""}`}
+                    style={{
+                      color: "var(--door-deep)",
+                      borderColor: "color-mix(in srgb, var(--door-deep) 30%, white)",
+                    }}
                   >
                     {category.name}
-                  </span>
+                  </li>
                 ))}
-              </div>
+                {categories.length > 2 && (
+                  <li
+                    className="text-[10px] font-semibold sm:hidden"
+                    style={{ color: "var(--door-deep)" }}
+                  >
+                    +{categories.length - 2} more
+                  </li>
+                )}
+                {categories.length > 3 && (
+                  <li
+                    className="hidden text-[11px] font-semibold sm:block"
+                    style={{ color: "var(--door-deep)" }}
+                  >
+                    +{categories.length - 3} more
+                  </li>
+                )}
+              </ul>
             ) : null}
 
             <div
-              className="absolute inset-x-0 bottom-0 h-[8%] border-t"
+              className={`absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 border-t ${
+                compact
+                  ? "h-[10%] text-[10px] font-bold tracking-[0.18em] text-white uppercase sm:text-[11px]"
+                  : "h-[8%]"
+              }`}
               style={{
                 borderColor: "color-mix(in srgb, var(--door-deep) 40%, white)",
                 backgroundColor: "color-mix(in srgb, var(--door-accent) 55%, var(--door-deep))",
               }}
-            />
+            >
+              {compact && (
+                <>
+                  {HOME_COPY.storeDoors.enter}
+                  <span
+                    aria-hidden="true"
+                    className="inline-block transition-transform duration-300 group-hover:translate-x-1"
+                  >
+                    →
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <p
-          className={`mt-2 text-center text-ink-700 ${
-            compact ? "text-xs leading-5" : "mt-3 text-sm leading-6"
+          className={`text-center text-ink-700 ${
+            compact ? "mt-2 hidden text-xs leading-5 sm:block" : "mt-3 text-sm leading-6"
           }`}
         >
           {line}
         </p>
-        <span
-          className={`text-brand-600 flex items-center justify-center gap-1 font-semibold transition group-hover:gap-2 ${
-            compact ? "mt-0.5 text-xs" : "mt-1 text-sm"
-          }`}
-          style={{ color: colors.accentHex }}
-        >
-          {HOME_COPY.storeDoors.enter}
+        {!compact && (
           <span
-            aria-hidden="true"
-            className="inline-block transition-transform duration-300 group-hover:translate-x-1"
+            className="text-brand-600 mt-1 flex items-center justify-center gap-1 text-sm font-semibold transition group-hover:gap-2"
+            style={{ color: colors.accentHex }}
           >
-            →
+            {HOME_COPY.storeDoors.enter}
+            <span
+              aria-hidden="true"
+              className="inline-block transition-transform duration-300 group-hover:translate-x-1"
+            >
+              →
+            </span>
           </span>
-        </span>
+        )}
       </Link>
 
       {!compact && !fill ? (
