@@ -10,7 +10,7 @@ import { PincodeChecker } from "@/components/product/PincodeChecker";
 import { SameDayDeliveryPicker } from "@/components/product/SameDayDeliveryPicker";
 import { SegmentedChoice } from "@/components/product/SegmentedChoice";
 import { ProductTagBadge } from "@/components/product/ProductTagBadge";
-import { Price, applyFactor } from "@keyafe/shared";
+import { Price, applyFactor, formatINR } from "@keyafe/shared";
 import type { PincodeCheckResult } from "@/hooks/usePincodeCheck";
 import {
   useProduct,
@@ -23,12 +23,7 @@ import { useMasterFlavours } from "@/hooks/useFlavours";
 import { useCart } from "@/store/cart";
 import { trackAddToCart, trackViewItem } from "@/lib/analytics";
 import { rememberRecentProduct } from "@/lib/recentlyViewed";
-import {
-  CAKE_BASE_GRAMS,
-  cakeVolumeDiscount,
-  computeCakeUnitPrice,
-  gramsToPounds,
-} from "@/lib/cakePrice";
+import { CAKE_BASE_GRAMS, cakeVolumeDiscount, computeCakeUnitPrice } from "@/lib/cakePrice";
 
 type Fulfillment = "delivery" | "pickup";
 
@@ -327,12 +322,9 @@ function PdpContent({ product }: { product: ProductDetail }) {
                 showBadge
                 className="text-3xl text-ink-900"
               />
-              {!factor && effectiveGrams && effectiveGrams !== CAKE_BASE_GRAMS && (
-                <span className="text-xs text-ink-500">
-                  base ₹{basePrice.toFixed(0)}
-                  {flavourDelta > 0 && ` + ₹${flavourDelta.toFixed(0)}`} ×{" "}
-                  {gramsToPounds(effectiveGrams).toFixed(2)}
-                  {volumeOff > 0 && ` − ₹${volumeOff.toFixed(0)}`}
+              {volumeOff > 0 && (
+                <span className="text-xs font-medium text-emerald-700">
+                  {PRODUCT_COPY.labels.sizeSavings(formatINR(applyFactor(volumeOff, factor)))}
                 </span>
               )}
             </div>
@@ -348,7 +340,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
               <p className="mb-2 text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {PRODUCT_COPY.labels.size}
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                 {product.sizes.map((s) => {
                   const price = computeCakeUnitPrice(basePrice, s.grams, flavourDelta);
                   const active = s.id === sizeId && !customGrams;
@@ -361,7 +353,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
                         setCustomPounds("");
                       }}
                       className={cn(
-                        "min-w-[8rem] rounded-lg border px-3 py-2 text-left text-sm transition",
+                        "min-w-0 rounded-lg border px-2 py-1.5 text-left text-sm leading-tight transition sm:px-2.5",
                         active
                           ? "border-brand-500 bg-brand-100 text-brand-700"
                           : "border-cream-200 bg-white text-ink-700 hover:border-brand-300",
@@ -369,9 +361,11 @@ function PdpContent({ product }: { product: ProductDetail }) {
                     >
                       <span className="block font-medium">{s.label}</span>
                       {s.servesText && (
-                        <span className="block text-xs text-ink-500">{s.servesText}</span>
+                        <span className="mt-0.5 block truncate text-[11px] text-ink-500">
+                          {s.servesText}
+                        </span>
                       )}
-                      <span className="mt-1 block text-xs text-ink-700">
+                      <span className="mt-0.5 block text-xs text-ink-700">
                         <Price amount={applyFactor(price, factor)} original={price} />
                       </span>
                     </button>
@@ -380,12 +374,13 @@ function PdpContent({ product }: { product: ProductDetail }) {
               </div>
 
               {product.allowCustomSize && (
-                <div className="mt-3 rounded-lg border border-cream-200 bg-cream-50/40 p-3">
-                  <label className="block text-xs font-medium text-ink-700">
-                    Want more pounds?
-                  </label>
-                  <div className="mt-1.5 flex items-center gap-2">
+                <div className="mt-2">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <label htmlFor="custom-pounds" className="text-xs font-medium text-ink-700">
+                      Want more pounds?
+                    </label>
                     <input
+                      id="custom-pounds"
                       type="number"
                       min={product.minGrams ? product.minGrams / CAKE_BASE_GRAMS : 0.1}
                       max={product.maxGrams ? product.maxGrams / CAKE_BASE_GRAMS : undefined}
@@ -396,9 +391,9 @@ function PdpContent({ product }: { product: ProductDetail }) {
                         if (e.target.value.trim() !== "") setSizeId(null);
                       }}
                       placeholder="e.g. 4"
-                      className="w-24 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
+                      className="w-20 rounded-lg border border-cream-200 bg-white px-2.5 py-1 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
                     />
-                    <span className="text-sm text-ink-700">pounds</span>
+                    <span className="text-xs text-ink-700">pounds</span>
                     {customGrams && customPrice != null && (
                       <span className="text-xs text-ink-500">
                         · {customGrams} g ·{" "}

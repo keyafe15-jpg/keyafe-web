@@ -28,3 +28,12 @@ export {
   type GstLine,
 } from "./priceMath";
 export { Price, type PriceProps } from "./Price";
+export {
+  CAKE_BASE_GRAMS,
+  CAKE_SMALL_SIZE_EXTRA,
+  CAKE_MIN_PRICE,
+  CAKE_VOLUME_SLABS,
+  cakeVolumeDiscount,
+  cakeSmallSizeExtra,
+  computeCakeUnitPrice,
+} from "./cakePrice";

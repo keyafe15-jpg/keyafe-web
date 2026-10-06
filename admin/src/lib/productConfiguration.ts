@@ -1,3 +1,4 @@
+import { CAKE_BASE_GRAMS, computeCakeUnitPrice } from "@keyafe/shared";
 import type {
   AdminOptionGroup,
   AdminProductDetail,
@@ -43,11 +44,7 @@ export function availableFixedSkus(detail: AdminProductDetail | undefined): Admi
   return (detail?.fixedVariants ?? []).filter((v) => v.isAvailable);
 }
 
-/** 500g = 1 pound = 1× basePrice on the storefront. */
-export const CAKE_BASE_GRAMS = 500;
-
-/** ₹30 off per half-pound above 1 lb (1.5 → −50, 2 → −100). */
-export const CAKE_VOLUME_DISCOUNT_PER_HALF_LB = 30;
+export { CAKE_BASE_GRAMS, cakeVolumeDiscount, computeCakeUnitPrice } from "@keyafe/shared";
 
 export function parseCustomPounds(raw: string): number | null {
   const trimmed = raw.trim();
@@ -75,25 +72,6 @@ export function formatCustomPoundLabel(pounds: number): string {
   const rounded = Math.round(pounds * 10) / 10;
   const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
   return `${text} lb`;
-}
-
-export function cakeVolumeDiscount(grams: number): number {
-  const pounds = grams / CAKE_BASE_GRAMS;
-  if (!(pounds > 1)) return 0;
-  const halfPoundsAboveOne = (pounds - 1) / 0.5;
-  return CAKE_VOLUME_DISCOUNT_PER_HALF_LB * halfPoundsAboveOne;
-}
-
-export function computeCakeUnitPrice(
-  basePrice: number,
-  grams: number,
-  flavourAdditional = 0,
-  flavourPricedIn = false,
-): number {
-  const pounds = grams / CAKE_BASE_GRAMS;
-  const delta = flavourPricedIn ? 0 : flavourAdditional;
-  const linear = (basePrice + delta) * pounds;
-  return Math.max(0, Math.round(linear - cakeVolumeDiscount(grams)));
 }
 
 export function cakeSizeSelectLabel(

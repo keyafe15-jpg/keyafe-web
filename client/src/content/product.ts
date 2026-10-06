@@ -29,6 +29,7 @@ export const PRODUCT_COPY = {
     addToCart: "Add to cart",
     total: "Total",
     priceIncludesGst: "Inclusive of all taxes",
+    sizeSavings: (amount: string) => `You save ${amount} on this size`,
   },
   timeSlots: [
     {

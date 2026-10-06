@@ -28,7 +28,8 @@ export const HOME_COPY = {
     // The home page h1: what we make and where. Kept deliberately literal so
     // both first-time visitors and search engines can tell at a glance what
     // this bakery actually sells.
-    offering: "Custom cakes, cookies, brownies, hampers & pizzas in Kolkata, Howrah & Hooghly",
+    offering: "Custom cakes, cookies, brownies, hampers, pizzas & creative savouries",
+    offeringPlace: "baked to order in Kolkata, Howrah & Hooghly",
     primaryCta: { to: "/store/dessert", label: "Dessert store" },
     secondaryCta: { to: "/store/savory", label: "Savoury store" },
   },

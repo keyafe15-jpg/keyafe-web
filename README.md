@@ -194,7 +194,10 @@ Every module under `server/src/modules/` follows the same shape:
   - `ABSOLUTE` (e.g. pizza sizes) — the `Option.price` replaces `basePrice`
   - `DELTA` (e.g. crust choice) — the `Option.price` is added on top
 - **`Topping`** — shared master list, `kind` distinguishes toppings from condiments/extras. Linked to a product via `Product.toppings` (M2M).
-- **`CakeSize` + `Flavor.additionalAmount`** — cakes stay multiplicative: `price = (basePrice + flavourDelta) × (grams / 500)`.
+- **`CakeSize` + `Flavor.additionalAmount`** — cakes start multiplicative: `(basePrice + flavourDelta) × (grams / 500)`, then (see `packages/shared/src/cakePrice.ts`):
+  - under 1 lb: +₹100, capped at the 1 lb price
+  - above 1 lb: gradual discount per half-pound — ₹30 up to 2 lb, ₹50 from 2–4 lb, ₹85 above 4 lb
+  - never below ₹300 before the product's discount factor
 - **`OrderLink`** — the "offline order via WhatsApp link" flow. Admin snapshots the spec + price, customer redeems the token to place a real `Order`.
 
 ---

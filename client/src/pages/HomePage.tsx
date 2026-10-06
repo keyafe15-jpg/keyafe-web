@@ -159,13 +159,16 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto flex max-w-6xl flex-col gap-3 px-4 pt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-        <h1 className="font-display text-lg leading-snug text-ink-900 sm:text-xl">
-          {HOME_COPY.hero.offering}
+      <section className="relative z-10 mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 pt-5 text-center sm:gap-4">
+        <h1 className="max-w-3xl font-headline text-xl leading-snug font-medium tracking-normal text-balance text-ink-900 sm:text-2xl">
+          {HOME_COPY.hero.offering}{" "}
+          <span className="mt-0.5 block text-base font-normal text-brand-700 italic sm:text-lg">
+            {HOME_COPY.hero.offeringPlace}
+          </span>
         </h1>
         <CatalogSearchBar
           placeholder={HOME_COPY.search.placeholder}
-          className="w-full border-white/60 bg-white/70 backdrop-blur-sm sm:max-w-sm"
+          className="w-full max-w-xl border-white/60 bg-white/70 backdrop-blur-sm"
         />
       </section>
 
