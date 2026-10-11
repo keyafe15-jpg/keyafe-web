@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
+import { sendOrderStatusWhatsApp } from "./order.whatsapp.js";
 import { editOrderItems, editOrderItemsSchema } from "./order.edit-items.js";
 import { updateBuyerGst, updateBuyerGstSchema } from "./order.buyer-gst.js";
 import { deleteOrder, deleteOrderSchema } from "./order.delete.js";
@@ -991,6 +992,7 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
   const { advanceAmount, paymentStatus, status, items, ...rest } = parsed.data;
   const data: Omit<typeof parsed.data, "items"> = { ...rest };
 
+  let previousStatus: OrderStatus | undefined;
   if (status === "CANCELLED") {
     const staff = (req as AuthenticatedRequest).staff;
     if (!staff || !staffHasPermission(staff, "orders.cancel")) {
@@ -998,6 +1000,9 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     }
     await cancelOrderAsAdmin(id);
   } else if (status !== undefined) {
+    const existing = await prisma.order.findUnique({ where: { id }, select: { status: true } });
+    if (!existing) throw HttpError.notFound("Order not found");
+    previousStatus = existing.status;
     data.status = status;
   }
 
@@ -1098,5 +1103,17 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
       logger.error({ err, orderId: id }, "invoice number on delivery failed");
     }
   }
+
+  if (
+    previousStatus &&
+    status &&
+    status !== previousStatus &&
+    (status === "OUT_FOR_DELIVERY" || status === "DELIVERED")
+  ) {
+    void sendOrderStatusWhatsApp(updated, status).catch((err) => {
+      logger.error({ err, orderId: id, status }, "order status whatsapp failed");
+    });
+  }
+
   res.json(updated);
 });

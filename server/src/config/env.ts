@@ -48,11 +48,18 @@ const envSchema = z.object({
   VAPID_SUBJECT: z.string().default("mailto:admin@keyafe.in"),
 
   // WhatsApp Cloud API (Meta). Leave blank until the bakery number is connected;
-  // sendStaffWhatsApp() then only logs. WHATSAPP_STAFF_TO is comma-separated
-  // E.164-ish numbers (e.g. 919330048665) that receive staff alerts.
+  // sends then only log. WHATSAPP_STAFF_TO is comma-separated E.164-ish
+  // numbers (e.g. 919330048665) that receive staff alerts.
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_STAFF_TO: z.string().optional(),
+  WHATSAPP_TEMPLATE_LANG: z.string().default("en_US"),
+  WHATSAPP_TPL_ORDER_CONFIRM: z.string().default("keyafe_order_confirmation"),
+  WHATSAPP_TPL_NEW_ORDER_STAFF: z.string().default("keyafe_new_order_staff"),
+  WHATSAPP_TPL_OUT_FOR_DELIVERY: z.string().default("keyafe_out_for_delivery"),
+  WHATSAPP_TPL_DELIVERED: z.string().default("keyafe_order_delivered"),
+  WHATSAPP_TPL_CANCELLED: z.string().default("keyafe_order_cancelled"),
+  WHATSAPP_TPL_CANCELLED_STAFF: z.string().default("keyafe_order_cancelled_staff"),
 
   // MSG91 SMS OTP — all three required for real delivery. If any are missing,
   // send-otp falls back to the dev stub (OTP in API response / logs only).

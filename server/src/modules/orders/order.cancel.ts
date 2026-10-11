@@ -6,8 +6,8 @@ import { renderAdminCancelled, renderCustomerCancelled } from "../email/template
 import { getBusinessContact } from "../store/businessContact.js";
 import { logger } from "../../utils/logger.js";
 import { emitOrderCancelled } from "../../lib/events.js";
-import { sendStaffWhatsApp } from "../../lib/whatsapp.js";
 import { getPublicOrder } from "./order.service.js";
+import { notifyOrderCancelledWhatsApp } from "./order.whatsapp.js";
 
 /** Customers cannot cancel once the kitchen has started (or later). */
 const KITCHEN_OR_LATER: ReadonlySet<OrderStatus> = new Set([
@@ -187,7 +187,6 @@ async function notifyCancelled(
     select: {
       supportEmail: true,
       orderNotificationEmail: true,
-      supportPhone: true,
     },
   });
   const adminRecipients = [
@@ -236,12 +235,5 @@ async function notifyCancelled(
     );
   }
 
-  const who = by === "customer" ? "Customer" : "Admin";
-  const waBody = [
-    `Order cancelled · ${order.orderNumber}`,
-    `${who} cancelled an order from ${order.customerName}`,
-    `${order.customerPhone} · ₹${Number(order.total).toFixed(0)} · ${order.items.length} item${order.items.length === 1 ? "" : "s"}`,
-  ].join("\n");
-
-  await sendStaffWhatsApp(waBody, settings?.supportPhone ? [settings.supportPhone] : []);
+  await notifyOrderCancelledWhatsApp(order, by);
 }

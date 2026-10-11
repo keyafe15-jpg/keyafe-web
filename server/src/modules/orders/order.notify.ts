@@ -6,18 +6,23 @@ import { sendEmail } from "../email/email.service.js";
 import { renderAdminNotification, renderCustomerConfirmation } from "../email/templates.js";
 import { getBusinessContact } from "../store/businessContact.js";
 import { invoiceAttachmentIfPaid } from "./invoice.service.js";
+import { notifyOrderPlacedWhatsApp } from "./order.whatsapp.js";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
 /**
  * "New order" side effects: customer confirmation (with the tax invoice when
- * already paid), the admin email, and the live SSE/push alert. COD orders fire
- * this at placement; online-payment orders only once the gateway confirms, so
- * the kitchen never sees abandoned checkouts. Never throws.
+ * already paid), the admin email, WhatsApp templates (customer + staff), and
+ * the live SSE/push alert. COD orders fire this at placement; online-payment
+ * orders only once the gateway confirms, so the kitchen never sees abandoned
+ * checkouts. Never throws.
  */
 export function notifyOrderPlaced(order: OrderWithItems) {
   void sendOrderEmails(order).catch((err) => {
     logger.error({ err, orderId: order.id }, "order email dispatch failed");
+  });
+  void notifyOrderPlacedWhatsApp(order).catch((err) => {
+    logger.error({ err, orderId: order.id }, "order whatsapp dispatch failed");
   });
 
   emitNewOrder({

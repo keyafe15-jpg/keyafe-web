@@ -429,8 +429,8 @@ export function CheckoutPage() {
         </Link>
         <h1 className="mt-2 font-display text-3xl text-ink-900">Checkout</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Continue as a guest — no account needed. We’ll confirm with you on your phone
-          {isSurpriseGift ? " (we won’t message the recipient)" : ""}.
+          Continue as a guest — no account needed. We’ll send order updates on WhatsApp to this
+          number{isSurpriseGift ? " (we won’t message the recipient)" : ""}.
         </p>
       </div>
 
@@ -1224,7 +1224,7 @@ export function CheckoutPage() {
                 href="/cancellation-policy"
                 target="_blank"
                 rel="noreferrer"
-                className="underline hover:text-brand-600"
+                className="hover:text-brand-600 underline"
               >
                 cancellation &amp; refund policy
               </a>
