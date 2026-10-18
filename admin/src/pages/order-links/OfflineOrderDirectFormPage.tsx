@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -45,6 +45,8 @@ import { useFlavours } from "@/hooks/useFlavours";
 import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
 import { AddressPlacesSearch, type ParsedPlace } from "@/components/address/AddressPlacesSearch";
+import { CustomerLookupField } from "@/components/form/CustomerLookup";
+import type { OrderCustomerLookupAddress, OrderCustomerLookupHit } from "@/hooks/useAdminCustomers";
 import type { DeliveryDistrict } from "@/hooks/useAdminDeliveryPincodes";
 import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
@@ -151,11 +153,15 @@ export function OfflineOrderDirectFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
-  /** Editable delivery fee; prefilled from pincode table when the check succeeds. */
+  /** Editable delivery fee; last charged amount wins over the pincode table. */
   const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
   const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(true);
+  const skipTableFeeRef = useRef(false);
+  const [lastChargedFee, setLastChargedFee] = useState<number | null>(null);
   /** Last address picked from the map search; only trusted while its pincode is still typed. */
   const [pickedPlace, setPickedPlace] = useState<ParsedPlace | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<OrderCustomerLookupAddress[]>([]);
+  const [pickedAddressId, setPickedAddressId] = useState("");
   const canSavePincode = useStaffPermission("delivery.write");
   const [savePincode, setSavePincode] = useState(true);
   const [zoneCity, setZoneCity] = useState("");
@@ -176,6 +182,47 @@ export function OfflineOrderDirectFormPage() {
   }, [pincode]);
 
   const hasOtherRecipient = fulfillment === "DELIVERY" && !recipientIsCustomer;
+
+  const applyLookupAddress = (addr: OrderCustomerLookupAddress) => {
+    setLine1(addr.line1);
+    setLine2(addr.line2 ?? "");
+    setLandmark(addr.landmark ?? "");
+    setMapSearchQuery(addr.mapSearchQuery || addr.line1);
+    setPincode(addr.pincode);
+    setPickedPlace(null);
+    setPickedAddressId(addr.id);
+    if (addr.deliveryFee != null) {
+      setDeliveryFeeInput(String(Number(addr.deliveryFee)));
+      setDeliveryPaidToRider(addr.deliveryPaidToRider ?? false);
+      skipTableFeeRef.current = true;
+      setLastChargedFee(Number(addr.deliveryFee));
+    } else {
+      skipTableFeeRef.current = false;
+      setLastChargedFee(null);
+    }
+    if (!recipientIsCustomer) return;
+    if (addr.recipientName) setRecipientName(addr.recipientName);
+    if (addr.phone) setDeliveryPhone(addr.phone);
+  };
+
+  const applyCustomerHit = (hit: OrderCustomerLookupHit) => {
+    setCustomerName(hit.name);
+    setCustomerPhone(hit.phone);
+    setCustomerEmail(hit.email ?? "");
+    if (hit.gstin) {
+      setIsBusinessOrder(true);
+      setCustomerGstin(hit.gstin);
+      setCustomerCompanyName(hit.companyName ?? "");
+    }
+    setSavedAddresses(hit.addresses);
+    if (hit.addresses.length === 1) {
+      applyLookupAddress(hit.addresses[0]!);
+    } else if (hit.addresses.length > 1) {
+      setPickedAddressId("");
+    } else {
+      setPickedAddressId("");
+    }
+  };
 
   useEffect(() => {
     if (!hasOtherRecipient) setIsSurpriseGift(false);
@@ -209,6 +256,7 @@ export function OfflineOrderDirectFormPage() {
       setDeliveryFeeInput("");
       return;
     }
+    if (skipTableFeeRef.current) return;
     if (pincodeInfo?.serviceable) {
       setDeliveryFeeInput(String(Number(pincodeInfo.deliveryFee)));
     } else {
@@ -457,21 +505,21 @@ export function OfflineOrderDirectFormPage() {
 
           <Section title="Customer">
             <div className={pairGrid}>
-              <Field label="Name" required>
-                <input
+              <Field label="Name" required hint="Type to search past customers">
+                <CustomerLookupField
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  onChange={setCustomerName}
+                  onSelect={applyCustomerHit}
                   placeholder="Aarav Kumar"
-                  className={inputClass}
                 />
               </Field>
-              <Field label="Phone" required>
-                <input
+              <Field label="Phone" required hint="Type to search by number">
+                <CustomerLookupField
                   type="tel"
                   value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  onChange={setCustomerPhone}
+                  onSelect={applyCustomerHit}
                   placeholder="9876543210"
-                  className={inputClass}
                 />
               </Field>
               <Field label="Email" className="col-span-2">
@@ -622,13 +670,37 @@ export function OfflineOrderDirectFormPage() {
 
               {fulfillment === "DELIVERY" && (
                 <>
+                  {savedAddresses.length > 1 && (
+                    <Field label="Use address" className="col-span-2">
+                      <select
+                        value={pickedAddressId}
+                        onChange={(e) => {
+                          const addr = savedAddresses.find((a) => a.id === e.target.value);
+                          if (addr) applyLookupAddress(addr);
+                        }}
+                        className={selectClass}
+                      >
+                        <option value="">Choose a saved address</option>
+                        {savedAddresses.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.label} · {a.line1}
+                            {a.pincode ? ` · ${a.pincode}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  )}
                   <Field label="Search address" required className="col-span-2">
                     <AddressPlacesSearch
                       value={mapSearchQuery}
                       onChange={setMapSearchQuery}
                       onPlaceSelect={(place) => {
                         if (place.line1) setLine1(place.line1);
-                        if (place.pincode) setPincode(place.pincode);
+                        if (place.pincode) {
+                          skipTableFeeRef.current = false;
+                          setLastChargedFee(null);
+                          setPincode(place.pincode);
+                        }
                         setPickedPlace(place);
                       }}
                       placeholder="Building, society, or area"
@@ -663,7 +735,11 @@ export function OfflineOrderDirectFormPage() {
                       inputMode="numeric"
                       maxLength={6}
                       value={pincode}
-                      onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onChange={(e) => {
+                        skipTableFeeRef.current = false;
+                        setLastChargedFee(null);
+                        setPincode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                      }}
                       placeholder="700001"
                       className={inputClass}
                     />
@@ -696,7 +772,9 @@ export function OfflineOrderDirectFormPage() {
                           ? pincodeError
                           : unlistedPincode
                             ? `${pincode} isn't in your delivery pincodes. Enter the delivery charge for this order.`
-                            : `${pincodeInfo?.city ?? ""}${pincodeInfo?.area ? ` · ${pincodeInfo.area}` : ""} · table rate ₹${Number(pincodeInfo?.deliveryFee ?? 0).toFixed(0)} — edit if charging differently`}
+                            : lastChargedFee != null
+                              ? `${pincodeInfo?.city ?? ""}${pincodeInfo?.area ? ` · ${pincodeInfo.area}` : ""} · last charged ₹${lastChargedFee.toFixed(0)} — edit if charging differently`
+                              : `${pincodeInfo?.city ?? ""}${pincodeInfo?.area ? ` · ${pincodeInfo.area}` : ""} · table rate ₹${Number(pincodeInfo?.deliveryFee ?? 0).toFixed(0)} — edit if charging differently`}
                     </p>
                   )}
                   {unlistedPincode && canSavePincode && (

@@ -599,6 +599,270 @@ function formatCustomerOrderRow(o: Prisma.OrderGetPayload<{ select: typeof ORDER
   };
 }
 
+const LOOKUP_LIMIT = 8;
+
+export interface OrderCustomerLookupAddress {
+  id: string;
+  label: string;
+  recipientName: string;
+  phone: string;
+  line1: string;
+  line2: string | null;
+  landmark: string | null;
+  mapSearchQuery: string;
+  city: string;
+  state: string;
+  pincode: string;
+  /** Last non-cancelled delivery charge for this line1 + pincode, if any. */
+  deliveryFee: number | null;
+  deliveryPaidToRider: boolean | null;
+}
+
+export interface OrderCustomerLookupHit {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  companyName: string | null;
+  gstin: string | null;
+  lastDeliveryFee: number | null;
+  lastDeliveryPaidToRider: boolean | null;
+  addresses: OrderCustomerLookupAddress[];
+}
+
+function isLookupQuery(q: string): boolean {
+  const query = q.trim();
+  const digits = query.replace(/\D/g, "");
+  return query.length >= 3 || digits.length >= 6;
+}
+
+function asDeliveryAddress(value: unknown): {
+  line1: string;
+  line2: string | null;
+  landmark: string | null;
+  mapSearchQuery: string;
+  city: string;
+  state: string;
+  pincode: string;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  const a = value as Record<string, unknown>;
+  const line1 = typeof a.line1 === "string" ? a.line1.trim() : "";
+  const pincode = typeof a.pincode === "string" ? a.pincode.trim() : "";
+  if (line1.length < 3 || !/^\d{6}$/.test(pincode)) return null;
+  return {
+    line1,
+    line2: typeof a.line2 === "string" && a.line2.trim() ? a.line2.trim() : null,
+    landmark: typeof a.landmark === "string" && a.landmark.trim() ? a.landmark.trim() : null,
+    mapSearchQuery:
+      typeof a.mapSearchQuery === "string" && a.mapSearchQuery.trim()
+        ? a.mapSearchQuery.trim()
+        : line1,
+    city: typeof a.city === "string" ? a.city.trim() : "",
+    state: typeof a.state === "string" ? a.state.trim() : "",
+    pincode,
+  };
+}
+
+/**
+ * Compact search for admin order forms: name/phone matches plus last GSTIN
+ * and saved / last-delivery addresses. Does not write anything.
+ */
+export async function lookupCustomersForOrder(q: string): Promise<OrderCustomerLookupHit[]> {
+  const query = q.trim();
+  if (!isLookupQuery(query)) return [];
+
+  const digits = query.replace(/\D/g, "");
+  const orUser: Prisma.UserWhereInput[] = [];
+  const orOrder: Prisma.OrderWhereInput[] = [];
+  if (query.length >= 3) {
+    orUser.push(
+      { name: { contains: query, mode: "insensitive" } },
+      { email: { contains: query, mode: "insensitive" } },
+    );
+    orOrder.push({ customerName: { contains: query, mode: "insensitive" } });
+  }
+  if (digits.length >= 3) {
+    orUser.push({ phone: { contains: digits } });
+    orOrder.push({ customerPhone: { contains: digits } });
+  }
+
+  if (orUser.length === 0) return [];
+
+  const [users, orderHits] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: { slug: "customer" }, OR: orUser },
+      take: LOOKUP_LIMIT,
+      orderBy: { updatedAt: "desc" },
+      include: { addresses: { orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }] } },
+    }),
+    prisma.order.findMany({
+      where: { OR: orOrder },
+      take: 40,
+      orderBy: { createdAt: "desc" },
+      select: {
+        customerName: true,
+        customerPhone: true,
+        customerEmail: true,
+        customerCompanyName: true,
+        customerGstin: true,
+        recipientName: true,
+        deliveryPhone: true,
+        deliveryAddress: true,
+        fulfillment: true,
+        status: true,
+        deliveryFee: true,
+        deliveryPaidToRider: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  type Draft = {
+    id: string;
+    name: string;
+    phone: string;
+    email: string | null;
+    companyName: string | null;
+    gstin: string | null;
+    lastDeliveryFee: number | null;
+    lastDeliveryPaidToRider: boolean | null;
+    addresses: OrderCustomerLookupAddress[];
+    seenAddr: Set<string>;
+  };
+
+  const byPhone = new Map<string, Draft>();
+
+  const ensure = (phoneRaw: string, name: string, email: string | null, id?: string): Draft => {
+    const phone = normalizeCustomerPhone(phoneRaw);
+    const existing = byPhone.get(phone);
+    if (existing) {
+      if (!existing.email && email) existing.email = email;
+      if (existing.name.length < 2 && name.trim().length >= 2) existing.name = name.trim();
+      return existing;
+    }
+    const draft: Draft = {
+      id: id ?? `contact-${phone}`,
+      name: name.trim() || phone,
+      phone,
+      email: email?.trim() || null,
+      companyName: null,
+      gstin: null,
+      lastDeliveryFee: null,
+      lastDeliveryPaidToRider: null,
+      addresses: [],
+      seenAddr: new Set(),
+    };
+    byPhone.set(phone, draft);
+    return draft;
+  };
+
+  const pushAddress = (draft: Draft, addr: OrderCustomerLookupAddress) => {
+    const key = `${addr.pincode}|${addr.line1.toLowerCase()}`;
+    if (draft.seenAddr.has(key)) return;
+    draft.seenAddr.add(key);
+    draft.addresses.push(addr);
+  };
+
+  for (const user of users) {
+    const draft = ensure(user.phone, user.name, user.email, user.id);
+    draft.id = user.id;
+    draft.name = user.name;
+    draft.phone = normalizeCustomerPhone(user.phone);
+    draft.email = user.email;
+    for (const a of user.addresses) {
+      pushAddress(draft, {
+        id: a.id,
+        label: a.label?.trim() || (a.isDefault ? "Default" : "Saved"),
+        recipientName: a.recipientName,
+        phone: a.phone,
+        line1: a.line1,
+        line2: a.line2,
+        landmark: a.landmark,
+        mapSearchQuery: a.mapSearchQuery,
+        city: a.city,
+        state: a.state,
+        pincode: a.pincode,
+        deliveryFee: null,
+        deliveryPaidToRider: null,
+      });
+    }
+  }
+
+  for (const order of orderHits) {
+    const draft = ensure(order.customerPhone, order.customerName, order.customerEmail);
+    if (!draft.gstin && order.customerGstin) {
+      draft.gstin = order.customerGstin;
+      draft.companyName = order.customerCompanyName;
+    }
+    const qualifies = order.fulfillment === "DELIVERY" && order.status !== "CANCELLED";
+    if (!qualifies) continue;
+
+    const fee = Number(order.deliveryFee);
+    if (draft.lastDeliveryFee == null) {
+      draft.lastDeliveryFee = fee;
+      draft.lastDeliveryPaidToRider = order.deliveryPaidToRider;
+    }
+
+    const parsed = asDeliveryAddress(order.deliveryAddress);
+    if (!parsed) continue;
+
+    const key = `${parsed.pincode}|${parsed.line1.toLowerCase()}`;
+    if (draft.seenAddr.has(key)) {
+      const existing = draft.addresses.find(
+        (a) => `${a.pincode}|${a.line1.toLowerCase()}` === key,
+      );
+      if (existing && existing.deliveryFee == null) {
+        existing.deliveryFee = fee;
+        existing.deliveryPaidToRider = order.deliveryPaidToRider;
+      }
+      continue;
+    }
+
+    pushAddress(draft, {
+      id: `last-${draft.phone}-${parsed.pincode}-${draft.addresses.length}`,
+      label: "Last delivery",
+      recipientName: order.recipientName?.trim() || draft.name,
+      phone: order.deliveryPhone?.trim() || draft.phone,
+      ...parsed,
+      deliveryFee: fee,
+      deliveryPaidToRider: order.deliveryPaidToRider,
+    });
+  }
+
+  const ranked = [...byPhone.values()];
+  const qLower = query.toLowerCase();
+  ranked.sort((a, b) => {
+    const aPhone = a.phone.startsWith(digits) || a.phone.includes(digits) ? 0 : 1;
+    const bPhone = b.phone.startsWith(digits) || b.phone.includes(digits) ? 0 : 1;
+    if (digits.length >= 6 && aPhone !== bPhone) return aPhone - bPhone;
+    const aName = a.name.toLowerCase().startsWith(qLower) ? 0 : 1;
+    const bName = b.name.toLowerCase().startsWith(qLower) ? 0 : 1;
+    if (aName !== bName) return aName - bName;
+    return a.name.localeCompare(b.name);
+  });
+
+  const top = ranked.slice(0, LOOKUP_LIMIT);
+  const needingGst = top.filter((h) => !h.gstin);
+  if (needingGst.length > 0) {
+    const variants = needingGst.flatMap((h) => phoneLookupVariants(h.phone));
+    const gstOrders = await prisma.order.findMany({
+      where: { customerPhone: { in: variants }, customerGstin: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { customerPhone: true, customerGstin: true, customerCompanyName: true },
+    });
+    for (const order of gstOrders) {
+      const draft = byPhone.get(normalizeCustomerPhone(order.customerPhone));
+      if (draft && !draft.gstin && order.customerGstin) {
+        draft.gstin = order.customerGstin;
+        draft.companyName = order.customerCompanyName;
+      }
+    }
+  }
+
+  return top.map(({ seenAddr: _seen, ...hit }) => hit);
+}
+
 /** One-off: link historical guest orders to customer rows. */
 export async function backfillGuestCustomersFromOrders() {
   const orders = await prisma.order.findMany({

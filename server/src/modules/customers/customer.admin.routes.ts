@@ -1,8 +1,14 @@
 import { Router } from "express";
-import { getCustomerDetail, listCustomers } from "./customer.service.js";
+import { getCustomerDetail, listCustomers, lookupCustomersForOrder } from "./customer.service.js";
 
-// TODO: gate behind requireAuth + requirePermission("customers.read") once auth is wired.
 export const adminCustomerRouter = Router();
+
+/** Name/phone search for offline-order forms. Mounted with looser permissions than the rest. */
+export const adminCustomerLookupRouter = Router();
+adminCustomerLookupRouter.get("/", async (req, res) => {
+  const q = typeof req.query.q === "string" ? req.query.q : "";
+  res.json(await lookupCustomersForOrder(q));
+});
 
 adminCustomerRouter.get("/", async (req, res) => {
   const search = typeof req.query.search === "string" ? req.query.search : undefined;

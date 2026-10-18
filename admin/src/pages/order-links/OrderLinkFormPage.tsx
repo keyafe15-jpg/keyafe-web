@@ -32,6 +32,8 @@ import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
 import { cn } from "@/lib/cn";
 import { orderLinkUrl } from "@/lib/storefront";
+import { CustomerLookupField } from "@/components/form/CustomerLookup";
+import type { OrderCustomerLookupHit } from "@/hooks/useAdminCustomers";
 
 export function OrderLinkFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -64,6 +66,15 @@ export function OrderLinkFormPage() {
   } | null>(null);
 
   useOrderItemRefPreviews(items, setItems);
+
+  const applyCustomerHit = (hit: OrderCustomerLookupHit) => {
+    setCustomerName(hit.name);
+    setCustomerPhone(hit.phone);
+    if (hit.lastDeliveryFee != null) {
+      setDeliveryFeeInput(String(Number(hit.lastDeliveryFee)));
+      setDeliveryPaidToRider(hit.lastDeliveryPaidToRider ?? false);
+    }
+  };
 
   // Prefill from existing link on edit.
   useEffect(() => {
@@ -244,21 +255,21 @@ export function OrderLinkFormPage() {
 
           <Section title="Customer (optional)" subtitle="Pre-fills the WhatsApp message.">
             <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:gap-x-4">
-              <Field label="Name">
-                <input
+              <Field label="Name" hint="Type to search past customers">
+                <CustomerLookupField
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  onChange={setCustomerName}
+                  onSelect={applyCustomerHit}
                   placeholder="Aarav Kumar"
-                  className={inputClass}
                 />
               </Field>
-              <Field label="WhatsApp">
-                <input
+              <Field label="WhatsApp" hint="Type to search by number">
+                <CustomerLookupField
                   type="tel"
                   value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  onChange={setCustomerPhone}
+                  onSelect={applyCustomerHit}
                   placeholder="9876543210"
-                  className={inputClass}
                 />
               </Field>
               <Field label="Admin notes (internal)" className="col-span-2">

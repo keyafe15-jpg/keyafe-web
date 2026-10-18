@@ -136,6 +136,49 @@ export function useAdminCustomers({
   });
 }
 
+export interface OrderCustomerLookupAddress {
+  id: string;
+  label: string;
+  recipientName: string;
+  phone: string;
+  line1: string;
+  line2: string | null;
+  landmark: string | null;
+  mapSearchQuery: string;
+  city: string;
+  state: string;
+  pincode: string;
+  deliveryFee?: number | null;
+  deliveryPaidToRider?: boolean | null;
+}
+
+export interface OrderCustomerLookupHit {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  companyName: string | null;
+  gstin: string | null;
+  lastDeliveryFee?: number | null;
+  lastDeliveryPaidToRider?: boolean | null;
+  addresses: OrderCustomerLookupAddress[];
+}
+
+export function useOrderCustomerLookup(query: string) {
+  const q = query.trim();
+  const digits = q.replace(/\D/g, "");
+  const enabled = q.length >= 3 || digits.length >= 6;
+
+  return useQuery<OrderCustomerLookupHit[]>({
+    queryKey: ["admin", "customers", "lookup", q],
+    queryFn: () =>
+      api.get<OrderCustomerLookupHit[]>(`/admin/customers/lookup?q=${encodeURIComponent(q)}`),
+    enabled,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
 export function useAdminCustomerDetail(id: string | null) {
   return useQuery<AdminCustomerDetail>({
     queryKey: ["admin", "customer", id],

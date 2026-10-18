@@ -55,6 +55,7 @@ import { textareaClass, inputClass } from "@/components/form/Field";
 import { uploadImage } from "@/lib/uploads";
 import { TIME_SLOTS } from "@/content/slots";
 import { useStaffPermission } from "@/lib/permissions";
+import { useOrderCustomerLookup } from "@/hooks/useAdminCustomers";
 import { OrderItemsEditPanel } from "@/components/orders/OrderItemsEditPanel";
 import { OrderItemCard, SlotSelect, slotLabelFor } from "@/components/orders/OrderItemCard";
 import {
@@ -1277,6 +1278,8 @@ function BuyerGstEditor({
   const save = useUpdateBuyerGst();
   const [companyName, setCompanyName] = useState(order.customerCompanyName ?? "");
   const [gstin, setGstin] = useState(order.customerGstin ?? "");
+  const pastGst = useOrderCustomerLookup(order.customerGstin ? "" : order.customerPhone);
+  const pastHit = pastGst.data?.find((h) => h.gstin);
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1342,6 +1345,19 @@ function BuyerGstEditor({
           {touched && gstinError && <span className="text-xs text-red-700">{gstinError}</span>}
         </label>
       </div>
+
+      {!order.customerGstin && pastHit?.gstin && (
+        <button
+          type="button"
+          onClick={() => {
+            setCompanyName(pastHit.companyName ?? "");
+            setGstin(pastHit.gstin ?? "");
+          }}
+          className="text-xs font-medium text-brand-700 hover:underline"
+        >
+          Fill from this phone ({pastHit.gstin})
+        </button>
+      )}
 
       {stateChanges && (
         <p className="rounded bg-amber-50 px-2 py-1.5 text-xs text-amber-800">

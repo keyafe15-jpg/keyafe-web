@@ -49,7 +49,10 @@ import { couponRouter } from "./modules/coupons/coupon.routes.js";
 import { adminCouponRouter } from "./modules/coupons/coupon.admin.routes.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { addressRouter } from "./modules/addresses/address.routes.js";
-import { adminCustomerRouter } from "./modules/customers/customer.admin.routes.js";
+import {
+  adminCustomerLookupRouter,
+  adminCustomerRouter,
+} from "./modules/customers/customer.admin.routes.js";
 import { adminStaffRouter } from "./modules/staff/staff.routes.js";
 import {
   adminPaymentRouter,
@@ -217,6 +220,12 @@ export function createApp() {
     requireStaff,
     requirePermission("coupons.write"),
     adminCouponRouter,
+  );
+  app.use(
+    "/api/admin/customers/lookup",
+    requireStaff,
+    requirePermission("customers.read", "offline-orders.write", "orders.update"),
+    adminCustomerLookupRouter,
   );
   app.use(
     "/api/admin/customers",
