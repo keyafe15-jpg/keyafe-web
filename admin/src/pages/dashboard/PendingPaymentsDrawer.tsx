@@ -11,7 +11,11 @@ import {
 } from "@/hooks/useCollections";
 import { STALL_KEY } from "@/pages/stall/stall-ui";
 import { useUpdateOrder } from "@/hooks/useAdminOrders";
-import { StatusPill } from "@/pages/orders/order-ui";
+import {
+  OFFLINE_PAYMENT_METHODS,
+  StatusPill,
+  type OfflinePaymentMethod,
+} from "@/pages/orders/order-ui";
 import { useStaffPermission } from "@/lib/permissions";
 import { whatsappHref } from "@/lib/contact";
 import { formatINR } from "@/lib/money";
@@ -243,15 +247,19 @@ function OrderPaymentRow({ order, canRecord }: { order: PendingOrder; canRecord:
   const update = useUpdateOrder();
   const [recording, setRecording] = useState(false);
   const [amount, setAmount] = useState(String(order.pending));
+  const [method, setMethod] = useState<OfflinePaymentMethod>("cash");
   const [error, setError] = useState<string | null>(null);
 
   const amountValue = Number(amount);
   const amountValid = amount.trim() !== "" && amountValue > 0 && amountValue <= order.pending;
 
-  const save = async (body: { advanceAmount: number } | { paymentStatus: "PAID" }) => {
+  const save = async (value: number) => {
     setError(null);
     try {
-      await update.mutateAsync({ id: order.id, ...body });
+      await update.mutateAsync({
+        id: order.id,
+        addPayment: { method, amount: value },
+      });
       setRecording(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save payment");
@@ -292,7 +300,26 @@ function OrderPaymentRow({ order, canRecord }: { order: PendingOrder; canRecord:
       {recording && (
         <div className="mt-2 rounded-md border border-slate-200 bg-white p-2.5">
           <div>
-            <span className="block text-xs font-medium text-slate-600">Amount received now</span>
+            <span className="block text-xs font-medium text-slate-600">Paid by</span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {OFFLINE_PAYMENT_METHODS.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  aria-pressed={method === m.value}
+                  onClick={() => setMethod(m.value)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition",
+                    method === m.value
+                      ? "border-brand-500 bg-brand-500 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-brand-300",
+                  )}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <span className="mt-2 block text-xs font-medium text-slate-600">Amount received now</span>
             <div className="mt-1 flex items-center gap-2">
               <span className="relative flex-1">
                 <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-slate-400">
@@ -312,22 +339,14 @@ function OrderPaymentRow({ order, canRecord }: { order: PendingOrder; canRecord:
               <button
                 type="button"
                 disabled={!amountValid || update.isPending}
-                onClick={() => void save({ advanceAmount: order.received + amountValue })}
+                onClick={() => void save(amountValue)}
                 className="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
               >
                 Save
               </button>
             </div>
           </div>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <button
-              type="button"
-              disabled={update.isPending}
-              onClick={() => void save({ paymentStatus: "PAID" })}
-              className="text-xs font-medium text-emerald-700 hover:underline disabled:opacity-50"
-            >
-              Mark fully paid
-            </button>
+          <div className="mt-2 text-right">
             <button
               type="button"
               onClick={() => setRecording(false)}

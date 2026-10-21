@@ -11,6 +11,7 @@ import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
 import { Field, inputClass, selectClass } from "@/components/form/Field";
+import { QtyStepper } from "@/components/form/QtyStepper";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/form/SearchableSelect";
 import { ImageLightboxThumb } from "@/components/ui/ImageLightboxThumb";
 import { resetCatalogProductPick, type CatalogPicker } from "@/lib/catalogProductOptions";
@@ -596,15 +597,15 @@ export function OrderItemRow({
           className={cn(
             "mt-3 grid gap-x-2 gap-y-3",
             item.kind === "CATALOG"
-              ? "grid-cols-[minmax(0,1fr)_5.5rem_3.5rem] sm:grid-cols-[minmax(0,1fr)_7rem_4.5rem]"
+              ? "grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)_7.5rem] sm:grid-cols-[minmax(0,1fr)_7rem_8rem]"
               : cn(
                   // Phones: category + name, then the numbers. From sm up it's one row.
                   "grid-cols-12",
                   customMeasure === "POUNDS"
-                    ? "sm:grid-cols-[6.5rem_minmax(0,1fr)_5rem_7rem_4.5rem]"
+                    ? "sm:grid-cols-[6.5rem_minmax(0,1fr)_4rem_8rem_8rem]"
                     : customMeasure === "SIZE"
-                      ? "sm:grid-cols-[6.5rem_minmax(0,1fr)_9rem_7rem_4.5rem]"
-                      : "sm:grid-cols-[6.5rem_minmax(0,1fr)_7rem_4.5rem]",
+                      ? "sm:grid-cols-[6.5rem_minmax(0,1fr)_9rem_6.5rem_8rem]"
+                      : "sm:grid-cols-[6.5rem_minmax(0,1fr)_6.5rem_8rem]",
                 ),
           )}
         >
@@ -644,7 +645,7 @@ export function OrderItemRow({
             />
           </Field>
           {customMeasure === "POUNDS" && (
-            <Field label="Pounds" required className={customSpan[4]}>
+            <Field label="Pounds" required className={cn("min-w-0", customSpan[3])}>
               <input
                 type="number"
                 min={0.1}
@@ -657,7 +658,7 @@ export function OrderItemRow({
             </Field>
           )}
           {customMeasure === "SIZE" && (
-            <Field label="Size" className={customSpan[5]}>
+            <Field label="Size" className={customSpan[4]}>
               <input
                 value={item.sizeLabel}
                 onChange={(e) => onPatch({ sizeLabel: e.target.value, sizeGrams: "" })}
@@ -672,7 +673,7 @@ export function OrderItemRow({
             className={
               item.kind !== "CUSTOM"
                 ? undefined
-                : customSpan[customMeasure === "POUNDS" ? 5 : customMeasure === "SIZE" ? 4 : 9]
+                : customSpan[customMeasure === "POUNDS" ? 5 : customMeasure === "SIZE" ? 4 : 8]
             }
           >
             <input
@@ -689,15 +690,11 @@ export function OrderItemRow({
           <Field
             label="Qty"
             required
-            className={item.kind === "CUSTOM" ? customSpan[3] : undefined}
+            className={cn("min-w-0", item.kind === "CUSTOM" && customSpan[4])}
           >
-            <input
-              type="text"
-              inputMode="numeric"
-              value={item.qty}
-              onChange={(e) => onPatch({ qty: e.target.value.replace(/\D/g, "") })}
-              placeholder="1"
-              className={cn(inputClass, "px-2 text-center")}
+            <QtyStepper
+              value={Number(item.qty) || 1}
+              onChange={(qty) => onPatch({ qty: String(qty) })}
             />
           </Field>
         </div>

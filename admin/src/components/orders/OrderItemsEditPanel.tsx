@@ -7,6 +7,7 @@ import {
 } from "@/hooks/useAdminOrders";
 import { useAdminAddons } from "@/hooks/useAddons";
 import { inputClass, textareaClass } from "@/components/form/Field";
+import { QtyStepper } from "@/components/form/QtyStepper";
 import { DeliveryPaidToField } from "@/components/form/DeliveryPaidToField";
 import {
   AddonGroupPicker,
@@ -306,13 +307,10 @@ export function OrderItemsEditPanel({
               </label>
               <label className="block text-xs">
                 <span className="font-medium text-slate-700">Qty</span>
-                <input
-                  inputMode="numeric"
-                  value={line.qty}
-                  onChange={(e) =>
-                    patchLine(line.key, { qty: e.target.value.replace(/\D/g, "") || "1" })
-                  }
-                  className={cn(inputClass, "mt-1 min-w-0")}
+                <QtyStepper
+                  className="mt-1 max-w-[8.5rem]"
+                  value={Number(line.qty) || 1}
+                  onChange={(qty) => patchLine(line.key, { qty: String(qty) })}
                 />
               </label>
               <label className="block text-xs">
