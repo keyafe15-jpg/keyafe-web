@@ -35,7 +35,18 @@ import multer from "multer";
 
 import { assertKitchenOpenOn } from "../store/store.service.js";
 import { orderEvents, type NewOrderEvent, type OrderCancelledEvent } from "../../lib/events.js";
-import { MAX_PAYMENT_SCREENSHOTS, OFFLINE_PAYMENT_METHODS } from "../../lib/paymentLabel.js";
+import {
+  MAX_ORDER_PAYMENTS,
+  MAX_PAYMENT_SCREENSHOTS,
+  OFFLINE_PAYMENT_METHODS,
+} from "../../lib/paymentLabel.js";
+import {
+  addOrderPayment,
+  adjustCashLineForAdvance,
+  orderPaymentInputSchema,
+  removeOrderPayment,
+  replaceOrderPayments,
+} from "./order-payments.js";
 import { istDayOf, istDayStart, istToday } from "../../lib/time.js";
 import {
   requirePermission,
@@ -258,6 +269,16 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
         paymentMode: true,
         advanceAmount: true,
         paymentScreenshotUrls: true,
+        payments: {
+          select: {
+            id: true,
+            method: true,
+            amount: true,
+            screenshotUrl: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
         paidAt: true,
         source: true,
         createdAt: true,
@@ -307,6 +328,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
       paymentMode: r.paymentMode,
       advanceAmount: r.advanceAmount,
       paymentScreenshotUrls: r.paymentScreenshotUrls,
+      payments: r.payments,
       paidAt: r.paidAt,
       source: r.source,
       createdAt: r.createdAt,
@@ -965,6 +987,9 @@ const updateSchema = z.object({
   advanceAmount: z.coerce.number().nonnegative().optional(),
   paymentMethod: z.enum(OFFLINE_PAYMENT_METHODS).optional(),
   paymentScreenshotUrls: z.array(z.string().url()).max(MAX_PAYMENT_SCREENSHOTS).optional(),
+  payments: z.array(orderPaymentInputSchema).max(MAX_ORDER_PAYMENTS).optional(),
+  addPayment: orderPaymentInputSchema.optional(),
+  removePaymentId: z.string().min(1).optional(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
   items: z
     .array(
@@ -989,8 +1014,26 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid update", parsed.error.flatten());
   }
-  const { advanceAmount, paymentStatus, status, items, ...rest } = parsed.data;
-  const data: Omit<typeof parsed.data, "items"> = { ...rest };
+  const {
+    advanceAmount,
+    paymentStatus,
+    status,
+    items,
+    payments,
+    addPayment,
+    removePaymentId,
+    paymentScreenshotUrls,
+    ...rest
+  } = parsed.data;
+  const data: {
+    status?: OrderStatus;
+    paymentStatus?: PaymentStatus;
+    paymentMode?: PaymentMode;
+    advanceAmount?: number;
+    paymentMethod?: (typeof OFFLINE_PAYMENT_METHODS)[number];
+    paymentScreenshotUrls?: string[];
+    adminNotes?: string | null;
+  } = { ...rest };
 
   let previousStatus: OrderStatus | undefined;
   if (status === "CANCELLED") {
@@ -1017,29 +1060,57 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     }
   }
 
-  if (advanceAmount !== undefined) {
+  const lineOp = payments !== undefined || addPayment !== undefined || removePaymentId !== undefined;
+  if (
+    lineOp ||
+    advanceAmount !== undefined ||
+    paymentStatus !== undefined ||
+    paymentScreenshotUrls !== undefined
+  ) {
     const existing = await prisma.order.findUnique({
       where: { id },
-      select: { total: true },
+      select: { total: true, paymentMethod: true },
     });
     if (!existing) throw HttpError.notFound("Order not found");
     const total = Number(existing.total);
-    const clamped = Math.min(Math.max(advanceAmount, 0), total);
-    data.advanceAmount = clamped;
-    // Only auto-derive the status when the caller didn't explicitly set one.
-    data.paymentStatus =
-      paymentStatus ?? (clamped <= 0 ? "PENDING" : clamped >= total ? "PAID" : "PARTIAL");
-  } else if (paymentStatus !== undefined) {
-    data.paymentStatus = paymentStatus;
-    if (paymentStatus === "PAID") {
-      // Item edits re-derive the status from advanceAmount, so a paid order
-      // has to record the full total as received.
-      const existing = await prisma.order.findUnique({
-        where: { id },
-        select: { total: true },
+    const isCashfree = existing.paymentMethod === "cashfree";
+    if (isCashfree && lineOp) {
+      throw HttpError.badRequest("Payment lines are for offline collections");
+    }
+
+    if (!isCashfree && lineOp) {
+      await prisma.$transaction(async (tx) => {
+        if (payments !== undefined) await replaceOrderPayments(tx, id, payments, total);
+        else if (addPayment) await addOrderPayment(tx, id, addPayment, total);
+        else if (removePaymentId) await removeOrderPayment(tx, id, removePaymentId, total);
       });
-      if (!existing) throw HttpError.notFound("Order not found");
-      data.advanceAmount = Number(existing.total);
+      delete data.paymentMethod;
+      delete data.paymentMode;
+    } else if (!isCashfree && (advanceAmount !== undefined || paymentStatus === "PAID")) {
+      const target =
+        paymentStatus === "PAID" && advanceAmount === undefined
+          ? total
+          : Math.min(Math.max(advanceAmount ?? 0, 0), total);
+      await prisma.$transaction((tx) => adjustCashLineForAdvance(tx, id, target, total));
+      delete data.paymentMethod;
+      delete data.paymentMode;
+      if (paymentStatus && paymentStatus !== "PAID") {
+        data.paymentStatus = paymentStatus;
+      }
+    } else {
+      if (advanceAmount !== undefined) {
+        const clamped = Math.min(Math.max(advanceAmount, 0), total);
+        data.advanceAmount = clamped;
+        data.paymentStatus =
+          paymentStatus ?? (clamped <= 0 ? "PENDING" : clamped >= total ? "PAID" : "PARTIAL");
+      } else if (paymentStatus !== undefined) {
+        data.paymentStatus = paymentStatus;
+        if (paymentStatus === "PAID") data.advanceAmount = total;
+      }
+    }
+
+    if (paymentScreenshotUrls !== undefined && !lineOp) {
+      data.paymentScreenshotUrls = paymentScreenshotUrls;
     }
   }
 
@@ -1084,14 +1155,13 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
   const orderFields = Object.fromEntries(
     Object.entries(data).filter(([, value]) => value !== undefined),
   );
-  let updated =
-    Object.keys(orderFields).length > 0
-      ? await prisma.order.update({
-          where: { id },
-          data: orderFields,
-          include: { items: true },
-        })
-      : await getOrderById(id);
+  if (Object.keys(orderFields).length > 0) {
+    await prisma.order.update({
+      where: { id },
+      data: orderFields,
+    });
+  }
+  let updated = await getOrderById(id);
 
   // Delivery is the supply, so the invoice number is issued then, dated by the
   // delivery date even when staff mark it a few days late.

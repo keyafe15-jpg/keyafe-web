@@ -13,6 +13,7 @@ import { NestedCategoryMultiSelect } from "@/components/form/NestedCategoryMulti
 import { uploadImage } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
+import { storefrontProductUrl } from "@/lib/storefront";
 
 const slugify = (s: string) =>
   s
@@ -285,6 +286,16 @@ function AddonRow({ addon, categories }: { addon: AdminAddon; categories: AdminC
       <td className="px-4 py-3">
         <p className="font-medium text-slate-900">{addon.name}</p>
         <p className="text-xs text-slate-500">/{addon.slug}</p>
+        {addon.productSlug && (
+          <a
+            href={storefrontProductUrl(addon.productSlug)}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-0.5 inline-block text-[11px] font-medium text-brand-700 hover:underline"
+          >
+            Sold in shop
+          </a>
+        )}
         {inUse && (
           <p className="mt-0.5 text-[11px] text-slate-400">
             On {addon.productCount} product{addon.productCount === 1 ? "" : "s"}

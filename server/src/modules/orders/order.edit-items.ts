@@ -10,6 +10,7 @@ import {
   sumLineTax,
 } from "./order.tax.js";
 import { getOrderById } from "./order.service.js";
+import { adjustCashLineForAdvance } from "./order-payments.js";
 import { cashfreeEnabled } from "../payments/cashfree.client.js";
 import {
   keepRefundAfterFailure,
@@ -348,6 +349,9 @@ export async function editOrderItems(
             advanceAfter > 0 && advanceAfter < newTotal ? "ADVANCE" : existing.paymentMode,
         },
       });
+      if (existing.paymentMethod !== "cashfree") {
+        await adjustCashLineForAdvance(tx, orderId, advanceAfter, newTotal);
+      }
       if (sent) await tx.gatewayRefund.create({ data: refundRecord(sent) });
     });
 

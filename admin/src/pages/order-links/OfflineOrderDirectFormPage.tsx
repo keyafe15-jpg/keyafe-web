@@ -5,16 +5,12 @@ import {
   ChevronDown,
   HandCoins,
   Hourglass,
-  ImagePlus,
   Store,
   Truck,
   Wallet,
-  X,
 } from "lucide-react";
-import { OFFLINE_PAYMENT_METHODS, type OfflinePaymentMethod } from "@/pages/orders/order-ui";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
 import { useCreateProduct } from "@/hooks/useAdminProducts";
-import { MAX_PAYMENT_SCREENSHOTS } from "@/hooks/useAdminOrders";
 import { TIME_SLOTS } from "@/content/slots";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/uploads";
@@ -46,6 +42,12 @@ import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
 import { AddressPlacesSearch, type ParsedPlace } from "@/components/address/AddressPlacesSearch";
 import { CustomerLookupField } from "@/components/form/CustomerLookup";
+import {
+  emptyPaymentLine,
+  PaymentLinesEditor,
+  paymentLinesSum,
+  type PaymentLineDraft,
+} from "@/components/form/PaymentLinesEditor";
 import type { OrderCustomerLookupAddress, OrderCustomerLookupHit } from "@/hooks/useAdminCustomers";
 import type { DeliveryDistrict } from "@/hooks/useAdminDeliveryPincodes";
 import { useStaffPermission } from "@/lib/permissions";
@@ -146,10 +148,7 @@ export function OfflineOrderDirectFormPage() {
   const [customerNotes, setCustomerNotes] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
   const [paymentPlan, setPaymentPlan] = useState<"FULL" | "ADVANCE" | "ON_DELIVERY">("FULL");
-  const [advanceAmount, setAdvanceAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<OfflinePaymentMethod | null>(null);
-  const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
-  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
+  const [paymentLines, setPaymentLines] = useState<PaymentLineDraft[]>(() => [emptyPaymentLine("cash")]);
   const [error, setError] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
   const [discountValue, setDiscountValue] = useState("");
@@ -169,12 +168,6 @@ export function OfflineOrderDirectFormPage() {
   const [zoneDistrict, setZoneDistrict] = useState<DeliveryDistrict>("KOLKATA");
 
   useOrderItemRefPreviews(items, setItems);
-
-  useEffect(() => {
-    const urls = screenshotFiles.map((file) => URL.createObjectURL(file));
-    setScreenshotPreviews(urls);
-    return () => urls.forEach((url) => URL.revokeObjectURL(url));
-  }, [screenshotFiles]);
 
   useEffect(() => {
     setPincodeInfo(null);
@@ -295,17 +288,30 @@ export function OfflineOrderDirectFormPage() {
   const chargedDelivery = deliveryPaidToRider ? 0 : deliveryFee;
   const grandTotal = subtotal - discount + chargedDelivery + gstOnTop;
 
+  const collectedNow = useMemo(() => {
+    if (paymentPlan === "ON_DELIVERY") return 0;
+    const typed = paymentLinesSum(paymentLines);
+    if (
+      paymentPlan === "FULL" &&
+      paymentLines.length === 1 &&
+      paymentLines[0]?.amount.trim() === ""
+    ) {
+      return grandTotal;
+    }
+    return typed;
+  }, [paymentPlan, paymentLines, grandTotal]);
+  const amountsClose = (a: number, b: number) => Math.abs(a - b) < 0.05;
   const advanceValid =
-    paymentPlan !== "ADVANCE" ||
-    (advanceAmount.trim() !== "" &&
-      Number(advanceAmount) > 0 &&
-      Number(advanceAmount) <= grandTotal);
+    paymentPlan === "ON_DELIVERY" ||
+    (paymentPlan === "FULL"
+      ? collectedNow > 0 && amountsClose(collectedNow, grandTotal)
+      : collectedNow > 0 && collectedNow <= grandTotal + 0.001);
   const pendingAmount =
     paymentPlan === "FULL"
       ? 0
       : paymentPlan === "ON_DELIVERY"
         ? grandTotal
-        : Math.max(grandTotal - (Number(advanceAmount) || 0), 0);
+        : Math.max(grandTotal - collectedNow, 0);
 
   const addressIssue = ((): string | null => {
     if (fulfillment === "PICKUP") return null;
@@ -344,7 +350,11 @@ export function OfflineOrderDirectFormPage() {
     if (gstinError !== null) return "Fix the GSTIN";
     if (!deliveryDate) return `Pick a ${fulfillment === "PICKUP" ? "pickup" : "delivery"} date`;
     if (addressIssue) return addressIssue;
-    if (!advanceValid) return "Enter an advance up to the total";
+    if (!advanceValid) {
+      return paymentPlan === "FULL"
+        ? "Payment lines must add up to the total"
+        : "Add the amount collected now";
+    }
     if (uploading) return "Uploading…";
     if (pincodeChecking) return "Checking pincode…";
     return null;
@@ -370,12 +380,27 @@ export function OfflineOrderDirectFormPage() {
       }
       setUploading(false);
 
-      const paymentScreenshotUrls: string[] = [];
-      if (screenshotFiles.length > 0) {
+      const payments: {
+        method: "cash" | "upi" | "netbanking";
+        amount: number;
+        screenshotUrl?: string | null;
+      }[] = [];
+      if (paymentPlan !== "ON_DELIVERY") {
         setUploading(true);
-        for (const file of screenshotFiles) {
-          const res = await uploadImage(file, "payment-screenshot");
-          paymentScreenshotUrls.push(res.publicUrl);
+        for (const line of paymentLines) {
+          const amount =
+            paymentPlan === "FULL" &&
+            paymentLines.length === 1 &&
+            line.amount.trim() === ""
+              ? grandTotal
+              : Number(line.amount) || 0;
+          if (amount <= 0) continue;
+          let screenshotUrl: string | null = line.screenshotUrl ?? null;
+          if (line.screenshotFile) {
+            const res = await uploadImage(line.screenshotFile, "payment-screenshot");
+            screenshotUrl = res.publicUrl;
+          }
+          payments.push({ method: line.method, amount, screenshotUrl });
         }
         setUploading(false);
       }
@@ -436,14 +461,7 @@ export function OfflineOrderDirectFormPage() {
         customerNotes: customerNotes.trim() || null,
         adminNotes: adminNotes.trim() || null,
         paymentMode: paymentPlan === "FULL" ? ("FULL" as const) : ("ADVANCE" as const),
-        advanceAmount:
-          paymentPlan === "ADVANCE"
-            ? Number(advanceAmount) || 0
-            : paymentPlan === "ON_DELIVERY"
-              ? 0
-              : undefined,
-        paymentMethod: paymentMethod ?? undefined,
-        paymentScreenshotUrls,
+        payments,
         discountType: discount > 0 ? discountType : null,
         discountValue: discount > 0 ? Number(discountValue) : null,
         deliveryFee: fulfillment === "DELIVERY" ? deliveryFee : undefined,
@@ -920,108 +938,33 @@ export function OfflineOrderDirectFormPage() {
               />
             </div>
 
-            {paymentPlan === "ADVANCE" && (
-              <Field
-                label="Advance amount"
-                required
-                error={
-                  advanceAmount.trim() !== "" && !advanceValid
-                    ? `Between ₹1 and ₹${grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}`
-                    : undefined
-                }
-                hint={`Max ₹${grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}`}
-                className="mt-3 sm:max-w-xs"
-              >
-                <input
-                  inputMode="decimal"
-                  value={advanceAmount}
-                  onChange={(e) => setAdvanceAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                  placeholder="0"
-                  className={inputClass}
-                />
-              </Field>
-            )}
-
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6">
-              <div>
+            {paymentPlan === "ON_DELIVERY" ? (
+              <p className="mt-3 text-[11px] text-slate-500">
+                Record the payment from the order page when it comes in, even weeks later.
+              </p>
+            ) : (
+              <div className="mt-3">
                 <p className="mb-1.5 text-xs font-medium text-slate-700">
-                  {paymentPlan === "ON_DELIVERY" ? "Expected payment mode" : "Payment mode"}
-                  <span className="ml-1 font-normal text-slate-400">· for your records</span>
+                  {paymentPlan === "FULL" ? "Collected now" : "Advance collected"}
+                  <span className="ml-1 font-normal text-slate-400">
+                    · split across cash / UPI if needed
+                  </span>
                 </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {OFFLINE_PAYMENT_METHODS.map((m) => (
-                    <button
-                      key={m.value}
-                      type="button"
-                      aria-pressed={paymentMethod === m.value}
-                      onClick={() => setPaymentMethod((cur) => (cur === m.value ? null : m.value))}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs font-medium transition",
-                        paymentMethod === m.value
-                          ? "border-brand-500 bg-brand-500 text-white"
-                          : "hover:border-brand-300 border-slate-200 bg-white text-slate-700",
-                      )}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-                {paymentPlan === "ON_DELIVERY" && (
+                <PaymentLinesEditor lines={paymentLines} onChange={setPaymentLines} />
+                {paymentPlan === "FULL" && paymentLines.length === 1 && !paymentLines[0]?.amount && (
                   <p className="mt-1.5 text-[11px] text-slate-500">
-                    Record the payment from the order page when it comes in, even weeks later.
+                    Leave the amount blank to record the full ₹
+                    {grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}.
+                  </p>
+                )}
+                {paymentPlan === "ADVANCE" && collectedNow > 0 && (
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    ₹{collectedNow.toFixed(gstOnTop > 0 ? 2 : 0)} collected · ₹
+                    {pendingAmount.toFixed(gstOnTop > 0 ? 2 : 0)} pending
                   </p>
                 )}
               </div>
-
-              <div className="flex items-center gap-3">
-                <p className="min-w-0 flex-1 text-xs font-medium text-slate-700">
-                  Payment screenshots
-                  <span className="block font-normal text-slate-400">
-                    optional · up to {MAX_PAYMENT_SCREENSHOTS}
-                  </span>
-                </p>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  {screenshotPreviews.map((url, index) => (
-                    <div key={url} className="relative">
-                      <img
-                        src={url}
-                        alt={`Payment screenshot ${index + 1}`}
-                        className="h-12 w-12 rounded-lg border border-slate-200 object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setScreenshotFiles((files) => files.filter((_, i) => i !== index))
-                        }
-                        className="absolute -top-1.5 -right-1.5 rounded-full bg-white p-0.5 text-slate-500 shadow ring-1 ring-slate-200 hover:text-red-600"
-                        aria-label={`Remove screenshot ${index + 1}`}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                  {screenshotFiles.length < MAX_PAYMENT_SCREENSHOTS && (
-                    <label className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition hover:border-brand-500 hover:text-brand-600">
-                      <ImagePlus className="h-5 w-5" />
-                      <span className="sr-only">Add payment screenshot</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => {
-                          const picked = Array.from(e.target.files ?? []);
-                          e.target.value = "";
-                          setScreenshotFiles((files) =>
-                            [...files, ...picked].slice(0, MAX_PAYMENT_SCREENSHOTS),
-                          );
-                        }}
-                        className="sr-only"
-                      />
-                    </label>
-                  )}
-                </div>
-              </div>
-            </div>
+            )}
           </Section>
 
           <Section
@@ -1125,11 +1068,11 @@ export function OfflineOrderDirectFormPage() {
                   </span>
                 </div>
               )}
-              {paymentPlan === "ADVANCE" && Number(advanceAmount) > 0 && (
+              {paymentPlan === "ADVANCE" && collectedNow > 0 && (
                 <>
                   <div className="flex justify-between text-emerald-700">
                     <span>Advance</span>
-                    <span className="tabular-nums">₹{Number(advanceAmount).toFixed(0)}</span>
+                    <span className="tabular-nums">₹{collectedNow.toFixed(0)}</span>
                   </div>
                   <div className="flex justify-between font-medium text-amber-700">
                     <span>Pending</span>

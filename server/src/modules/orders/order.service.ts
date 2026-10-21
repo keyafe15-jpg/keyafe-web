@@ -337,6 +337,7 @@ export async function getOrderById(id: string) {
     where: { id },
     include: {
       items: true,
+      payments: { orderBy: { createdAt: "asc" } },
       creditNotes: {
         orderBy: { createdAt: "desc" },
         include: { gatewayRefund: { select: { status: true, amount: true, refundId: true } } },
@@ -374,6 +375,7 @@ export async function getOrderByNumber(orderNumber: string) {
     where: { orderNumber },
     include: {
       items: true,
+      payments: { orderBy: { createdAt: "asc" } },
       creditNotes: {
         orderBy: { createdAt: "desc" },
         include: { gatewayRefund: { select: { status: true, amount: true, refundId: true } } },

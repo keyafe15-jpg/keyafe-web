@@ -11,7 +11,8 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["@keyafe/shared", "@googlemaps/js-api-loader"],
+    include: ["@googlemaps/js-api-loader"],
+    exclude: ["@keyafe/shared"],
   },
   server: {
     port: 5175,

@@ -1,6 +1,7 @@
 import type { Order, OrderItem } from "@prisma/client";
 import { paymentMethodLabel } from "../../lib/paymentLabel.js";
 import type { BusinessContact } from "../store/businessContact.js";
+import { extrasPlainText, lineDisplayNotes } from "../../lib/lineExtras.js";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -31,6 +32,11 @@ function formatDate(d: Date): string {
 
 function itemRow(item: OrderItem): string {
   const meta = [item.sizeLabel, item.flavourName].filter(Boolean).join(" · ");
+  const display = lineDisplayNotes({
+    instructions: item.instructions,
+    messageOnCake: item.messageOnCake,
+  });
+  const extras = extrasPlainText(display.extras);
   return `
     <tr>
       <td style="padding:12px 0;border-top:1px solid #f0e6d5;">
@@ -42,8 +48,19 @@ function itemRow(item: OrderItem): string {
             : ""
         }
         ${
-          item.messageOnCake
-            ? `<div style="font-size:13px;color:#7d8590;font-style:italic;">"${escapeHtml(item.messageOnCake)}"</div>`
+          extras
+            ? `<div style="margin-top:6px;font-size:12px;font-weight:700;color:#e31c79;text-transform:uppercase;letter-spacing:0.04em;">Add-ons</div>
+        <div style="font-size:13px;color:#9d174d;font-weight:600;">${escapeHtml(extras)}</div>`
+            : ""
+        }
+        ${
+          display.message
+            ? `<div style="font-size:13px;color:#7d8590;font-style:italic;">"${escapeHtml(display.message)}"</div>`
+            : ""
+        }
+        ${
+          display.notes
+            ? `<div style="font-size:13px;color:#4b5563;">Notes: ${escapeHtml(display.notes)}</div>`
             : ""
         }
         <div style="font-size:12px;color:#e31c79;font-weight:600;margin-top:4px;">

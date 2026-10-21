@@ -29,6 +29,15 @@ export {
 } from "./priceMath";
 export { Price, type PriceProps } from "./Price";
 export {
+  parseLineNotes,
+  splitCakeMessage,
+  extrasPlainText,
+  lineDisplayNotes,
+  type LineExtra,
+  type ParsedLineNotes,
+  type LineDisplayNotes,
+} from "./lineExtras";
+export {
   CAKE_BASE_GRAMS,
   CAKE_SMALL_SIZE_EXTRA,
   CAKE_MIN_PRICE,

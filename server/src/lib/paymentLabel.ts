@@ -5,6 +5,9 @@ export type OfflinePaymentMethod = (typeof OFFLINE_PAYMENT_METHODS)[number];
 /** Proofs per order: typically advance, balance, and one spare. */
 export const MAX_PAYMENT_SCREENSHOTS = 3;
 
+/** Offline collection lines staff can record on one order. */
+export const MAX_ORDER_PAYMENTS = 8;
+
 /** Cash collections, which the GST export leaves out. */
 export const CASH_PAYMENT_METHODS = ["cod", "cash"];
 

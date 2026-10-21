@@ -30,6 +30,7 @@ export interface AdminOrderListItem {
   paymentMode: PaymentMode;
   advanceAmount: string;
   paymentScreenshotUrls: string[];
+  payments?: AdminOrderPayment[];
   /** Set once an online (Cashfree) payment is confirmed. */
   paidAt: string | null;
   source: OrderSource;
@@ -356,6 +357,21 @@ export function useRefreshPayment() {
 
 /** Matches the server cap: advance, balance, and one spare. */
 export const MAX_PAYMENT_SCREENSHOTS = 3;
+export const MAX_ORDER_PAYMENTS = 8;
+
+export interface AdminOrderPayment {
+  id: string;
+  method: "cash" | "upi" | "netbanking";
+  amount: string;
+  screenshotUrl: string | null;
+  createdAt: string;
+}
+
+export interface OrderPaymentInput {
+  method: "cash" | "upi" | "netbanking";
+  amount: number;
+  screenshotUrl?: string | null;
+}
 
 export interface UpdateOrderPayload {
   status?: OrderStatus;
@@ -364,6 +380,9 @@ export interface UpdateOrderPayload {
   advanceAmount?: number;
   paymentMethod?: "cash" | "upi" | "netbanking";
   paymentScreenshotUrls?: string[];
+  payments?: OrderPaymentInput[];
+  addPayment?: OrderPaymentInput;
+  removePaymentId?: string;
   adminNotes?: string | null;
   items?: {
     id: string;

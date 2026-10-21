@@ -4,10 +4,22 @@ import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { requirePermission } from "../../middleware/auth.js";
+import {
+  archiveAddonShopProduct,
+  ensureAddonShopProducts,
+  syncAddonShopProduct,
+} from "./addon-shop.service.js";
 
 export const addonRouter = Router();
 
 addonRouter.get("/", async (_req, res) => {
+  const missing = await prisma.addon.findMany({
+    where: { productId: null },
+    select: { id: true },
+  });
+  if (missing.length > 0) {
+    await ensureAddonShopProducts(missing.map((a) => a.id));
+  }
   const addons = await prisma.addon.findMany({
     where: { isActive: true },
     orderBy: [{ group: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
@@ -46,6 +58,8 @@ const addonSelect = {
   sortOrder: true,
   isActive: true,
   customTemplates: true,
+  productId: true,
+  shopProduct: { select: { slug: true } },
   defaultCategories: { select: { id: true } },
   _count: { select: { products: true } },
 } as const;
@@ -99,13 +113,15 @@ function serializeAddon<
     id: string;
     customTemplates: ProductTemplate[];
     defaultCategories: { id: string }[];
+    shopProduct: { slug: string } | null;
     _count: { products: number };
   },
 >(row: T, autoByAddon: Map<string, ProductTemplate[]>) {
-  const { defaultCategories, _count, ...addon } = row;
+  const { defaultCategories, _count, shopProduct, ...addon } = row;
   const autoTemplates = autoByAddon.get(row.id) ?? [];
   return {
     ...addon,
+    productSlug: shopProduct?.slug ?? null,
     categoryIds: defaultCategories.map((c) => c.id),
     productCount: _count.products,
     autoTemplates,
@@ -116,13 +132,19 @@ function serializeAddon<
 }
 
 adminAddonRouter.get("/", canReadAddons, async (_req, res) => {
-  const [addons, templates] = await Promise.all([
-    prisma.addon.findMany({
+  let addons = await prisma.addon.findMany({
+    orderBy: [{ group: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+    select: addonSelect,
+  });
+  const missing = addons.filter((a) => !a.productId).map((a) => a.id);
+  if (missing.length > 0) {
+    await ensureAddonShopProducts(missing);
+    addons = await prisma.addon.findMany({
       orderBy: [{ group: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
       select: addonSelect,
-    }),
-    templatesByAddon(),
-  ]);
+    });
+  }
+  const templates = await templatesByAddon();
   res.json(addons.map((a) => serializeAddon(a, templates)));
 });
 
@@ -160,7 +182,12 @@ adminAddonRouter.post("/", canWriteAddons, async (req, res) => {
     },
     select: addonSelect,
   });
-  res.status(201).json(serializeAddon(created, await templatesByAddon()));
+  await syncAddonShopProduct(created.id);
+  const withShop = await prisma.addon.findUniqueOrThrow({
+    where: { id: created.id },
+    select: addonSelect,
+  });
+  res.status(201).json(serializeAddon(withShop, await templatesByAddon()));
 });
 
 const updateAddonSchema = createAddonSchema.partial().extend({
@@ -194,7 +221,12 @@ adminAddonRouter.patch("/:id", canWriteAddons, async (req, res) => {
     },
     select: addonSelect,
   });
-  res.json(serializeAddon(updated, await templatesByAddon()));
+  await syncAddonShopProduct(updated.id);
+  const withShop = await prisma.addon.findUniqueOrThrow({
+    where: { id: updated.id },
+    select: addonSelect,
+  });
+  res.json(serializeAddon(withShop, await templatesByAddon()));
 });
 
 adminAddonRouter.delete("/:id", canWriteAddons, async (req, res) => {
@@ -203,6 +235,7 @@ adminAddonRouter.delete("/:id", canWriteAddons, async (req, res) => {
     select: {
       id: true,
       name: true,
+      productId: true,
       _count: { select: { products: true } },
     },
   });
@@ -215,6 +248,7 @@ adminAddonRouter.delete("/:id", canWriteAddons, async (req, res) => {
     );
   }
 
+  await archiveAddonShopProduct(existing.productId);
   await prisma.addon.delete({ where: { id: existing.id } });
   res.json({ id: existing.id, name: existing.name });
 });

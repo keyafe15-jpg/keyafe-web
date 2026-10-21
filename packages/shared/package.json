@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./indiaStates": "./src/indiaStates.ts",
     "./places": "./src/places.ts",
-    "./AddressPlacesSearch": "./src/AddressPlacesSearch.tsx"
+    "./AddressPlacesSearch": "./src/AddressPlacesSearch.tsx",
+    "./lineExtras": "./src/lineExtras.ts"
   },
   "types": "./src/index.ts",
   "dependencies": {

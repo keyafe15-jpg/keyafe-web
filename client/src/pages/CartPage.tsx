@@ -3,6 +3,7 @@ import { useCart } from "@/store/cart";
 import { CART_COPY } from "@/content/misc";
 import { cn } from "@/lib/cn";
 import { Price, formatINR } from "@keyafe/shared";
+import { LineExtras } from "@/components/order/LineExtras";
 import type { CartLine } from "@/types/domain";
 
 export function CartPage() {
@@ -136,8 +137,11 @@ function CartLineCard({
         <dl className="mt-2 space-y-0.5 text-xs text-ink-500">
           {line.sizeLabel && <Detail label="Size" value={line.sizeLabel} />}
           {line.flavourName && <Detail label="Flavour" value={line.flavourName} />}
-          {line.messageOnCake && <Detail label="Message" value={`"${line.messageOnCake}"`} />}
-          {line.instructions && <Detail label="Notes" value={line.instructions} />}
+          <LineExtras
+            className="pt-0.5"
+            instructions={line.instructions}
+            messageOnCake={line.messageOnCake}
+          />
           {(line.fulfillment || line.date || line.slotLabel) && (
             <Detail
               label={line.fulfillment === "pickup" ? "Pickup" : "Delivery"}

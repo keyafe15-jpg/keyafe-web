@@ -19,6 +19,7 @@ import { cn } from "@/lib/cn";
 import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
 import { missingDetailsHint, scrollToFirstFieldError } from "@/lib/missingDetails";
 import { BlockedTooltip } from "@/components/ui/BlockedTooltip";
+import { LineExtras } from "@/components/order/LineExtras";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
 
@@ -1031,6 +1032,11 @@ export function CheckoutPage() {
                       <p className="truncate text-xs text-ink-500">
                         {[l.sizeLabel, l.flavourName].filter(Boolean).join(" · ")}
                       </p>
+                      <LineExtras
+                        className="mt-1"
+                        instructions={l.instructions}
+                        messageOnCake={l.messageOnCake}
+                      />
                       <p className="text-xs text-ink-500">Qty {l.qty}</p>
                       {l.date && (
                         <p

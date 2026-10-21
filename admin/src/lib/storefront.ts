@@ -19,3 +19,8 @@ export function storefrontOrigin(): string {
 export function orderLinkUrl(token: string): string {
   return `${storefrontOrigin()}/o/${token}`;
 }
+
+/** Customer-facing product page. */
+export function storefrontProductUrl(slug: string): string {
+  return `${storefrontOrigin()}/product/${slug}`;
+}

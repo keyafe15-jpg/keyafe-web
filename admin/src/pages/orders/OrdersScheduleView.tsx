@@ -16,6 +16,7 @@ import { StatusPill, SourceBadge, SurpriseGiftBadge } from "@/pages/orders/order
 import { PaginationControls } from "@/components/ClientPagination";
 import { OrderCompactRow } from "@/pages/orders/OrderCompactRow";
 import { useListSearch } from "@/store/listSearch";
+import { LineExtras } from "@/components/orders/LineExtras";
 
 const PAGE_SIZE = 25;
 const EXCLUDE: OrderStatus[] = ["CANCELLED", "DELIVERED"];
@@ -130,12 +131,12 @@ function ScheduleCard({ entry }: { entry: ScheduleEntry }) {
                       {item.description}
                     </p>
                   )}
-                  {item.messageOnCake && (
-                    <p className="mt-0.5 text-xs text-slate-500">Message: “{item.messageOnCake}”</p>
-                  )}
-                  {item.instructions && (
-                    <p className="mt-0.5 text-xs text-slate-500">Note: {item.instructions}</p>
-                  )}
+                  <LineExtras
+                    className="mt-0.5"
+                    compact
+                    instructions={item.instructions}
+                    messageOnCake={item.messageOnCake}
+                  />
                 </div>
               </li>
             );

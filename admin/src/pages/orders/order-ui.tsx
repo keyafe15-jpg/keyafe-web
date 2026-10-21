@@ -138,6 +138,30 @@ export function paymentMethodLabel(method: string): string {
   }
 }
 
+const METHOD_ORDER = ["upi", "netbanking", "cash", "cod"] as const;
+
+/** Order-level label: "UPI and Cash" when lines are mixed. GST still uses paymentMethod. */
+export function orderPaymentLabel(order: {
+  paymentMethod: string;
+  payments?: { method: string }[] | null;
+}): string {
+  if (order.paymentMethod === "cashfree") return paymentMethodLabel("cashfree");
+  const unique = [
+    ...new Set(
+      (order.payments ?? []).map((p) => (p.method === "cod" ? "cash" : p.method)),
+    ),
+  ];
+  if (unique.length <= 1) return paymentMethodLabel(unique[0] ?? order.paymentMethod);
+  unique.sort((a, b) => {
+    const ai = METHOD_ORDER.indexOf(a as (typeof METHOD_ORDER)[number]);
+    const bi = METHOD_ORDER.indexOf(b as (typeof METHOD_ORDER)[number]);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  const labels = unique.map(paymentMethodLabel);
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+}
+
 /** "Pay on delivery" is stored as an ADVANCE order with nothing received. */
 export function paymentPlanLabel(order: {
   paymentMode: "FULL" | "ADVANCE";

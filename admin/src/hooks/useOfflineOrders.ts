@@ -61,6 +61,11 @@ export interface PlaceOfflineOrderPayload {
   advanceAmount?: number;
   paymentMethod?: "cash" | "upi" | "netbanking";
   paymentScreenshotUrls?: string[];
+  payments?: {
+    method: "cash" | "upi" | "netbanking";
+    amount: number;
+    screenshotUrl?: string | null;
+  }[];
 
   discountType?: "FLAT" | "PERCENT" | null;
   discountValue?: number | null;

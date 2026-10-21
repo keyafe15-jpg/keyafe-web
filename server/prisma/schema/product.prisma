@@ -95,6 +95,7 @@ model Product {
   flavors        Flavor[]          @relation("ProductFlavors")
   toppings       Topping[]         @relation("ProductToppings")
   addons         Addon[]           @relation("ProductAddons")
+  shopAddon      Addon?            @relation("AddonShopProduct")
   tags           Tag[]             @relation("ProductTags")
   festivals      Festival[]        @relation("FestivalProducts")
   highlights     Highlight[]       @relation("HighlightProducts")

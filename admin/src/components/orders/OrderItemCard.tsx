@@ -5,6 +5,7 @@ import { inputClass, selectClass } from "@/components/form/Field";
 import { ImageLightboxThumb } from "@/components/ui/ImageLightboxThumb";
 import { TIME_SLOTS } from "@/content/slots";
 import { cn } from "@/lib/cn";
+import { LineExtras } from "@/components/orders/LineExtras";
 
 type OrderItem = AdminOrder["items"][number];
 
@@ -108,12 +109,11 @@ export function OrderItemCard({
           {item.description && (
             <p className="mt-0.5 text-xs whitespace-pre-line text-slate-700">{item.description}</p>
           )}
-          {item.messageOnCake && (
-            <p className="text-xs text-slate-600 italic">Message: "{item.messageOnCake}"</p>
-          )}
-          {item.instructions && (
-            <p className="text-xs text-slate-600">Notes: {item.instructions}</p>
-          )}
+          <LineExtras
+            className="mt-1"
+            instructions={item.instructions}
+            messageOnCake={item.messageOnCake}
+          />
           <div className="mt-1 flex items-start gap-1">
             <p className="text-[11px] font-medium text-brand-700">{scheduleText(item)}</p>
             {onSaveSchedule && !editing && (

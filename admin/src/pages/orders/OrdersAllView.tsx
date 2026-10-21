@@ -6,7 +6,7 @@ import { PaginationControls } from "@/components/ClientPagination";
 import {
   AwaitingPaymentBadge,
   isAwaitingOnlinePayment,
-  paymentMethodLabel,
+  orderPaymentLabel,
   SourceBadge,
   StatusPill,
   SurpriseGiftBadge,
@@ -297,7 +297,7 @@ export function OrdersAllView() {
                         </div>
                       ) : (
                         <p className="text-[11px] text-slate-500">
-                          {paymentMethodLabel(o.paymentMethod)} · {o.paymentStatus}
+                          {orderPaymentLabel(o)} · {o.paymentStatus}
                         </p>
                       )}
                     </td>
@@ -381,7 +381,7 @@ export function OrdersAllView() {
                         <AwaitingPaymentBadge />
                       ) : (
                         <span>
-                          · {paymentMethodLabel(o.paymentMethod)} · {o.paymentStatus}
+                          · {orderPaymentLabel(o)} · {o.paymentStatus}
                         </span>
                       )}
                     </div>

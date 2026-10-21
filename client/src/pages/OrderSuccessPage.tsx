@@ -14,6 +14,7 @@ import { trackContactClick, trackPurchase } from "@/lib/analytics";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
 import { SurpriseGiftBadge } from "@/components/order/SurpriseGiftBadge";
+import { LineExtras } from "@/components/order/LineExtras";
 
 const PAYMENT_CHECKS = 5;
 const PAYMENT_CHECK_INTERVAL_MS = 3000;
@@ -179,9 +180,11 @@ export function OrderSuccessPage() {
                 {it.description && (
                   <p className="text-xs whitespace-pre-line text-ink-700">{it.description}</p>
                 )}
-                {it.messageOnCake && (
-                  <p className="truncate text-xs text-ink-500 italic">"{it.messageOnCake}"</p>
-                )}
+                <LineExtras
+                  className="mt-0.5"
+                  instructions={it.instructions}
+                  messageOnCake={it.messageOnCake}
+                />
                 <p className="text-xs text-ink-500">Qty {it.qty}</p>
                 <p className="mt-1 text-[11px] font-medium text-brand-700">
                   {it.deliveryDate && it.deliverySlotLabel

@@ -7,12 +7,13 @@ import {
   nextStatus,
   nextStatusLabel,
   orderContactPhone,
-  paymentMethodLabel,
+  orderPaymentLabel,
   SourceBadge,
   StatusPill,
   SurpriseGiftBadge,
 } from "@/pages/orders/order-ui";
 import { OrderCompactRow } from "@/pages/orders/OrderCompactRow";
+import { LineExtras } from "@/components/orders/LineExtras";
 import { cn } from "@/lib/cn";
 
 interface OrderBoardCardProps {
@@ -148,14 +149,11 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
                           {item.description}
                         </p>
                       )}
-                      {item.messageOnCake && (
-                        <p className="mt-1 rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">
-                          Cake message: “{item.messageOnCake}”
-                        </p>
-                      )}
-                      {item.instructions && (
-                        <p className="mt-1 text-xs text-slate-500">Note: {item.instructions}</p>
-                      )}
+                      <LineExtras
+                        className="mt-1"
+                        instructions={item.instructions}
+                        messageOnCake={item.messageOnCake}
+                      />
                     </div>
                   </div>
                 </li>
@@ -181,7 +179,7 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
               </a>
             </div>
             <span className="shrink-0 tabular-nums">
-              ₹{Number(order.total).toFixed(0)} · {paymentMethodLabel(order.paymentMethod)}
+              ₹{Number(order.total).toFixed(0)} · {orderPaymentLabel(order)}
             </span>
           </footer>
         </Link>

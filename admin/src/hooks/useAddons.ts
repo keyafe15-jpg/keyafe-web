@@ -16,6 +16,8 @@ export interface AdminAddon extends Addon {
   isActive: boolean;
   categoryIds: string[];
   productCount: number;
+  /** Storefront product created for this add-on so it can be added to cart. */
+  productSlug: string | null;
   /** Ticked by hand on the Add-ons page for offline custom items. */
   customTemplates: ProductTemplate[];
   /** Types of the live products it's linked to (directly or via category defaults). */

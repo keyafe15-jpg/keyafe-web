@@ -16,6 +16,7 @@ import {
 } from "./invoice.service.js";
 import type { DocumentParty } from "./pdf.theme.js";
 import { renderChallanPdf } from "./challan.pdf.js";
+import { extrasPlainText, lineDisplayNotes } from "../../lib/lineExtras.js";
 
 const IST = "Asia/Kolkata";
 
@@ -202,10 +203,17 @@ export async function buildChallanData(
   const isMixedSchedule = new Set(order.items.map(scheduleKey)).size > 1;
 
   const lines: ChallanLine[] = order.items.map((item, idx) => {
+    const display = lineDisplayNotes({
+      instructions: item.instructions,
+      messageOnCake: item.messageOnCake,
+    });
+    const extras = extrasPlainText(display.extras);
     const details = [
       sizeText(item),
       item.flavourName,
-      item.messageOnCake ? `Message: "${item.messageOnCake}"` : null,
+      extras ? `Add-ons: ${extras}` : null,
+      display.message ? `Message: "${display.message}"` : null,
+      display.notes ? `Notes: ${display.notes}` : null,
       isMixedSchedule ? scheduleLabel(item) : null,
     ]
       .map((d) => (d ? String(d).trim() : ""))

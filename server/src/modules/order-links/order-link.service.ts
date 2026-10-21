@@ -28,10 +28,16 @@ import {
 import { buyerGstFields } from "../../lib/gstin.js";
 import { istToday } from "../../lib/time.js";
 import {
+  MAX_ORDER_PAYMENTS,
   MAX_PAYMENT_SCREENSHOTS,
   OFFLINE_PAYMENT_METHODS,
   type OfflinePaymentMethod,
 } from "../../lib/paymentLabel.js";
+import {
+  legacyLineFromResolved,
+  orderPaymentInputSchema,
+  summarizePayments,
+} from "../orders/order-payments.js";
 import {
   giftBillingFieldsSchema,
   orderAddressSchema,
@@ -767,6 +773,7 @@ export const placeOfflineOrderSchema = z.object({
   advanceAmount: z.coerce.number().nonnegative().optional().default(0),
   paymentMethod: z.enum(OFFLINE_PAYMENT_METHODS).optional(),
   paymentScreenshotUrls: z.array(z.string().url()).max(MAX_PAYMENT_SCREENSHOTS).default([]),
+  payments: z.array(orderPaymentInputSchema).max(MAX_ORDER_PAYMENTS).optional(),
 
   // Optional override of the pincode-table delivery fee (admin offline only).
   deliveryFee: z.coerce.number().nonnegative().optional().nullable(),
@@ -1003,13 +1010,29 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
     subtotal - discount + (deliveryPaidToRider ? 0 : deliveryFee) + gstOnTop,
   );
 
-  const { advanceAmount, paymentStatus, paymentMethod } = resolvePayment(
+  const resolved = resolvePayment(
     input.paymentMode,
     input.advanceAmount,
     total,
     input.paymentScreenshotUrls.length > 0,
     input.paymentMethod,
   );
+  const fromLines = input.payments !== undefined;
+  const paymentLines = fromLines
+    ? (input.payments ?? [])
+    : legacyLineFromResolved({
+        ...resolved,
+        screenshotUrls: input.paymentScreenshotUrls,
+      });
+  const derived = fromLines
+    ? summarizePayments(paymentLines, total)
+    : {
+        ...resolved,
+        paymentMode: input.paymentMode,
+        paymentScreenshotUrls: input.paymentScreenshotUrls,
+      };
+  const { advanceAmount, paymentStatus, paymentMethod, paymentMode, paymentScreenshotUrls } =
+    derived;
 
   const userId = await ensureCustomerForOrder(prisma, {
     name: input.customerName,
@@ -1048,16 +1071,27 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       placeOfSupply,
       paymentMethod,
       paymentStatus,
-      paymentMode: input.paymentMode,
+      paymentMode,
       advanceAmount,
-      paymentScreenshotUrls: input.paymentScreenshotUrls,
+      paymentScreenshotUrls,
       source: "OFFLINE_DIRECT",
       customerNotes: input.customerNotes ?? null,
       adminNotes: input.adminNotes ?? null,
       ...(placedAt ? { status: "DELIVERED" as const, createdAt: placedAt } : {}),
       items: { create: itemCreates },
+      ...(paymentLines.length
+        ? {
+            payments: {
+              create: paymentLines.map((l) => ({
+                method: l.method,
+                amount: l.amount,
+                screenshotUrl: l.screenshotUrl || null,
+              })),
+            },
+          }
+        : {}),
     },
-    include: { items: true },
+    include: { items: true, payments: { orderBy: { createdAt: "asc" as const } } },
   });
 
   if (pincodeToSave) {

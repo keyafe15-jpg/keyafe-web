@@ -4,6 +4,7 @@ import { useUserOrders } from "@/hooks/useOrders";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
 import { SurpriseGiftBadge } from "@/components/order/SurpriseGiftBadge";
+import { LineExtras } from "@/components/order/LineExtras";
 
 export function MyOrdersPage() {
   const user = useAuth((s) => s.user);
@@ -91,6 +92,11 @@ export function MyOrdersPage() {
                       <p className="truncate text-xs text-ink-500">
                         {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
                       </p>
+                      <LineExtras
+                        className="mt-1"
+                        instructions={item.instructions}
+                        messageOnCake={item.messageOnCake}
+                      />
                       <p className="text-xs text-ink-500">Qty {item.qty}</p>
                     </div>
 

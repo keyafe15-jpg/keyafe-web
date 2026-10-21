@@ -29,7 +29,7 @@ import {
   useRefreshPayment,
   useUpdateBuyerGst,
   useUpdateOrder,
-  MAX_PAYMENT_SCREENSHOTS,
+  MAX_ORDER_PAYMENTS,
   type AdminOrder,
   type GatewayRefundStatus,
   type PaymentAttemptStatus,
@@ -44,11 +44,13 @@ import {
   AwaitingPaymentBadge,
   isAwaitingOnlinePayment,
   OFFLINE_PAYMENT_METHODS,
+  orderPaymentLabel,
   paymentMethodLabel,
   paymentPlanLabel,
   StatusPill,
   STATUS_FLOW,
   SurpriseGiftBadge,
+  type OfflinePaymentMethod,
 } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
 import { textareaClass, inputClass } from "@/components/form/Field";
@@ -90,41 +92,56 @@ export function OrderDetailPage() {
     setEditingItems(false);
   }, [order?.id]);
 
-  const [advanceInput, setAdvanceInput] = useState("");
+  const [addMethod, setAddMethod] = useState<OfflinePaymentMethod>("cash");
+  const [addAmount, setAddAmount] = useState("");
+  const [addFile, setAddFile] = useState<File | null>(null);
+  const [addPreview, setAddPreview] = useState<string | null>(null);
+  const [lineBusy, setLineBusy] = useState(false);
+  const [lineError, setLineError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (order) setAdvanceInput(order.advanceAmount);
-  }, [order?.advanceAmount]);
+    if (!addFile) {
+      setAddPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(addFile);
+    setAddPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [addFile]);
 
-  const [screenshotUploading, setScreenshotUploading] = useState(false);
-  const [screenshotError, setScreenshotError] = useState<string | null>(null);
-
-  const uploadScreenshot = async (file: File) => {
+  const addPaymentLine = async () => {
     if (!order) return;
-    setScreenshotError(null);
-    setScreenshotUploading(true);
+    const amount = Number(addAmount) || 0;
+    if (amount <= 0) {
+      setLineError("Enter an amount");
+      return;
+    }
+    setLineError(null);
+    setLineBusy(true);
     try {
-      const res = await uploadImage(file, "payment-screenshot");
+      const screenshotUrl = addFile
+        ? (await uploadImage(addFile, "payment-screenshot")).publicUrl
+        : null;
       await update.mutateAsync({
         id: order.id,
-        paymentScreenshotUrls: [...order.paymentScreenshotUrls, res.publicUrl],
+        addPayment: { method: addMethod, amount, screenshotUrl },
       });
+      setAddAmount("");
+      setAddFile(null);
     } catch (err) {
-      setScreenshotError(err instanceof Error ? err.message : "Upload failed");
+      setLineError(err instanceof Error ? err.message : "Could not add payment");
     } finally {
-      setScreenshotUploading(false);
+      setLineBusy(false);
     }
   };
 
-  const removeScreenshot = async (url: string) => {
-    if (!order || !confirm("Remove this payment screenshot?")) return;
-    setScreenshotError(null);
+  const removePaymentLine = async (paymentId: string) => {
+    if (!order || !confirm("Remove this payment line?")) return;
+    setLineError(null);
     try {
-      await update.mutateAsync({
-        id: order.id,
-        paymentScreenshotUrls: order.paymentScreenshotUrls.filter((u) => u !== url),
-      });
+      await update.mutateAsync({ id: order.id, removePaymentId: paymentId });
     } catch (err) {
-      setScreenshotError(err instanceof Error ? err.message : "Could not remove screenshot");
+      setLineError(err instanceof Error ? err.message : "Could not remove payment");
     }
   };
 
@@ -272,7 +289,7 @@ export function OrderDetailPage() {
           <Card
             title="Totals"
             collapsible
-            summary={`₹${(activeCredits.length > 0 ? order.money.netTotal : Number(order.total)).toFixed(2)} · ${paymentMethodLabel(order.paymentMethod)} · ${
+            summary={`₹${(activeCredits.length > 0 ? order.money.netTotal : Number(order.total)).toFixed(2)} · ${orderPaymentLabel(order)} · ${
               isAwaitingOnlinePayment(order) ? "Awaiting payment" : order.paymentStatus.toLowerCase()
             }`}
           >
@@ -340,7 +357,7 @@ export function OrderDetailPage() {
                 </>
               )}
               <p className="mt-1 text-[11px] text-slate-500">
-                Payment: {paymentMethodLabel(order.paymentMethod)} ·{" "}
+                Payment: {orderPaymentLabel(order)} ·{" "}
                 {isAwaitingOnlinePayment(order) ? "Awaiting online payment" : order.paymentStatus}
               </p>
               {Number(order.advanceAmount) > 0 && (
@@ -551,49 +568,156 @@ export function OrderDetailPage() {
             summary={`${
               order.paymentMethod === "cashfree"
                 ? "Online (Cashfree)"
-                : paymentMethodLabel(order.paymentMethod)
+                : orderPaymentLabel(order)
             } · ${paymentPlanLabel(order)} · ${
               isAwaitingOnlinePayment(order) ? "Awaiting payment" : order.paymentStatus.toLowerCase()
-            }`}
+            }${order.money.pending > 0 ? ` · ₹${order.money.pending.toFixed(0)} pending` : ""}`}
           >
             <p className="text-sm text-slate-900">
               {order.paymentMethod === "cashfree"
                 ? "Online (Cashfree)"
-                : paymentMethodLabel(order.paymentMethod)}{" "}
+                : orderPaymentLabel(order)}{" "}
               · {paymentPlanLabel(order)}
             </p>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               <PaymentPill status={order.paymentStatus} />
               {isAwaitingOnlinePayment(order) && <AwaitingPaymentBadge />}
+              <p className="text-[11px] text-slate-500 tabular-nums">
+                ₹{order.money.received.toFixed(0)} received
+                {order.money.pending > 0 && (
+                  <span className="font-medium text-amber-700">
+                    {" "}
+                    · ₹{order.money.pending.toFixed(0)} pending
+                  </span>
+                )}
+              </p>
             </div>
             {(order.paymentMethod === "cashfree" || (order.paymentAttempts?.length ?? 0) > 0) && (
               <OnlinePaymentPanel order={order} canRefresh={canUpdate} />
             )}
             {order.paymentMethod !== "cashfree" && (
-              <div className="mt-3">
-                <p className="mb-1.5 text-xs font-medium text-slate-700">
-                  Payment mode
-                  <span className="ml-1 font-normal text-slate-400">· for your records</span>
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {OFFLINE_PAYMENT_METHODS.map((m) => (
-                    <button
-                      key={m.value}
-                      type="button"
-                      aria-pressed={order.paymentMethod === m.value}
-                      onClick={() => update.mutate({ id: order.id, paymentMethod: m.value })}
-                      disabled={update.isPending || order.paymentMethod === m.value}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs font-medium transition disabled:cursor-default",
-                        order.paymentMethod === m.value
-                          ? "border-brand-500 bg-brand-500 text-white"
-                          : "hover:border-brand-300 border-slate-200 bg-white text-slate-700 disabled:opacity-50",
-                      )}
+              <div className="mt-3 space-y-2">
+                {(order.payments ?? []).length === 0 ? (
+                  <p className="text-[11px] text-slate-500">No payment lines yet.</p>
+                ) : (
+                  (order.payments ?? []).map((line) => (
+                    <div
+                      key={line.id}
+                      className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50/70 px-2 py-1.5"
                     >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
+                      <span className="text-xs font-medium text-slate-800">
+                        {paymentMethodLabel(line.method)}
+                      </span>
+                      <span className="text-xs tabular-nums text-slate-700">
+                        ₹{Number(line.amount).toFixed(2)}
+                      </span>
+                      {line.screenshotUrl && (
+                        <a
+                          href={line.screenshotUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ml-auto"
+                        >
+                          <img
+                            src={line.screenshotUrl}
+                            alt={`${paymentMethodLabel(line.method)} proof`}
+                            className="h-8 w-8 rounded border border-slate-200 object-cover"
+                          />
+                        </a>
+                      )}
+                      {canUpdate && (
+                        <button
+                          type="button"
+                          onClick={() => void removePaymentLine(line.id)}
+                          disabled={update.isPending}
+                          className={cn(
+                            "rounded-full p-0.5 text-slate-400 hover:text-red-600 disabled:opacity-50",
+                            line.screenshotUrl ? "" : "ml-auto",
+                          )}
+                          aria-label={`Remove ${paymentMethodLabel(line.method)} line`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+                {canUpdate && (order.payments?.length ?? 0) < MAX_ORDER_PAYMENTS && (
+                  <div className="rounded-md border border-dashed border-slate-200 p-2">
+                    <p className="mb-1.5 text-[11px] font-medium text-slate-600">Add a payment</p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {OFFLINE_PAYMENT_METHODS.map((m) => (
+                        <button
+                          key={m.value}
+                          type="button"
+                          aria-pressed={addMethod === m.value}
+                          onClick={() => setAddMethod(m.value)}
+                          className={cn(
+                            "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition",
+                            addMethod === m.value
+                              ? "border-brand-500 bg-brand-500 text-white"
+                              : "hover:border-brand-300 border-slate-200 bg-white text-slate-700",
+                          )}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                      <div className="relative w-24">
+                        <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-xs text-slate-400">
+                          ₹
+                        </span>
+                        <input
+                          inputMode="decimal"
+                          value={addAmount}
+                          onChange={(e) => setAddAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                          placeholder="0"
+                          className={cn(inputClass, "h-8 py-1 pr-2 pl-5 text-sm")}
+                        />
+                      </div>
+                      {addPreview ? (
+                        <div className="relative">
+                          <img
+                            src={addPreview}
+                            alt="New payment proof"
+                            className="h-8 w-8 rounded border border-slate-200 object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setAddFile(null)}
+                            className="absolute -top-1.5 -right-1.5 rounded-full bg-white p-0.5 text-slate-500 shadow ring-1 ring-slate-200 hover:text-red-600"
+                            aria-label="Remove screenshot"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded border border-dashed border-slate-300 text-slate-400 hover:border-brand-500 hover:text-brand-600">
+                          <ImagePlus className="h-4 w-4" />
+                          <span className="sr-only">Add payment screenshot</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] ?? null;
+                              e.target.value = "";
+                              setAddFile(file);
+                            }}
+                            className="sr-only"
+                          />
+                        </label>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void addPaymentLine()}
+                        disabled={lineBusy || update.isPending || !(Number(addAmount) > 0)}
+                        className="rounded-md bg-brand-500 px-2 py-1 text-[11px] font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                      >
+                        {lineBusy ? "Adding…" : "Add"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {lineError && <p className="text-[11px] text-red-700">{lineError}</p>}
               </div>
             )}
             <div className="mt-3 flex flex-wrap gap-1.5">
@@ -610,115 +734,6 @@ export function OrderDetailPage() {
                   </button>
                 ))}
             </div>
-
-            <div className="mt-4 border-t border-slate-100 pt-3">
-              <label className="text-xs font-medium text-slate-700">Amount received</label>
-              <div className="mt-1 flex items-center gap-2">
-                <input
-                  inputMode="decimal"
-                  value={advanceInput}
-                  onChange={(e) => setAdvanceInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                  className="w-28 rounded-md border border-slate-200 px-2 py-1 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    update.mutate({
-                      id: order.id,
-                      advanceAmount: Number(advanceInput) || 0,
-                    })
-                  }
-                  disabled={
-                    update.isPending ||
-                    Number(advanceInput) === Number(order.advanceAmount) ||
-                    Number(advanceInput) > Number(order.total) ||
-                    Number(advanceInput) < 0
-                  }
-                  className="rounded-md bg-brand-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-                >
-                  Save
-                </button>
-              </div>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Pending: ₹
-                {Math.max(
-                  order.money.netTotal -
-                    Math.max(
-                      Math.min(Number(advanceInput) || 0, Number(order.total)) -
-                        order.money.refunds,
-                      0,
-                    ),
-                  0,
-                ).toFixed(2)}
-                {order.money.discounts + order.money.refunds > 0 && " after credit notes"}
-              </p>
-            </div>
-
-            {order.paymentMethod !== "cashfree" && (
-              <div className="mt-4 border-t border-slate-100 pt-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-slate-700">Payment screenshots</span>
-                  <span className="text-[11px] text-slate-400 tabular-nums">
-                    {order.paymentScreenshotUrls.length}/{MAX_PAYMENT_SCREENSHOTS}
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {order.paymentScreenshotUrls.map((url, index) => (
-                    <div key={url} className="relative">
-                      <a href={url} target="_blank" rel="noreferrer" className="block">
-                        <img
-                          src={url}
-                          alt={`Payment proof ${index + 1}`}
-                          className="h-20 w-20 rounded-md border border-slate-200 object-cover"
-                        />
-                      </a>
-                      <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-slate-900/70 px-1.5 text-[10px] font-medium text-white">
-                        {index + 1}
-                      </span>
-                      {canUpdate && (
-                        <button
-                          type="button"
-                          onClick={() => void removeScreenshot(url)}
-                          disabled={update.isPending}
-                          aria-label={`Remove payment screenshot ${index + 1}`}
-                          className="absolute -top-1.5 -right-1.5 rounded-full bg-white p-0.5 text-slate-500 shadow ring-1 ring-slate-200 transition hover:text-red-600 disabled:opacity-50"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {canUpdate && order.paymentScreenshotUrls.length < MAX_PAYMENT_SCREENSHOTS && (
-                    <label
-                      className={cn(
-                        "flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-slate-300 text-[11px] font-medium text-slate-500 transition hover:border-brand-500 hover:text-brand-600",
-                        screenshotUploading && "pointer-events-none opacity-60",
-                      )}
-                    >
-                      <ImagePlus className="h-5 w-5" />
-                      {screenshotUploading ? "Uploading…" : "Add"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={screenshotUploading}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          e.target.value = "";
-                          if (file) void uploadScreenshot(file);
-                        }}
-                        className="sr-only"
-                      />
-                    </label>
-                  )}
-                  {!canUpdate && order.paymentScreenshotUrls.length === 0 && (
-                    <p className="text-[11px] text-slate-400">None uploaded.</p>
-                  )}
-                </div>
-                {screenshotError && (
-                  <p className="mt-1 text-[11px] text-red-700">{screenshotError}</p>
-                )}
-              </div>
-            )}
           </Card>
 
           {order.status !== "CANCELLED" && <CancelOrderCard order={order} />}

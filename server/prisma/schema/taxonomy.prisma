@@ -147,5 +147,8 @@ model Addon {
   // Offered on offline custom items of these types, on top of the types of the
   // products it's linked to.
   customTemplates   ProductTemplate[] @default([])
+  // Standalone shop listing so extras can be added to the cart on their own.
+  productId         String?           @unique
+  shopProduct       Product?          @relation("AddonShopProduct", fields: [productId], references: [id], onDelete: SetNull)
   createdAt         DateTime          @default(now())
 }

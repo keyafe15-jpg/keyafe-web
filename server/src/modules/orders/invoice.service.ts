@@ -10,6 +10,7 @@ import type { DocumentParty } from "./pdf.theme.js";
 import { renderInvoiceEmail } from "../email/templates.js";
 import { getBusinessContact } from "../store/businessContact.js";
 import { sendEmail, type EmailAttachment } from "../email/email.service.js";
+import { extrasPlainText, lineDisplayNotes } from "../../lib/lineExtras.js";
 
 const IST = "Asia/Kolkata";
 
@@ -333,7 +334,14 @@ export function amountInWords(amount: number): string {
 
 function itemDescription(item: OrderItem): string {
   const meta = [item.sizeLabel, item.flavourName].filter(Boolean).join(", ");
-  return meta ? `${item.productName} (${meta})` : item.productName;
+  const base = meta ? `${item.productName} (${meta})` : item.productName;
+  const extras = extrasPlainText(
+    lineDisplayNotes({
+      instructions: item.instructions,
+      messageOnCake: item.messageOnCake,
+    }).extras,
+  );
+  return extras ? `${base} — Add-ons: ${extras}` : base;
 }
 
 /** Groups lines by HSN + rate, as required on the face of a tax invoice. */
