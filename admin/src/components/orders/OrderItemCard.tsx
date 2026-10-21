@@ -94,8 +94,8 @@ export function OrderItemCard({
       <div className="flex items-start gap-3">
         <RefImageStrip urls={listedItemImages(item)} alt={item.productName} />
         <div className="min-w-0 flex-1">
-          <p className="flex min-w-0 items-center gap-2">
-            <span className="truncate font-medium text-slate-900">{item.productName}</span>
+          <p className="flex min-w-0 flex-wrap items-baseline gap-2">
+            <span className="min-w-0 font-medium break-words text-slate-900">{item.productName}</span>
             <span className="inline-flex shrink-0 items-center rounded-md bg-brand-100 px-1.5 py-0.5 text-sm font-bold leading-none text-brand-700 tabular-nums">
               ×{item.qty}
             </span>
@@ -106,11 +106,6 @@ export function OrderItemCard({
           {item.description && (
             <p className="mt-0.5 text-xs whitespace-pre-line text-slate-700">{item.description}</p>
           )}
-          <LineExtras
-            className="mt-1"
-            instructions={item.instructions}
-            messageOnCake={item.messageOnCake}
-          />
           <div className="mt-1 flex items-start gap-1">
             <p className="text-[11px] font-medium text-brand-700">{scheduleText(item)}</p>
             {onSaveSchedule && !editing && (
@@ -141,6 +136,11 @@ export function OrderItemCard({
           )}
         </div>
       </div>
+      <LineExtras
+        className="mt-2"
+        instructions={item.instructions}
+        messageOnCake={item.messageOnCake}
+      />
 
       {onSaveSchedule && editing && (
         <div className="sm:pl-[68px]">

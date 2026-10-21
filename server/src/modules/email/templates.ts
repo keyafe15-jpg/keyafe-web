@@ -3,6 +3,7 @@ import { paymentMethodLabel } from "../../lib/paymentLabel.js";
 import type { BusinessContact } from "../store/businessContact.js";
 import { extrasPlainText, lineDisplayNotes } from "../../lib/lineExtras.js";
 import { listedReferenceImages } from "../../lib/referenceImages.js";
+import { isZeroExtraCharge } from "../../lib/extraCharge.js";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -230,7 +231,7 @@ function totalsBlock(order: OrderWithItems): string {
 }
 
 export function renderCustomerConfirmation(order: OrderWithItems, contact: BusinessContact) {
-  const rows = order.items.map(itemRow).join("");
+  const rows = order.items.filter((it) => !isZeroExtraCharge(it)).map(itemRow).join("");
   const html = shell(
     `Order confirmed — ${order.orderNumber}`,
     `
@@ -277,8 +278,57 @@ export function renderCustomerConfirmation(order: OrderWithItems, contact: Busin
   };
 }
 
+export function renderCustomerOrderUpdated(
+  order: OrderWithItems,
+  contact: BusinessContact,
+  extras: { previousTotal: number; dueLine: string },
+) {
+  const rows = order.items.filter((it) => !isZeroExtraCharge(it)).map(itemRow).join("");
+  const first = order.customerName.split(" ")[0] ?? order.customerName;
+  const html = shell(
+    `Order updated — ${order.orderNumber}`,
+    `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="display:inline-block;padding:4px 10px;background:#fdeaf3;color:#e31c79;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.4px;">ORDER UPDATED</span>
+      <span style="font-family:monospace;color:#7d8590;font-size:13px;">${escapeHtml(order.orderNumber)}</span>
+    </div>
+    <h1 style="margin:6px 0 4px;font-size:24px;color:#2c3540;">Your order was updated, ${escapeHtml(first)}</h1>
+    <p style="margin:0 0 12px;color:#7d8590;">
+      We made a change to your order. Here's the latest.
+    </p>
+    <p style="margin:0 0 20px;color:#2c3540;font-size:14px;">
+      Previous total ${money(extras.previousTotal)} → new total <strong>${money(order.total)}</strong>.
+      ${escapeHtml(extras.dueLine)}.
+    </p>
+
+    <h3 style="margin:20px 0 6px;font-size:13px;color:#7d8590;text-transform:uppercase;letter-spacing:0.5px;">
+      ${order.fulfillment === "DELIVERY" ? "Delivery to" : "Pickup at"}
+    </h3>
+    ${addressBlock(order, contact)}
+
+    <h3 style="margin:24px 0 6px;font-size:13px;color:#7d8590;text-transform:uppercase;letter-spacing:0.5px;">Your order</h3>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+      ${rows}
+    </table>
+
+    ${totalsBlock(order)}
+    <p style="color:#7d8590;font-size:12px;margin-top:10px;">
+      Payment: ${escapeHtml(paymentMethodLabel(order.paymentMethod))} · ${escapeHtml(order.paymentStatus)}
+    </p>
+
+    <p style="margin-top:24px;color:#7d8590;font-size:13px;">
+      ${questionsLine(contact)}
+    </p>`,
+    contact,
+  );
+  return {
+    subject: `Order updated — ${order.orderNumber}`,
+    html,
+  };
+}
+
 export function renderAdminNotification(order: OrderWithItems, contact: BusinessContact) {
-  const rows = order.items.map(itemRow).join("");
+  const rows = order.items.filter((it) => !isZeroExtraCharge(it)).map(itemRow).join("");
   const html = shell(
     `New order — ${order.orderNumber}`,
     `

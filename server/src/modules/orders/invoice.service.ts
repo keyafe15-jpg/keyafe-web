@@ -5,6 +5,7 @@ import { logger } from "../../utils/logger.js";
 import { roundMoney } from "../coupons/coupon.service.js";
 import { normalizeStateCode, stateCodeFromName, stateNameFromCode } from "../../lib/indiaStates.js";
 import { FALLBACK_SELLER_STATE_CODE } from "./order.tax.js";
+import { isZeroExtraCharge } from "../../lib/extraCharge.js";
 import { renderInvoicePdf } from "./invoice.pdf.js";
 import type { DocumentParty } from "./pdf.theme.js";
 import { renderInvoiceEmail } from "../email/templates.js";
@@ -442,7 +443,9 @@ export async function buildInvoiceData(
   const hasLineTax = order.items.every((i) => i.taxableValue !== null);
   const isLegacyOrder = !hasLineTax;
 
-  const lines: InvoiceLine[] = order.items.map((item) => {
+  const lines: InvoiceLine[] = order.items
+    .filter((item) => !isZeroExtraCharge(item))
+    .map((item) => {
     const lineTotal = Number(item.lineTotal);
     return {
       description: itemDescription(item),

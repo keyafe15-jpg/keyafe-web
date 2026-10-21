@@ -100,6 +100,22 @@ export async function sendOrderStatusWhatsApp(
   });
 }
 
+export async function notifyOrderUpdatedWhatsApp(
+  order: OrderForWhatsApp,
+  extras: { dueLine: string },
+) {
+  await sendWhatsAppTemplate({
+    to: customerPhone(order),
+    template: env.WHATSAPP_TPL_ORDER_UPDATED,
+    bodyParams: [
+      firstName(order.customerName),
+      order.orderNumber,
+      rupees(order.total),
+      extras.dueLine,
+    ],
+  });
+}
+
 export async function notifyOrderCancelledWhatsApp(
   order: OrderForWhatsApp,
   by: "customer" | "admin",

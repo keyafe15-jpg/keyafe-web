@@ -12,7 +12,7 @@ function linkHintToMessage(hint: string | null | undefined): string {
   return [cake, spec.length ? extrasPlainText(spec) : null, notes].filter(Boolean).join("\n");
 }
 
-function addonIdsFromHint(
+export function addonIdsFromHint(
   hint: string | null | undefined,
   addons: Array<{ id: string; name: string }>,
 ): string[] {
@@ -24,6 +24,34 @@ function addonIdsFromHint(
   }
   if (names.size === 0) return [];
   return addons.filter((a) => names.has(a.name.trim().toLowerCase())).map((a) => a.id);
+}
+
+/** Drop rematched add-on segments so save can rewrite them without duplicating. */
+export function leftoverNotesAfterAddons(
+  raw: string | null | undefined,
+  addons: Array<{ id: string; name: string }>,
+): string {
+  const text = raw?.trim() ?? "";
+  if (!text) return "";
+  const matched = new Set(addonIdsFromHint(text, addons));
+  const matchedNames = new Set(
+    addons.filter((a) => matched.has(a.id)).map((a) => a.name.trim().toLowerCase()),
+  );
+  const parsed = parseLineNotes(text);
+  const kept: string[] = [];
+  for (const extra of parsed.extras) {
+    if (PIZZA_SPEC_GROUPS.has(extra.group.trim().toLowerCase())) {
+      kept.push(`${extra.group}: ${extra.names}`);
+      continue;
+    }
+    const remaining = extra.names
+      .split(",")
+      .map((n) => n.trim())
+      .filter((n) => n && !matchedNames.has(n.toLowerCase()));
+    if (remaining.length) kept.push(`${extra.group}: ${remaining.join(", ")}`);
+  }
+  if (parsed.notes) kept.push(parsed.notes);
+  return kept.join("\n");
 }
 
 /** Shared line-item draft for offline direct orders and WhatsApp order links. */

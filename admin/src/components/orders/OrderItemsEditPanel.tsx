@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   useEditOrderItems,
@@ -11,12 +11,15 @@ import { QtyStepper } from "@/components/form/QtyStepper";
 import { DeliveryPaidToField } from "@/components/form/DeliveryPaidToField";
 import {
   AddonGroupPicker,
+  addonIdsFromHint,
   composeAddonNotes,
+  leftoverNotesAfterAddons,
   mergeInstructions,
 } from "@/components/order-items";
 import { RefImagesPicker } from "@/components/order-items/RefImagesPicker";
 import { uploadImage } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
+import { isZeroExtraCharge } from "@/lib/extraCharge";
 
 type DraftLine = {
   key: string;
@@ -39,7 +42,12 @@ type DraftLine = {
   showAddons: boolean;
 };
 
-function itemToDraft(it: AdminOrderItem): DraftLine {
+function itemToDraft(
+  it: AdminOrderItem,
+  addons: Array<{ id: string; name: string }> = [],
+): DraftLine {
+  const hint = [it.instructions, it.messageOnCake].filter(Boolean).join("\n");
+  const addonSelections = addonIdsFromHint(hint, addons);
   return {
     key: it.id,
     id: it.id,
@@ -48,8 +56,8 @@ function itemToDraft(it: AdminOrderItem): DraftLine {
     sizeLabel: it.sizeLabel ?? "",
     sizeGrams: it.sizeGrams != null ? String(it.sizeGrams) : "",
     flavourName: it.flavourName ?? "",
-    messageOnCake: it.messageOnCake ?? "",
-    instructions: it.instructions ?? "",
+    messageOnCake: leftoverNotesAfterAddons(it.messageOnCake, addons),
+    instructions: leftoverNotesAfterAddons(it.instructions, addons),
     description: it.description ?? "",
     showDescription: !it.productId || !!it.description,
     unitPrice: String(Number(it.unitPrice)),
@@ -62,8 +70,8 @@ function itemToDraft(it: AdminOrderItem): DraftLine {
           ? [it.productImage]
           : [],
     refFiles: [],
-    addonSelections: [],
-    showAddons: false,
+    addonSelections,
+    showAddons: addonSelections.length > 0,
   };
 }
 
@@ -88,6 +96,14 @@ function newDraftLine(): DraftLine {
   };
 }
 
+function extraChargeDraftLine(): DraftLine {
+  return {
+    ...newDraftLine(),
+    productName: "Extra charge",
+    showDescription: false,
+  };
+}
+
 function lineSubtotal(d: DraftLine): number {
   return Math.max(0, Number(d.unitPrice) || 0) * Math.max(1, Number(d.qty) || 0);
 }
@@ -102,18 +118,28 @@ export function OrderItemsEditPanel({
   const editItems = useEditOrderItems();
   const { data: allAddons } = useAdminAddons();
   const addons = useMemo(() => (allAddons ?? []).filter((a) => a.isActive), [allAddons]);
-  const [lines, setLines] = useState<DraftLine[]>(() => order.items.map(itemToDraft));
+  const [lines, setLines] = useState<DraftLine[]>(() => order.items.map((it) => itemToDraft(it)));
   const [collectedNow, setCollectedNow] = useState("");
   const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(order.deliveryPaidToRider);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const rematchedFor = useRef<string | null>(null);
 
   useEffect(() => {
-    setLines(order.items.map(itemToDraft));
+    setLines(order.items.map((it) => itemToDraft(it, addons)));
+    rematchedFor.current = addons.length > 0 ? order.id : null;
     setCollectedNow("");
     setDeliveryPaidToRider(order.deliveryPaidToRider);
     setError(null);
+    // Hydrate from this order; rematch when the addon list arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order.id]);
+
+  useEffect(() => {
+    if (addons.length === 0 || rematchedFor.current === order.id) return;
+    rematchedFor.current = order.id;
+    setLines(order.items.map((it) => itemToDraft(it, addons)));
+  }, [addons, order.id, order.items]);
 
   const patchLine = (key: string, patch: Partial<DraftLine>) => {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -182,6 +208,9 @@ export function OrderItemsEditPanel({
       setUploading(true);
       const payloadItems = [];
       for (const line of lines) {
+        if (isZeroExtraCharge({ productName: line.productName, unitPrice: line.unitPrice })) {
+          continue;
+        }
         const uploaded: string[] = [];
         for (const file of line.refFiles) {
           uploaded.push((await uploadImage(file, "quote-reference")).publicUrl);
@@ -425,13 +454,22 @@ export function OrderItemsEditPanel({
         ))}
       </ul>
 
-      <button
-        type="button"
-        onClick={() => setLines((prev) => [...prev, newDraftLine()])}
-        className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:text-brand-900"
-      >
-        <Plus className="h-3.5 w-3.5" /> Add item
-      </button>
+      <div className="mt-3 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => setLines((prev) => [...prev, newDraftLine()])}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:text-brand-900"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add item
+        </button>
+        <button
+          type="button"
+          onClick={() => setLines((prev) => [...prev, extraChargeDraftLine()])}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:text-brand-900"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add extra charge
+        </button>
+      </div>
 
       {hasDeliveryFee && (
         <DeliveryPaidToField

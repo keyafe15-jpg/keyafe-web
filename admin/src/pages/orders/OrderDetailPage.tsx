@@ -53,6 +53,7 @@ import {
   type OfflinePaymentMethod,
 } from "@/pages/orders/order-ui";
 import { cn } from "@/lib/cn";
+import { isZeroExtraCharge } from "@/lib/extraCharge";
 import { textareaClass, inputClass } from "@/components/form/Field";
 import { uploadImage } from "@/lib/uploads";
 import { TIME_SLOTS } from "@/content/slots";
@@ -268,7 +269,7 @@ export function OrderDetailPage() {
               />
             )}
             <ul className="divide-y divide-slate-100">
-              {order.items.map((it) => (
+              {order.items.filter((it) => !isZeroExtraCharge(it)).map((it) => (
                 <li key={it.id}>
                   <OrderItemCard
                     item={it}

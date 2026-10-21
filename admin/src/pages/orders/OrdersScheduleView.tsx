@@ -17,6 +17,7 @@ import { PaginationControls } from "@/components/ClientPagination";
 import { OrderCompactRow } from "@/pages/orders/OrderCompactRow";
 import { useListSearch } from "@/store/listSearch";
 import { LineExtras } from "@/components/orders/LineExtras";
+import { isZeroExtraCharge } from "@/lib/extraCharge";
 
 const PAGE_SIZE = 25;
 const EXCLUDE: OrderStatus[] = ["CANCELLED", "DELIVERED"];
@@ -104,7 +105,7 @@ function ScheduleCard({ entry }: { entry: ScheduleEntry }) {
         </header>
 
         <ul className="flex-1 space-y-2.5 border-t border-slate-100 pt-3">
-          {entry.items.map((item) => {
+          {entry.items.filter((item) => !isZeroExtraCharge(item)).map((item) => {
             const imageUrl = item.productImage ?? item.referenceImageUrl;
             return (
               <li key={item.id} className="flex gap-3 text-sm">

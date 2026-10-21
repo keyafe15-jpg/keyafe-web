@@ -7,6 +7,7 @@ import { HttpError } from "../../utils/httpError.js";
 import { gstinStateCode } from "../../lib/gstin.js";
 import { normalizeStateCode, stateCodeFromName, stateNameFromCode } from "../../lib/indiaStates.js";
 import { FALLBACK_SELLER_STATE_CODE } from "./order.tax.js";
+import { isZeroExtraCharge } from "../../lib/extraCharge.js";
 import {
   addressLines,
   asAddress,
@@ -202,7 +203,9 @@ export async function buildChallanData(
     `${i.deliveryDate?.toISOString() ?? ""}|${i.deliverySlotLabel ?? ""}`;
   const isMixedSchedule = new Set(order.items.map(scheduleKey)).size > 1;
 
-  const lines: ChallanLine[] = order.items.map((item, idx) => {
+  const lines: ChallanLine[] = order.items
+    .filter((item) => !isZeroExtraCharge(item))
+    .map((item, idx) => {
     const display = lineDisplayNotes({
       instructions: item.instructions,
       messageOnCake: item.messageOnCake,

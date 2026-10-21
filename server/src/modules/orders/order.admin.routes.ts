@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import type { OrderStatus, PaymentStatus, PaymentMode } from "@prisma/client";
 import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
+import { notifyOrderUpdated } from "./order.notify.js";
 import { sendOrderStatusWhatsApp } from "./order.whatsapp.js";
 import { editOrderItems, editOrderItemsSchema } from "./order.edit-items.js";
 import { updateBuyerGst, updateBuyerGstSchema } from "./order.buyer-gst.js";
@@ -904,6 +905,11 @@ adminOrderRouter.patch("/:id/items", requirePermission("orders.update"), async (
     throw HttpError.badRequest("Invalid item update", parsed.error.flatten());
   }
   const result = await editOrderItems(id, parsed.data);
+  notifyOrderUpdated(result.order, {
+    previousTotal: result.previousTotal,
+    refundDue: result.refundDue,
+    refundedOnline: result.refundedOnline,
+  });
   res.json(result);
 });
 

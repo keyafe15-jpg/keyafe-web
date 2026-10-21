@@ -60,6 +60,7 @@ const envSchema = z.object({
   WHATSAPP_TPL_DELIVERED: z.string().default("keyafe_order_delivered"),
   WHATSAPP_TPL_CANCELLED: z.string().default("keyafe_order_cancelled"),
   WHATSAPP_TPL_CANCELLED_STAFF: z.string().default("keyafe_order_cancelled_staff"),
+  WHATSAPP_TPL_ORDER_UPDATED: z.string().default("keyafe_order_updated"),
 
   // MSG91 SMS OTP — all three required for real delivery. If any are missing,
   // send-otp falls back to the dev stub (OTP in API response / logs only).

@@ -16,7 +16,13 @@ export {
   validateOrderItems,
 } from "./payload";
 export { saveItemsToCatalog, wantsCatalogSave, type CatalogSaveEntry } from "./saveToCatalog";
-export { newOrderItem, orderLinkItemToDraft, type OrderItemDraft } from "./types";
+export {
+  addonIdsFromHint,
+  leftoverNotesAfterAddons,
+  newOrderItem,
+  orderLinkItemToDraft,
+  type OrderItemDraft,
+} from "./types";
 export { useOrderItemRefPreviews } from "./useOrderItemRefPreviews";
 export { useOrderItemsGstOnTop } from "./useOrderItemsGstOnTop";
 export { useOrderItemsState } from "./useOrderItemsState";

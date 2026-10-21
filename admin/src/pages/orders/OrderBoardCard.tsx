@@ -15,6 +15,7 @@ import {
 import { OrderCompactRow } from "@/pages/orders/OrderCompactRow";
 import { LineExtras } from "@/components/orders/LineExtras";
 import { cn } from "@/lib/cn";
+import { isZeroExtraCharge } from "@/lib/extraCharge";
 
 interface OrderBoardCardProps {
   order: AdminOrderListItem;
@@ -118,7 +119,7 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
           </header>
 
           <ul className="flex-1 space-y-2.5 border-t border-slate-100 pt-3">
-            {order.items.map((item) => {
+            {order.items.filter((item) => !isZeroExtraCharge(item)).map((item) => {
               const imageUrl = item.productImage ?? item.referenceImageUrl;
               return (
                 <li key={item.id} className="text-sm">
