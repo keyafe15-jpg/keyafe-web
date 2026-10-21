@@ -83,84 +83,86 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
         }
       />
       <article className="hover:border-brand-200 hidden flex-col rounded-card border border-slate-200 bg-white shadow-sm transition hover:shadow-md sm:flex">
-        <Link to={`/orders/${order.orderNumber}`} className="flex flex-1 flex-col p-4">
-          <header className="mb-3 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                {order.fulfillment === "DELIVERY" ? (
-                  <Truck className="h-4 w-4 shrink-0 text-slate-400" />
-                ) : (
-                  <Store className="h-4 w-4 shrink-0 text-slate-400" />
-                )}
-                <span className="font-mono text-xs font-semibold text-slate-900">
-                  {order.orderNumber}
-                </span>
-                <StatusPill status={order.status} />
-                {order.isSurpriseGift && <SurpriseGiftBadge compact />}
-                {isAwaitingOnlinePayment(order) && <AwaitingPaymentBadge />}
+        <div className="flex flex-1 flex-col p-4">
+          <Link to={`/orders/${order.orderNumber}`} className="flex flex-1 flex-col">
+            <header className="mb-3 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  {order.fulfillment === "DELIVERY" ? (
+                    <Truck className="h-4 w-4 shrink-0 text-slate-400" />
+                  ) : (
+                    <Store className="h-4 w-4 shrink-0 text-slate-400" />
+                  )}
+                  <span className="font-mono text-xs font-semibold text-slate-900">
+                    {order.orderNumber}
+                  </span>
+                  <StatusPill status={order.status} />
+                  {order.isSurpriseGift && <SurpriseGiftBadge compact />}
+                  {isAwaitingOnlinePayment(order) && <AwaitingPaymentBadge />}
+                </div>
+                {order.earliestDelivery ? (
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {order.earliestSlotLabel && <span>{order.earliestSlotLabel} · </span>}
+                    {new Date(order.earliestDelivery).toLocaleDateString("en-IN", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}
+                  </p>
+                ) : isCourier ? (
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    Ships pan-India
+                    {destination ? ` · ${destination}` : ""}
+                  </p>
+                ) : null}
               </div>
-              {order.earliestDelivery ? (
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {order.earliestSlotLabel && <span>{order.earliestSlotLabel} · </span>}
-                  {new Date(order.earliestDelivery).toLocaleDateString("en-IN", {
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                  })}
-                </p>
-              ) : isCourier ? (
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  Ships pan-India
-                  {destination ? ` · ${destination}` : ""}
-                </p>
-              ) : null}
-            </div>
-            <SourceBadge source={order.source} />
-          </header>
+              <SourceBadge source={order.source} />
+            </header>
 
-          <ul className="flex-1 space-y-2.5 border-t border-slate-100 pt-3">
-            {order.items.filter((item) => !isZeroExtraCharge(item)).map((item) => {
-              const imageUrl = item.productImage ?? item.referenceImageUrl;
-              return (
-                <li key={item.id} className="text-sm">
-                  <div className="flex gap-3">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt=""
-                        className="h-14 w-14 shrink-0 rounded-lg border border-slate-100 object-cover"
-                      />
-                    ) : (
-                      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 text-slate-300">
-                        <ImageOff className="h-5 w-5" />
-                      </span>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="leading-snug font-medium text-slate-900">
-                        <span className="text-brand-600 tabular-nums">{item.qty}×</span>{" "}
-                        {item.productName}
-                      </p>
-                      {(item.sizeLabel || item.flavourName) && (
-                        <p className="mt-0.5 text-xs text-slate-600">
-                          {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
-                        </p>
+            <ul className="flex-1 space-y-2.5 border-t border-slate-100 pt-3">
+              {order.items.filter((item) => !isZeroExtraCharge(item)).map((item) => {
+                const imageUrl = item.productImage ?? item.referenceImageUrl;
+                return (
+                  <li key={item.id} className="text-sm">
+                    <div className="flex gap-3">
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt=""
+                          className="h-14 w-14 shrink-0 rounded-lg border border-slate-100 object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 text-slate-300">
+                          <ImageOff className="h-5 w-5" />
+                        </span>
                       )}
-                      {item.description && (
-                        <p className="mt-0.5 text-xs whitespace-pre-line text-slate-700">
-                          {item.description}
+                      <div className="min-w-0 flex-1">
+                        <p className="leading-snug font-medium text-slate-900">
+                          <span className="text-brand-600 tabular-nums">{item.qty}×</span>{" "}
+                          {item.productName}
                         </p>
-                      )}
-                      <LineExtras
-                        className="mt-1"
-                        instructions={item.instructions}
-                        messageOnCake={item.messageOnCake}
-                      />
+                        {(item.sizeLabel || item.flavourName) && (
+                          <p className="mt-0.5 text-xs text-slate-600">
+                            {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                        {item.description && (
+                          <p className="mt-0.5 text-xs whitespace-pre-line text-slate-700">
+                            {item.description}
+                          </p>
+                        )}
+                        <LineExtras
+                          className="mt-1"
+                          instructions={item.instructions}
+                          messageOnCake={item.messageOnCake}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </Link>
 
           <footer className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
             <div className="flex min-w-0 items-center gap-1 truncate">
@@ -171,11 +173,7 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
               )}
               <span className="truncate">{order.customerCompanyName ?? order.customerName}</span>
               <span className="text-slate-300">·</span>
-              <a
-                href={`tel:${contactPhone}`}
-                onClick={(e) => e.stopPropagation()}
-                className="shrink-0 hover:text-brand-600"
-              >
+              <a href={`tel:${contactPhone}`} className="shrink-0 hover:text-brand-600">
                 {contactPhone}
               </a>
             </div>
@@ -183,7 +181,7 @@ export function OrderBoardCard({ order, flow = "kitchen" }: OrderBoardCardProps)
               ₹{Number(order.total).toFixed(0)} · {orderPaymentLabel(order)}
             </span>
           </footer>
-        </Link>
+        </div>
 
         {canAdvance && (
           <div className="flex gap-2 border-t border-slate-100 px-4 py-3">
