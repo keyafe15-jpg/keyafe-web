@@ -30,7 +30,7 @@ orderRouter.get("/me", requireAuth, async (req, res) => {
   const orders = await prisma.order.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
-    include: { items: { orderBy: { deliveryDate: "asc" } } },
+    include: { items: { orderBy: [{ sortOrder: "asc" }, { deliveryDate: "asc" }] } },
   });
 
   res.json(orders.map(withCustomerCancel));

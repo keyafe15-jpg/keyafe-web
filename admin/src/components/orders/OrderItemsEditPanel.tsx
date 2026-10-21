@@ -17,6 +17,7 @@ import {
   mergeInstructions,
 } from "@/components/order-items";
 import { RefImagesPicker } from "@/components/order-items/RefImagesPicker";
+import { ReorderHandle, ReorderList } from "@/components/reorder/ReorderList";
 import { uploadImage } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
 import { isZeroExtraCharge } from "@/lib/extraCharge";
@@ -283,17 +284,30 @@ export function OrderItemsEditPanel({
         </button>
       </div>
 
-      <ul className="mt-4 space-y-4">
-        {lines.map((line, index) => (
+      <ReorderList
+        as="ul"
+        className="mt-4 space-y-4"
+        items={lines}
+        getId={(line) => line.key}
+        onReorder={setLines}
+        disabled={lines.length <= 1}
+      >
+        {(line, ctx) => {
+          const index = lines.findIndex((l) => l.key === line.key);
+          return (
           <li
-            key={line.key}
+            ref={ctx.setNodeRef}
+            style={ctx.style}
             className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
           >
             <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                Item {index + 1}
-                {line.id ? "" : " · new"}
-              </span>
+              <div className="flex min-w-0 items-center gap-1">
+                <ReorderHandle {...ctx.handleProps} className="h-8 w-8" />
+                <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                  Item {index + 1}
+                  {line.id ? "" : " · new"}
+                </span>
+              </div>
               <button
                 type="button"
                 disabled={lines.length <= 1}
@@ -451,8 +465,9 @@ export function OrderItemsEditPanel({
               </p>
             </div>
           </li>
-        ))}
-      </ul>
+          );
+        }}
+      </ReorderList>
 
       <div className="mt-3 flex flex-wrap gap-3">
         <button

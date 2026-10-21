@@ -159,7 +159,7 @@ async function loadOrderForCredit(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      items: { orderBy: { createdAt: "asc" } },
+      items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       creditNotes: { select: { id: true, kind: true, amount: true, voidedAt: true } },
     },
   });

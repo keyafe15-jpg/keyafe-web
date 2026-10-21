@@ -320,6 +320,7 @@ export async function editOrderItems(
           unitPrice: r.unitPrice,
           qty: r.qty,
           lineTotal: r.lineTotal,
+          sortOrder: i,
           hsnCode: r.hsnCode,
           gstRate: r.gstRate,
           taxableValue: tax.taxableValue,
@@ -379,4 +380,34 @@ export async function editOrderItems(
     refundedOnline,
     collectedNow,
   };
+}
+
+export const reorderOrderItemsSchema = z.object({
+  itemIds: z.array(z.string().min(1)).min(1),
+});
+
+export async function reorderOrderItems(orderId: string, itemIds: string[]) {
+  const existing = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: { select: { id: true } } },
+  });
+  if (!existing) throw HttpError.notFound("Order not found");
+  if (existing.status === "CANCELLED" || existing.status === "DELIVERED") {
+    throw HttpError.badRequest("Can't reorder items on a delivered or cancelled order.");
+  }
+
+  const known = new Set(existing.items.map((it) => it.id));
+  const unique = [...new Set(itemIds)];
+  if (unique.length !== itemIds.length || unique.some((id) => !known.has(id))) {
+    throw HttpError.badRequest("Item order doesn't match this order.");
+  }
+
+  const leftover = existing.items.map((it) => it.id).filter((id) => !unique.includes(id));
+  const ordered = [...unique, ...leftover];
+
+  await prisma.$transaction(
+    ordered.map((id, sortOrder) => prisma.orderItem.update({ where: { id }, data: { sortOrder } })),
+  );
+
+  return getOrderById(orderId);
 }

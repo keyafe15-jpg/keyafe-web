@@ -579,7 +579,7 @@ export async function getInvoiceForOrder(orderId: string): Promise<InvoiceData> 
   const issued = await ensureInvoiceNumber(orderId);
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: { orderBy: { createdAt: "asc" } } },
+    include: { items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
   });
   if (!order) throw HttpError.notFound("Order not found");
   return buildInvoiceData(order, issued);
@@ -612,7 +612,7 @@ export async function sendInvoiceEmail(orderId: string): Promise<{
 }> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: { orderBy: { createdAt: "asc" } } },
+    include: { items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
   });
   if (!order) throw HttpError.notFound("Order not found");
 

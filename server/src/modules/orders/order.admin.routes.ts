@@ -8,7 +8,12 @@ import { getOrderById, getOrderByNumber } from "./order.service.js";
 import { cancelOrderAsAdmin } from "./order.cancel.js";
 import { notifyOrderUpdated } from "./order.notify.js";
 import { sendOrderStatusWhatsApp } from "./order.whatsapp.js";
-import { editOrderItems, editOrderItemsSchema } from "./order.edit-items.js";
+import {
+  editOrderItems,
+  editOrderItemsSchema,
+  reorderOrderItems,
+  reorderOrderItemsSchema,
+} from "./order.edit-items.js";
 import { updateBuyerGst, updateBuyerGstSchema } from "./order.buyer-gst.js";
 import { deleteOrder, deleteOrderSchema } from "./order.delete.js";
 import { buildInvoicePdf, ensureInvoiceNumber, sendInvoiceEmail } from "./invoice.service.js";
@@ -302,7 +307,7 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
             deliverySlotKey: true,
             deliverySlotLabel: true,
           },
-          orderBy: { deliveryDate: "asc" },
+          orderBy: [{ sortOrder: "asc" }, { deliveryDate: "asc" }],
         },
       },
     }),
@@ -912,6 +917,21 @@ adminOrderRouter.patch("/:id/items", requirePermission("orders.update"), async (
   });
   res.json(result);
 });
+
+adminOrderRouter.patch(
+  "/:id/items/order",
+  requirePermission("orders.update"),
+  async (req, res) => {
+    const id = req.params.id ?? "";
+    if (!id) throw HttpError.badRequest("Missing order id");
+    const parsed = reorderOrderItemsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw HttpError.badRequest("Invalid item order", parsed.error.flatten());
+    }
+    const order = await reorderOrderItems(id, parsed.data.itemIds);
+    res.json({ order });
+  },
+);
 
 adminOrderRouter.patch("/:id/buyer-gst", requirePermission("orders.update"), async (req, res) => {
   const id = req.params.id ?? "";

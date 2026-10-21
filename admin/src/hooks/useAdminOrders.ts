@@ -443,6 +443,21 @@ export interface EditOrderItemsResult {
   collectedNow: number;
 }
 
+export function useReorderOrderItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, itemIds }: { id: string; itemIds: string[] }) =>
+      api.patch<{ order: AdminOrder }>(`/admin/orders/${id}/items/order`, { itemIds }),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "order", data.order.id] });
+      void qc.invalidateQueries({
+        queryKey: ["admin", "order", data.order.orderNumber],
+      });
+    },
+  });
+}
+
 export function useEditOrderItems() {
   const qc = useQueryClient();
   return useMutation({

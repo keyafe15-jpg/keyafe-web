@@ -288,7 +288,7 @@ export async function getChallanForOrder(orderId: string): Promise<ChallanData> 
   const issued = await ensureChallanNumber(orderId);
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: { orderBy: { createdAt: "asc" } } },
+    include: { items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
   });
   if (!order) throw HttpError.notFound("Order not found");
   return buildChallanData(order, issued);

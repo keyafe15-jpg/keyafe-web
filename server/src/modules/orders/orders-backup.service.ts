@@ -783,7 +783,7 @@ export async function importOrdersBackup(buffer: Buffer): Promise<{
           const taken = new Set(collisions.map((c) => c.id));
 
           await tx.orderItem.createMany({
-            data: draft.items.map((it) => ({
+            data: draft.items.map((it, idx) => ({
               ...(it.itemId && !taken.has(it.itemId) ? { id: it.itemId } : {}),
               orderId,
               productId: it.productId,
@@ -804,6 +804,7 @@ export async function importOrdersBackup(buffer: Buffer): Promise<{
               unitPrice: it.unitPrice,
               qty: it.qty,
               lineTotal: it.lineTotal,
+              sortOrder: idx,
               hsnCode: it.hsnCode,
               gstRate: it.gstRate,
               taxableValue: it.taxableValue,

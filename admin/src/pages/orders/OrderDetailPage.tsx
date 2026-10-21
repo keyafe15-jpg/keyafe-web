@@ -23,6 +23,7 @@ import {
 import {
   useAdminOrder,
   useDeleteOrder,
+  useReorderOrderItems,
   useDownloadChallan,
   useDownloadInvoice,
   useEmailInvoice,
@@ -61,6 +62,7 @@ import { useStaffPermission } from "@/lib/permissions";
 import { useOrderCustomerLookup } from "@/hooks/useAdminCustomers";
 import { OrderItemsEditPanel } from "@/components/orders/OrderItemsEditPanel";
 import { OrderItemCard, SlotSelect, slotLabelFor } from "@/components/orders/OrderItemCard";
+import { ReorderHandle, ReorderList } from "@/components/reorder/ReorderList";
 import {
   CreditNotesCard,
   REFUND_STATUS,
@@ -72,6 +74,7 @@ export function OrderDetailPage() {
   const { idOrNumber = "" } = useParams<{ idOrNumber: string }>();
   const { data: order, isLoading, isError } = useAdminOrder(idOrNumber);
   const update = useUpdateOrder();
+  const reorderItems = useReorderOrderItems();
   const canUpdate = useStaffPermission("orders.update");
   const canReadInvoices = useStaffPermission("invoices.read");
   const canReadChallans = useStaffPermission("challans.read");
@@ -89,8 +92,10 @@ export function OrderDetailPage() {
   }, [order?.adminNotes]);
 
   const [editingItems, setEditingItems] = useState(false);
+  const [itemOrderIds, setItemOrderIds] = useState<string[] | null>(null);
   useEffect(() => {
     setEditingItems(false);
+    setItemOrderIds(null);
   }, [order?.id]);
 
   const [addMethod, setAddMethod] = useState<OfflinePaymentMethod>("cash");
@@ -158,6 +163,15 @@ export function OrderDetailPage() {
     );
 
   const isDelivery = order.fulfillment === "DELIVERY";
+  const listedItems = (() => {
+    const byId = new Map(order.items.map((it) => [it.id, it]));
+    const ids = itemOrderIds ?? order.items.map((it) => it.id);
+    return ids
+      .map((id) => byId.get(id))
+      .filter((it): it is NonNullable<typeof it> => Boolean(it))
+      .filter((it) => !isZeroExtraCharge(it));
+  })();
+  const canReorderItems = canUpdate && !scheduleLocked && listedItems.length > 1;
   const activeCredits = (order.creditNotes ?? []).filter((n) => !n.voidedAt);
   const billingSameAsDelivery = Boolean(
     isDelivery &&
@@ -268,21 +282,44 @@ export function OrderDetailPage() {
                 }}
               />
             )}
-            <ul className="divide-y divide-slate-100">
-              {order.items.filter((it) => !isZeroExtraCharge(it)).map((it) => (
-                <li key={it.id}>
-                  <OrderItemCard
-                    item={it}
-                    pending={update.isPending}
-                    onSaveSchedule={
-                      canUpdate && !scheduleLocked
-                        ? (payload) => update.mutateAsync({ id: order.id, items: [payload] })
-                        : undefined
-                    }
-                  />
+            <ReorderList
+              as="ul"
+              className="divide-y divide-slate-100"
+              items={listedItems}
+              onReorder={(next) => {
+                const hidden = order.items.filter((it) => isZeroExtraCharge(it));
+                const itemIds = [...next, ...hidden].map((it) => it.id);
+                setItemOrderIds(itemIds);
+                void reorderItems.mutate({ id: order.id, itemIds });
+              }}
+              disabled={!canReorderItems || reorderItems.isPending}
+            >
+              {(it, ctx) => (
+                <li
+                  ref={ctx.setNodeRef}
+                  style={ctx.style}
+                  className="flex items-start gap-1"
+                >
+                  {canReorderItems && (
+                    <ReorderHandle
+                      {...ctx.handleProps}
+                      className="mt-3 text-slate-300 hover:text-slate-600"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <OrderItemCard
+                      item={it}
+                      pending={update.isPending}
+                      onSaveSchedule={
+                        canUpdate && !scheduleLocked
+                          ? (payload) => update.mutateAsync({ id: order.id, items: [payload] })
+                          : undefined
+                      }
+                    />
+                  </div>
                 </li>
-              ))}
-            </ul>
+              )}
+            </ReorderList>
               </>
             )}
           </Card>

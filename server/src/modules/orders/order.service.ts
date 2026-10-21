@@ -305,6 +305,7 @@ export async function createOrder(input: CreateOrderInput) {
               unitPrice: i.unitPrice,
               qty: i.qty,
               lineTotal: i.unitPrice * i.qty,
+              sortOrder: idx,
               hsnCode: p.hsnCode,
               gstRate: p.gstRate,
               taxableValue: tax.taxableValue,
@@ -332,11 +333,13 @@ export async function createOrder(input: CreateOrderInput) {
   return created;
 }
 
+export const orderItemSort = [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }];
+
 export async function getOrderById(id: string) {
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      items: true,
+      items: { orderBy: orderItemSort },
       payments: { orderBy: { createdAt: "asc" } },
       creditNotes: {
         orderBy: { createdAt: "desc" },
@@ -364,7 +367,7 @@ export function publicOrderWhere(key: string): Prisma.OrderWhereUniqueInput {
 export async function getPublicOrder(key: string) {
   const order = await prisma.order.findUnique({
     where: publicOrderWhere(key),
-    include: { items: true },
+    include: { items: { orderBy: orderItemSort } },
   });
   if (!order) throw HttpError.notFound("Order not found");
   return order;
@@ -374,7 +377,7 @@ export async function getOrderByNumber(orderNumber: string) {
   const order = await prisma.order.findUnique({
     where: { orderNumber },
     include: {
-      items: true,
+      items: { orderBy: orderItemSort },
       payments: { orderBy: { createdAt: "asc" } },
       creditNotes: {
         orderBy: { createdAt: "desc" },

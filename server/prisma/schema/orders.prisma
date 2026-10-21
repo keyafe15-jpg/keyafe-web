@@ -194,8 +194,10 @@ model OrderItem {
   igstAmount   Decimal  @default(0) @db.Decimal(10, 2)
 
   createdAt DateTime @default(now())
+  sortOrder Int      @default(0)
 
   @@index([orderId])
+  @@index([orderId, sortOrder])
 }
 
 // One collected amount on an offline order (cash / UPI / netbanking).
