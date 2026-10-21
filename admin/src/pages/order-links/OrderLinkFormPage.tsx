@@ -17,7 +17,7 @@ import { manualDiscountRupees, type ManualDiscountType } from "@/lib/manualDisco
 import {
   OrderItemsEditor,
   orderLinkItemToDraft,
-  resolveReferenceImageUrl,
+  resolveReferenceImageUrls,
   saveItemsToCatalog,
   toOrderLinkItemPayload,
   useOrderItemRefPreviews,
@@ -153,10 +153,10 @@ export function OrderLinkFormPage() {
       const savedImages: CatalogSaveEntry[] = [];
       for (const it of items) {
         setUploading(true);
-        const referenceImageUrl = await resolveReferenceImageUrl(it);
-        savedImages.push({ item: it, referenceImageUrl });
+        const referenceImageUrls = await resolveReferenceImageUrls(it);
+        savedImages.push({ item: it, referenceImageUrl: referenceImageUrls[0] ?? null });
         itemPayloads.push(
-          toOrderLinkItemPayload(it, referenceImageUrl, flavours, allToppings, allAddons),
+          toOrderLinkItemPayload(it, referenceImageUrls, flavours, allToppings, allAddons),
         );
       }
       setUploading(false);

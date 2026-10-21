@@ -22,6 +22,29 @@ interface PresignResult {
 
 const API_BASE = "/api";
 
+const IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+
+/** iPhone camera rolls often send an empty type, or `image/jpg`. */
+function uploadContentType(file: File): string {
+  const raw = (file.type || "").toLowerCase();
+  if (raw === "image/jpg") return "image/jpeg";
+  if (IMAGE_TYPES.has(raw) || raw.startsWith("video/")) return raw;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "heic") return "image/heic";
+  if (ext === "heif") return "image/heif";
+  if (ext === "mp4") return "video/mp4";
+  if (ext === "webm") return "video/webm";
+  return "image/jpeg";
+}
+
 /** Images for any purpose; MP4/WebM video only for `hero`. */
 export async function uploadFile(
   file: File,
@@ -36,7 +59,7 @@ export async function uploadFile(
     },
     body: JSON.stringify({
       purpose,
-      contentType: file.type,
+      contentType: uploadContentType(file),
       filename: file.name,
     }),
   });
@@ -63,7 +86,7 @@ export async function uploadFile(
       method: "PUT",
       body: file,
       headers: {
-        "Content-Type": file.type,
+        "Content-Type": uploadContentType(file),
         ...(presign.headers ?? {}),
       },
     });

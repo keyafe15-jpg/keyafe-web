@@ -5,6 +5,9 @@ import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
 import { SurpriseGiftBadge } from "@/components/order/SurpriseGiftBadge";
 import { LineExtras } from "@/components/order/LineExtras";
+import { ItemQty } from "@/components/order/ItemQty";
+import { listedItemImages, RefImageStrip } from "@/components/order/RefImageStrip";
+import { customerOrderPayable } from "@/lib/customerTotal";
 
 export function MyOrdersPage() {
   const user = useAuth((s) => s.user);
@@ -77,18 +80,13 @@ export function MyOrdersPage() {
               <div className="space-y-3">
                 {order.items.map((item) => (
                   <div key={item.id} className="flex items-start gap-3 text-sm">
-                    {item.productImage ? (
-                      <img
-                        src={item.productImage}
-                        alt=""
-                        className="h-12 w-12 rounded-md object-cover"
-                      />
-                    ) : (
-                      <div className="h-12 w-12 rounded-md bg-cream-100" />
-                    )}
+                    <RefImageStrip urls={listedItemImages(item)} alt={item.productName} />
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink-900">{item.productName}</p>
+                      <p className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-medium text-ink-900">{item.productName}</span>
+                        <ItemQty qty={item.qty} />
+                      </p>
                       <p className="truncate text-xs text-ink-500">
                         {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
                       </p>
@@ -97,7 +95,6 @@ export function MyOrdersPage() {
                         instructions={item.instructions}
                         messageOnCake={item.messageOnCake}
                       />
-                      <p className="text-xs text-ink-500">Qty {item.qty}</p>
                     </div>
 
                     <span className="shrink-0 text-sm font-medium text-ink-900 tabular-nums">
@@ -111,7 +108,7 @@ export function MyOrdersPage() {
                 <div className="flex items-center justify-between gap-4 text-sm sm:justify-start">
                   <span className="text-ink-500">Total</span>
                   <span className="font-medium text-ink-900 tabular-nums">
-                    ₹{Number(order.total).toFixed(2)}
+                    ₹{customerOrderPayable(order).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">

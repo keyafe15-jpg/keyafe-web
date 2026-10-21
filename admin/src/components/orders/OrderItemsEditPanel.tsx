@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, ImageOff } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   useEditOrderItems,
   type AdminOrder,
@@ -13,6 +13,7 @@ import {
   composeAddonNotes,
   mergeInstructions,
 } from "@/components/order-items";
+import { RefImagesPicker } from "@/components/order-items/RefImagesPicker";
 import { uploadImage } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
 
@@ -30,9 +31,8 @@ type DraftLine = {
   showDescription: boolean;
   unitPrice: string;
   qty: string;
-  referenceImageUrl: string | null;
-  refFile: File | null;
-  refPreview: string | null;
+  referenceImageUrls: string[];
+  refFiles: File[];
   /** Add-ons picked in this edit; their price is already in unitPrice. */
   addonSelections: string[];
   showAddons: boolean;
@@ -53,9 +53,14 @@ function itemToDraft(it: AdminOrderItem): DraftLine {
     showDescription: !it.productId || !!it.description,
     unitPrice: String(Number(it.unitPrice)),
     qty: String(it.qty),
-    referenceImageUrl: it.referenceImageUrl ?? it.productImage,
-    refFile: null,
-    refPreview: it.referenceImageUrl ?? it.productImage,
+    referenceImageUrls: it.referenceImageUrls?.length
+      ? it.referenceImageUrls
+      : it.referenceImageUrl
+        ? [it.referenceImageUrl]
+        : it.productImage
+          ? [it.productImage]
+          : [],
+    refFiles: [],
     addonSelections: [],
     showAddons: false,
   };
@@ -75,9 +80,8 @@ function newDraftLine(): DraftLine {
     showDescription: true,
     unitPrice: "",
     qty: "1",
-    referenceImageUrl: null,
-    refFile: null,
-    refPreview: null,
+    referenceImageUrls: [],
+    refFiles: [],
     addonSelections: [],
     showAddons: false,
   };
@@ -177,11 +181,12 @@ export function OrderItemsEditPanel({
       setUploading(true);
       const payloadItems = [];
       for (const line of lines) {
-        let referenceImageUrl = line.referenceImageUrl;
-        if (line.refFile) {
-          const res = await uploadImage(line.refFile, "quote-reference");
-          referenceImageUrl = res.publicUrl;
+        const uploaded: string[] = [];
+        for (const file of line.refFiles) {
+          uploaded.push((await uploadImage(file, "quote-reference")).publicUrl);
         }
+        const referenceImageUrls = [...line.referenceImageUrls, ...uploaded].slice(0, 5);
+        const referenceImageUrl = referenceImageUrls[0] ?? null;
         const gramsRaw = line.sizeGrams.trim();
         const sizeGrams =
           gramsRaw === "" ? null : Math.max(1, Math.round(Number(gramsRaw)) || 0) || null;
@@ -196,6 +201,7 @@ export function OrderItemsEditPanel({
           instructions: mergeInstructions(composeAddonNotes(line, addons), line.instructions),
           description: line.description.trim() || null,
           referenceImageUrl: referenceImageUrl || null,
+          referenceImageUrls,
           unitPrice: Number(line.unitPrice) || 0,
           qty: Math.max(1, Math.round(Number(line.qty)) || 1),
         });
@@ -229,7 +235,7 @@ export function OrderItemsEditPanel({
   };
 
   return (
-    <div className="rounded-card border border-brand-200 bg-brand-50/40 p-4">
+    <div className="min-w-0 overflow-x-hidden rounded-card border border-brand-200 bg-brand-50/40 p-3 sm:p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Edit items</h3>
@@ -251,7 +257,7 @@ export function OrderItemsEditPanel({
         {lines.map((line, index) => (
           <li
             key={line.key}
-            className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
+            className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
           >
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
@@ -268,13 +274,13 @@ export function OrderItemsEditPanel({
               </button>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-xs sm:col-span-2">
+            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+              <label className="block text-xs md:col-span-2">
                 <span className="font-medium text-slate-700">Product / cake name</span>
                 <input
                   value={line.productName}
                   onChange={(e) => patchLine(line.key, { productName: e.target.value })}
-                  className={cn(inputClass, "mt-1")}
+                  className={cn(inputClass, "mt-1 min-w-0")}
                 />
               </label>
               <label className="block text-xs">
@@ -283,7 +289,7 @@ export function OrderItemsEditPanel({
                   value={line.sizeLabel}
                   onChange={(e) => patchLine(line.key, { sizeLabel: e.target.value })}
                   placeholder="1.5 lb / Medium"
-                  className={cn(inputClass, "mt-1")}
+                  className={cn(inputClass, "mt-1 min-w-0")}
                 />
               </label>
               <label className="block text-xs">
@@ -295,7 +301,7 @@ export function OrderItemsEditPanel({
                     patchLine(line.key, { sizeGrams: e.target.value.replace(/\D/g, "") })
                   }
                   placeholder="680"
-                  className={cn(inputClass, "mt-1")}
+                  className={cn(inputClass, "mt-1 min-w-0")}
                 />
               </label>
               <label className="block text-xs">
@@ -306,7 +312,7 @@ export function OrderItemsEditPanel({
                   onChange={(e) =>
                     patchLine(line.key, { qty: e.target.value.replace(/\D/g, "") || "1" })
                   }
-                  className={cn(inputClass, "mt-1")}
+                  className={cn(inputClass, "mt-1 min-w-0")}
                 />
               </label>
               <label className="block text-xs">
@@ -319,11 +325,11 @@ export function OrderItemsEditPanel({
                       unitPrice: e.target.value.replace(/[^0-9.]/g, ""),
                     })
                   }
-                  className={cn(inputClass, "mt-1")}
+                  className={cn(inputClass, "mt-1 min-w-0")}
                 />
               </label>
               {line.showDescription && (
-                <label className="block text-xs sm:col-span-2">
+                <label className="block text-xs md:col-span-2">
                   <span className="font-medium text-slate-700">Description (optional)</span>
                   <textarea
                     rows={2}
@@ -331,37 +337,37 @@ export function OrderItemsEditPanel({
                     value={line.description}
                     onChange={(e) => patchLine(line.key, { description: e.target.value })}
                     placeholder="e.g. Gift hamper: 6 cupcakes, 1 candle, chocolates…"
-                    className={cn(inputClass, "mt-1 resize-y")}
+                    className={cn(inputClass, "mt-1 min-w-0 resize-y")}
                   />
                 </label>
               )}
-              <label className="block text-xs sm:col-span-2">
+              <label className="block text-xs md:col-span-2">
                 <span className="font-medium text-slate-700">Flavour</span>
                 <input
                   value={line.flavourName}
                   onChange={(e) => patchLine(line.key, { flavourName: e.target.value })}
-                  className={cn(inputClass, "mt-1")}
+                  className={cn(inputClass, "mt-1 min-w-0")}
                 />
               </label>
-              <label className="block text-xs sm:col-span-2">
+              <label className="block text-xs md:col-span-2">
                 <span className="font-medium text-slate-700">Message on cake</span>
                 <input
                   value={line.messageOnCake}
                   onChange={(e) => patchLine(line.key, { messageOnCake: e.target.value })}
-                  className={cn(inputClass, "mt-1")}
+                  className={cn(inputClass, "mt-1 min-w-0")}
                 />
               </label>
-              <label className="block text-xs sm:col-span-2">
+              <label className="block text-xs md:col-span-2">
                 <span className="font-medium text-slate-700">Instructions</span>
                 <textarea
                   rows={2}
                   value={line.instructions}
                   onChange={(e) => patchLine(line.key, { instructions: e.target.value })}
-                  className={cn(textareaClass, "mt-1")}
+                  className={cn(textareaClass, "mt-1 min-w-0")}
                 />
               </label>
               {addons.length > 0 && (
-                <div className="sm:col-span-2">
+                <div className="md:col-span-2">
                   {line.showAddons || line.addonSelections.length > 0 ? (
                     <div className="rounded-md border border-slate-200 bg-slate-50/60 p-2.5">
                       <div className="mb-2 flex items-center justify-between gap-2">
@@ -398,34 +404,19 @@ export function OrderItemsEditPanel({
                   )}
                 </div>
               )}
-              <div className="sm:col-span-2">
-                <span className="text-xs font-medium text-slate-700">Reference image</span>
-                <div className="mt-1 flex items-center gap-3">
-                  {line.refPreview ? (
-                    <img
-                      src={line.refPreview}
-                      alt=""
-                      className="h-14 w-14 rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-md bg-slate-100 text-slate-400">
-                      <ImageOff className="h-4 w-4" />
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null;
-                      if (!file) return;
-                      const url = URL.createObjectURL(file);
-                      patchLine(line.key, { refFile: file, refPreview: url });
-                    }}
-                    className="text-xs text-slate-600"
+              <div className="min-w-0 md:col-span-2">
+                <span className="text-xs font-medium text-slate-700">Reference photos</span>
+                <div className="mt-1">
+                  <RefImagesPicker
+                    keptUrls={line.referenceImageUrls}
+                    files={line.refFiles}
+                    onChange={(referenceImageUrls, refFiles) =>
+                      patchLine(line.key, { referenceImageUrls, refFiles })
+                    }
                   />
                 </div>
               </div>
-              <p className="text-xs text-slate-500 sm:col-span-2">
+              <p className="text-xs text-slate-500 md:col-span-2">
                 Line total{" "}
                 <span className="font-medium text-slate-800 tabular-nums">
                   ₹{lineSubtotal(line).toFixed(0)}
@@ -489,7 +480,7 @@ export function OrderItemsEditPanel({
               value={collectedNow}
               onChange={(e) => setCollectedNow(e.target.value.replace(/[^0-9.]/g, ""))}
               placeholder={`Up to ${extraDue.toFixed(0)}`}
-              className={cn(inputClass, "mt-1 w-36")}
+              className={cn(inputClass, "mt-1 min-w-0 w-full max-w-[9rem]")}
             />
             {collect > 0 && (
               <p className="mt-1 text-[11px] text-slate-500">

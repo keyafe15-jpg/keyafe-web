@@ -167,8 +167,10 @@ model OrderItem {
   instructions      String?
   // What a custom item is, e.g. the contents of a gift hamper.
   description       String?
-  // For custom cake orders (from an OrderLink) — customer's reference photo.
-  referenceImageUrl String?
+  // For custom cake orders (from an OrderLink) — customer's reference photos.
+  // `referenceImageUrl` is the first / thumbnail; `referenceImageUrls` holds all (max 5).
+  referenceImageUrl  String?
+  referenceImageUrls String[] @default([])
 
   // Per-line delivery/pickup slot. Null for pan-India courier-shipped items,
   // which skip local date/slot selection entirely.

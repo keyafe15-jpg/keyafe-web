@@ -16,6 +16,7 @@ export interface PublicOrderLinkItem {
   flavourId: string | null;
   flavourName: string | null;
   referenceImageUrl: string | null;
+  referenceImageUrls: string[];
   messageHint: string | null;
   description: string | null;
   unitPrice: string;

@@ -3,6 +3,7 @@ import type { OfflineOrderItemPayload } from "@/hooks/useOfflineOrders";
 import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
 import { uploadImage } from "@/lib/uploads";
+import { MAX_REF_IMAGES } from "./RefImagesPicker";
 import { wantsCatalogSave } from "./saveToCatalog";
 import type { OrderItemDraft } from "./types";
 
@@ -93,18 +94,23 @@ export function orderItemsIssue(items: OrderItemDraft[]): string | null {
   return null;
 }
 
-export async function resolveReferenceImageUrl(item: OrderItemDraft): Promise<string | null> {
-  if (item.kind === "CATALOG") return null;
-  if (item.refFile) {
-    const res = await uploadImage(item.refFile, "quote-reference");
-    return res.publicUrl;
+export async function resolveReferenceImageUrls(item: OrderItemDraft): Promise<string[]> {
+  if (item.kind === "CATALOG") return [];
+  const uploaded: string[] = [];
+  for (const file of item.refFiles) {
+    uploaded.push((await uploadImage(file, "quote-reference")).publicUrl);
   }
-  return item.keptImageUrl;
+  return [...item.keptImageUrls, ...uploaded].slice(0, MAX_REF_IMAGES);
+}
+
+export async function resolveReferenceImageUrl(item: OrderItemDraft): Promise<string | null> {
+  const urls = await resolveReferenceImageUrls(item);
+  return urls[0] ?? null;
 }
 
 export function toOrderLinkItemPayload(
   item: OrderItemDraft,
-  referenceImageUrl: string | null,
+  referenceImageUrls: string[],
   flavours: Array<{ id: string; name: string }>,
   allToppings: AdminTopping[],
   allAddons: AdminAddon[] = [],
@@ -120,7 +126,8 @@ export function toOrderLinkItemPayload(
     sizeGrams: item.sizeGrams ? Number(item.sizeGrams) : null,
     flavourId: item.flavourId || null,
     flavourName: resolveFlavourName(item, flavours),
-    referenceImageUrl,
+    referenceImageUrl: referenceImageUrls[0] ?? null,
+    referenceImageUrls,
     messageHint,
     description: customDescription(item),
     customTemplate: item.kind === "CUSTOM" ? item.customTemplate : null,
@@ -132,7 +139,7 @@ export function toOrderLinkItemPayload(
 
 export function toOfflineOrderItemPayload(
   item: OrderItemDraft,
-  referenceImageUrl: string | null,
+  referenceImageUrls: string[],
   flavours: Array<{ id: string; name: string }>,
   allToppings: AdminTopping[],
   allAddons: AdminAddon[] = [],
@@ -147,7 +154,8 @@ export function toOfflineOrderItemPayload(
     sizeGrams: item.sizeGrams ? Number(item.sizeGrams) : null,
     flavourId: item.flavourId || null,
     flavourName: resolveFlavourName(item, flavours),
-    referenceImageUrl,
+    referenceImageUrl: referenceImageUrls[0] ?? null,
+    referenceImageUrls,
     messageOnCake: item.messageOnCake.trim() || null,
     instructions: mergeInstructions(lineNotes, item.instructions),
     description: customDescription(item),

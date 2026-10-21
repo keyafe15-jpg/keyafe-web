@@ -15,6 +15,7 @@ export interface OrderLinkItem {
   flavourId: string | null;
   flavourName: string | null;
   referenceImageUrl: string | null;
+  referenceImageUrls: string[];
   messageHint: string | null;
   description: string | null;
   customTemplate: ProductTemplate | null;
@@ -63,6 +64,7 @@ export interface OrderLinkItemPayload {
   flavourId?: string | null;
   flavourName?: string | null;
   referenceImageUrl?: string | null;
+  referenceImageUrls?: string[];
   messageHint?: string | null;
   description?: string | null;
   customTemplate?: ProductTemplate | null;

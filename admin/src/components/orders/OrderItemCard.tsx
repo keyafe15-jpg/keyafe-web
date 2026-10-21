@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { ImageOff, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import type { AdminOrder } from "@/hooks/useAdminOrders";
 import { inputClass, selectClass } from "@/components/form/Field";
-import { ImageLightboxThumb } from "@/components/ui/ImageLightboxThumb";
+import { listedItemImages, RefImageStrip } from "@/components/orders/RefImageStrip";
 import { TIME_SLOTS } from "@/content/slots";
 import { cn } from "@/lib/cn";
 import { LineExtras } from "@/components/orders/LineExtras";
@@ -89,20 +89,17 @@ export function OrderItemCard({
   onSaveSchedule?: (payload: ItemSchedulePayload) => Promise<unknown>;
 }) {
   const [editing, setEditing] = useState(false);
-  const thumb = item.referenceImageUrl ?? item.productImage;
-
   return (
     <div className="py-3">
       <div className="flex items-start gap-3">
-        {thumb ? (
-          <ImageLightboxThumb src={thumb} alt={item.productName} className="h-14 w-14" />
-        ) : (
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
-            <ImageOff className="h-4 w-4" />
-          </div>
-        )}
+        <RefImageStrip urls={listedItemImages(item)} alt={item.productName} />
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-slate-900">{item.productName}</p>
+          <p className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium text-slate-900">{item.productName}</span>
+            <span className="inline-flex shrink-0 items-center rounded-md bg-brand-100 px-1.5 py-0.5 text-sm font-bold leading-none text-brand-700 tabular-nums">
+              ×{item.qty}
+            </span>
+          </p>
           <p className="text-xs text-slate-500">
             {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
           </p>

@@ -19,6 +19,7 @@ import {
   sendOnlineRefund,
   type SentRefund,
 } from "../payments/refund.service.js";
+import { MAX_REFERENCE_IMAGES, syncReferenceImages } from "../../lib/referenceImages.js";
 
 /** Defaults for free-form / custom lines (same as offline order-links). */
 const CUSTOM_GST_RATE = 5;
@@ -44,6 +45,7 @@ export const editOrderItemsSchema = z.object({
           .union([z.string().url(), z.literal(""), z.null()])
           .optional()
           .transform((v) => (v === "" || v === undefined ? undefined : v)),
+        referenceImageUrls: z.array(z.string().url()).max(MAX_REFERENCE_IMAGES).optional(),
         unitPrice: z.coerce.number().nonnegative(),
         qty: z.coerce.number().int().positive(),
       }),
@@ -172,6 +174,7 @@ export async function editOrderItems(
     instructions: string | null;
     description: string | null;
     referenceImageUrl: string | null;
+    referenceImageUrls: string[];
     deliveryDate: Date | null;
     deliverySlotKey: string | null;
     deliverySlotLabel: string | null;
@@ -200,17 +203,17 @@ export async function editOrderItems(
     const qty = row.qty;
     const lineTotal = roundMoney(unitPrice * qty);
 
-    const referenceImageUrl =
-      row.referenceImageUrl !== undefined
-        ? (row.referenceImageUrl ?? null)
-        : (prev?.referenceImageUrl ?? null);
+    const images =
+      row.referenceImageUrls !== undefined || row.referenceImageUrl !== undefined
+        ? syncReferenceImages(row.referenceImageUrls, row.referenceImageUrl ?? null)
+        : syncReferenceImages(prev?.referenceImageUrls, prev?.referenceImageUrl ?? null);
 
     return {
       id: row.id,
       productId,
       productName: row.productName,
       productSlug: meta?.slug ?? prev?.productSlug ?? null,
-      productImage: referenceImageUrl ?? prev?.productImage ?? meta?.images[0] ?? null,
+      productImage: images.referenceImageUrl ?? prev?.productImage ?? meta?.images[0] ?? null,
       sizeGrams: row.sizeGrams !== undefined ? (row.sizeGrams ?? null) : (prev?.sizeGrams ?? null),
       sizeLabel: row.sizeLabel !== undefined ? (row.sizeLabel ?? null) : (prev?.sizeLabel ?? null),
       flavourId: row.flavourId !== undefined ? (row.flavourId ?? null) : (prev?.flavourId ?? null),
@@ -224,7 +227,8 @@ export async function editOrderItems(
         row.instructions !== undefined ? (row.instructions ?? null) : (prev?.instructions ?? null),
       description:
         row.description !== undefined ? row.description || null : (prev?.description ?? null),
-      referenceImageUrl,
+      referenceImageUrl: images.referenceImageUrl,
+      referenceImageUrls: images.referenceImageUrls,
       deliveryDate: prev?.deliveryDate ?? scheduleFallback?.deliveryDate ?? null,
       deliverySlotKey: prev?.deliverySlotKey ?? scheduleFallback?.deliverySlotKey ?? null,
       deliverySlotLabel: prev?.deliverySlotLabel ?? scheduleFallback?.deliverySlotLabel ?? null,
@@ -309,6 +313,7 @@ export async function editOrderItems(
           instructions: r.instructions,
           description: r.description,
           referenceImageUrl: r.referenceImageUrl,
+          referenceImageUrls: r.referenceImageUrls,
           deliveryDate: r.deliveryDate,
           deliverySlotKey: r.deliverySlotKey,
           deliverySlotLabel: r.deliverySlotLabel,

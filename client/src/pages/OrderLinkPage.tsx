@@ -16,6 +16,9 @@ import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
 import { gstAddedOnTop } from "@keyafe/shared";
 import { usePublicAddons } from "@/hooks/useAddons";
 import { LinkAddonsPicker } from "@/components/order/LinkAddonsPicker";
+import { ItemQty } from "@/components/order/ItemQty";
+import { listedItemImages, RefImageStrip } from "@/components/order/RefImageStrip";
+import { customerPayableTotal } from "@/lib/customerTotal";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
 type PayChoice = "FULL" | "ADVANCE" | "COD";
@@ -176,10 +179,15 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
     }),
     discount,
   );
-  const total = subtotal - discount + (link.deliveryPaidToRider ? 0 : deliveryFee) + gstOnTop;
+  const bakeryTotal = subtotal - discount + (link.deliveryPaidToRider ? 0 : deliveryFee) + gstOnTop;
+  const total = customerPayableTotal(bakeryTotal, deliveryFee, link.deliveryPaidToRider);
 
   const payNowAmount =
-    payChoice === "FULL" ? total : payChoice === "ADVANCE" ? Number(advanceAmount) || 0 : 0;
+    payChoice === "FULL"
+      ? bakeryTotal
+      : payChoice === "ADVANCE"
+        ? Number(advanceAmount) || 0
+        : 0;
 
   const hasOtherRecipient = fulfillment === "DELIVERY" && !recipientIsMe;
 
@@ -788,7 +796,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
           </div>
           {link.deliveryPaidToRider && fulfillment === "DELIVERY" && deliveryFee > 0 && (
             <p className="mt-1 text-xs text-ink-500">
-              Excludes ₹{deliveryFee.toFixed(0)} delivery, which you pay the rider directly.
+              Includes ₹{deliveryFee.toFixed(0)} you'll pay the rider directly.
             </p>
           )}
           {payChoice === "ADVANCE" && Number(advanceAmount) > 0 && (
@@ -837,8 +845,12 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
 
       <StickyPayBar
         hidden={summaryButtonVisible}
-        amountLabel={payingAdvance ? "Paying now" : "Total"}
-        amount={payingAdvance ? Number(advanceAmount) : total}
+        amountLabel={
+          payingAdvance || (payChoice !== "COD" && payNowAmount > 0) ? "Paying now" : "Total"
+        }
+        amount={
+          payingAdvance ? Number(advanceAmount) : payChoice !== "COD" ? bakeryTotal : total
+        }
         subLabel={
           payingAdvance
             ? `₹${Math.max(total - Number(advanceAmount), 0).toFixed(0)} on delivery`
@@ -846,7 +858,9 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
               ? "+ delivery"
               : payChoice === "COD"
                 ? "Pay on delivery"
-                : undefined
+                : link.deliveryPaidToRider && fulfillment === "DELIVERY" && deliveryFee > 0
+                  ? `+ ₹${deliveryFee.toFixed(0)} to the rider`
+                  : undefined
         }
         buttonLabel={submitLabel}
         hint={missingHint}
@@ -884,9 +898,7 @@ function LockedItemCard({
   }, 0);
   const unitNow = Math.max(0, Number(item.unitPrice) - staffDelta) + extraDelta;
   const itemTotal = unitNow * item.qty;
-  const specs = [item.sizeLabel, item.flavourName, item.qty > 1 ? `Qty ${item.qty}` : null].filter(
-    Boolean,
-  );
+  const specs = [item.sizeLabel, item.flavourName].filter(Boolean);
   const pickerAddons = (() => {
     const seen = new Set<string>();
     const list = [];
@@ -907,28 +919,11 @@ function LockedItemCard({
   return (
     <div className="rounded-card border-2 border-brand-500/30 bg-white p-3 shadow-sm">
       <div className="flex gap-3 sm:gap-4">
-        {item.referenceImageUrl ? (
-          <a
-            href={item.referenceImageUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-cream-100 sm:h-24 sm:w-24"
-            aria-label={`View ${item.productName} image`}
-          >
-            <img
-              src={item.referenceImageUrl}
-              alt={item.productName}
-              className="h-full w-full object-cover"
-            />
-          </a>
-        ) : (
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-cream-100 text-[10px] text-ink-500 sm:h-24 sm:w-24">
-            No image
-          </div>
-        )}
+        <RefImageStrip urls={listedItemImages(item)} alt={item.productName} />
         <div className="min-w-0 flex-1">
-          <h2 className="font-display text-base leading-snug text-ink-900 sm:text-lg">
-            {item.productName}
+          <h2 className="flex min-w-0 items-center gap-2 font-display text-base leading-snug text-ink-900 sm:text-lg">
+            <span className="min-w-0 truncate">{item.productName}</span>
+            <ItemQty qty={item.qty} />
           </h2>
           {specs.length > 0 && <p className="mt-0.5 text-xs text-ink-500">{specs.join(" · ")}</p>}
           {item.description && (

@@ -52,6 +52,11 @@ import {
   publicAddons,
   staffAddonIds,
 } from "./order-link-addons.js";
+import {
+  listedReferenceImages,
+  MAX_REFERENCE_IMAGES,
+  syncReferenceImages,
+} from "../../lib/referenceImages.js";
 
 // 31-char lower-safe alphabet (drops i, l, o, 1, 0 to avoid ambiguity).
 const tokenGen = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
@@ -99,6 +104,7 @@ const orderLinkItemSchema = z.object({
   flavourId: z.string().nullable().optional(),
   flavourName: z.string().trim().nullable().optional(),
   referenceImageUrl: z.string().url().nullable().optional(),
+  referenceImageUrls: z.array(z.string().url()).max(MAX_REFERENCE_IMAGES).optional(),
   messageHint: z.string().trim().max(200).nullable().optional(),
   description: z.string().trim().max(1000).nullable().optional(),
   customTemplate: z.enum(["CAKE", "PIZZA", "OTHER"]).nullable().optional(),
@@ -187,7 +193,10 @@ async function buildItemCreates(items: OrderLinkItemInput[]) {
       catalog && (!item.productName || item.productName === catalog.name)
         ? catalog.name
         : item.productName;
-    const referenceImageUrl = item.referenceImageUrl ?? catalog?.images[0] ?? null;
+    const customImages =
+      item.kind === "CUSTOM"
+        ? syncReferenceImages(item.referenceImageUrls, item.referenceImageUrl)
+        : { referenceImageUrls: [] as string[], referenceImageUrl: catalog?.images[0] ?? item.referenceImageUrl ?? null };
 
     return {
       kind: item.kind,
@@ -197,7 +206,8 @@ async function buildItemCreates(items: OrderLinkItemInput[]) {
       sizeGrams: item.sizeGrams ?? null,
       flavourId: item.flavourId ?? null,
       flavourName: item.flavourName ?? null,
-      referenceImageUrl,
+      referenceImageUrl: customImages.referenceImageUrl,
+      referenceImageUrls: customImages.referenceImageUrls,
       messageHint: item.messageHint ?? null,
       description: item.description || null,
       customTemplate: item.kind === "CUSTOM" ? (item.customTemplate ?? null) : null,
@@ -317,6 +327,7 @@ export async function getOrderLinkByToken(token: string) {
           flavourId: true,
           flavourName: true,
           referenceImageUrl: true,
+          referenceImageUrls: true,
           messageHint: true,
           description: true,
           customTemplate: true,
@@ -348,6 +359,7 @@ export async function getOrderLinkByToken(token: string) {
       const ids = staffAddonIds(item, catalog);
       return {
         ...item,
+        referenceImageUrls: listedReferenceImages(item),
         addons: publicAddons(ids, byId),
         cakeMessage: hintCakeMessage(item.messageHint),
       };
@@ -558,6 +570,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
     instructions: string | null;
     description: string | null;
     referenceImageUrl: string | null;
+    referenceImageUrls: string[];
     unitPrice: number;
     qty: number;
     lineTotal: number;
@@ -583,7 +596,11 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
       messageOnCake: choice?.messageOnCake?.trim() || hintCakeMessage(item.messageHint),
       instructions: leftoverInstructions(item.messageHint),
       description: item.description,
-      referenceImageUrl: item.kind === "CUSTOM" ? item.referenceImageUrl : null,
+      referenceImageUrl: item.kind === "CUSTOM" ? syncReferenceImages(item.referenceImageUrls, item.referenceImageUrl).referenceImageUrl : null,
+      referenceImageUrls:
+        item.kind === "CUSTOM"
+          ? syncReferenceImages(item.referenceImageUrls, item.referenceImageUrl).referenceImageUrls
+          : [],
       unitPrice: base,
       qty: item.qty,
       lineTotal: roundMoney(base * item.qty),
@@ -613,6 +630,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
         instructions: null,
         description: null,
         referenceImageUrl: null,
+        referenceImageUrls: [],
         unitPrice: addon.priceDelta,
         qty: item.qty,
         lineTotal: roundMoney(addon.priceDelta * item.qty),
@@ -666,6 +684,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
       instructions: draft.instructions,
       description: draft.description,
       referenceImageUrl: draft.referenceImageUrl,
+      referenceImageUrls: draft.referenceImageUrls,
       deliveryDate: dt,
       deliverySlotKey: input.deliverySlotKey,
       deliverySlotLabel: input.deliverySlotLabel,
@@ -902,6 +921,7 @@ const offlineItemSchema = z.object({
   flavourId: z.string().nullable().optional(),
   flavourName: z.string().trim().nullable().optional(),
   referenceImageUrl: z.string().url().nullable().optional(),
+  referenceImageUrls: z.array(z.string().url()).max(MAX_REFERENCE_IMAGES).optional(),
   messageOnCake: z.string().trim().max(200).optional().nullable(),
   instructions: z.string().trim().max(500).optional().nullable(),
   description: z.string().trim().max(1000).optional().nullable(),
@@ -1151,7 +1171,12 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       productId: item.productId ?? null,
       productName,
       productSlug: catalog?.slug ?? null,
-      productImage: item.referenceImageUrl ?? catalog?.images[0] ?? null,
+      productImage:
+        (item.kind === "CUSTOM"
+          ? syncReferenceImages(item.referenceImageUrls, item.referenceImageUrl).referenceImageUrl
+          : item.referenceImageUrl) ??
+        catalog?.images[0] ??
+        null,
       sizeGrams: item.sizeGrams ?? null,
       sizeLabel: item.sizeLabel ?? null,
       flavourId: item.flavourId ?? null,
@@ -1159,7 +1184,14 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
       messageOnCake: item.messageOnCake ?? null,
       instructions: item.instructions ?? null,
       description: item.description || null,
-      referenceImageUrl: item.kind === "CUSTOM" ? (item.referenceImageUrl ?? null) : null,
+      referenceImageUrl:
+        item.kind === "CUSTOM"
+          ? syncReferenceImages(item.referenceImageUrls, item.referenceImageUrl).referenceImageUrl
+          : null,
+      referenceImageUrls:
+        item.kind === "CUSTOM"
+          ? syncReferenceImages(item.referenceImageUrls, item.referenceImageUrl).referenceImageUrls
+          : [],
       deliveryDate: dt,
       deliverySlotKey: input.deliverySlotKey,
       deliverySlotLabel: input.deliverySlotLabel,

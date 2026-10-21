@@ -84,7 +84,9 @@ model OrderLinkItem {
   sizeGrams         Int?
   flavourId         String?
   flavourName       String?
-  referenceImageUrl String?
+  // First photo is also in referenceImageUrl so list thumbs stay simple.
+  referenceImageUrl  String?
+  referenceImageUrls String[] @default([])
   messageHint       String?
   // What a custom item is, e.g. the contents of a gift hamper.
   description       String?

@@ -8,6 +8,8 @@ export interface OrderItem {
   productName: string;
   productSlug: string;
   productImage: string | null;
+  referenceImageUrl: string | null;
+  referenceImageUrls: string[];
   sizeGrams: number | null;
   sizeLabel: string | null;
   flavourId: string | null;

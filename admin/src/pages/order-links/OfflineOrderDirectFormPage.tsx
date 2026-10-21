@@ -27,7 +27,7 @@ import { DeliveryPaidToField } from "@/components/form/DeliveryPaidToField";
 import { manualDiscountRupees, type ManualDiscountType } from "@/lib/manualDiscount";
 import {
   OrderItemsEditor,
-  resolveReferenceImageUrl,
+  resolveReferenceImageUrls,
   saveItemsToCatalog,
   toOfflineOrderItemPayload,
   useOrderItemRefPreviews,
@@ -372,10 +372,10 @@ export function OfflineOrderDirectFormPage() {
       const savedImages: CatalogSaveEntry[] = [];
       for (const it of items) {
         setUploading(true);
-        const referenceImageUrl = await resolveReferenceImageUrl(it);
-        savedImages.push({ item: it, referenceImageUrl });
+        const referenceImageUrls = await resolveReferenceImageUrls(it);
+        savedImages.push({ item: it, referenceImageUrl: referenceImageUrls[0] ?? null });
         itemPayloads.push(
-          toOfflineOrderItemPayload(it, referenceImageUrl, flavours, allToppings, allAddons),
+          toOfflineOrderItemPayload(it, referenceImageUrls, flavours, allToppings, allAddons),
         );
       }
       setUploading(false);

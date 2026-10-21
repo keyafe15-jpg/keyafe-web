@@ -20,6 +20,7 @@ import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
 import { missingDetailsHint, scrollToFirstFieldError } from "@/lib/missingDetails";
 import { BlockedTooltip } from "@/components/ui/BlockedTooltip";
 import { LineExtras } from "@/components/order/LineExtras";
+import { ItemQty } from "@/components/order/ItemQty";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
 
@@ -1028,7 +1029,10 @@ export function CheckoutPage() {
                       <div className="h-12 w-12 shrink-0 rounded-md bg-cream-100" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink-900">{l.name}</p>
+                      <p className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-medium text-ink-900">{l.name}</span>
+                        <ItemQty qty={l.qty} />
+                      </p>
                       <p className="truncate text-xs text-ink-500">
                         {[l.sizeLabel, l.flavourName].filter(Boolean).join(" · ")}
                       </p>
@@ -1037,7 +1041,6 @@ export function CheckoutPage() {
                         instructions={l.instructions}
                         messageOnCake={l.messageOnCake}
                       />
-                      <p className="text-xs text-ink-500">Qty {l.qty}</p>
                       {l.date && (
                         <p
                           className={cn(

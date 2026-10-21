@@ -2,12 +2,10 @@ import { useEffect, useMemo } from "react";
 import {
   ChevronDown,
   ChevronRight,
-  ImagePlus,
   Package,
   PackagePlus,
   Sparkles,
   Trash2,
-  X,
 } from "lucide-react";
 import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
@@ -30,6 +28,7 @@ import { Price, applyFactor, formatINR } from "@keyafe/shared";
 import { cn } from "@/lib/cn";
 import type { OrderItemDraft } from "./types";
 import { AddonsPanel } from "./AddonGroupPicker";
+import { RefImagesPicker } from "./RefImagesPicker";
 import { usePizzaCatalogOptions, pizzaSizeLabelForKey } from "./usePizzaCatalogOptions";
 
 export function OrderItemRow({
@@ -453,7 +452,6 @@ export function OrderItemRow({
   // Cakes take pounds and "other" items a size in the first row; pizza sizes live under details.
   const customMeasure =
     item.kind !== "CUSTOM" ? null : isCustomCake ? "POUNDS" : isCustomPizza ? null : "SIZE";
-  const refImage = item.refPreview ?? item.keptImageUrl;
   const productImage =
     item.kind === "CATALOG" && item.productId
       ? (selectedProduct?.images[0] ?? productDetail?.images?.[0] ?? null)
@@ -1162,46 +1160,13 @@ export function OrderItemRow({
                 </p>
               )
             )}
-            <div className="flex min-w-0 items-center gap-3 sm:max-w-xs sm:flex-1">
-              <label className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 transition group-hover:border-brand-500 group-hover:text-brand-600">
-                  {refImage ? (
-                    <img src={refImage} alt="Reference" className="h-full w-full object-cover" />
-                  ) : (
-                    <ImagePlus className="h-5 w-5" />
-                  )}
-                </span>
-                <span className="min-w-0 text-xs">
-                  <span className="block font-medium text-slate-700">
-                    {refImage ? "Reference image" : "Add reference image"}
-                  </span>
-                  <span className="block truncate text-slate-500">
-                    {refImage
-                      ? (item.refFile?.name ?? "Tap to change")
-                      : "The photo the customer sent"}
-                  </span>
-                </span>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    e.target.value = "";
-                    if (file) onPatch({ refFile: file, keptImageUrl: null });
-                  }}
-                  className="sr-only"
-                />
-              </label>
-              {refImage && (
-                <button
-                  type="button"
-                  onClick={() => onPatch({ refFile: null, keptImageUrl: null })}
-                  className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                  aria-label="Remove image"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+            <div className="min-w-0 sm:max-w-md sm:flex-1">
+              <p className="mb-1 text-xs font-medium text-slate-700">Reference photos</p>
+              <RefImagesPicker
+                keptUrls={item.keptImageUrls}
+                files={item.refFiles}
+                onChange={(keptImageUrls, refFiles) => onPatch({ keptImageUrls, refFiles })}
+              />
             </div>
           </div>
         )}

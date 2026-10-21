@@ -24,6 +24,7 @@ export interface OfflineOrderItemPayload {
   flavourId?: string | null;
   flavourName?: string | null;
   referenceImageUrl?: string | null;
+  referenceImageUrls?: string[];
   messageOnCake?: string | null;
   instructions?: string | null;
   description?: string | null;

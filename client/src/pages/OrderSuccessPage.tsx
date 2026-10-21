@@ -15,6 +15,9 @@ import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { DownloadInvoiceButton } from "@/components/order/DownloadInvoiceButton";
 import { SurpriseGiftBadge } from "@/components/order/SurpriseGiftBadge";
 import { LineExtras } from "@/components/order/LineExtras";
+import { ItemQty } from "@/components/order/ItemQty";
+import { listedItemImages, RefImageStrip } from "@/components/order/RefImageStrip";
+import { customerOrderPayable } from "@/lib/customerTotal";
 
 const PAYMENT_CHECKS = 5;
 const PAYMENT_CHECK_INTERVAL_MS = 3000;
@@ -60,6 +63,7 @@ export function OrderSuccessPage() {
 
   const isDelivery = order.fulfillment === "DELIVERY";
   const gstOnTop = orderGstOnTop(order);
+  const customerTotal = customerOrderPayable(order);
   const cancelled = order.status === "CANCELLED";
   const deliverToName = order.recipientName?.trim() || order.customerName;
   const deliverToPhone = order.isSurpriseGift
@@ -163,17 +167,12 @@ export function OrderSuccessPage() {
         <ul className="space-y-3">
           {order.items.map((it) => (
             <li key={it.id} className="flex items-start gap-3 text-sm">
-              {it.productImage ? (
-                <img
-                  src={it.productImage}
-                  alt=""
-                  className="h-12 w-12 shrink-0 rounded-md object-cover"
-                />
-              ) : (
-                <div className="h-12 w-12 shrink-0 rounded-md bg-cream-100" />
-              )}
+              <RefImageStrip urls={listedItemImages(it)} alt={it.productName} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-ink-900">{it.productName}</p>
+                <p className="flex min-w-0 items-center gap-2">
+                  <span className="truncate font-medium text-ink-900">{it.productName}</span>
+                  <ItemQty qty={it.qty} />
+                </p>
                 <p className="truncate text-xs text-ink-500">
                   {[it.sizeLabel, it.flavourName].filter(Boolean).join(" · ")}
                 </p>
@@ -185,7 +184,6 @@ export function OrderSuccessPage() {
                   instructions={it.instructions}
                   messageOnCake={it.messageOnCake}
                 />
-                <p className="text-xs text-ink-500">Qty {it.qty}</p>
                 <p className="mt-1 text-[11px] font-medium text-brand-700">
                   {it.deliveryDate && it.deliverySlotLabel
                     ? `${formatItemDate(it.deliveryDate)} · ${it.deliverySlotLabel}`
@@ -250,13 +248,12 @@ export function OrderSuccessPage() {
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-ink-700">Total</span>
           <span className="text-2xl font-semibold text-ink-900 tabular-nums">
-            ₹{Number(order.total).toFixed(2)}
+            ₹{customerTotal.toFixed(2)}
           </span>
         </div>
-        {isDelivery && order.deliveryPaidToRider && (
+        {isDelivery && order.deliveryPaidToRider && Number(order.deliveryFee) > 0 && (
           <p className="mt-1 text-xs text-ink-500">
-            Excludes ₹{Number(order.deliveryFee).toFixed(0)} delivery, which you pay the rider
-            directly.
+            Includes ₹{Number(order.deliveryFee).toFixed(0)} you'll pay the rider directly.
           </p>
         )}
         <p className="mt-1 text-[11px] text-ink-500">

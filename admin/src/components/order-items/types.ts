@@ -44,9 +44,8 @@ export interface OrderItemDraft {
   description: string;
   unitPrice: string;
   qty: string;
-  refFile: File | null;
-  refPreview: string | null;
-  keptImageUrl: string | null;
+  refFiles: File[];
+  keptImageUrls: string[];
   expanded: boolean;
 
   /** Custom one-off items only — drives cake/pizza/other field sets. */
@@ -85,9 +84,8 @@ export function newOrderItem(kind: OrderLinkKind = "CUSTOM"): OrderItemDraft {
     description: "",
     unitPrice: "",
     qty: "1",
-    refFile: null,
-    refPreview: null,
-    keptImageUrl: null,
+    refFiles: [],
+    keptImageUrls: [],
     expanded: kind === "CUSTOM",
     customTemplate: "CAKE",
     sizeOptionId: "",
@@ -124,9 +122,13 @@ export function orderLinkItemToDraft(
     description: it.description ?? "",
     unitPrice: Number(it.unitPrice).toFixed(0),
     qty: String(it.qty),
-    refFile: null,
-    refPreview: null,
-    keptImageUrl: it.referenceImageUrl,
+    refFiles: [],
+    keptImageUrls:
+      it.referenceImageUrls?.length
+        ? it.referenceImageUrls
+        : it.referenceImageUrl
+          ? [it.referenceImageUrl]
+          : [],
     expanded: it.kind === "CUSTOM",
     sizeOptionId: "",
     crustOptionId: "",

@@ -52,6 +52,7 @@ export interface AdminOrderListItem {
     instructions: string | null;
     description: string | null;
     referenceImageUrl: string | null;
+    referenceImageUrls: string[];
     deliveryDate: string | null;
     deliverySlotKey: string | null;
     deliverySlotLabel: string | null;
@@ -72,6 +73,7 @@ export interface AdminOrderItem {
   instructions: string | null;
   description: string | null;
   referenceImageUrl: string | null;
+  referenceImageUrls: string[];
   deliveryDate: string | null;
   deliverySlotKey: string | null;
   deliverySlotLabel: string | null;
@@ -419,6 +421,7 @@ export interface EditOrderItemPayload {
   instructions?: string | null;
   description?: string | null;
   referenceImageUrl?: string | null;
+  referenceImageUrls?: string[];
   unitPrice: number;
   qty: number;
 }

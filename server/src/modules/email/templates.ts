@@ -2,6 +2,7 @@ import type { Order, OrderItem } from "@prisma/client";
 import { paymentMethodLabel } from "../../lib/paymentLabel.js";
 import type { BusinessContact } from "../store/businessContact.js";
 import { extrasPlainText, lineDisplayNotes } from "../../lib/lineExtras.js";
+import { listedReferenceImages } from "../../lib/referenceImages.js";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -37,10 +38,22 @@ function itemRow(item: OrderItem): string {
     messageOnCake: item.messageOnCake,
   });
   const extras = extrasPlainText(display.extras);
+  const photos = listedReferenceImages(item);
+  const photoRow = photos.length
+    ? `<div style="margin-top:8px;">${photos
+        .map(
+          (src) =>
+            `<a href="${escapeHtml(src)}" style="display:inline-block;margin:0 4px 4px 0;"><img src="${escapeHtml(src)}" alt="" width="56" height="56" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #f0e6d5;" /></a>`,
+        )
+        .join("")}</div>`
+    : "";
   return `
     <tr>
       <td style="padding:12px 0;border-top:1px solid #f0e6d5;">
-        <div style="font-weight:600;color:#2c3540;">${escapeHtml(item.productName)}</div>
+        <div style="font-weight:600;color:#2c3540;">
+          ${escapeHtml(item.productName)}
+          <span style="display:inline-block;margin-left:8px;padding:2px 7px;border-radius:6px;background:#fce7f3;color:#be185d;font-size:13px;font-weight:700;letter-spacing:0.02em;">×${item.qty}</span>
+        </div>
         ${meta ? `<div style="font-size:13px;color:#7d8590;">${escapeHtml(meta)}</div>` : ""}
         ${
           item.description
@@ -70,9 +83,9 @@ function itemRow(item: OrderItem): string {
               : "Ships pan-India via courier"
           }
         </div>
+        ${photoRow}
       </td>
       <td style="padding:12px 0;border-top:1px solid #f0e6d5;text-align:right;vertical-align:top;">
-        <div style="font-size:13px;color:#7d8590;">Qty ${item.qty}</div>
         <div style="font-weight:600;color:#2c3540;">${money(item.lineTotal)}</div>
       </td>
     </tr>`;

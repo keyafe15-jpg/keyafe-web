@@ -9,6 +9,7 @@ export {
   mergeInstructions,
   resolveFlavourName,
   resolveReferenceImageUrl,
+  resolveReferenceImageUrls,
   toOfflineOrderItemPayload,
   toOrderLinkItemPayload,
   orderItemsIssue,
