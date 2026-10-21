@@ -20,6 +20,10 @@ export interface PublicOrderLinkItem {
   description: string | null;
   unitPrice: string;
   qty: number;
+  /** Staff extras already on this line; customer can add or remove them. */
+  addons: { id: string; name: string; group: string | null; priceDelta: number }[];
+  /** Cake message staff typed, if any — extras stripped out. */
+  cakeMessage: string | null;
   /** Null for custom items, which are always priced inclusive of GST. */
   product: { gstRate: string; priceIsGstInclusive: boolean } | null;
 }
@@ -83,6 +87,11 @@ export interface PlaceOrderLinkPayload {
   deliverySlotKey: string;
   deliverySlotLabel: string;
   customerNotes?: string | null;
+  itemChoices?: {
+    itemId: string;
+    messageOnCake?: string | null;
+    addonIds: string[];
+  }[];
 
   // How much is being paid now online. COD sends ADVANCE with advanceAmount: 0.
   paymentMode: "FULL" | "ADVANCE";

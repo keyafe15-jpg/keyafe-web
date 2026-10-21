@@ -79,7 +79,7 @@ export function OrderLinkFormPage() {
   // Prefill from existing link on edit.
   useEffect(() => {
     if (!existing) return;
-    setItems(existing.items.map(orderLinkItemToDraft));
+    setItems(existing.items.map((item) => orderLinkItemToDraft(item, allAddons)));
     setCustomerName(existing.customerName ?? "");
     setCustomerPhone(existing.customerPhone ?? "");
     setAdminNotes(existing.adminNotes ?? "");
@@ -101,7 +101,26 @@ export function OrderLinkFormPage() {
     } else {
       setExpiresInDays("");
     }
-  }, [existing]);
+    // allAddons is read for old links that only stored extras in messageHint.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rematch below; don't reset the form when addons refetch
+  }, [existing, setItems]);
+
+  useEffect(() => {
+    if (!existing || allAddons.length === 0) return;
+    setItems((curr) => {
+      let changed = false;
+      const next = curr.map((item) => {
+        if (item.addonSelections.length > 0) return item;
+        const src = existing.items.find((row) => row.id === item.id);
+        if (!src) return item;
+        const ids = orderLinkItemToDraft(src, allAddons).addonSelections;
+        if (ids.length === 0) return item;
+        changed = true;
+        return { ...item, addonSelections: ids };
+      });
+      return changed ? next : curr;
+    });
+  }, [existing, allAddons, setItems]);
 
   const itemsValid = validateOrderItems(items);
   const canSubmit = itemsValid && !uploading;

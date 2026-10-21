@@ -14,6 +14,8 @@ import { BlockedTooltip } from "@/components/ui/BlockedTooltip";
 import { manualDiscountRupees } from "@/lib/manualDiscount";
 import { stateNameFromCode, WEST_BENGAL_CODE } from "@/lib/indiaStates";
 import { gstAddedOnTop } from "@keyafe/shared";
+import { usePublicAddons } from "@/hooks/useAddons";
+import { LinkAddonsPicker } from "@/components/order/LinkAddonsPicker";
 
 type Fulfillment = "DELIVERY" | "PICKUP";
 type PayChoice = "FULL" | "ADVANCE" | "COD";
@@ -121,11 +123,39 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [redirectingToPayment, setRedirectingToPayment] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const { data: shopAddons = [] } = usePublicAddons();
+  const [choices, setChoices] = useState<Record<string, { message: string; addonIds: string[] }>>(
+    () =>
+      Object.fromEntries(
+        link.items.map((item) => [
+          item.id,
+          { message: item.cakeMessage ?? "", addonIds: (item.addons ?? []).map((a) => a.id) },
+        ]),
+      ),
+  );
 
   const slot = PRODUCT_COPY.timeSlots.find((s) => s.key === slotKey) ?? PRODUCT_COPY.timeSlots[0];
+  const addonPrice = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const addon of shopAddons) map.set(addon.id, Number(addon.priceDelta));
+    for (const item of link.items) {
+      for (const addon of item.addons ?? []) map.set(addon.id, Number(addon.priceDelta));
+    }
+    return map;
+  }, [shopAddons, link.items]);
 
-  const subtotal = link.items.reduce((sum, it) => sum + Number(it.unitPrice) * it.qty, 0);
-  const discount = manualDiscountRupees(subtotal, link.discountType, link.discountValue);
+  const cakeSubtotal = link.items.reduce((sum, it) => {
+    const staffDelta = (it.addons ?? []).reduce((s, a) => s + Number(a.priceDelta), 0);
+    const base = Math.max(0, Number(it.unitPrice) - staffDelta);
+    return sum + base * it.qty;
+  }, 0);
+  const extraSubtotal = link.items.reduce((sum, it) => {
+    const ids = choices[it.id]?.addonIds ?? [];
+    const extra = ids.reduce((s, id) => s + (addonPrice.get(id) ?? 0), 0);
+    return sum + extra * it.qty;
+  }, 0);
+  const subtotal = cakeSubtotal + extraSubtotal;
+  const discount = manualDiscountRupees(cakeSubtotal, link.discountType, link.discountValue);
   const lockedDeliveryFee =
     link.deliveryFee != null && Number.isFinite(Number(link.deliveryFee))
       ? Number(link.deliveryFee)
@@ -135,11 +165,15 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
       ? (lockedDeliveryFee ?? pincodeResult.deliveryFee)
       : 0;
   const gstOnTop = gstAddedOnTop(
-    link.items.map((it) => ({
-      amount: Number(it.unitPrice) * it.qty,
-      gstRate: it.product?.gstRate,
-      priceIsGstInclusive: it.product?.priceIsGstInclusive,
-    })),
+    link.items.map((it) => {
+      const staffDelta = (it.addons ?? []).reduce((s, a) => s + Number(a.priceDelta), 0);
+      const base = Math.max(0, Number(it.unitPrice) - staffDelta);
+      return {
+        amount: base * it.qty,
+        gstRate: it.product?.gstRate,
+        priceIsGstInclusive: it.product?.priceIsGstInclusive,
+      };
+    }),
     discount,
   );
   const total = subtotal - discount + (link.deliveryPaidToRider ? 0 : deliveryFee) + gstOnTop;
@@ -291,6 +325,11 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         deliverySlotKey: slotKey,
         deliverySlotLabel: slot.label,
         customerNotes: notes.trim() || null,
+        itemChoices: link.items.map((item) => ({
+          itemId: item.id,
+          messageOnCake: choices[item.id]?.message.trim() || null,
+          addonIds: choices[item.id]?.addonIds ?? [],
+        })),
         paymentMode: payChoice === "FULL" ? "FULL" : "ADVANCE",
         advanceAmount:
           payChoice === "ADVANCE"
@@ -357,7 +396,8 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         </p>
         <h1 className="mt-1 font-display text-2xl text-ink-900 md:text-3xl">Confirm your order</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Your baker has locked in the design & price. Just fill in your details to confirm.
+          Your baker has locked in the design. Add a cake message or extras if you like, then fill
+          in your details.
         </p>
       </div>
 
@@ -366,9 +406,36 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
         <p className="mb-2 text-[11px] font-semibold tracking-wider text-brand-700 uppercase">
           {link.items.length > 1 ? `Your order · ${link.items.length} items` : "Your order"}
         </p>
-        <div className={cn("grid gap-3", link.items.length > 1 && "sm:grid-cols-2")}>
+        <div className="grid gap-3">
           {link.items.map((item) => (
-            <LockedItemCard key={item.id} item={item} />
+            <LockedItemCard
+              key={item.id}
+              item={item}
+              message={choices[item.id]?.message ?? ""}
+              addonIds={choices[item.id]?.addonIds ?? []}
+              shopAddons={shopAddons}
+              onMessage={(message) =>
+                setChoices((cur) => ({
+                  ...cur,
+                  [item.id]: { message, addonIds: cur[item.id]?.addonIds ?? [] },
+                }))
+              }
+              onToggleAddon={(id) =>
+                setChoices((cur) => {
+                  const prev = cur[item.id] ?? { message: "", addonIds: [] };
+                  const on = prev.addonIds.includes(id);
+                  return {
+                    ...cur,
+                    [item.id]: {
+                      ...prev,
+                      addonIds: on
+                        ? prev.addonIds.filter((x) => x !== id)
+                        : [...prev.addonIds, id],
+                    },
+                  };
+                })
+              }
+            />
           ))}
         </div>
         <p className="mt-2 text-[11px] text-ink-500">Includes GST. Delivery fee added below.</p>
@@ -793,51 +860,105 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
 
 type LockedItem = NonNullable<ReturnType<typeof useOrderLink>["data"]>["items"][number];
 
-function LockedItemCard({ item }: { item: LockedItem }) {
-  const itemTotal = Number(item.unitPrice) * item.qty;
+function LockedItemCard({
+  item,
+  message,
+  addonIds,
+  shopAddons,
+  onMessage,
+  onToggleAddon,
+}: {
+  item: LockedItem;
+  message: string;
+  addonIds: string[];
+  shopAddons: { id: string; slug: string; name: string; group: string | null; priceDelta: string | number; imageUrl: string | null }[];
+  onMessage: (value: string) => void;
+  onToggleAddon: (id: string) => void;
+}) {
+  const staffAddons = item.addons ?? [];
+  const staffDelta = staffAddons.reduce((s, a) => s + Number(a.priceDelta), 0);
+  const extraDelta = addonIds.reduce((s, id) => {
+    const fromShop = shopAddons.find((a) => a.id === id);
+    const fromStaff = staffAddons.find((a) => a.id === id);
+    return s + Number(fromShop?.priceDelta ?? fromStaff?.priceDelta ?? 0);
+  }, 0);
+  const unitNow = Math.max(0, Number(item.unitPrice) - staffDelta) + extraDelta;
+  const itemTotal = unitNow * item.qty;
   const specs = [item.sizeLabel, item.flavourName, item.qty > 1 ? `Qty ${item.qty}` : null].filter(
     Boolean,
   );
+  const pickerAddons = (() => {
+    const seen = new Set<string>();
+    const list = [];
+    for (const addon of [...staffAddons.map((a) => ({
+      id: a.id,
+      slug: a.id,
+      name: a.name,
+      group: a.group,
+      priceDelta: a.priceDelta,
+      imageUrl: null,
+    })), ...shopAddons]) {
+      if (seen.has(addon.id)) continue;
+      seen.add(addon.id);
+      list.push(addon);
+    }
+    return list;
+  })();
   return (
-    <div className="flex gap-3 rounded-card border-2 border-brand-500/30 bg-white p-3 shadow-sm sm:gap-4">
-      {item.referenceImageUrl ? (
-        <a
-          href={item.referenceImageUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-cream-100 sm:h-24 sm:w-24"
-          aria-label={`View ${item.productName} image`}
-        >
-          <img
-            src={item.referenceImageUrl}
-            alt={item.productName}
-            className="h-full w-full object-cover"
-          />
-        </a>
-      ) : (
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-cream-100 text-[10px] text-ink-500 sm:h-24 sm:w-24">
-          No image
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        <h2 className="font-display text-base leading-snug text-ink-900 sm:text-lg">
-          {item.productName}
-        </h2>
-        {specs.length > 0 && <p className="mt-0.5 text-xs text-ink-500">{specs.join(" · ")}</p>}
-        {item.description && (
-          <p className="mt-1 text-xs whitespace-pre-line text-ink-700">{item.description}</p>
+    <div className="rounded-card border-2 border-brand-500/30 bg-white p-3 shadow-sm">
+      <div className="flex gap-3 sm:gap-4">
+        {item.referenceImageUrl ? (
+          <a
+            href={item.referenceImageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-cream-100 sm:h-24 sm:w-24"
+            aria-label={`View ${item.productName} image`}
+          >
+            <img
+              src={item.referenceImageUrl}
+              alt={item.productName}
+              className="h-full w-full object-cover"
+            />
+          </a>
+        ) : (
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-cream-100 text-[10px] text-ink-500 sm:h-24 sm:w-24">
+            No image
+          </div>
         )}
-        <p className="mt-1.5 flex items-baseline gap-1.5">
-          <span className="text-lg font-semibold text-ink-900 tabular-nums">
-            ₹{Number(item.unitPrice).toFixed(0)}
-          </span>
-          {item.qty > 1 && (
-            <span className="text-xs text-ink-500">
-              × {item.qty} = ₹{itemTotal.toFixed(0)}
-            </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display text-base leading-snug text-ink-900 sm:text-lg">
+            {item.productName}
+          </h2>
+          {specs.length > 0 && <p className="mt-0.5 text-xs text-ink-500">{specs.join(" · ")}</p>}
+          {item.description && (
+            <p className="mt-1 text-xs whitespace-pre-line text-ink-700">{item.description}</p>
           )}
-        </p>
+          <p className="mt-1.5 flex items-baseline gap-1.5">
+            <span className="text-lg font-semibold text-ink-900 tabular-nums">
+              ₹{unitNow.toFixed(0)}
+            </span>
+            {item.qty > 1 && (
+              <span className="text-xs text-ink-500">
+                × {item.qty} = ₹{itemTotal.toFixed(0)}
+              </span>
+            )}
+          </p>
+        </div>
       </div>
+      <label className="mt-3 block">
+        <span className="mb-1 block text-[11px] font-medium tracking-wide text-ink-500 uppercase">
+          Message on cake
+        </span>
+        <input
+          value={message}
+          onChange={(e) => onMessage(e.target.value.slice(0, 200))}
+          maxLength={200}
+          placeholder="Happy Birthday…"
+          className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none"
+        />
+      </label>
+      <LinkAddonsPicker addons={pickerAddons} selected={addonIds} onToggle={onToggleAddon} />
     </div>
   );
 }

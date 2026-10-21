@@ -93,9 +93,12 @@ model OrderLinkItem {
   customTemplate    ProductTemplate?
 
   // Price locked at link-creation time. Customer sees + accepts this.
-  unitPrice Decimal @db.Decimal(10, 2)
-  qty       Int     @default(1)
-  sortOrder Int     @default(0)
+  // Includes staff-selected extras; those ids live in addonIds so the
+  // customer can add or remove them on /o/:token.
+  unitPrice Decimal  @db.Decimal(10, 2)
+  addonIds  String[] @default([])
+  qty       Int      @default(1)
+  sortOrder Int      @default(0)
 
   createdAt DateTime @default(now())
 

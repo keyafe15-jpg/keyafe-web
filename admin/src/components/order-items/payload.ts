@@ -125,6 +125,7 @@ export function toOrderLinkItemPayload(
     description: customDescription(item),
     customTemplate: item.kind === "CUSTOM" ? item.customTemplate : null,
     unitPrice: Number(item.unitPrice),
+    addonIds: item.addonSelections,
     qty: Number(item.qty) || 1,
   };
 }

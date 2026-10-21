@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -21,24 +21,16 @@ import {
 import { cn } from "@/lib/cn";
 import { orderLinkUrl } from "@/lib/storefront";
 
-const TABS: { key: OrderLinkStatus | "ALL"; label: string }[] = [
-  { key: "ALL", label: "All" },
+const TABS: { key: OrderLinkStatus; label: string }[] = [
   { key: "OPEN", label: "Open" },
-  { key: "ORDERED", label: "Ordered" },
   { key: "EXPIRED", label: "Expired" },
   { key: "CANCELLED", label: "Cancelled" },
 ];
 
 export function OrderLinksListPage() {
-  const [tab, setTab] = useState<OrderLinkStatus | "ALL">("ALL");
+  const [tab, setTab] = useState<OrderLinkStatus>("OPEN");
   const { data: links = [], isLoading } = useAdminOrderLinks(tab);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const l of links) c[l.status] = (c[l.status] ?? 0) + 1;
-    c.ALL = links.length;
-    return c;
-  }, [links]);
 
   return (
     <div>
@@ -80,16 +72,6 @@ export function OrderLinksListPage() {
               )}
             >
               {t.label}
-              {tab === "ALL" && counts[t.key] > 0 && (
-                <span
-                  className={cn(
-                    "ml-1.5 rounded-full px-1.5 text-[10px] font-bold",
-                    tab === t.key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700",
-                  )}
-                >
-                  {counts[t.key]}
-                </span>
-              )}
             </button>
           ))}
         </div>
@@ -99,7 +81,11 @@ export function OrderLinksListPage() {
         {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && links.length === 0 && (
           <div className="p-12 text-center text-sm text-slate-500">
-            No offline orders yet.{" "}
+            {tab === "OPEN"
+              ? "No open links. "
+              : tab === "EXPIRED"
+                ? "No expired links. "
+                : "No cancelled links. "}
             <Link to="/offline-orders/new" className="text-brand-500 hover:underline">
               Send a link
             </Link>

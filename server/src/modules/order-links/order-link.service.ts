@@ -44,6 +44,14 @@ import {
   resolveGiftBilling,
   type ResolvedGiftBilling,
 } from "../orders/order.gift.js";
+import {
+  addonDelta,
+  hintCakeMessage,
+  leftoverInstructions,
+  loadActiveAddons,
+  publicAddons,
+  staffAddonIds,
+} from "./order-link-addons.js";
 
 // 31-char lower-safe alphabet (drops i, l, o, 1, 0 to avoid ambiguity).
 const tokenGen = customAlphabet("abcdefghjkmnpqrstuvwxyz23456789", 8);
@@ -95,6 +103,7 @@ const orderLinkItemSchema = z.object({
   description: z.string().trim().max(1000).nullable().optional(),
   customTemplate: z.enum(["CAKE", "PIZZA", "OTHER"]).nullable().optional(),
   unitPrice: z.coerce.number().nonnegative(),
+  addonIds: z.array(z.string().min(1)).max(20).optional().default([]),
   qty: z.coerce.number().int().positive().default(1),
 });
 type OrderLinkItemInput = z.infer<typeof orderLinkItemSchema>;
@@ -193,6 +202,7 @@ async function buildItemCreates(items: OrderLinkItemInput[]) {
       description: item.description || null,
       customTemplate: item.kind === "CUSTOM" ? (item.customTemplate ?? null) : null,
       unitPrice: item.unitPrice,
+      addonIds: item.addonIds ?? [],
       qty: item.qty,
       sortOrder: index,
     };
@@ -309,7 +319,9 @@ export async function getOrderLinkByToken(token: string) {
           referenceImageUrl: true,
           messageHint: true,
           description: true,
+          customTemplate: true,
           unitPrice: true,
+          addonIds: true,
           qty: true,
           product: { select: { gstRate: true, priceIsGstInclusive: true } },
         },
@@ -328,7 +340,19 @@ export async function getOrderLinkByToken(token: string) {
     return { ...link, status: "EXPIRED" as const };
   }
 
-  return link;
+  const catalog = link.status === "OPEN" ? await loadActiveAddons() : [];
+  const byId = new Map(catalog.map((a) => [a.id, a]));
+  return {
+    ...link,
+    items: link.items.map((item) => {
+      const ids = staffAddonIds(item, catalog);
+      return {
+        ...item,
+        addons: publicAddons(ids, byId),
+        cakeMessage: hintCakeMessage(item.messageHint),
+      };
+    }),
+  };
 }
 
 function resolveGiftBillingOrThrow(input: {
@@ -372,6 +396,16 @@ export const placeOrderLinkSchema = z.object({
   deliverySlotLabel: z.string().min(1),
 
   customerNotes: z.string().trim().max(500).optional().nullable(),
+
+  itemChoices: z
+    .array(
+      z.object({
+        itemId: z.string().min(1),
+        messageOnCake: z.string().trim().max(200).optional().nullable(),
+        addonIds: z.array(z.string().min(1)).max(20).default([]),
+      }),
+    )
+    .optional(),
 
   // How much the customer pays now (online, via Cashfree). ADVANCE with 0 =
   // pay everything on delivery.
@@ -467,31 +501,76 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
   });
   const isIntraState = placeOfSupply === sellerStateCode;
 
-  // Tax per line (mirrors placeOfflineOrder) — each item may be its own
-  // catalog product with its own GST rate. The manual discount is allocated
-  // across lines first so every line is taxed on what was actually charged.
-  const lineTotals = link.items.map((item) => Number(item.unitPrice) * item.qty);
-  const subtotal = roundMoney(lineTotals.reduce((s, v) => s + v, 0));
-
-  const discount = manualDiscountRupees(
-    subtotal,
-    link.discountType,
-    link.discountValue != null ? Number(link.discountValue) : null,
-  );
-  const chargedLines = allocateCartDiscount(lineTotals, discount);
-
-  const lineTaxes = link.items.map((item, idx) =>
-    computeLineTax({
-      lineInclusive: chargedLines[idx] ?? 0,
-      gstRate: item.product?.gstRate != null ? Number(item.product.gstRate) : CUSTOM_GST_RATE,
-      priceIsGstInclusive: item.product?.priceIsGstInclusive ?? CUSTOM_GST_INCLUSIVE,
-      isIntraState,
+  const catalog = await loadActiveAddons();
+  const addonById = new Map(catalog.map((a) => [a.id, a]));
+  const knownItemIds = new Set(link.items.map((item) => item.id));
+  for (const choice of input.itemChoices ?? []) {
+    if (!knownItemIds.has(choice.itemId)) {
+      throw HttpError.badRequest("Item does not belong to this link");
+    }
+  }
+  const choicesByItem = new Map((input.itemChoices ?? []).map((c) => [c.itemId, c]));
+  const selectedByItem = new Map(
+    link.items.map((item) => {
+      const choice = choicesByItem.get(item.id);
+      const staffIds = staffAddonIds(item, catalog);
+      return [item.id, choice ? choice.addonIds : staffIds] as const;
     }),
   );
-  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax(lineTaxes);
+  const chosenAddonIds = [...new Set([...selectedByItem.values()].flat())];
+  if (chosenAddonIds.some((id) => !addonById.has(id))) {
+    throw HttpError.badRequest("One of the extras is no longer available");
+  }
 
-  const itemCreates = link.items.map((item, idx) => {
-    const tax = lineTaxes[idx]!;
+  const extraProductIds = [
+    ...new Set(
+      chosenAddonIds
+        .map((id) => addonById.get(id)?.productId)
+        .filter((id): id is string => !!id),
+    ),
+  ];
+  const extraProducts = extraProductIds.length
+    ? await prisma.product.findMany({
+        where: { id: { in: extraProductIds } },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          images: true,
+          gstRate: true,
+          hsnCode: true,
+          priceIsGstInclusive: true,
+        },
+      })
+    : [];
+  const extraProductById = new Map(extraProducts.map((p) => [p.id, p]));
+
+  type DraftLine = {
+    productId: string | null;
+    productName: string;
+    productSlug: string | null;
+    productImage: string | null;
+    sizeGrams: number | null;
+    sizeLabel: string | null;
+    flavourId: string | null;
+    flavourName: string | null;
+    messageOnCake: string | null;
+    instructions: string | null;
+    description: string | null;
+    referenceImageUrl: string | null;
+    unitPrice: number;
+    qty: number;
+    lineTotal: number;
+    hsnCode: string;
+    gstRate: number;
+    inclusive: boolean;
+    discounted: boolean;
+  };
+
+  const cakeDrafts: DraftLine[] = link.items.map((item) => {
+    const choice = choicesByItem.get(item.id);
+    const staffIds = staffAddonIds(item, catalog);
+    const base = roundMoney(Math.max(0, Number(item.unitPrice) - addonDelta(staffIds, addonById)));
     return {
       productId: item.productId,
       productName: item.productName,
@@ -501,18 +580,100 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
       sizeLabel: item.sizeLabel,
       flavourId: item.flavourId,
       flavourName: item.flavourName,
-      messageOnCake: item.messageHint ?? null,
-      instructions: null,
+      messageOnCake: choice?.messageOnCake?.trim() || hintCakeMessage(item.messageHint),
+      instructions: leftoverInstructions(item.messageHint),
       description: item.description,
       referenceImageUrl: item.kind === "CUSTOM" ? item.referenceImageUrl : null,
+      unitPrice: base,
+      qty: item.qty,
+      lineTotal: roundMoney(base * item.qty),
+      hsnCode: item.product?.hsnCode ?? CUSTOM_HSN_CODE,
+      gstRate: item.product?.gstRate != null ? Number(item.product.gstRate) : CUSTOM_GST_RATE,
+      inclusive: item.product?.priceIsGstInclusive ?? CUSTOM_GST_INCLUSIVE,
+      discounted: true,
+    };
+  });
+
+  const extraDrafts: DraftLine[] = [];
+  for (const item of link.items) {
+    for (const addonId of selectedByItem.get(item.id) ?? []) {
+      const addon = addonById.get(addonId);
+      if (!addon) continue;
+      const product = addon.productId ? extraProductById.get(addon.productId) : undefined;
+      extraDrafts.push({
+        productId: product?.id ?? null,
+        productName: addon.name,
+        productSlug: product?.slug ?? null,
+        productImage: product?.images[0] ?? null,
+        sizeGrams: null,
+        sizeLabel: null,
+        flavourId: null,
+        flavourName: null,
+        messageOnCake: null,
+        instructions: null,
+        description: null,
+        referenceImageUrl: null,
+        unitPrice: addon.priceDelta,
+        qty: item.qty,
+        lineTotal: roundMoney(addon.priceDelta * item.qty),
+        hsnCode: product?.hsnCode ?? CUSTOM_HSN_CODE,
+        gstRate: product?.gstRate != null ? Number(product.gstRate) : CUSTOM_GST_RATE,
+        inclusive: product?.priceIsGstInclusive ?? CUSTOM_GST_INCLUSIVE,
+        discounted: false,
+      });
+    }
+  }
+
+  const drafts = [...cakeDrafts, ...extraDrafts];
+  const cakeTotals = cakeDrafts.map((d) => d.lineTotal);
+  const cakeSubtotal = roundMoney(cakeTotals.reduce((s, v) => s + v, 0));
+  const extraSubtotal = roundMoney(extraDrafts.reduce((s, d) => s + d.lineTotal, 0));
+  const subtotal = roundMoney(cakeSubtotal + extraSubtotal);
+
+  const discount = manualDiscountRupees(
+    cakeSubtotal,
+    link.discountType,
+    link.discountValue != null ? Number(link.discountValue) : null,
+  );
+  const chargedCakes = allocateCartDiscount(cakeTotals, discount);
+  const chargedLines = [
+    ...chargedCakes,
+    ...extraDrafts.map((d) => d.lineTotal),
+  ];
+
+  const lineTaxes = drafts.map((draft, idx) =>
+    computeLineTax({
+      lineInclusive: chargedLines[idx] ?? 0,
+      gstRate: draft.gstRate,
+      priceIsGstInclusive: draft.inclusive,
+      isIntraState,
+    }),
+  );
+  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax(lineTaxes);
+
+  const itemCreates = drafts.map((draft, idx) => {
+    const tax = lineTaxes[idx]!;
+    return {
+      productId: draft.productId,
+      productName: draft.productName,
+      productSlug: draft.productSlug,
+      productImage: draft.productImage,
+      sizeGrams: draft.sizeGrams,
+      sizeLabel: draft.sizeLabel,
+      flavourId: draft.flavourId,
+      flavourName: draft.flavourName,
+      messageOnCake: draft.messageOnCake,
+      instructions: draft.instructions,
+      description: draft.description,
+      referenceImageUrl: draft.referenceImageUrl,
       deliveryDate: dt,
       deliverySlotKey: input.deliverySlotKey,
       deliverySlotLabel: input.deliverySlotLabel,
-      unitPrice: Number(item.unitPrice),
-      qty: item.qty,
-      lineTotal: lineTotals[idx] ?? 0,
-      hsnCode: item.product?.hsnCode ?? CUSTOM_HSN_CODE,
-      gstRate: item.product?.gstRate != null ? Number(item.product.gstRate) : CUSTOM_GST_RATE,
+      unitPrice: draft.unitPrice,
+      qty: draft.qty,
+      lineTotal: draft.lineTotal,
+      hsnCode: draft.hsnCode,
+      gstRate: draft.gstRate,
       taxableValue: tax.taxableValue,
       cgstAmount: tax.cgstAmount,
       sgstAmount: tax.sgstAmount,
@@ -522,7 +683,7 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
 
   const gstOnTop = gstAddedOnTop(
     lineTaxes,
-    link.items.map((item) => item.product?.priceIsGstInclusive ?? CUSTOM_GST_INCLUSIVE),
+    drafts.map((d) => d.inclusive),
   );
   const deliveryPaidToRider = deliveryFee > 0 && link.deliveryPaidToRider;
   const total = roundMoney(
@@ -596,9 +757,22 @@ export async function placeOrderFromLink(token: string, input: PlaceOrderLinkInp
       },
       include: { items: true },
     });
+    await tx.orderLinkItem.deleteMany({ where: { orderLinkId: link.id } });
     await tx.orderLink.update({
       where: { id: link.id },
-      data: { status: "ORDERED", linkedOrderId: created.id },
+      data: {
+        status: "ORDERED",
+        linkedOrderId: created.id,
+        customerName: null,
+        customerPhone: null,
+        suggestedDate: null,
+        suggestedSlotKey: null,
+        suggestedSlotLabel: null,
+        adminNotes: null,
+        discountType: null,
+        discountValue: null,
+        deliveryFee: null,
+      },
     });
     return created;
   });

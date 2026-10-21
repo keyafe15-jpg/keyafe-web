@@ -19,6 +19,7 @@ export interface OrderLinkItem {
   description: string | null;
   customTemplate: ProductTemplate | null;
   unitPrice: string;
+  addonIds: string[];
   qty: number;
 }
 
@@ -66,6 +67,7 @@ export interface OrderLinkItemPayload {
   description?: string | null;
   customTemplate?: ProductTemplate | null;
   unitPrice: number;
+  addonIds?: string[];
   qty: number;
 }
 
