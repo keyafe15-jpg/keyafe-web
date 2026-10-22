@@ -292,33 +292,36 @@ export function OrderLinkFormPage() {
             addItem={addItem}
           />
 
+          <Section title="Discount (optional)" subtitle="Applies to items only, not delivery.">
+            <ManualDiscountFields
+              type={discountType}
+              value={discountValue}
+              onType={setDiscountType}
+              onValue={setDiscountValue}
+            />
+          </Section>
+
           <Section
-            title="Pricing (optional)"
-            subtitle="Discount is on items only. Leave delivery blank to use the customer’s pincode rate."
+            title="Delivery (optional)"
+            subtitle="Leave blank to use the customer’s pincode rate when they order."
           >
             <div className="space-y-3">
-              <ManualDiscountFields
-                type={discountType}
-                value={discountValue}
-                onType={setDiscountType}
-                onValue={setDiscountValue}
-              />
-              <div className="grid grid-cols-2 gap-x-2 sm:gap-x-4">
-                <Field label="Delivery ₹">
-                  <input
-                    inputMode="decimal"
-                    value={deliveryFeeInput}
-                    onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                    placeholder="From pincode"
-                    className={inputClass}
-                  />
-                </Field>
-                <DeliveryPaidToField
-                  paidToRider={deliveryPaidToRider}
-                  onChange={setDeliveryPaidToRider}
-                  className="col-span-2 mt-3"
+              <Field
+                label="Fix delivery charge as"
+                hint="Rupees. Blank means we charge whatever the pincode table says."
+              >
+                <input
+                  inputMode="decimal"
+                  value={deliveryFeeInput}
+                  onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
+                  placeholder="e.g. 80"
+                  className={inputClass}
                 />
-              </div>
+              </Field>
+              <DeliveryPaidToField
+                paidToRider={deliveryPaidToRider}
+                onChange={setDeliveryPaidToRider}
+              />
             </div>
           </Section>
 
