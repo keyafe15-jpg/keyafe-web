@@ -27,6 +27,14 @@ import { useListSearch } from "@/store/listSearch";
 import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
 import { ProductsBulkImport } from "@/components/products/ProductsBulkImport";
+import { DraftBanner } from "@/components/form/DraftBanner";
+import { clearDraft } from "@/lib/adminDraft";
+import {
+  PRODUCT_BULK_DRAFT_KEY,
+  PRODUCT_FORM_DRAFT_KEY,
+  peekProductBulkDraft,
+  peekProductFormDraft,
+} from "@/lib/productDraft";
 
 const PAGE_SIZE = 20;
 
@@ -41,6 +49,10 @@ export function ProductsListPage() {
   const search = useListSearch((s) => s.query);
   const [scope, setScope] = useState<AdminProductListScope>("catalog");
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [draftTick, setDraftTick] = useState(0);
+  const formDraft = peekProductFormDraft();
+  const bulkDraft = peekProductBulkDraft();
+  void draftTick;
   const { data, isLoading, isFetching } = useAdminProducts(page, PAGE_SIZE, search, scope);
   const products = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -91,6 +103,35 @@ export function ProductsListPage() {
           </div>
         )}
       </div>
+
+      {canEdit && (formDraft || bulkDraft) && (
+        <div className="mb-4 space-y-2">
+          {formDraft && (
+            <DraftBanner
+              title={formDraft.title}
+              summary={formDraft.summary}
+              kindLabel={formDraft.kindLabel}
+              to="/products/new"
+              onDiscard={() => {
+                clearDraft(PRODUCT_FORM_DRAFT_KEY);
+                setDraftTick((n) => n + 1);
+              }}
+            />
+          )}
+          {bulkDraft && (
+            <DraftBanner
+              title={bulkDraft.title}
+              summary={bulkDraft.summary}
+              kindLabel={bulkDraft.kindLabel}
+              onContinue={() => setBulkOpen(true)}
+              onDiscard={() => {
+                clearDraft(PRODUCT_BULK_DRAFT_KEY);
+                setDraftTick((n) => n + 1);
+              }}
+            />
+          )}
+        </div>
+      )}
 
       {canEdit && <ProductsBulkImport open={bulkOpen} onClose={() => setBulkOpen(false)} />}
 

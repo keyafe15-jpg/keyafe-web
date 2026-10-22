@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,6 +54,8 @@ import { cn } from "@/lib/cn";
 import { useStaffPermission } from "@/lib/permissions";
 import { DiscountFields } from "@/components/products/DiscountFields";
 import { actualStartingPrice } from "@keyafe/shared";
+import { clearDraft, readDraft, useDebouncedDraftSave } from "@/lib/adminDraft";
+import { PRODUCT_FORM_DRAFT_KEY, type ProductFormDraft } from "@/lib/productDraft";
 
 const formSchema = z.object({
   name: z.string().trim().min(2, "Name is required"),
@@ -135,15 +137,26 @@ export function ProductFormPage() {
   const deleteProduct = useDeleteProduct();
   const { data: existing, isLoading: loadingExisting } = useAdminProduct(id);
   const isArchived = Boolean(existing?.archivedAt);
+  const [initialDraft] = useState(() =>
+    isEdit ? null : readDraft<ProductFormDraft>(PRODUCT_FORM_DRAFT_KEY),
+  );
 
   const [newImages, setNewImages] = useState<File[]>([]);
-  const [keptImages, setKeptImages] = useState<string[]>([]);
-  const [flavorIds, setFlavorIds] = useState<Set<string>>(new Set());
-  const [tagIds, setTagIds] = useState<Set<string>>(new Set());
-  const [toppingIds, setToppingIds] = useState<Set<string>>(new Set());
-  const [addonIds, setAddonIds] = useState<Set<string>>(new Set());
-  const [sizeOptions, setSizeOptions] = useState<ProductOptionInput[]>([]);
-  const [crustOptions, setCrustOptions] = useState<ProductOptionInput[]>([]);
+  const [keptImages, setKeptImages] = useState<string[]>(initialDraft?.keptImages ?? []);
+  const [flavorIds, setFlavorIds] = useState<Set<string>>(
+    () => new Set(initialDraft?.flavorIds ?? []),
+  );
+  const [tagIds, setTagIds] = useState<Set<string>>(() => new Set(initialDraft?.tagIds ?? []));
+  const [toppingIds, setToppingIds] = useState<Set<string>>(
+    () => new Set(initialDraft?.toppingIds ?? []),
+  );
+  const [addonIds, setAddonIds] = useState<Set<string>>(() => new Set(initialDraft?.addonIds ?? []));
+  const [sizeOptions, setSizeOptions] = useState<ProductOptionInput[]>(
+    initialDraft?.sizeOptions ?? [],
+  );
+  const [crustOptions, setCrustOptions] = useState<ProductOptionInput[]>(
+    initialDraft?.crustOptions ?? [],
+  );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
@@ -225,6 +238,7 @@ export function ProductFormPage() {
       isAvailable: true,
       isFeatured: false,
       sortOrder: 0,
+      ...(initialDraft?.values as Partial<FormValues> | undefined),
     },
   });
 
@@ -248,11 +262,42 @@ export function ProductFormPage() {
   );
 
   // Auto-populate slug from name while slug hasn't been manually edited.
-  const [slugTouched, setSlugTouched] = useState(isEdit);
+  const [slugTouched, setSlugTouched] = useState(initialDraft?.slugTouched ?? isEdit);
   const nextAutoSlug = slugify(name);
   if (!slugTouched && nextAutoSlug !== slug) {
     setTimeout(() => setValue("slug", nextAutoSlug), 0);
   }
+
+  const formValues = watch();
+  const schemaReady = formSchema.safeParse(formValues).success;
+  const pizzaSizesReady =
+    template !== "PIZZA" || sizeOptions.some((o) => o.label.trim());
+  const canSave = schemaReady && pizzaSizesReady;
+  const productDraft = useMemo<ProductFormDraft>(
+    () => ({
+      values: formValues,
+      keptImages,
+      flavorIds: [...flavorIds],
+      tagIds: [...tagIds],
+      toppingIds: [...toppingIds],
+      addonIds: [...addonIds],
+      sizeOptions,
+      crustOptions,
+      slugTouched,
+    }),
+    [
+      formValues,
+      keptImages,
+      flavorIds,
+      tagIds,
+      toppingIds,
+      addonIds,
+      sizeOptions,
+      crustOptions,
+      slugTouched,
+    ],
+  );
+  useDebouncedDraftSave(PRODUCT_FORM_DRAFT_KEY, productDraft, !isEdit && !viewOnly);
 
   useEffect(() => {
     if (!existing) return;
@@ -412,6 +457,7 @@ export function ProductFormPage() {
         await updateProduct.mutateAsync({ id, ...payload });
       } else {
         await createProduct.mutateAsync(payload);
+        clearDraft(PRODUCT_FORM_DRAFT_KEY);
       }
       navigate("/products", { replace: true });
     } catch (err) {
@@ -583,7 +629,14 @@ export function ProductFormPage() {
           {!viewOnly && (
             <button
               type="submit"
-              disabled={busy}
+              disabled={busy || !canSave}
+              title={
+                canSave
+                  ? undefined
+                  : template === "PIZZA" && !pizzaSizesReady
+                    ? "Add at least one pizza size"
+                    : "Fill all required fields first"
+              }
               className={cn(submitClass, "inline-flex items-center gap-1.5 py-1.5")}
             >
               <Save className="h-4 w-4" />

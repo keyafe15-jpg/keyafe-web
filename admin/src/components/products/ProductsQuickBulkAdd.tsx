@@ -15,6 +15,12 @@ import { useAdminCategories } from "@/hooks/useAdminCategories";
 import { uploadImages } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
 import { actualStartingPrice, discountPercent } from "@keyafe/shared";
+import { clearDraft, readDraft, useDebouncedDraftSave } from "@/lib/adminDraft";
+import {
+  PRODUCT_BULK_DRAFT_KEY,
+  type ProductBulkDraft,
+  type ProductBulkRowDraft,
+} from "@/lib/productDraft";
 
 type QuickRow = {
   key: string;
@@ -453,7 +459,12 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
     [categories],
   );
   const bulk = useBulkCreateProducts();
-  const [rows, setRows] = useState<QuickRow[]>(() => [newRow()]);
+  const [initialDraft] = useState(() => readDraft<ProductBulkDraft>(PRODUCT_BULK_DRAFT_KEY));
+  const [rows, setRows] = useState<QuickRow[]>(() =>
+    initialDraft?.rows?.length
+      ? initialDraft.rows.map((row) => ({ ...newRow(), ...row, imageFiles: [] }))
+      : [newRow()],
+  );
   const [resultMsg, setResultMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -517,6 +528,7 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
           : "";
       setResultMsg(`Created ${result.created}, skipped ${result.skipped}.${hint}`);
       if (result.created > 0) {
+        clearDraft(PRODUCT_BULK_DRAFT_KEY);
         setRows([newRow()]);
         onDone?.();
       }
@@ -526,6 +538,13 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
   };
 
   const busy = bulk.isPending || uploading;
+  const bulkDraft = useMemo<ProductBulkDraft>(
+    () => ({
+      rows: rows.map(({ imageFiles: _files, ...rest }): ProductBulkRowDraft => rest),
+    }),
+    [rows],
+  );
+  useDebouncedDraftSave(PRODUCT_BULK_DRAFT_KEY, bulkDraft);
 
   return (
     <div className="space-y-2.5">
