@@ -41,15 +41,27 @@ export function clearDraft(key: string): void {
 }
 
 /** Skip the first run so hydrating a draft does not immediately rewrite it. */
-export function useDebouncedDraftSave(key: string, value: unknown, enabled = true): void {
+export function useDebouncedDraftSave(
+  key: string,
+  value: unknown,
+  enabled = true,
+  hasContent = true,
+): void {
   const skipFirst = useRef(true);
   useEffect(() => {
     if (!enabled) return;
     if (skipFirst.current) {
       skipFirst.current = false;
+      if (!hasContent) clearDraft(key);
       return;
     }
-    const timer = window.setTimeout(() => writeDraft(key, value), 300);
+    const timer = window.setTimeout(() => {
+      if (!hasContent) {
+        clearDraft(key);
+        return;
+      }
+      writeDraft(key, value);
+    }, 300);
     return () => window.clearTimeout(timer);
-  }, [key, value, enabled]);
+  }, [key, value, enabled, hasContent]);
 }

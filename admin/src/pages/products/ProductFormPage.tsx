@@ -55,7 +55,11 @@ import { useStaffPermission } from "@/lib/permissions";
 import { DiscountFields } from "@/components/products/DiscountFields";
 import { actualStartingPrice } from "@keyafe/shared";
 import { clearDraft, readDraft, useDebouncedDraftSave } from "@/lib/adminDraft";
-import { PRODUCT_FORM_DRAFT_KEY, type ProductFormDraft } from "@/lib/productDraft";
+import {
+  PRODUCT_FORM_DRAFT_KEY,
+  productFormDraftHasContent,
+  type ProductFormDraft,
+} from "@/lib/productDraft";
 
 const formSchema = z.object({
   name: z.string().trim().min(2, "Name is required"),
@@ -297,7 +301,12 @@ export function ProductFormPage() {
       slugTouched,
     ],
   );
-  useDebouncedDraftSave(PRODUCT_FORM_DRAFT_KEY, productDraft, !isEdit && !viewOnly);
+  useDebouncedDraftSave(
+    PRODUCT_FORM_DRAFT_KEY,
+    productDraft,
+    !isEdit && !viewOnly,
+    productFormDraftHasContent(productDraft),
+  );
 
   useEffect(() => {
     if (!existing) return;

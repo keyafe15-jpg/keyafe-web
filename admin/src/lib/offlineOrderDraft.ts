@@ -91,6 +91,52 @@ export type DraftPeek = {
   kindLabel: string;
 };
 
+function itemHasContent(item: {
+  productName?: string;
+  unitPrice?: string;
+  description?: string;
+  messageOnCake?: string;
+  customFlavour?: string;
+  keptImageUrls?: string[];
+}): boolean {
+  return Boolean(
+    item.productName?.trim() ||
+      (item.unitPrice && Number(item.unitPrice) > 0) ||
+      item.description?.trim() ||
+      item.messageOnCake?.trim() ||
+      item.customFlavour?.trim() ||
+      item.keptImageUrls?.length,
+  );
+}
+
+export function placeDraftHasContent(draft: Partial<PlaceDraft>): boolean {
+  return Boolean(
+    draft.customerName?.trim() ||
+      draft.customerPhone?.trim() ||
+      draft.customerEmail?.trim() ||
+      draft.line1?.trim() ||
+      draft.pincode?.trim() ||
+      draft.adminNotes?.trim() ||
+      draft.customerNotes?.trim() ||
+      draft.discountValue?.trim() ||
+      draft.deliveryFeeInput?.trim() ||
+      draft.recipientName?.trim() ||
+      draft.items?.some(itemHasContent) ||
+      draft.paymentLines?.some((line) => line.amount?.trim() && Number(line.amount) > 0),
+  );
+}
+
+export function linkDraftHasContent(draft: Partial<LinkDraft>): boolean {
+  return Boolean(
+    draft.customerName?.trim() ||
+      draft.customerPhone?.trim() ||
+      draft.adminNotes?.trim() ||
+      draft.discountValue?.trim() ||
+      draft.deliveryFeeInput?.trim() ||
+      draft.items?.some(itemHasContent),
+  );
+}
+
 function firstFilled(...values: Array<string | undefined>): string {
   for (const value of values) {
     const trimmed = value?.trim();
@@ -102,6 +148,8 @@ function firstFilled(...values: Array<string | undefined>): string {
 export function peekDraft(key: string): DraftPeek | null {
   const data = readDraft<Partial<PlaceDraft & LinkDraft>>(key);
   if (!data) return null;
+  const hasContent = key === PLACE_DRAFT_KEY ? placeDraftHasContent(data) : linkDraftHasContent(data);
+  if (!hasContent) return null;
   const items = Array.isArray(data.items) ? data.items : [];
   const namedItems = items.filter(
     (it) => it && typeof it === "object" && typeof it.productName === "string" && it.productName.trim(),

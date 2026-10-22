@@ -18,6 +18,7 @@ import { actualStartingPrice, discountPercent } from "@keyafe/shared";
 import { clearDraft, readDraft, useDebouncedDraftSave } from "@/lib/adminDraft";
 import {
   PRODUCT_BULK_DRAFT_KEY,
+  productBulkDraftHasContent,
   type ProductBulkDraft,
   type ProductBulkRowDraft,
 } from "@/lib/productDraft";
@@ -544,7 +545,12 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
     }),
     [rows],
   );
-  useDebouncedDraftSave(PRODUCT_BULK_DRAFT_KEY, bulkDraft);
+  useDebouncedDraftSave(
+    PRODUCT_BULK_DRAFT_KEY,
+    bulkDraft,
+    true,
+    productBulkDraftHasContent(bulkDraft),
+  );
 
   return (
     <div className="space-y-2.5">

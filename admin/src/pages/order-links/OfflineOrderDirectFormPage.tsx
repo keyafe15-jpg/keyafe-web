@@ -55,6 +55,7 @@ import { cn } from "@/lib/cn";
 import {
   PLACE_DRAFT_KEY,
   clearDraft,
+  placeDraftHasContent,
   readDraft,
   restoreItems,
   restorePaymentLines,
@@ -304,7 +305,7 @@ export function OfflineOrderDirectFormPage() {
       zoneDistrict,
     ],
   );
-  useDebouncedDraftSave(PLACE_DRAFT_KEY, placeDraft);
+  useDebouncedDraftSave(PLACE_DRAFT_KEY, placeDraft, true, placeDraftHasContent(placeDraft));
 
   const hasOtherRecipient = fulfillment === "DELIVERY" && !recipientIsCustomer;
 

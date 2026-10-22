@@ -37,6 +37,7 @@ import type { OrderCustomerLookupHit } from "@/hooks/useAdminCustomers";
 import {
   LINK_DRAFT_KEY,
   clearDraft,
+  linkDraftHasContent,
   readDraft,
   restoreItems,
   serializeItems,
@@ -114,7 +115,7 @@ export function OrderLinkFormPage() {
       allowOnlinePayment,
     ],
   );
-  useDebouncedDraftSave(LINK_DRAFT_KEY, linkDraft, !isEdit);
+  useDebouncedDraftSave(LINK_DRAFT_KEY, linkDraft, !isEdit, linkDraftHasContent(linkDraft));
 
   const applyCustomerHit = (hit: OrderCustomerLookupHit) => {
     setCustomerName(hit.name);

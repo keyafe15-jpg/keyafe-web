@@ -52,6 +52,43 @@ export type ProductBulkDraft = {
   rows: ProductBulkRowDraft[];
 };
 
+export function productFormDraftHasContent(draft: ProductFormDraft): boolean {
+  const values = draft.values ?? {};
+  const name = typeof values.name === "string" ? values.name.trim() : "";
+  const short = typeof values.shortDescription === "string" ? values.shortDescription.trim() : "";
+  const description = typeof values.description === "string" ? values.description.trim() : "";
+  const categories = Array.isArray(values.categoryIds) ? values.categoryIds.length : 0;
+  const price = Number(values.basePrice);
+  const discounted =
+    typeof values.discountedPrice === "number"
+      ? values.discountedPrice
+      : Number(values.discountedPrice);
+  return Boolean(
+    name ||
+      short ||
+      description ||
+      categories > 0 ||
+      (Number.isFinite(price) && price > 0) ||
+      (Number.isFinite(discounted) && discounted > 0) ||
+      draft.keptImages.length ||
+      draft.flavorIds.length ||
+      draft.tagIds.length ||
+      draft.sizeOptions.some((o) => o.label.trim()) ||
+      draft.crustOptions.some((o) => o.label.trim()),
+  );
+}
+
+export function productBulkDraftHasContent(draft: ProductBulkDraft): boolean {
+  return draft.rows.some(
+    (row) =>
+      row.name.trim() ||
+      row.basePrice.trim() ||
+      row.shortDescription.trim() ||
+      row.categoryIds.length > 0 ||
+      row.sizeOptions.some((o) => o.label.trim()),
+  );
+}
+
 function firstFilled(...values: Array<string | undefined>): string {
   for (const value of values) {
     const trimmed = value?.trim();
@@ -63,6 +100,7 @@ function firstFilled(...values: Array<string | undefined>): string {
 export function peekProductFormDraft(): ProductDraftPeek | null {
   const data = readDraft<ProductFormDraft>(PRODUCT_FORM_DRAFT_KEY);
   if (!data?.values || typeof data.values !== "object") return null;
+  if (!productFormDraftHasContent(data)) return null;
   const name = typeof data.values.name === "string" ? data.values.name.trim() : "";
   const slug = typeof data.values.slug === "string" ? data.values.slug.trim() : "";
   const short =
@@ -84,6 +122,7 @@ export function peekProductFormDraft(): ProductDraftPeek | null {
 export function peekProductBulkDraft(): ProductDraftPeek | null {
   const data = readDraft<ProductBulkDraft>(PRODUCT_BULK_DRAFT_KEY);
   if (!data || !Array.isArray(data.rows) || data.rows.length === 0) return null;
+  if (!productBulkDraftHasContent(data)) return null;
   const named = data.rows.filter((row) => row && typeof row.name === "string" && row.name.trim());
   const first = named[0]?.name.trim() ?? "";
   const title = first || "Untitled bulk add";
