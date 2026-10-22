@@ -20,6 +20,12 @@ import {
 } from "@/hooks/useAdminOrderLinks";
 import { cn } from "@/lib/cn";
 import { orderLinkUrl } from "@/lib/storefront";
+import {
+  LINK_DRAFT_KEY,
+  PLACE_DRAFT_KEY,
+  clearDraft,
+  peekDraft,
+} from "@/lib/offlineOrderDraft";
 
 const TABS: { key: OrderLinkStatus; label: string }[] = [
   { key: "OPEN", label: "Open" },
@@ -27,10 +33,59 @@ const TABS: { key: OrderLinkStatus; label: string }[] = [
   { key: "CANCELLED", label: "Cancelled" },
 ];
 
+function DraftBanner({
+  title,
+  summary,
+  kindLabel,
+  to,
+  onDiscard,
+}: {
+  title: string;
+  summary: string;
+  kindLabel: string;
+  to: string;
+  onDiscard: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-slate-900">{title}</p>
+        <p className="truncate text-xs text-slate-500">
+          {kindLabel}
+          {summary ? ` · ${summary}` : ""}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <span className="inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 uppercase">
+          Draft
+        </span>
+        <div className="flex items-center gap-1.5">
+          <Link
+            to={to}
+            className="rounded-md bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-slate-700"
+          >
+            Continue
+          </Link>
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="rounded-md px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          >
+            Discard
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function OrderLinksListPage() {
   const [tab, setTab] = useState<OrderLinkStatus>("OPEN");
   const { data: links = [], isLoading } = useAdminOrderLinks(tab);
-
+  const [draftTick, setDraftTick] = useState(0);
+  const placeDraft = peekDraft(PLACE_DRAFT_KEY);
+  const linkDraft = peekDraft(LINK_DRAFT_KEY);
+  void draftTick;
 
   return (
     <div>
@@ -57,6 +112,35 @@ export function OrderLinksListPage() {
           </Link>
         </div>
       </div>
+
+      {(placeDraft || linkDraft) && (
+        <div className="mb-4 space-y-2">
+          {placeDraft && (
+            <DraftBanner
+              title={placeDraft.title}
+              summary={placeDraft.summary}
+              kindLabel={placeDraft.kindLabel}
+              to="/offline-orders/place"
+              onDiscard={() => {
+                clearDraft(PLACE_DRAFT_KEY);
+                setDraftTick((n) => n + 1);
+              }}
+            />
+          )}
+          {linkDraft && (
+            <DraftBanner
+              title={linkDraft.title}
+              summary={linkDraft.summary}
+              kindLabel={linkDraft.kindLabel}
+              to="/offline-orders/new"
+              onDiscard={() => {
+                clearDraft(LINK_DRAFT_KEY);
+                setDraftTick((n) => n + 1);
+              }}
+            />
+          )}
+        </div>
+      )}
 
       <div className="mb-5">
         <div className="flex flex-wrap gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5">

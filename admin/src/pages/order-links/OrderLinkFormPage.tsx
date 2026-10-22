@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Copy, Check } from "lucide-react";
 import {
@@ -34,6 +34,15 @@ import { cn } from "@/lib/cn";
 import { orderLinkUrl } from "@/lib/storefront";
 import { CustomerLookupField } from "@/components/form/CustomerLookup";
 import type { OrderCustomerLookupHit } from "@/hooks/useAdminCustomers";
+import {
+  LINK_DRAFT_KEY,
+  clearDraft,
+  readDraft,
+  restoreItems,
+  serializeItems,
+  useDebouncedDraftSave,
+  type LinkDraft,
+} from "@/lib/offlineOrderDraft";
 
 export function OrderLinkFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -46,16 +55,28 @@ export function OrderLinkFormPage() {
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
-  const { items, setItems, patchItem, removeItem, addItem } = useOrderItemsState();
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [adminNotes, setAdminNotes] = useState("");
-  const [expiresInDays, setExpiresInDays] = useState<string>("7");
-  const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
-  const [discountValue, setDiscountValue] = useState("");
-  const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
-  const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(true);
-  const [allowOnlinePayment, setAllowOnlinePayment] = useState(false);
+  const [initialDraft] = useState(() =>
+    isEdit ? null : readDraft<LinkDraft>(LINK_DRAFT_KEY),
+  );
+  const { items, setItems, patchItem, removeItem, addItem } = useOrderItemsState(
+    "CUSTOM",
+    initialDraft ? restoreItems(initialDraft.items) : undefined,
+  );
+  const [customerName, setCustomerName] = useState(initialDraft?.customerName ?? "");
+  const [customerPhone, setCustomerPhone] = useState(initialDraft?.customerPhone ?? "");
+  const [adminNotes, setAdminNotes] = useState(initialDraft?.adminNotes ?? "");
+  const [expiresInDays, setExpiresInDays] = useState<string>(initialDraft?.expiresInDays ?? "7");
+  const [discountType, setDiscountType] = useState<ManualDiscountType>(
+    initialDraft?.discountType ?? "FLAT",
+  );
+  const [discountValue, setDiscountValue] = useState(initialDraft?.discountValue ?? "");
+  const [deliveryFeeInput, setDeliveryFeeInput] = useState(initialDraft?.deliveryFeeInput ?? "");
+  const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(
+    initialDraft?.deliveryPaidToRider ?? true,
+  );
+  const [allowOnlinePayment, setAllowOnlinePayment] = useState(
+    initialDraft?.allowOnlinePayment ?? false,
+  );
   const { data: onlinePaymentAvailable = false } = useOnlinePaymentAvailable();
   const [uploading, setUploading] = useState(false);
   const [addingProducts, setAddingProducts] = useState(false);
@@ -66,6 +87,34 @@ export function OrderLinkFormPage() {
   } | null>(null);
 
   useOrderItemRefPreviews(items, setItems);
+
+  const linkDraft = useMemo<LinkDraft>(
+    () => ({
+      items: serializeItems(items),
+      customerName,
+      customerPhone,
+      adminNotes,
+      expiresInDays,
+      discountType,
+      discountValue,
+      deliveryFeeInput,
+      deliveryPaidToRider,
+      allowOnlinePayment,
+    }),
+    [
+      items,
+      customerName,
+      customerPhone,
+      adminNotes,
+      expiresInDays,
+      discountType,
+      discountValue,
+      deliveryFeeInput,
+      deliveryPaidToRider,
+      allowOnlinePayment,
+    ],
+  );
+  useDebouncedDraftSave(LINK_DRAFT_KEY, linkDraft, !isEdit);
 
   const applyCustomerHit = (hit: OrderCustomerLookupHit) => {
     setCustomerName(hit.name);
@@ -206,6 +255,7 @@ export function OrderLinkFormPage() {
       };
 
       const link = await create.mutateAsync(payload);
+      clearDraft(LINK_DRAFT_KEY);
       await addToProductList();
       setCreated({ token: link.token, url: orderLinkUrl(link.token) });
     } catch (err) {

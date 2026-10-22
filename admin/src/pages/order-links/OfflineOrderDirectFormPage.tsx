@@ -52,6 +52,17 @@ import type { OrderCustomerLookupAddress, OrderCustomerLookupHit } from "@/hooks
 import type { DeliveryDistrict } from "@/hooks/useAdminDeliveryPincodes";
 import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
+import {
+  PLACE_DRAFT_KEY,
+  clearDraft,
+  readDraft,
+  restoreItems,
+  restorePaymentLines,
+  serializeItems,
+  serializePaymentLines,
+  useDebouncedDraftSave,
+  type PlaceDraft,
+} from "@/lib/offlineOrderDraft";
 
 interface PincodeInfo {
   serviceable: boolean;
@@ -103,76 +114,197 @@ export function OfflineOrderDirectFormPage() {
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
-  const { items, patchItem, removeItem, addItem, setItems } = useOrderItemsState();
+  const [initialDraft] = useState(() => readDraft<PlaceDraft>(PLACE_DRAFT_KEY));
+  const { items, patchItem, removeItem, addItem, setItems } = useOrderItemsState(
+    "CUSTOM",
+    initialDraft ? restoreItems(initialDraft.items) : undefined,
+  );
   const [uploading, setUploading] = useState(false);
   const [addingProducts, setAddingProducts] = useState(false);
 
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [recipientIsCustomer, setRecipientIsCustomer] = useState(true);
-  const [recipientName, setRecipientName] = useState("");
-  const [deliveryPhone, setDeliveryPhone] = useState("");
-  const [isSurpriseGift, setIsSurpriseGift] = useState(false);
-  const [billingSameAsDelivery, setBillingSameAsDelivery] = useState(true);
-  const [billLine1, setBillLine1] = useState("");
-  const [billLine2, setBillLine2] = useState("");
-  const [billLandmark, setBillLandmark] = useState("");
-  const [billMapSearchQuery, setBillMapSearchQuery] = useState("");
-  const [billPincode, setBillPincode] = useState("");
-  const [isBusinessOrder, setIsBusinessOrder] = useState(false);
-  const [customerCompanyName, setCustomerCompanyName] = useState("");
-  const [customerGstin, setCustomerGstin] = useState("");
+  const [customerName, setCustomerName] = useState(initialDraft?.customerName ?? "");
+  const [customerPhone, setCustomerPhone] = useState(initialDraft?.customerPhone ?? "");
+  const [customerEmail, setCustomerEmail] = useState(initialDraft?.customerEmail ?? "");
+  const [recipientIsCustomer, setRecipientIsCustomer] = useState(
+    initialDraft?.recipientIsCustomer ?? true,
+  );
+  const [recipientName, setRecipientName] = useState(initialDraft?.recipientName ?? "");
+  const [deliveryPhone, setDeliveryPhone] = useState(initialDraft?.deliveryPhone ?? "");
+  const [isSurpriseGift, setIsSurpriseGift] = useState(initialDraft?.isSurpriseGift ?? false);
+  const [billingSameAsDelivery, setBillingSameAsDelivery] = useState(
+    initialDraft?.billingSameAsDelivery ?? true,
+  );
+  const [billLine1, setBillLine1] = useState(initialDraft?.billLine1 ?? "");
+  const [billLine2, setBillLine2] = useState(initialDraft?.billLine2 ?? "");
+  const [billLandmark, setBillLandmark] = useState(initialDraft?.billLandmark ?? "");
+  const [billMapSearchQuery, setBillMapSearchQuery] = useState(initialDraft?.billMapSearchQuery ?? "");
+  const [billPincode, setBillPincode] = useState(initialDraft?.billPincode ?? "");
+  const [isBusinessOrder, setIsBusinessOrder] = useState(initialDraft?.isBusinessOrder ?? false);
+  const [customerCompanyName, setCustomerCompanyName] = useState(
+    initialDraft?.customerCompanyName ?? "",
+  );
+  const [customerGstin, setCustomerGstin] = useState(initialDraft?.customerGstin ?? "");
 
-  const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
-  const [line1, setLine1] = useState("");
-  const [line2, setLine2] = useState("");
-  const [landmark, setLandmark] = useState("");
-  const [mapSearchQuery, setMapSearchQuery] = useState("");
-  const [pincode, setPincode] = useState("");
-  const [pincodeInfo, setPincodeInfo] = useState<PincodeInfo | null>(null);
+  const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">(
+    initialDraft?.fulfillment ?? "DELIVERY",
+  );
+  const [line1, setLine1] = useState(initialDraft?.line1 ?? "");
+  const [line2, setLine2] = useState(initialDraft?.line2 ?? "");
+  const [landmark, setLandmark] = useState(initialDraft?.landmark ?? "");
+  const [mapSearchQuery, setMapSearchQuery] = useState(initialDraft?.mapSearchQuery ?? "");
+  const [pincode, setPincode] = useState(initialDraft?.pincode ?? "");
+  const [pincodeInfo, setPincodeInfo] = useState<PincodeInfo | null>(
+    initialDraft?.pincodeInfo ?? null,
+  );
   const [pincodeError, setPincodeError] = useState<string | null>(null);
   const [pincodeChecking, setPincodeChecking] = useState(false);
 
-  const [deliveryDate, setDeliveryDate] = useState(todayIso());
+  const [deliveryDate, setDeliveryDate] = useState(initialDraft?.deliveryDate ?? todayIso());
   const isPastOrder = !!deliveryDate && deliveryDate < todayIso();
   /** Backdated orders only. Follows the delivery date (day before) until staff pick one. */
-  const [placedOnInput, setPlacedOnInput] = useState("");
-  const [placedOnTouched, setPlacedOnTouched] = useState(false);
+  const [placedOnInput, setPlacedOnInput] = useState(initialDraft?.placedOnInput ?? "");
+  const [placedOnTouched, setPlacedOnTouched] = useState(initialDraft?.placedOnTouched ?? false);
   const placedOn =
     placedOnTouched && placedOnInput && placedOnInput <= deliveryDate
       ? placedOnInput
       : dayBefore(deliveryDate);
-  const [slotKey, setSlotKey] = useState<string>(TIME_SLOTS[0].key);
+  const [slotKey, setSlotKey] = useState<string>(initialDraft?.slotKey ?? TIME_SLOTS[0].key);
 
-  const [customerNotes, setCustomerNotes] = useState("");
-  const [adminNotes, setAdminNotes] = useState("");
-  const [paymentPlan, setPaymentPlan] = useState<"FULL" | "ADVANCE" | "ON_DELIVERY">("FULL");
-  const [paymentLines, setPaymentLines] = useState<PaymentLineDraft[]>(() => [emptyPaymentLine("cash")]);
+  const [customerNotes, setCustomerNotes] = useState(initialDraft?.customerNotes ?? "");
+  const [adminNotes, setAdminNotes] = useState(initialDraft?.adminNotes ?? "");
+  const [paymentPlan, setPaymentPlan] = useState<"FULL" | "ADVANCE" | "ON_DELIVERY">(
+    initialDraft?.paymentPlan ?? "FULL",
+  );
+  const [paymentLines, setPaymentLines] = useState<PaymentLineDraft[]>(() =>
+    initialDraft ? restorePaymentLines(initialDraft.paymentLines) : [emptyPaymentLine("cash")],
+  );
   const [error, setError] = useState<string | null>(null);
-  const [discountType, setDiscountType] = useState<ManualDiscountType>("FLAT");
-  const [discountValue, setDiscountValue] = useState("");
+  const [discountType, setDiscountType] = useState<ManualDiscountType>(
+    initialDraft?.discountType ?? "FLAT",
+  );
+  const [discountValue, setDiscountValue] = useState(initialDraft?.discountValue ?? "");
   /** Editable delivery fee; last charged amount wins over the pincode table. */
-  const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
-  const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(true);
+  const [deliveryFeeInput, setDeliveryFeeInput] = useState(initialDraft?.deliveryFeeInput ?? "");
+  const [deliveryPaidToRider, setDeliveryPaidToRider] = useState(
+    initialDraft?.deliveryPaidToRider ?? true,
+  );
   const skipTableFeeRef = useRef(false);
-  const [lastChargedFee, setLastChargedFee] = useState<number | null>(null);
+  const [lastChargedFee, setLastChargedFee] = useState<number | null>(
+    initialDraft?.lastChargedFee ?? null,
+  );
   /** Last address picked from the map search; only trusted while its pincode is still typed. */
   const [pickedPlace, setPickedPlace] = useState<ParsedPlace | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<OrderCustomerLookupAddress[]>([]);
   const [pickedAddressId, setPickedAddressId] = useState("");
   const canSavePincode = useStaffPermission("delivery.write");
-  const [savePincode, setSavePincode] = useState(true);
-  const [zoneCity, setZoneCity] = useState("");
-  const [zoneArea, setZoneArea] = useState("");
-  const [zoneDistrict, setZoneDistrict] = useState<DeliveryDistrict>("KOLKATA");
+  const [savePincode, setSavePincode] = useState(initialDraft?.savePincode ?? true);
+  const [zoneCity, setZoneCity] = useState(initialDraft?.zoneCity ?? "");
+  const [zoneArea, setZoneArea] = useState(initialDraft?.zoneArea ?? "");
+  const [zoneDistrict, setZoneDistrict] = useState<DeliveryDistrict>(
+    initialDraft?.zoneDistrict ?? "KOLKATA",
+  );
 
   useOrderItemRefPreviews(items, setItems);
 
+  const skipPincodeReset = useRef(Boolean(initialDraft?.pincodeInfo));
   useEffect(() => {
+    if (skipPincodeReset.current) {
+      skipPincodeReset.current = false;
+      return;
+    }
     setPincodeInfo(null);
     setPincodeError(null);
   }, [pincode]);
+
+  const placeDraft = useMemo<PlaceDraft>(
+    () => ({
+      items: serializeItems(items),
+      customerName,
+      customerPhone,
+      customerEmail,
+      recipientIsCustomer,
+      recipientName,
+      deliveryPhone,
+      isSurpriseGift,
+      billingSameAsDelivery,
+      billLine1,
+      billLine2,
+      billLandmark,
+      billMapSearchQuery,
+      billPincode,
+      isBusinessOrder,
+      customerCompanyName,
+      customerGstin,
+      fulfillment,
+      line1,
+      line2,
+      landmark,
+      mapSearchQuery,
+      pincode,
+      pincodeInfo,
+      deliveryDate,
+      placedOnInput,
+      placedOnTouched,
+      slotKey,
+      customerNotes,
+      adminNotes,
+      paymentPlan,
+      paymentLines: serializePaymentLines(paymentLines),
+      discountType,
+      discountValue,
+      deliveryFeeInput,
+      deliveryPaidToRider,
+      lastChargedFee,
+      savePincode,
+      zoneCity,
+      zoneArea,
+      zoneDistrict,
+    }),
+    [
+      items,
+      customerName,
+      customerPhone,
+      customerEmail,
+      recipientIsCustomer,
+      recipientName,
+      deliveryPhone,
+      isSurpriseGift,
+      billingSameAsDelivery,
+      billLine1,
+      billLine2,
+      billLandmark,
+      billMapSearchQuery,
+      billPincode,
+      isBusinessOrder,
+      customerCompanyName,
+      customerGstin,
+      fulfillment,
+      line1,
+      line2,
+      landmark,
+      mapSearchQuery,
+      pincode,
+      pincodeInfo,
+      deliveryDate,
+      placedOnInput,
+      placedOnTouched,
+      slotKey,
+      customerNotes,
+      adminNotes,
+      paymentPlan,
+      paymentLines,
+      discountType,
+      discountValue,
+      deliveryFeeInput,
+      deliveryPaidToRider,
+      lastChargedFee,
+      savePincode,
+      zoneCity,
+      zoneArea,
+      zoneDistrict,
+    ],
+  );
+  useDebouncedDraftSave(PLACE_DRAFT_KEY, placeDraft);
 
   const hasOtherRecipient = fulfillment === "DELIVERY" && !recipientIsCustomer;
 
@@ -477,6 +609,7 @@ export function OfflineOrderDirectFormPage() {
       };
 
       const order = await create.mutateAsync(payload);
+      clearDraft(PLACE_DRAFT_KEY);
       setAddingProducts(savedImages.some(({ item }) => wantsCatalogSave(item)));
       const failed = await saveItemsToCatalog(
         savedImages,
