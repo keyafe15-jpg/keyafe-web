@@ -393,10 +393,10 @@ function rowToImport(
     gstRate: Number.isFinite(gstRate) ? gstRate : 5,
     hsnCode: "1905",
     isEggless: row.isEggless,
-    isSpicy: row.isSpicy,
+    isSpicy: isCake ? false : row.isSpicy,
     sellByPound: isCake ? row.sellByPound : false,
     allowCustomSize: isCake ? row.allowCustomSize : false,
-    supportsMessageOnCake: isCake ? row.supportsMessageOnCake : false,
+    supportsMessageOnCake: isCake,
     supportsSameDayDelivery: row.supportsSameDayDelivery,
     canBeDeliveredPanIndia: row.canBeDeliveredPanIndia,
     isActive: row.isActive,
@@ -740,11 +740,6 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
                     checked={row.allowCustomSize}
                     onChange={(v) => update(row.key, { allowCustomSize: v })}
                     label="Custom lbs"
-                  />
-                  <Flag
-                    checked={row.supportsMessageOnCake}
-                    onChange={(v) => update(row.key, { supportsMessageOnCake: v })}
-                    label="Message"
                   />
                 </>
               )}

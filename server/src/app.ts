@@ -54,6 +54,7 @@ import {
   adminCustomerRouter,
 } from "./modules/customers/customer.admin.routes.js";
 import { adminStaffRouter } from "./modules/staff/staff.routes.js";
+import { adminSuggestRouter } from "./modules/ai/ai.routes.js";
 import {
   adminPaymentRouter,
   paymentRouter,
@@ -234,6 +235,7 @@ export function createApp() {
     adminCustomerRouter,
   );
   app.use("/api/admin/staff", requireStaff, adminStaffRouter);
+  app.use("/api/admin/suggest-copy", requireStaff, adminSuggestRouter);
 
   // Fan out new-order events to Web Push subscribers (in addition to SSE).
   attachPushToOrderEvents();

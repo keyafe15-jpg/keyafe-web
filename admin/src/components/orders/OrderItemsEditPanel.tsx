@@ -7,6 +7,7 @@ import {
 } from "@/hooks/useAdminOrders";
 import { useAdminAddons } from "@/hooks/useAddons";
 import { inputClass, textareaClass } from "@/components/form/Field";
+import { SuggestCopyButton } from "@/ai/SuggestCopyButton";
 import { QtyStepper } from "@/components/form/QtyStepper";
 import { DeliveryPaidToField } from "@/components/form/DeliveryPaidToField";
 import {
@@ -319,6 +320,40 @@ export function OrderItemsEditPanel({
             </div>
 
             <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+              {line.productName !== "Extra charge" && (
+                <div className="min-w-0 md:col-span-2">
+                  <span className="text-xs font-medium text-slate-700">Reference photos</span>
+                  <div className="mt-1">
+                    <RefImagesPicker
+                      keptUrls={line.referenceImageUrls}
+                      files={line.refFiles}
+                      onChange={(referenceImageUrls, refFiles) =>
+                        patchLine(line.key, { referenceImageUrls, refFiles })
+                      }
+                    />
+                  </div>
+                  <SuggestCopyButton
+                    className="mt-2"
+                    kind="itemCopy"
+                    label="Suggest item details"
+                    image={line.refFiles[0] ?? line.referenceImageUrls[0] ?? null}
+                    current={{ name: line.productName, description: line.description }}
+                    context={{
+                      flavour: line.flavourName,
+                      size: line.sizeLabel,
+                    }}
+                    onPickName={(productName) => patchLine(line.key, { productName })}
+                    onFill={(bundle) => {
+                      if (bundle.description) {
+                        patchLine(line.key, {
+                          description: bundle.description,
+                          showDescription: true,
+                        });
+                      }
+                    }}
+                  />
+                </div>
+              )}
               <label className="block text-xs md:col-span-2">
                 <span className="font-medium text-slate-700">Product / cake name</span>
                 <input
@@ -445,18 +480,6 @@ export function OrderItemsEditPanel({
                   )}
                 </div>
               )}
-              <div className="min-w-0 md:col-span-2">
-                <span className="text-xs font-medium text-slate-700">Reference photos</span>
-                <div className="mt-1">
-                  <RefImagesPicker
-                    keptUrls={line.referenceImageUrls}
-                    files={line.refFiles}
-                    onChange={(referenceImageUrls, refFiles) =>
-                      patchLine(line.key, { referenceImageUrls, refFiles })
-                    }
-                  />
-                </div>
-              </div>
               <p className="text-xs text-slate-500 md:col-span-2">
                 Line total{" "}
                 <span className="font-medium text-slate-800 tabular-nums">

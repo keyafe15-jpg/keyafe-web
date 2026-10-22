@@ -31,4 +31,7 @@ export class HttpError extends Error {
   static serviceUnavailable(msg = "Service unavailable") {
     return new HttpError(StatusCodes.SERVICE_UNAVAILABLE, msg);
   }
+  static badGateway(msg = "Bad gateway") {
+    return new HttpError(StatusCodes.BAD_GATEWAY, msg);
+  }
 }

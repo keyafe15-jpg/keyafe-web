@@ -462,7 +462,7 @@ function PdpContent({ product }: { product: ProductDetail }) {
             </div>
           ) : null}
 
-          {product.supportsMessageOnCake && (
+          {(product.template === "CAKE" || product.supportsMessageOnCake) && (
             <div>
               <label className="mb-1 block text-xs font-medium tracking-wide text-ink-500 uppercase">
                 {PRODUCT_COPY.labels.messageOnCake}

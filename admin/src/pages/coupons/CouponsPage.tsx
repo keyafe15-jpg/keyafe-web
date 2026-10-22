@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
+import { SuggestCopyButton } from "@/ai/SuggestCopyButton";
 import { useAdminCategories } from "@/hooks/useAdminCategories";
 import {
   useAdminCoupons,
@@ -558,33 +559,61 @@ export function CouponsPage() {
                   onChange={(e) => setForm({ ...form, note: e.target.value })}
                 />
               </Field>
-              <Field
-                label="Homepage headline"
-                hint="e.g. 50% off for the first 50 orders"
-                className="sm:col-span-2"
-              >
-                <input
-                  className={inputClass}
-                  value={form.headline}
-                  maxLength={80}
-                  onChange={(e) => setForm({ ...form, headline: e.target.value })}
-                  placeholder="Launch special — 50% off"
+              <div className="sm:col-span-2 lg:col-span-3 space-y-3">
+                <SuggestCopyButton
+                  kind="couponCopy"
+                  label="Suggest coupon details"
+                  current={{ name: form.headline, description: form.storefrontCopy }}
+                  context={{
+                    extra: [
+                      form.type === "PERCENT"
+                        ? `${form.code || "CODE"} ${form.value}% off`
+                        : `${form.code || "CODE"} ₹${form.value} off`,
+                      form.minCartAmount ? `min cart ₹${form.minCartAmount}` : "",
+                      form.waivesDelivery ? "waives delivery" : "",
+                      ...coupons
+                        .filter((c) => c.code !== editing)
+                        .slice(0, 20)
+                        .map((c) =>
+                          [c.code, c.headline, c.storefrontCopy].filter(Boolean).join(" | "),
+                        ),
+                    ]
+                      .filter(Boolean)
+                      .join("\n"),
+                  }}
+                  onPickName={(headline) => setForm((prev) => ({ ...prev, headline }))}
+                  onFill={(bundle) => {
+                    if (bundle.description) {
+                      setForm((prev) => ({ ...prev, storefrontCopy: bundle.description ?? prev.storefrontCopy }));
+                    }
+                  }}
                 />
-              </Field>
-              <Field
-                label="Homepage writeup"
-                hint="Shown under the headline. Mention first 50 customers, dates, etc."
-                className="sm:col-span-2 lg:col-span-3"
-              >
-                <textarea
-                  className={inputClass}
-                  rows={2}
-                  maxLength={240}
-                  value={form.storefrontCopy}
-                  onChange={(e) => setForm({ ...form, storefrontCopy: e.target.value })}
-                  placeholder="Use LAUNCH50 at checkout. First 50 storefront orders only — while it lasts."
-                />
-              </Field>
+                <Field
+                  label="Homepage headline"
+                  hint="e.g. 50% off for the first 50 orders"
+                >
+                  <input
+                    className={inputClass}
+                    value={form.headline}
+                    maxLength={80}
+                    onChange={(e) => setForm({ ...form, headline: e.target.value })}
+                    placeholder="Launch special — 50% off"
+                  />
+                </Field>
+                <Field
+                  label="Homepage writeup"
+                  hint="Shown under the headline. Mention first 50 customers, dates, etc."
+                >
+                  <textarea
+                    className={inputClass}
+                    rows={2}
+                    maxLength={240}
+                    value={form.storefrontCopy}
+                    onChange={(e) => setForm({ ...form, storefrontCopy: e.target.value })}
+                    placeholder="Use LAUNCH50 at checkout. First 50 storefront orders only — while it lasts."
+                  />
+                </Field>
+              </div>
             </div>
             <Field label="Categories" hint="Empty = whole shop" className="mt-4">
               <div className="flex flex-wrap gap-2">

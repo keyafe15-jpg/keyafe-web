@@ -13,6 +13,7 @@ import { NestedCategoryMultiSelect } from "@/components/form/NestedCategoryMulti
 import { uploadImage } from "@/lib/uploads";
 import { cn } from "@/lib/cn";
 import { Field, inputClass, submitClass } from "@/components/form/Field";
+import { SuggestCopyButton } from "@/ai/SuggestCopyButton";
 import { storefrontProductUrl } from "@/lib/storefront";
 
 const slugify = (s: string) =>
@@ -188,6 +189,15 @@ function NewAddonRow({
             onUploading={setUploading}
             onChange={setImageUrl}
             onError={setError}
+          />
+          <SuggestCopyButton
+            className="mt-2"
+            kind="addonCopy"
+            label="Suggest"
+            image={imageUrl}
+            current={{ name }}
+            context={{ group }}
+            onPickName={setName}
           />
         </div>
         <Field label="Group">

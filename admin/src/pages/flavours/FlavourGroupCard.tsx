@@ -259,6 +259,8 @@ export function FlavourGroupCard({
           {adding && (
             <AddFlavourRow
               groupId={group?.id ?? null}
+              groupName={group?.name}
+              existingNames={flavours.map((f) => f.name)}
               sortOrder={endSortOrder}
               onDone={() => setAdding(false)}
             />

@@ -11,6 +11,7 @@ import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
 import { Field, inputClass, selectClass } from "@/components/form/Field";
+import { SuggestCopyButton } from "@/ai/SuggestCopyButton";
 import { QtyStepper } from "@/components/form/QtyStepper";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/form/SearchableSelect";
 import { ImageLightboxThumb } from "@/components/ui/ImageLightboxThumb";
@@ -513,6 +514,40 @@ export function OrderItemRow({
       </div>
 
       <div>
+        {item.kind === "CUSTOM" && (
+          <div className="mt-3">
+            <p className="mb-1 text-xs font-medium text-slate-700">Reference photos</p>
+            <RefImagesPicker
+              keptUrls={item.keptImageUrls}
+              files={item.refFiles}
+              onChange={(keptImageUrls, refFiles) => onPatch({ keptImageUrls, refFiles })}
+            />
+            <SuggestCopyButton
+              className="mt-2"
+              kind="itemCopy"
+              label="Suggest item details"
+              image={item.refFiles[0] ?? item.keptImageUrls[0] ?? null}
+              current={{ name: item.productName, description: item.description }}
+              context={{
+                flavour:
+                  item.customFlavour.trim() ||
+                  flavours.find((f) => f.id === item.flavourId)?.name ||
+                  "",
+                size:
+                  item.sizeLabel.trim() ||
+                  (item.customPounds.trim() ? `${item.customPounds} lb` : ""),
+                extra: TEMPLATE_LABEL[item.customTemplate],
+              }}
+              onPickName={(productName) => onPatch({ productName })}
+              onFill={(bundle) => {
+                if (bundle.description) {
+                  onPatch({ description: bundle.description, expanded: true });
+                }
+              }}
+            />
+          </div>
+        )}
+
         {item.kind === "CATALOG" && (
           <div className="mt-3 space-y-3">
             <div className="flex items-end gap-2 sm:gap-3">
@@ -590,6 +625,21 @@ export function OrderItemRow({
                 />
               </Field>
             )}
+            <SuggestCopyButton
+              kind="itemCopy"
+              label="Suggest item details"
+              image={productImage}
+              current={{ name: item.productName, description: item.description }}
+              context={{
+                flavour: pickedCakeFlavour?.name || "",
+                size: item.sizeLabel.trim(),
+                extra: selectedProduct?.name ?? "",
+              }}
+              onPickName={(productName) => onPatch({ productName })}
+              onFill={(bundle) => {
+                if (bundle.description) onPatch({ description: bundle.description });
+              }}
+            />
           </div>
         )}
 
@@ -1136,35 +1186,25 @@ export function OrderItemRow({
         )}
 
         {item.kind === "CUSTOM" && (
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div className="mt-3">
             {customAddons.length > 0 ? (
-              <div className="min-w-0 sm:flex-1">
-                <AddonsPanel
-                  key={item.customTemplate}
-                  addons={customAddons}
-                  selected={item.addonSelections}
-                  onToggle={toggleAddon}
-                  hint={`Add-ons for the ${TEMPLATE_LABEL[item.customTemplate]} category`}
-                />
-              </div>
+              <AddonsPanel
+                key={item.customTemplate}
+                addons={customAddons}
+                selected={item.addonSelections}
+                onToggle={toggleAddon}
+                hint={`Add-ons for the ${TEMPLATE_LABEL[item.customTemplate]} category`}
+              />
             ) : (
               item.expanded &&
               allAddons.some((a) => a.isActive) && (
-                <p className="text-[11px] text-slate-400 sm:flex-1 sm:self-center">
+                <p className="text-[11px] text-slate-400">
                   No add-ons for {TEMPLATE_LABEL[item.customTemplate]} items yet — tick{" "}
                   {TEMPLATE_LABEL[item.customTemplate]} under &ldquo;Offline custom items&rdquo; on
                   the Add-ons page.
                 </p>
               )
             )}
-            <div className="min-w-0 sm:max-w-md sm:flex-1">
-              <p className="mb-1 text-xs font-medium text-slate-700">Reference photos</p>
-              <RefImagesPicker
-                keptUrls={item.keptImageUrls}
-                files={item.refFiles}
-                onChange={(keptImageUrls, refFiles) => onPatch({ keptImageUrls, refFiles })}
-              />
-            </div>
           </div>
         )}
 

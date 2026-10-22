@@ -74,6 +74,11 @@ const envSchema = z.object({
   CASHFREE_SECRET_KEY: z.string().optional(),
   CASHFREE_ENV: z.enum(["sandbox", "production"]).default("sandbox"),
 
+  // Gemini (AI Studio). Staff copy suggestions in admin. Leave blank to
+  // disable — Suggest returns 502; saves never depend on it.
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
+
   JWT_SECRET: z
     .string()
     .min(32, "JWT_SECRET must be at least 32 chars")

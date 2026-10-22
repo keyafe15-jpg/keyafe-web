@@ -10,6 +10,7 @@ import {
 import { ReorderHandle, type ReorderItemContext } from "@/components/reorder/ReorderList";
 import { ActiveSwitch } from "@/components/ui/ActiveSwitch";
 import { selectClass } from "@/components/form/Field";
+import { SuggestCopyButton } from "@/ai/SuggestCopyButton";
 import { cn } from "@/lib/cn";
 
 export const flavourInputClass =
@@ -219,10 +220,14 @@ export function FlavourRow({
 
 export function AddFlavourRow({
   groupId,
+  groupName,
+  existingNames,
   sortOrder,
   onDone,
 }: {
   groupId: string | null;
+  groupName?: string;
+  existingNames?: string[];
   sortOrder: number;
   onDone: () => void;
 }) {
@@ -260,23 +265,35 @@ export function AddFlavourRow({
       <tr className="block bg-slate-50/70 p-4 md:table-row md:p-0">
         <td className="hidden md:table-cell md:px-2 md:py-3" />
         <td className="block md:table-cell md:px-4 md:py-3" colSpan={2}>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-500 md:sr-only">Name</span>
-            <input
-              autoFocus
-              value={draft.name}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void submit();
-                }
-                if (e.key === "Escape") onDone();
+          <div>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-500 md:sr-only">Name</span>
+              <input
+                autoFocus
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void submit();
+                  }
+                  if (e.key === "Escape") onDone();
+                }}
+                placeholder="e.g. Belgian Chocolate"
+                className={flavourInputClass}
+              />
+            </label>
+            <SuggestCopyButton
+              kind="flavourCopy"
+              label="Suggest"
+              current={{ name: draft.name }}
+              context={{
+                group: groupName,
+                extra: (existingNames ?? []).filter(Boolean).join(", "),
               }}
-              placeholder="e.g. Belgian Chocolate"
-              className={flavourInputClass}
+              onPickName={(name) => setDraft({ ...draft, name })}
             />
-          </label>
+          </div>
           {formError && <p className="mt-1 text-xs text-brand-700 md:hidden">{formError}</p>}
         </td>
         <td className="mt-3 block md:mt-0 md:table-cell md:px-4 md:py-3">

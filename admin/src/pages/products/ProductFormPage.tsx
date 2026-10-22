@@ -23,6 +23,7 @@ import {
   submitClass,
   textareaClass,
 } from "@/components/form/Field";
+import { SuggestCopyButton } from "@/ai/SuggestCopyButton";
 import { MultiImageUpload } from "@/components/form/MultiImageUpload";
 import {
   AddonQuickAdd,
@@ -370,12 +371,12 @@ export function ProductFormPage() {
         template: values.template,
         isCustomizable: values.isCustomizable,
         isEggless: values.isEggless,
-        isSpicy: values.isSpicy,
+        isSpicy: values.template === "CAKE" ? false : values.isSpicy,
         sellByPound: values.sellByPound,
         minGrams: typeof values.minGrams === "number" ? values.minGrams : null,
         maxGrams: typeof values.maxGrams === "number" ? values.maxGrams : null,
         allowCustomSize: values.allowCustomSize,
-        supportsMessageOnCake: values.supportsMessageOnCake,
+        supportsMessageOnCake: values.template === "CAKE",
         messageMaxLength: values.messageMaxLength,
         supportsSameDayDelivery: values.supportsSameDayDelivery,
         leadTimeHours: values.leadTimeHours,
@@ -645,43 +646,6 @@ export function ProductFormPage() {
             </Section>
           )}
 
-          <Section title="Basics">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Name" required error={errors.name?.message}>
-                <input {...register("name")} className={inputClass} />
-              </Field>
-              <Field
-                label="Slug"
-                required
-                error={errors.slug?.message}
-                hint="Auto-generated from name."
-              >
-                <input
-                  {...register("slug", { onChange: () => setSlugTouched(true) })}
-                  className={inputClass}
-                />
-              </Field>
-            </div>
-            <Field label="Short description" error={errors.shortDescription?.message}>
-              <input
-                {...register("shortDescription")}
-                className={inputClass}
-                placeholder="One-liner shown on cards"
-              />
-            </Field>
-            <Field
-              label="Description"
-              error={errors.description?.message}
-              hint="Markdown supported. Shown on product page."
-            >
-              <textarea
-                {...register("description")}
-                rows={3}
-                className={cn(textareaClass, "min-h-0")}
-              />
-            </Field>
-          </Section>
-
           <Section title="Images">
             {keptImages.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -715,6 +679,85 @@ export function ProductFormPage() {
                 {MAX_PRODUCT_IMAGES} photos is the limit. Remove one to add another.
               </p>
             )}
+            <Field label="Name" required error={errors.name?.message} className="mt-3">
+              <input
+                {...register("name")}
+                className={inputClass}
+                placeholder="Optional before Suggest — e.g. Unicorn birthday cake"
+              />
+            </Field>
+            <SuggestCopyButton
+              kind="productCopy"
+              label="Suggest product details"
+              image={newImages[0] ?? keptImages[0] ?? null}
+              context={{ extra: template }}
+              current={{
+                name,
+                shortDescription: watch("shortDescription"),
+                description: watch("description"),
+                metaTitle: watch("metaTitle"),
+                metaDescription: watch("metaDescription"),
+              }}
+              onPickName={(value) =>
+                setValue("name", value, { shouldDirty: true, shouldValidate: true })
+              }
+              onPickMetaTitle={(value) =>
+                setValue("metaTitle", value, { shouldDirty: true, shouldValidate: true })
+              }
+              onFill={(bundle) => {
+                if (bundle.shortDescription) {
+                  setValue("shortDescription", bundle.shortDescription, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }
+                if (bundle.description) {
+                  setValue("description", bundle.description, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }
+                if (bundle.metaDescription) {
+                  setValue("metaDescription", bundle.metaDescription, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }
+              }}
+            />
+          </Section>
+
+          <Section title="Basics">
+            <Field
+              label="Slug"
+              required
+              error={errors.slug?.message}
+              hint="Auto-generated from name."
+              className="sm:max-w-md"
+            >
+              <input
+                {...register("slug", { onChange: () => setSlugTouched(true) })}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Short description" error={errors.shortDescription?.message}>
+              <input
+                {...register("shortDescription")}
+                className={inputClass}
+                placeholder="One-liner shown on cards"
+              />
+            </Field>
+            <Field
+              label="Description"
+              error={errors.description?.message}
+              hint="Markdown supported. Shown on product page."
+            >
+              <textarea
+                {...register("description")}
+                rows={3}
+                className={cn(textareaClass, "min-h-0")}
+              />
+            </Field>
           </Section>
 
           <Section title="Customization" collapseOnMobile>
@@ -729,11 +772,13 @@ export function ProductFormPage() {
                 label="Eggless / vegetarian"
                 hint="Green veg mark on the storefront."
               />
-              <Checkbox
-                {...register("isSpicy")}
-                label="Spicy"
-                hint="Savoury heat filter (Spicy / Mild)."
-              />
+              {template !== "CAKE" && (
+                <Checkbox
+                  {...register("isSpicy")}
+                  label="Spicy"
+                  hint="Savoury heat filter (Spicy / Mild)."
+                />
+              )}
               {template === "CAKE" && (
                 <>
                   <Checkbox
@@ -745,11 +790,6 @@ export function ProductFormPage() {
                     {...register("allowCustomSize")}
                     label="Allow custom pounds"
                     hint="'Want more pounds?' input on the PDP."
-                  />
-                  <Checkbox
-                    {...register("supportsMessageOnCake")}
-                    label="Message on cake"
-                    hint="Show the message-on-cake input."
                   />
                 </>
               )}

@@ -17,6 +17,7 @@ import {
 import { ActiveSwitch } from "@/components/ui/ActiveSwitch";
 import { uploadImage } from "@/lib/uploads";
 import { inputClass, textareaClass, submitClass, selectClass } from "@/components/form/Field";
+import { SuggestCopyButton } from "@/ai/SuggestCopyButton";
 import { cn } from "@/lib/cn";
 
 const slugify = (s: string) =>
@@ -540,6 +541,45 @@ function CategoryForm({
         </button>
       </div>
 
+      <div>
+        <span className="mb-1 block text-xs font-medium text-slate-600">Image</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <Thumbnail url={imageUrl} />
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(e) => handleImage(e.target.files?.[0] ?? null)}
+            className="block min-w-0 text-xs text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-50"
+          />
+          {imageUrl && (
+            <button
+              type="button"
+              onClick={() => setImageUrl(null)}
+              className="text-xs text-slate-500 hover:text-brand-500"
+            >
+              Remove
+            </button>
+          )}
+          {uploading && <span className="text-xs text-slate-500">Uploading…</span>}
+        </div>
+        <SuggestCopyButton
+          className="mt-2"
+          kind="categoryCopy"
+          label="Suggest category details"
+          image={imageUrl}
+          current={{ name, description }}
+          context={{
+            group: selectedParent
+              ? (allCategories.find((c) => c.id === selectedParent)?.name ?? "")
+              : (stores.find((s) => s.id === departmentId)?.name ?? ""),
+          }}
+          onPickName={setName}
+          onFill={(bundle) => {
+            if (bundle.description) setDescription(bundle.description);
+          }}
+        />
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-slate-600">
@@ -636,29 +676,6 @@ function CategoryForm({
           <div className="flex h-9.5 items-center">
             <ActiveSwitch checked={isActive} label="Active" onChange={setIsActive} />
           </div>
-        </div>
-      </div>
-
-      <div>
-        <span className="mb-1 block text-xs font-medium text-slate-600">Image</span>
-        <div className="flex flex-wrap items-center gap-3">
-          <Thumbnail url={imageUrl} />
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(e) => handleImage(e.target.files?.[0] ?? null)}
-            className="block min-w-0 text-xs text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-50"
-          />
-          {imageUrl && (
-            <button
-              type="button"
-              onClick={() => setImageUrl(null)}
-              className="text-xs text-slate-500 hover:text-brand-500"
-            >
-              Remove
-            </button>
-          )}
-          {uploading && <span className="text-xs text-slate-500">Uploading…</span>}
         </div>
       </div>
 

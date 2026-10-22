@@ -80,6 +80,18 @@ export const createProductSchema = z.object({
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 
+/** Cakes always take a message and are never spicy. */
+function cakeCustomization(
+  template: "CAKE" | "PIZZA" | "OTHER",
+  isSpicy: boolean,
+  supportsMessageOnCake: boolean,
+) {
+  if (template === "CAKE") {
+    return { isSpicy: false, supportsMessageOnCake: true };
+  }
+  return { isSpicy, supportsMessageOnCake: false };
+}
+
 /** Storefront lists active catalogue products (including out-of-stock). */
 const PUBLIC_LIST_WHERE = {
   isActive: true,
@@ -1097,6 +1109,11 @@ export async function createProduct(input: CreateProductInput) {
   const product = await prisma.product.create({
     data: {
       ...productData,
+      ...cakeCustomization(
+        input.template,
+        productData.isSpicy,
+        productData.supportsMessageOnCake,
+      ),
       categoryLinks: {
         create: uniqueCategoryIds.map((categoryId) => ({ categoryId })),
       },
@@ -1189,7 +1206,7 @@ function rowToCreateInput(
     hsnCode: row.hsnCode ?? "1905",
     priceIsGstInclusive: true,
     isEggless: row.isEggless ?? true,
-    isSpicy: row.isSpicy ?? false,
+    isSpicy: row.template === "CAKE" ? false : (row.isSpicy ?? false),
     sellByPound: row.template === "CAKE" ? (row.sellByPound ?? false) : false,
     supportsSameDayDelivery: row.supportsSameDayDelivery ?? false,
     canBeDeliveredPanIndia: row.canBeDeliveredPanIndia ?? false,
@@ -1201,7 +1218,7 @@ function rowToCreateInput(
     tagIds: [],
     isCustomizable: false,
     allowCustomSize: row.template === "CAKE" ? (row.allowCustomSize ?? false) : false,
-    supportsMessageOnCake: row.template === "CAKE" ? (row.supportsMessageOnCake ?? false) : false,
+    supportsMessageOnCake: row.template === "CAKE",
     messageMaxLength: 40,
     leadTimeHours: 0,
     isHealthyTreat: false,
@@ -1272,10 +1289,10 @@ export async function bulkCreateProducts(
           gstRate: row.gstRate,
           hsnCode: row.hsnCode,
           isEggless: row.isEggless,
-          isSpicy: row.isSpicy,
+          isSpicy: row.template === "CAKE" ? false : row.isSpicy,
           sellByPound: row.template === "CAKE" ? row.sellByPound : false,
           allowCustomSize: row.template === "CAKE" ? row.allowCustomSize : false,
-          supportsMessageOnCake: row.template === "CAKE" ? row.supportsMessageOnCake : false,
+          supportsMessageOnCake: row.template === "CAKE",
           supportsSameDayDelivery: row.supportsSameDayDelivery,
           canBeDeliveredPanIndia: row.canBeDeliveredPanIndia,
           isActive: row.isActive,
@@ -1665,7 +1682,7 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
 
   const existing = await prisma.product.findUnique({
     where: { id },
-    select: { id: true, archivedAt: true },
+    select: { id: true, archivedAt: true, template: true },
   });
   if (!existing) throw HttpError.notFound("Product not found");
 
@@ -1685,10 +1702,16 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
   // Reactivating from the form clears archive so the product can go live again.
   const clearArchive = rest.isActive === true && existing.archivedAt != null;
 
+  const template = rest.template ?? existing.template;
   const updated = await prisma.product.update({
     where: { id },
     data: {
       ...rest,
+      ...(template === "CAKE"
+        ? cakeCustomization("CAKE", false, true)
+        : rest.template
+          ? { supportsMessageOnCake: false }
+          : {}),
       ...(clearArchive ? { archivedAt: null } : {}),
       ...(slug ? { slug } : {}),
       ...(uniqueCategoryIds
