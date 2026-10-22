@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
+import { env } from "../../config/env.js";
 import { HttpError } from "../../utils/httpError.js";
 import type { AuthenticatedRequest } from "../../middleware/auth.js";
 import { PHOTO_KINDS, SUGGEST_KINDS } from "./prompts/copy.js";
@@ -15,7 +16,7 @@ import {
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 4 * 1024 * 1024 },
+  limits: { fileSize: env.UPLOAD_MAX_BYTES },
 });
 
 const bodySchema = z.object({

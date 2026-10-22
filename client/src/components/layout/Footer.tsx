@@ -158,8 +158,8 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-[11px] text-cream-100/45">
+        <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <p className="min-w-0 text-[11px] text-cream-100/45">
             {FOOTER_COPY.copyright(year, profile.name)}
           </p>
           <button

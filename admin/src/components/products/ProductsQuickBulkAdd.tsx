@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import { Cake, Pizza, Plus, Sparkles, Trash2 } from "lucide-react";
+import { SuggestCopyButton } from "@/ai/SuggestCopyButton";
 import { Field, inputClass, selectClass, submitClass } from "@/components/form/Field";
 import { MultiImageUpload } from "@/components/form/MultiImageUpload";
 import { NestedCategoryMultiSelect } from "@/components/form/NestedCategoryMultiSelect";
@@ -568,28 +569,89 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
               )}
             </div>
 
+            <div className="mb-2 grid gap-2 lg:grid-cols-2">
+              <div>
+                <span className="mb-1 block text-[10px] font-medium tracking-wide text-slate-500 uppercase">
+                  Images
+                </span>
+                <MultiImageUpload
+                  value={row.imageFiles}
+                  onChange={(files) => update(row.key, { imageFiles: files })}
+                  max={5}
+                  compact
+                />
+              </div>
+              <div>
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
+                    Categories
+                    <span aria-hidden="true" className="ml-1 text-brand-500">
+                      *
+                    </span>
+                  </span>
+                  <CategoryQuickAdd
+                    onCreated={(id) => {
+                      setRows((prev) =>
+                        prev.map((r) => {
+                          if (r.key !== row.key) return r;
+                          if (r.categoryIds.includes(id)) return r;
+                          return { ...r, categoryIds: [...r.categoryIds, id] };
+                        }),
+                      );
+                    }}
+                  />
+                </div>
+                <NestedCategoryMultiSelect
+                  categories={categories}
+                  selected={row.categoryIds}
+                  onChange={(categoryIds) => update(row.key, { categoryIds })}
+                  placeholder="Search or pick…"
+                  triggerClassName="py-1.5 text-xs"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-12">
-              <Field label="Name" required className="col-span-2 lg:col-span-4">
-                <input
-                  className={cn(inputClass, "py-1.5")}
-                  value={row.name}
-                  onChange={(e) => {
-                    const name = e.target.value;
+              <div className="col-span-2 lg:col-span-4">
+                <Field label="Name" required>
+                  <input
+                    className={cn(inputClass, "py-1.5")}
+                    value={row.name}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const patch: Partial<QuickRow> = { name };
+                      if (!row.slug || row.slug === slugify(row.name)) {
+                        patch.slug = slugify(name);
+                      }
+                      update(row.key, patch);
+                    }}
+                    placeholder="Optional before Suggest — e.g. Unicorn birthday cake"
+                  />
+                </Field>
+                <SuggestCopyButton
+                  className="mt-1"
+                  kind="productCopy"
+                  label="Suggest product details"
+                  image={row.imageFiles[0] ?? null}
+                  context={{ extra: row.template, name: row.name }}
+                  current={{
+                    name: row.name,
+                    shortDescription: row.shortDescription,
+                  }}
+                  onPickName={(name) => {
                     const patch: Partial<QuickRow> = { name };
                     if (!row.slug || row.slug === slugify(row.name)) {
                       patch.slug = slugify(name);
                     }
                     update(row.key, patch);
                   }}
-                  placeholder={
-                    row.template === "PIZZA"
-                      ? "e.g. Margherita"
-                      : row.template === "OTHER"
-                        ? "e.g. Brownie Box"
-                        : "e.g. Chocolate Truffle Cake"
-                  }
+                  onFill={(bundle) => {
+                    if (bundle.shortDescription) {
+                      update(row.key, { shortDescription: bundle.shortDescription });
+                    }
+                  }}
                 />
-              </Field>
+              </div>
               <Field label="Slug" className="col-span-2 lg:col-span-2">
                 <input
                   className={cn(inputClass, "py-1.5")}
@@ -673,48 +735,6 @@ export function ProductsQuickBulkAdd({ onDone }: { onDone?: () => void }) {
                 />
               </div>
             )}
-
-            <div className="mt-2 grid gap-2 lg:grid-cols-2">
-              <div>
-                <span className="mb-1 block text-[10px] font-medium tracking-wide text-slate-500 uppercase">
-                  Images
-                </span>
-                <MultiImageUpload
-                  value={row.imageFiles}
-                  onChange={(files) => update(row.key, { imageFiles: files })}
-                  max={5}
-                  compact
-                />
-              </div>
-              <div>
-                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
-                    Categories
-                    <span aria-hidden="true" className="ml-1 text-brand-500">
-                      *
-                    </span>
-                  </span>
-                  <CategoryQuickAdd
-                    onCreated={(id) => {
-                      setRows((prev) =>
-                        prev.map((r) => {
-                          if (r.key !== row.key) return r;
-                          if (r.categoryIds.includes(id)) return r;
-                          return { ...r, categoryIds: [...r.categoryIds, id] };
-                        }),
-                      );
-                    }}
-                  />
-                </div>
-                <NestedCategoryMultiSelect
-                  categories={categories}
-                  selected={row.categoryIds}
-                  onChange={(categoryIds) => update(row.key, { categoryIds })}
-                  placeholder="Search or pick…"
-                  triggerClassName="py-1.5 text-xs"
-                />
-              </div>
-            </div>
 
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-200/80 pt-1.5">
               <Flag

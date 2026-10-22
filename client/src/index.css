@@ -41,6 +41,14 @@
     font-family: var(--font-display);
     letter-spacing: -0.01em;
   }
+
+  /* Native date/select controls have a large intrinsic min-width on iOS. */
+  input[type="date"],
+  input[type="time"],
+  select {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 /* Store-door sign names: characterful but legible at small sizes. */

@@ -107,13 +107,13 @@ export function Header({ isCustomLink }: { isCustomLink: boolean }) {
       <header className="sticky top-0 z-40">
         <div className="bg-cream-50/95 backdrop-blur">
           <div className="max-w-8xl relative mx-auto flex items-center justify-between gap-3 px-4 py-2">
-            <Link to="/" className="flex shrink-0 items-center gap-2.5">
+            <Link to="/" className="flex min-w-0 items-center gap-2.5">
               <img
                 src={profile.logoSrc}
                 alt={profile.logoAlt}
-                className="h-11 w-11 rounded-full border border-[#e7d6b4] bg-white object-cover shadow-sm md:h-12 md:w-12"
+                className="h-11 w-11 shrink-0 rounded-full border border-[#e7d6b4] bg-white object-cover shadow-sm md:h-12 md:w-12"
               />
-              <span className="brand-wordmark">{profile.name}</span>
+              <span className="brand-wordmark truncate">{profile.name}</span>
             </Link>
 
             {/* Middle — Categories dropdown + highlighted tabs. Hidden on small and tablet screens. */}

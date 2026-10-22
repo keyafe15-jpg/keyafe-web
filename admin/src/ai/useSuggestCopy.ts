@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { compressSuggestImage } from "@/ai/compressSuggestImage";
 import { api } from "@/lib/api";
 
 export const SUGGEST_KINDS = [
@@ -67,7 +68,10 @@ function toFormData(payload: SuggestCopyPayload): FormData {
 
 export function useSuggestCopy() {
   return useMutation({
-    mutationFn: (body: SuggestCopyPayload) =>
-      api.postForm<SuggestBundle>("/admin/suggest-copy", toFormData(body)),
+    mutationFn: async (body: SuggestCopyPayload) => {
+      const image =
+        body.image instanceof File ? await compressSuggestImage(body.image) : body.image;
+      return api.postForm<SuggestBundle>("/admin/suggest-copy", toFormData({ ...body, image }));
+    },
   });
 }

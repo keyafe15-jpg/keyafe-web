@@ -26,7 +26,12 @@ const MAX_PER_WINDOW = 8;
 const hits = new Map<string, number[]>();
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_IMAGE_BYTES = env.UPLOAD_MAX_BYTES;
+
+function photoTooLargeMessage() {
+  const mb = Math.max(1, Math.round(MAX_IMAGE_BYTES / (1024 * 1024)));
+  return `Photo must be under ${mb} MB.`;
+}
 
 export function rateLimitSuggest(staffId: string): void {
   const now = Date.now();
@@ -106,7 +111,7 @@ export async function loadImageFromUrl(imageUrl: string): Promise<SuggestImage> 
   }
   const data = Buffer.from(await res.arrayBuffer());
   if (data.length === 0 || data.length > MAX_IMAGE_BYTES) {
-    throw HttpError.badRequest("Photo must be under 4 MB.");
+    throw HttpError.badRequest(photoTooLargeMessage());
   }
   return { mime, data };
 }
@@ -120,7 +125,7 @@ export function imageFromUpload(file: { mimetype: string; buffer: Buffer }): Sug
     throw HttpError.badRequest("Use a JPEG, PNG, or WebP photo.");
   }
   if (file.buffer.length === 0 || file.buffer.length > MAX_IMAGE_BYTES) {
-    throw HttpError.badRequest("Photo must be under 4 MB.");
+    throw HttpError.badRequest(photoTooLargeMessage());
   }
   return { mime, data: file.buffer };
 }
@@ -180,6 +185,7 @@ export async function suggestCopy(
           temperature: 0.85,
           maxOutputTokens: 900,
           responseMimeType: "application/json",
+          thinkingConfig: { thinkingLevel: "minimal" },
         },
       }),
       signal: controller.signal,

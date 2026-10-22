@@ -397,7 +397,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
   }
 
   return (
-    <section className="mx-auto max-w-3xl px-4 pt-8 pb-28">
+    <section className="mx-auto min-w-0 max-w-3xl overflow-x-hidden px-3 pt-6 pb-28 sm:px-4 sm:pt-8">
       <div className="mb-6 text-center">
         <p className="text-xs font-semibold tracking-wider text-brand-700 uppercase">
           Keyafe Foods
@@ -466,20 +466,21 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
               label={fulfillment === "DELIVERY" ? "Delivery date" : "Pickup date"}
               required
               error={errors.date}
+              className="col-span-2 min-w-0 sm:col-span-1"
             >
               <input
                 type="date"
                 value={date}
                 min={todayIso()}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full min-w-0 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
+                className="w-full min-w-0 max-w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
               />
             </Field>
-            <Field label="Time slot" required>
+            <Field label="Time slot" required className="col-span-2 min-w-0 sm:col-span-1">
               <select
                 value={slotKey}
                 onChange={(e) => setSlotKey(e.target.value)}
-                className="w-full min-w-0 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
+                className="w-full min-w-0 max-w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
               >
                 {PRODUCT_COPY.timeSlots.map((s) => (
                   <option key={s.key} value={s.key}>
@@ -502,7 +503,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
           >
             <div
               className={cn(
-                "grid grid-cols-2 content-start gap-x-3 gap-y-3",
+                "grid grid-cols-1 content-start gap-x-3 gap-y-3 min-[400px]:grid-cols-2",
                 fulfillment === "DELIVERY" && "sm:pr-5",
               )}
             >
@@ -536,7 +537,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
             </div>
 
             {fulfillment === "DELIVERY" && (
-              <div className="grid grid-cols-2 content-start gap-x-3 gap-y-3 border-t border-cream-200 pt-4 sm:border-t-0 sm:pt-0 sm:pl-5">
+              <div className="grid grid-cols-1 content-start gap-x-3 gap-y-3 border-t border-cream-200 pt-4 min-[400px]:grid-cols-2 sm:border-t-0 sm:pt-0 sm:pl-5">
                 <ColumnLabel className="col-span-2">Recipient</ColumnLabel>
                 <div className="col-span-2">
                   <CheckRow
@@ -580,7 +581,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
 
         {fulfillment === "DELIVERY" && (
           <Section title="Delivery address">
-            <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-x-4">
+            <div className="grid grid-cols-1 gap-x-3 gap-y-4 min-[400px]:grid-cols-2 sm:gap-x-4">
               <Field
                 label="Find your address"
                 required
@@ -648,7 +649,7 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
               </div>
             </div>
             {!billingSameAsDelivery && (
-              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4 border-t border-cream-200 pt-4 sm:gap-x-4">
+              <div className="mt-4 grid grid-cols-1 gap-x-3 gap-y-4 border-t border-cream-200 pt-4 min-[400px]:grid-cols-2 sm:gap-x-4">
                 <ColumnLabel className="col-span-2">Billing address</ColumnLabel>
                 <Field
                   label="Find billing address"
@@ -720,7 +721,12 @@ function LinkForm({ link }: { link: NonNullable<ReturnType<typeof useOrderLink>[
               : "Pay when your order is delivered or picked up."
           }
         >
-          <div className={cn("grid grid-cols-3 gap-2", !onlinePaymentAvailable && "hidden")}>
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-1.5 min-[420px]:grid-cols-3 sm:gap-2",
+              !onlinePaymentAvailable && "hidden",
+            )}
+          >
             <FulfillmentButton
               active={payChoice === "FULL"}
               onClick={() => setPayChoice("FULL")}
@@ -917,12 +923,12 @@ function LockedItemCard({
     return list;
   })();
   return (
-    <div className="rounded-card border-2 border-brand-500/30 bg-white p-3 shadow-sm">
-      <div className="flex gap-3 sm:gap-4">
+    <div className="min-w-0 rounded-card border-2 border-brand-500/30 bg-white p-3 shadow-sm">
+      <div className="flex gap-2.5 sm:gap-4">
         <RefImageStrip urls={listedItemImages(item)} alt={item.productName} />
         <div className="min-w-0 flex-1">
-          <h2 className="flex min-w-0 items-center gap-2 font-display text-base leading-snug text-ink-900 sm:text-lg">
-            <span className="min-w-0 truncate">{item.productName}</span>
+          <h2 className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-display text-base leading-snug text-ink-900 sm:text-lg">
+            <span className="min-w-0 break-words">{item.productName}</span>
             <ItemQty qty={item.qty} />
           </h2>
           {specs.length > 0 && <p className="mt-0.5 text-xs text-ink-500">{specs.join(" · ")}</p>}
@@ -950,7 +956,7 @@ function LockedItemCard({
           onChange={(e) => onMessage(e.target.value.slice(0, 200))}
           maxLength={200}
           placeholder="Happy Birthday…"
-          className="w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none"
+          className="w-full min-w-0 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none"
         />
       </label>
       <LinkAddonsPicker addons={pickerAddons} selected={addonIds} onToggle={onToggleAddon} />
@@ -984,11 +990,11 @@ function StickyPayBar({
     <div
       aria-hidden={hidden}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-30 border-t border-cream-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur transition-transform duration-200",
+        "fixed inset-x-0 bottom-0 z-30 border-t border-cream-200 bg-white/95 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur transition-transform duration-200 sm:px-4",
         hidden && "pointer-events-none translate-y-full",
       )}
     >
-      <div className="mx-auto flex max-w-3xl items-center gap-3 sm:gap-6">
+      <div className="mx-auto flex max-w-3xl min-w-0 items-center gap-2 sm:gap-6">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] text-ink-500">{amountLabel}</p>
           <p className="text-lg leading-tight font-semibold text-ink-900 tabular-nums">
@@ -996,14 +1002,14 @@ function StickyPayBar({
           </p>
           {subLabel && <p className="truncate text-[11px] text-ink-500">{subLabel}</p>}
         </div>
-        <BlockedTooltip message={hidden ? null : (hint ?? null)} align="end" className="shrink-0">
+        <BlockedTooltip message={hidden ? null : (hint ?? null)} align="end" className="min-w-0 shrink">
           <button
             type="button"
             tabIndex={hidden ? -1 : undefined}
             onClick={onSubmit}
             disabled={disabled}
             aria-disabled={incomplete}
-            className="rounded-full bg-brand-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:hover:bg-brand-500 sm:min-w-56 sm:px-8"
+            className="max-w-full rounded-full bg-brand-500 px-3 py-2.5 text-center text-xs font-medium leading-snug text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:hover:bg-brand-500 sm:min-w-56 sm:px-8 sm:py-3 sm:text-sm"
           >
             {buttonLabel}
           </button>
@@ -1023,7 +1029,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-card border border-cream-200 bg-white p-5">
+    <section className="min-w-0 rounded-card border border-cream-200 bg-white p-3.5 sm:p-5">
       <h2 className="font-display text-lg text-ink-900">{title}</h2>
       {subtitle && <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p>}
       <div className={cn(!subtitle && "mt-3")}>{children}</div>
@@ -1121,7 +1127,7 @@ function Input({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={cn(
-        "w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none",
+        "w-full min-w-0 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none",
         className,
       )}
     />
@@ -1142,7 +1148,7 @@ function FulfillmentButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-lg border px-3 py-3 text-sm font-medium transition",
+        "min-w-0 w-full rounded-lg border px-2 py-2.5 text-center text-xs leading-snug font-medium transition sm:px-3 sm:py-3 sm:text-sm",
         active
           ? "border-brand-500 bg-brand-100/60 text-brand-700"
           : "border-cream-200 bg-white text-ink-700 hover:border-brand-300",
@@ -1163,8 +1169,8 @@ function SummaryRow({
   hint?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between py-0.5 text-sm">
-      <span className="text-ink-700">{label}</span>
+    <div className="flex min-w-0 items-baseline justify-between gap-3 py-0.5 text-sm">
+      <span className="min-w-0 text-ink-700">{label}</span>
       <span className={cn("tabular-nums", value == null && "text-xs text-ink-500")}>
         {value == null
           ? hint

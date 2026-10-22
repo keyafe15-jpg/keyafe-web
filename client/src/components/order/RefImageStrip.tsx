@@ -17,17 +17,17 @@ export function RefImageStrip({
   alt?: string;
 }) {
   if (urls.length === 0) {
-    return <div className="h-12 w-12 shrink-0 rounded-md bg-cream-100" />;
+    return <div className="h-10 w-10 shrink-0 rounded-md bg-cream-100 sm:h-12 sm:w-12" />;
   }
   return (
-    <div className="flex max-w-[8.5rem] shrink-0 flex-wrap gap-1">
+    <div className="flex max-w-[4.75rem] shrink-0 flex-wrap gap-1 sm:max-w-[8.5rem]">
       {urls.map((src) => (
         <a
           key={src}
           href={src}
           target="_blank"
           rel="noreferrer"
-          className="h-12 w-12 overflow-hidden rounded-md bg-cream-100"
+          className="h-10 w-10 overflow-hidden rounded-md bg-cream-100 sm:h-12 sm:w-12"
           aria-label={alt ? `View ${alt}` : "View reference image"}
         >
           <img src={src} alt="" className="h-full w-full object-cover" />
