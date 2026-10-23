@@ -32,6 +32,8 @@ import { UsersRolesPage } from "@/pages/staff/UsersRolesPage";
 import { RequirePermission } from "@/components/nav/RequirePermission";
 import { StallSalesPage } from "@/pages/stall/StallSalesPage";
 import { StallMenuPage } from "@/pages/stall/StallMenuPage";
+import { VendorsListPage } from "@/pages/vendors/VendorsListPage";
+import { VendorDetailPage } from "@/pages/vendors/VendorDetailPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -157,6 +159,18 @@ export const router = createBrowserRouter([
           {
             path: "delivery",
             element: <DeliveryPincodesPage />,
+          },
+          {
+            path: "vendors",
+            element: <VendorsListPage />,
+          },
+          {
+            path: "vendors/new",
+            element: <VendorDetailPage />,
+          },
+          {
+            path: "vendors/:id",
+            element: <VendorDetailPage />,
           },
           {
             path: "customers",

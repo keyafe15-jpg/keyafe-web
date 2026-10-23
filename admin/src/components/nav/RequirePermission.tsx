@@ -6,6 +6,7 @@ import { useAdminAuth } from "@/store/adminAuth";
 /** Pages under a nav item that need more than the item itself. */
 const STRICTER_PATHS: { to: string; requiresPermission: string }[] = [
   { to: "/products/new", requiresPermission: "products.write" },
+  { to: "/vendors/new", requiresPermission: "vendors.write" },
 ];
 
 function requiredPermissionForPath(pathname: string): string | undefined {

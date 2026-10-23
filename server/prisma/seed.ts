@@ -1042,6 +1042,8 @@ async function main() {
   await seedCategories();
   await seedTags();
   await seedSameDayCategories();
+  const { seedVendors } = await import("../src/modules/finance/vendor.seed.js");
+  await seedVendors();
 
   // Demo catalogue + fake orders would pollute a live shop's reports.
   if (env.NODE_ENV === "production" && process.env.SEED_DEMO_DATA !== "true") {

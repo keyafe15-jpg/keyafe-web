@@ -58,6 +58,9 @@ export const PERMISSION_CATALOG = [
 
   { key: "customers.read", label: "View customers", category: "customers", sortOrder: 0 },
 
+  { key: "vendors.read", label: "View vendors", category: "books", sortOrder: 0 },
+  { key: "vendors.write", label: "Add & edit vendors", category: "books", sortOrder: 1 },
+
   { key: "coupons.write", label: "Manage coupons", category: "marketing", sortOrder: 0 },
 
   { key: "delivery.write", label: "Manage delivery zones", category: "operations", sortOrder: 0 },

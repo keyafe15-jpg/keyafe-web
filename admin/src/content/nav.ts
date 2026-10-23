@@ -17,6 +17,7 @@ import {
   Users,
   UserCircle,
   Settings,
+  Handshake,
   FileText,
   Megaphone,
   MessageSquareQuote,
@@ -78,6 +79,17 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Reviews",
         icon: MessageSquareQuote,
         requiresPermission: "reviews.read",
+      },
+    ],
+  },
+  {
+    label: "Books",
+    items: [
+      {
+        to: "/vendors",
+        label: "Vendors",
+        icon: Handshake,
+        requiresPermission: "vendors.read",
       },
     ],
   },

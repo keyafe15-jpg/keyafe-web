@@ -14,7 +14,7 @@ interface NavGroupsState {
 export const useNavGroups = create<NavGroupsState>()(
   persist(
     (set) => ({
-      open: ["Overview"],
+      open: ["Overview", "Books"],
       lastVisited: null,
       toggle: (label) =>
         set((s) => ({
@@ -30,6 +30,17 @@ export const useNavGroups = create<NavGroupsState>()(
               },
         ),
     }),
-    { name: "keyafe-admin-nav-groups" },
+    {
+      name: "keyafe-admin-nav-groups",
+      version: 2,
+      migrate: (persisted, version) => {
+        const state = persisted as { open?: string[]; lastVisited?: string | null };
+        const open = (state.open ?? ["Overview"]).map((label) =>
+          label === "Expenses" ? "Books" : label,
+        );
+        if (version < 2 && !open.includes("Books")) open.push("Books");
+        return { ...state, open, lastVisited: state.lastVisited === "Expenses" ? "Books" : state.lastVisited };
+      },
+    },
   ),
 );

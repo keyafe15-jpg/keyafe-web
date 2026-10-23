@@ -1,0 +1,26 @@
+// Shop books — vendors first (Phase 1). Purchases, expenses, and inventory
+// attach here in later phases. Do not hard-delete a vendor once buys exist;
+// archive with isActive / archivedAt.
+
+model Vendor {
+  id          String    @id @default(cuid())
+  name        String
+  phone       String?
+  /// What they sell: dairy, flour, packaging, gas, …
+  supplies    String[]  @default([])
+  gstin       String?
+  /// Shop / market location — Google Places search or free text.
+  address     String?
+  notes       String?
+  upiId       String?
+  /// Free-text: bank last-4, "cash only", "Monday market".
+  accountHint String?
+  isActive    Boolean   @default(true)
+  archivedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, name])
+  @@index([name])
+}

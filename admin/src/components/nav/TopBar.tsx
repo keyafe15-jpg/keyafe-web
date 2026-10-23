@@ -27,6 +27,9 @@ function searchConfigForPath(pathname: string): { placeholder: string } | null {
   if (pathname === "/delivery") {
     return { placeholder: "Search pincode, city, or area…" };
   }
+  if (pathname === "/vendors") {
+    return { placeholder: "Search vendors by name, phone, or address…" };
+  }
   return null;
 }
 
