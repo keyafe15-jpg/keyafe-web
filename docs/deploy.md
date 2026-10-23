@@ -180,6 +180,106 @@ DB migrations are not auto-reverted; prefer forward fixes for schema.
 
 ---
 
+## Backups
+
+Keep DigitalOcean **weekly droplet backups** as the whole-server safety net. On top of that, the droplet dumps Postgres every 2 days (3:00 AM IST) and right before each release migration. Dumps stay in `/var/backups/keyafe` (last 5) and, once rclone is configured, in Cloudflare R2 bucket `keyafe-backups` (last 5). Uploads are mirrored to R2 as a single current copy.
+
+**Do this on the already-live droplet before the next Cut release.** The new release script aborts migrate if it cannot write a pre-release dump.
+
+```bash
+ssh root@YOUR_DROPLET_IP
+
+apt-get update -y
+apt-get install -y rclone postgresql-client python3 cron
+
+mkdir -p /var/backups/keyafe/pre-release
+chown -R deploy:deploy /var/backups/keyafe
+
+cat > /etc/cron.d/keyafe-backup <<'EOF'
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+30 21 */2 * * deploy /var/www/keyafe/current/deploy/backup-db.sh >> /var/backups/keyafe/backup.log 2>&1
+EOF
+chmod 644 /etc/cron.d/keyafe-backup
+```
+
+Cron is `30 21 */2 * *` (21:30 UTC = 03:00 IST on the 1st, 3rd, 5th… of the month). Until the first release that includes `deploy/backup-db.sh` is live, that cron line will fail — that is expected.
+
+### Cloudflare R2 (already created)
+
+Private bucket `keyafe-backups`, Automatic / Asia Pacific, Standard class, plus an API token scoped to Object Read & Write on that bucket only.
+
+### rclone remote (as `deploy`)
+
+```bash
+sudo -u deploy -H rclone config
+```
+
+Create remote **`keyafe-backup`** (the name must match):
+
+- Storage: `s3`
+- Provider: `Cloudflare`
+- `env_auth`: `false`
+- Access Key ID / Secret Access Key: from the R2 token
+- Region: `auto`
+- Endpoint: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` (shown on the token screen)
+- Leave ACL / location constraint empty
+
+Do **not** put the R2 secret in `/var/www/keyafe/shared/.env`. rclone stores it in `/home/deploy/.config/rclone/rclone.conf` (`chmod 600`).
+
+Check:
+
+```bash
+sudo -u deploy -H rclone lsd keyafe-backup:
+```
+
+### healthchecks.io (optional but recommended)
+
+Create a check with a **2-day** period and **1-day** grace. Add the ping URL to shared env (not the app schema — only the backup script reads it):
+
+```bash
+# as deploy or root
+echo 'HEALTHCHECK_URL=https://hc-ping.com/YOUR_UUID' >> /var/www/keyafe/shared/.env
+```
+
+A missed dump emails you. Pre-release dumps do not ping this URL.
+
+### First run
+
+After a release that includes `deploy/backup-db.sh` is live (or after you copy that file to the droplet):
+
+```bash
+sudo -u deploy -H /var/www/keyafe/current/deploy/backup-db.sh
+ls -lt /var/backups/keyafe
+sudo -u deploy -H rclone ls keyafe-backup:keyafe-backups/db/
+```
+
+You should see `keyafe-YYYY-MM-DD_HHMM.dump` locally and in R2.
+
+### Restore one dump (orders / data)
+
+```bash
+# from R2
+sudo -u deploy -H rclone copy keyafe-backup:keyafe-backups/db/keyafe-YYYY-MM-DD_HHMM.dump /tmp/
+
+# or use a local file under /var/backups/keyafe/
+# Stop writes first (pm2 stop keyafe-api) if restoring production.
+
+# Parse DATABASE_URL yourself; do not echo it.
+pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL" /tmp/keyafe-YYYY-MM-DD_HHMM.dump
+```
+
+Test this once against a **scratch** local database, not production, so you know the dump opens.
+
+Uploads: `rclone sync keyafe-backup:keyafe-backups/uploads/ /var/www/keyafe/shared/uploads/`
+
+### Whole-server disaster
+
+Restore the latest DigitalOcean droplet backup first, then load the newest R2 dump for the days after that snapshot.
+
+---
+
 ## Repo layout
 
 | Path | Purpose |
@@ -187,6 +287,7 @@ DB migrations are not auto-reverted; prefer forward fixes for schema.
 | `.github/workflows/ci.yml` | Build on push/PR to `main` |
 | `.github/workflows/release.yml` | Manual cut release → deploy |
 | `deploy/bootstrap-droplet.sh` | One-time server setup |
+| `deploy/backup-db.sh` | Postgres dump → local + R2 |
 | `deploy/pack-release.sh` | Build tarball (CI) |
 | `deploy/remote-release.sh` | Activate release on droplet |
 | `deploy/nginx/*` | Nginx site configs |

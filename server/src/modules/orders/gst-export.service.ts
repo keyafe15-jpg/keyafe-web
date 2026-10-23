@@ -4,11 +4,7 @@ import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import { stateNameFromCode } from "../../lib/indiaStates.js";
 import { CASH_PAYMENT_METHODS } from "../../lib/paymentLabel.js";
-import {
-  ensureInvoiceNumber,
-  financialYearLabel,
-  getSellerSettings,
-} from "./invoice.service.js";
+import { ensureInvoiceNumber, financialYearLabel, getSellerSettings } from "./invoice.service.js";
 import { CREDIT_NOTE_REASON_LABEL, type CreditNoteLine } from "./credit-note.service.js";
 
 const IST = "Asia/Kolkata";
@@ -444,7 +440,6 @@ function buildXlsx(
     ["Generated (IST)", formatIstDate(new Date())],
     ["Invoice count", register.length],
     ["Credit note count", creditNotes.length],
-    ["Note", "Cash/COD sales excluded from this register"],
     ["HSN summary", "Net of credit notes issued in the period"],
     [],
     ...totalsRows("Invoices", invoices),
@@ -563,7 +558,9 @@ function buildSummaryPdf(
       doc.fontSize(11).fillColor("#000").text(label, { underline: true });
       doc.fontSize(10).fillColor("#333");
       doc.text(`Taxable: Rs. ${money(t.taxable)}`);
-      doc.text(`CGST: Rs. ${money(t.cgst)}   SGST: Rs. ${money(t.sgst)}   IGST: Rs. ${money(t.igst)}`);
+      doc.text(
+        `CGST: Rs. ${money(t.cgst)}   SGST: Rs. ${money(t.sgst)}   IGST: Rs. ${money(t.igst)}`,
+      );
       doc.text(`Total: Rs. ${money(t.total)}`);
       doc.moveDown();
     };
@@ -622,9 +619,12 @@ function buildSummaryPdf(
     }
 
     doc.moveDown();
-    doc.fontSize(8).fillColor("#666").text(
-      "This is a summary register for GST filing support — not a substitute for individual tax invoices.",
-    );
+    doc
+      .fontSize(8)
+      .fillColor("#666")
+      .text(
+        "This is a summary register for GST filing support — not a substitute for individual tax invoices.",
+      );
 
     doc.end();
   });

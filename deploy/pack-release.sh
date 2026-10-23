@@ -39,7 +39,11 @@ pnpm --dir "$STAGE/server" exec prisma generate
 
 echo "$VERSION" > "$STAGE/VERSION"
 
+mkdir -p "$STAGE/deploy"
+cp "$ROOT/deploy/backup-db.sh" "$STAGE/deploy/backup-db.sh"
+chmod +x "$STAGE/deploy/backup-db.sh"
+
 OUT="${RELEASE_OUT:-$ROOT/keyafe-release.tgz}"
-tar -czf "$OUT" -C "$STAGE" client admin server VERSION
+tar -czf "$OUT" -C "$STAGE" client admin server VERSION deploy
 echo "==> Wrote $OUT"
 ls -lh "$OUT"

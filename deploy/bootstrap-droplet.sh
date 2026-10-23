@@ -19,7 +19,8 @@ echo "==> Packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y curl ca-certificates gnupg ufw nginx certbot python3-certbot-nginx \
-  postgresql postgresql-contrib build-essential git rsync
+  postgresql postgresql-contrib postgresql-client python3 rclone cron \
+  build-essential git rsync
 
 echo "==> Node 22"
 if ! command -v node >/dev/null 2>&1 || [[ "$(node -v)" != v22* ]]; then
@@ -36,8 +37,9 @@ npm install -g pm2
 
 echo "==> App user + dirs"
 id -u "$APP_USER" >/dev/null 2>&1 || adduser --disabled-password --gecos "" "$APP_USER"
-mkdir -p "$APP_ROOT"/{releases,shared/uploads} /var/www/certbot
-chown -R "$APP_USER:$APP_USER" "$APP_ROOT"
+mkdir -p "$APP_ROOT"/{releases,shared/uploads} /var/www/certbot \
+  /var/backups/keyafe/pre-release
+chown -R "$APP_USER:$APP_USER" "$APP_ROOT" /var/backups/keyafe
 
 echo "==> Postgres role/db (change password after!)"
 sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='keyafe'" | grep -q 1 \
@@ -66,11 +68,21 @@ PUBLIC_BASE_URL=https://keyafe.com
 UPLOAD_TOKEN_SECRET=REPLACE_WITH_LONG_RANDOM_SECRET_32PLUS
 JWT_SECRET=REPLACE_WITH_LONG_RANDOM_SECRET_32PLUS
 JWT_EXPIRES_IN=7d
+# HEALTHCHECK_URL=https://hc-ping.com/your-uuid
 EOF
   chown "$APP_USER:$APP_USER" "$ENV_FILE"
   chmod 600 "$ENV_FILE"
   echo "Wrote $ENV_FILE — edit secrets/passwords before first start."
 fi
+
+echo "==> Backup cron (every 2nd day, 21:30 UTC = 03:00 IST)"
+cat > /etc/cron.d/keyafe-backup <<'EOF'
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+30 21 */2 * * deploy /var/www/keyafe/current/deploy/backup-db.sh >> /var/backups/keyafe/backup.log 2>&1
+EOF
+chmod 644 /etc/cron.d/keyafe-backup
 
 echo "==> Done bootstrap."
 echo "Next:"
@@ -79,3 +91,4 @@ echo "  2. Copy nginx configs from repo deploy/nginx/ and enable sites"
 echo "  3. certbot --nginx -d keyafe.com -d www.keyafe.com -d admin.keyafe.com"
 echo "  4. Add GitHub secrets and run Cut release workflow"
 echo "  5. pm2 startup && pm2 save  (after first successful release)"
+echo "  6. rclone config as $APP_USER (remote name keyafe-backup → Cloudflare R2). See docs/deploy.md Backups."

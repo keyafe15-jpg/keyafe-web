@@ -22,6 +22,17 @@ echo "$VERSION" > "$RELEASE_DIR/VERSION"
 echo "==> Link shared env"
 ln -sfn "$APP_ROOT/shared/.env" "$RELEASE_DIR/server/.env"
 
+echo "==> Pre-release database dump"
+BACKUP_SH="$RELEASE_DIR/deploy/backup-db.sh"
+if [[ ! -x "$BACKUP_SH" ]]; then
+  BACKUP_SH="$APP_ROOT/current/deploy/backup-db.sh"
+fi
+if [[ ! -x "$BACKUP_SH" ]]; then
+  echo "Missing backup-db.sh (expected in this release tarball). Aborting before migrate." >&2
+  exit 1
+fi
+MODE=pre-release APP_VERSION="$VERSION" APP_ROOT="$APP_ROOT" "$BACKUP_SH"
+
 echo "==> Prisma migrate"
 cd "$RELEASE_DIR/server"
 # Prefer the package entry (portable). .bin/prisma shims often break after tar

@@ -39,10 +39,7 @@ export function GstExportPanel() {
   if (!canReadInvoices) return null;
 
   const rangeInvalid = !!(from && to && from > to);
-  const canSubmit =
-    mode === "fy"
-      ? !!fy
-      : !!from && !!to && !rangeInvalid;
+  const canSubmit = mode === "fy" ? !!fy : !!from && !!to && !rangeInvalid;
 
   const run = async (format: "xlsx" | "pdf") => {
     setError(null);
@@ -52,9 +49,7 @@ export function GstExportPanel() {
     }
     try {
       await download.mutateAsync(
-        mode === "fy"
-          ? { mode: "fy", fy, format }
-          : { mode: "range", from, to, format },
+        mode === "fy" ? { mode: "fy", fy, format } : { mode: "range", from, to, format },
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Export failed");
@@ -67,9 +62,8 @@ export function GstExportPanel() {
         <div>
           <h2 className="text-sm font-semibold text-slate-900">GST export</h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            Invoice register for your CA — Excel (full) or PDF (summary). By invoice date;
-            cash/COD sales are excluded. Missing numbers on other paid orders are issued for
-            the period.
+            Invoice register for your CA — Excel (full) or PDF (summary). Missing numbers on paid
+            orders are issued for the period.
           </p>
         </div>
 
