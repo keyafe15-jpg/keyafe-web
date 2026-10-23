@@ -154,6 +154,9 @@ model Expense {
   createdBy       User               @relation("ExpenseCreatedBy", fields: [createdByUserId], references: [id])
   purchaseId      String?            @unique
   purchase        Purchase?          @relation(fields: [purchaseId], references: [id])
+  /// Set when this row is the delivery we paid on an order (not a shop buy).
+  orderId         String?            @unique
+  order           Order?             @relation(fields: [orderId], references: [id])
   voidedAt        DateTime?
 
   createdAt DateTime @default(now())

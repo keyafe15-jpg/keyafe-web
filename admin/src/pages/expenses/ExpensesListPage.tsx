@@ -140,7 +140,9 @@ export function ExpensesListPage() {
               {rows.map((row) => {
                 const href = row.purchaseId
                   ? `/expenses/buys/${row.purchaseId}`
-                  : `/expenses/${row.id}`;
+                  : row.orderId
+                    ? `/orders/${row.orderId}`
+                    : `/expenses/${row.id}`;
                 return (
                   <li key={row.id}>
                     <button
@@ -152,7 +154,9 @@ export function ExpensesListPage() {
                         <p className="truncate font-medium text-slate-900">
                           {row.purchaseId
                             ? row.vendor?.name ?? "Shop buy"
-                            : row.category.name}
+                            : row.order
+                              ? `Delivery · ${row.order.orderNumber}`
+                              : row.category.name}
                         </p>
                         <p className="text-xs text-slate-500">
                           {formatBooksDate(row.date)}

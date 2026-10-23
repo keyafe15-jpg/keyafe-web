@@ -108,7 +108,7 @@ export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
   paymentAttempts?: AdminPaymentAttempt[];
   /** deliveryFee was paid to the rider, so it is not in total. */
   deliveryPaidToRider: boolean;
-  /** What the rider actually took. Subsidy = max(0, cost − fee). */
+  /** Shop payout for delivery. Extra on top when the customer paid the rider. */
   deliveryCost?: string | null;
   discount: string;
   couponCode: string | null;
@@ -432,6 +432,7 @@ export function useUpdateOrder() {
       void qc.invalidateQueries({
         queryKey: ["admin", "order", data.orderNumber],
       });
+      void qc.invalidateQueries({ queryKey: ["admin", "expenses"] });
     },
   });
 }

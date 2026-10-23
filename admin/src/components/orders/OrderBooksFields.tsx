@@ -1,30 +1,16 @@
 import { useState } from "react";
-import { Field, inputClass, selectClass } from "@/components/form/Field";
+import { cn } from "@/lib/cn";
+import { inputClass, selectClass } from "@/components/form/Field";
 import { useUpdateOrder, type AdminOrder } from "@/hooks/useAdminOrders";
 import {
   DISCOUNT_REASONS,
   discountReasonLabel,
-  inr,
   type DiscountReason,
 } from "@/pages/expenses/books-ui";
 
-export function OrderBooksFields({
-  order,
-  canUpdate,
-}: {
-  order: AdminOrder;
-  canUpdate: boolean;
-}) {
+function useOrderBooksSave(orderId: string) {
   const update = useUpdateOrder();
-  const [cost, setCost] = useState(order.deliveryCost ?? "");
-  const [reason, setReason] = useState<DiscountReason | "">(order.discountReason ?? "");
-  const [note, setNote] = useState(order.discountNote ?? "");
   const [error, setError] = useState<string | null>(null);
-  const fee = Number(order.deliveryFee);
-  const costNum = cost === "" ? null : Number(cost);
-  const subsidy =
-    costNum !== null && Number.isFinite(costNum) ? Math.max(0, costNum - fee) : 0;
-
   const save = (patch: {
     deliveryCost?: number | null;
     discountReason?: DiscountReason | null;
@@ -32,88 +18,121 @@ export function OrderBooksFields({
   }) => {
     setError(null);
     update.mutate(
-      { id: order.id, ...patch },
+      { id: orderId, ...patch },
       {
         onError: (err) => setError(err instanceof Error ? err.message : "Could not save"),
       },
     );
   };
+  return { save, error, setError };
+}
+
+/** One totals-style row: what we paid the rider. */
+export function OrderDeliveryCostRow({
+  order,
+  canUpdate,
+}: {
+  order: AdminOrder;
+  canUpdate: boolean;
+}) {
+  const { save, error } = useOrderBooksSave(order.id);
+  const [cost, setCost] = useState(
+    order.deliveryCost != null && Number(order.deliveryCost) > 0
+      ? String(Number(order.deliveryCost))
+      : "",
+  );
+  const extra = order.deliveryPaidToRider;
 
   return (
-    <div className="mt-3 space-y-2 border-t border-dashed border-slate-200 pt-3">
-      <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
-        Delivery subsidy & discount reason
-      </p>
-      <p className="text-[11px] text-slate-500">
-        Rider took vs what we charged. Do not also log the gap as a delivery expense.
-      </p>
-      <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
-        <Field label="Rider actually took">
-          <input
-            inputMode="decimal"
-            value={cost}
-            disabled={!canUpdate}
-            onChange={(e) => setCost(e.target.value)}
-            onBlur={() => {
-              const next = cost.trim() === "" ? null : Number(cost);
-              if (next !== null && !Number.isFinite(next)) return;
-              const current = order.deliveryCost == null ? null : Number(order.deliveryCost);
-              if (next === current) return;
-              save({ deliveryCost: next });
-            }}
-            className={inputClass}
-            placeholder="e.g. 200"
-          />
-        </Field>
-        <Field label="Subsidy (auto)">
-          <p className="py-2 text-sm tabular-nums text-slate-800">
-            {costNum === null ? "—" : subsidy > 0 ? inr(subsidy) : "None"}
-          </p>
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
-          <Field label="Discount reason">
-            <select
-              value={reason}
-              disabled={!canUpdate}
-              className={selectClass}
-              onChange={(e) => {
-                const next = e.target.value as DiscountReason | "";
-                setReason(next);
-                if (next && next !== "OTHER") {
-                  save({ discountReason: next, discountNote: note.trim() || null });
-                } else if (!next) {
-                  save({ discountReason: null, discountNote: null });
-                }
-              }}
-            >
-              <option value="">Not set</option>
-              {DISCOUNT_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {discountReasonLabel(r)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {reason === "OTHER" && (
-            <Field label="Reason note" required>
-              <input
-                value={note}
-                disabled={!canUpdate}
-                onChange={(e) => setNote(e.target.value)}
-                onBlur={() => {
-                  if (!note.trim()) {
-                    setError("Add a note when the reason is other.");
-                    return;
-                  }
-                  save({ discountReason: "OTHER", discountNote: note.trim() });
-                }}
-                className={inputClass}
-              />
-            </Field>
+    <div className="flex items-center justify-between gap-3 pt-0.5">
+      <span className="text-slate-700">{extra ? "Extra we paid" : "We paid the rider"}</span>
+      <div className="text-right">
+        <input
+          inputMode="decimal"
+          value={cost}
+          disabled={!canUpdate}
+          aria-label={extra ? "Extra we paid for delivery" : "What we paid the rider"}
+          onChange={(e) => setCost(e.target.value)}
+          onBlur={() => {
+            const next = cost.trim() === "" ? null : Number(cost);
+            if (next !== null && !Number.isFinite(next)) return;
+            const current =
+              order.deliveryCost == null || Number(order.deliveryCost) === 0
+                ? null
+                : Number(order.deliveryCost);
+            if (next === current || (next === 0 && current === null)) return;
+            save({ deliveryCost: next === 0 ? null : next });
+          }}
+          placeholder="0"
+          className={cn(
+            inputClass,
+            "h-8 w-[6.5rem] px-2 py-1 text-right text-sm tabular-nums",
           )}
-        </div>
-      {error && <p className="text-xs text-red-700">{error}</p>}
+        />
+        {error && <p className="mt-1 text-xs text-red-700">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
+export function OrderDiscountReasonRow({
+  order,
+  canUpdate,
+}: {
+  order: AdminOrder;
+  canUpdate: boolean;
+}) {
+  const hasDiscount = Number(order.discount) > 0 || Boolean(order.discountReason);
+  const { save, error, setError } = useOrderBooksSave(order.id);
+  const [reason, setReason] = useState<DiscountReason | "">(order.discountReason ?? "");
+  const [note, setNote] = useState(order.discountNote ?? "");
+
+  if (!hasDiscount) return null;
+
+  return (
+    <div className="pt-1">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-slate-500">Discount reason</span>
+        <select
+          value={reason}
+          disabled={!canUpdate}
+          aria-label="Discount reason"
+          className={cn(selectClass, "h-8 w-[12rem] px-2 py-1 text-xs")}
+          onChange={(e) => {
+            const next = e.target.value as DiscountReason | "";
+            setReason(next);
+            if (next && next !== "OTHER") {
+              save({ discountReason: next, discountNote: note.trim() || null });
+            } else if (!next) {
+              save({ discountReason: null, discountNote: null });
+            }
+          }}
+        >
+          <option value="">Not set</option>
+          {DISCOUNT_REASONS.map((r) => (
+            <option key={r} value={r}>
+              {discountReasonLabel(r)}
+            </option>
+          ))}
+        </select>
+      </div>
+      {reason === "OTHER" && (
+        <input
+          value={note}
+          disabled={!canUpdate}
+          placeholder="Why"
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={() => {
+            if (!note.trim()) {
+              setError("Add a note when the reason is other.");
+              return;
+            }
+            save({ discountReason: "OTHER", discountNote: note.trim() });
+          }}
+          className={cn(inputClass, "mt-1 h-8 px-2 py-1 text-xs")}
+        />
+      )}
+      {error && <p className="mt-1 text-xs text-red-700">{error}</p>}
     </div>
   );
 }

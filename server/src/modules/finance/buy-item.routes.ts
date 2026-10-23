@@ -42,7 +42,7 @@ adminBuyItemRouter.get("/", async (req, res) => {
       select: buyItemSelect,
     }),
   ]);
-  res.json(pageJson(items.map(serializeBuyItem), total, page, pageSize));
+  res.json(pageJson(await withItemSummaries(items), total, page, pageSize));
 });
 
 adminBuyItemRouter.post("/", async (req, res) => {
@@ -157,6 +157,75 @@ adminBuyItemRouter.get("/:id", async (req, res) => {
     history: pageJson(history, total, page, pageSize),
   });
 });
+
+async function withItemSummaries(items: Parameters<typeof serializeBuyItem>[0][]) {
+  const ids = items.map((item) => item.id);
+  const lines =
+    ids.length === 0
+      ? []
+      : await prisma.purchaseLine.findMany({
+          where: { buyItemId: { in: ids }, purchase: { voidedAt: null } },
+          select: {
+            buyItemId: true,
+            qty: true,
+            unitPrice: true,
+            amount: true,
+            purchase: {
+              select: {
+                date: true,
+                vendor: { select: { name: true } },
+              },
+            },
+          },
+          orderBy: [{ purchase: { date: "desc" } }, { id: "desc" }],
+        });
+
+  const byItem = new Map<
+    string,
+    {
+      timesBought: number;
+      totalQty: number;
+      totalSpent: number;
+      lastDate: string | null;
+      lastVendor: string | null;
+      lastRate: number | null;
+      vendors: Set<string>;
+    }
+  >();
+  for (const line of lines) {
+    let row = byItem.get(line.buyItemId);
+    if (!row) {
+      row = {
+        timesBought: 0,
+        totalQty: 0,
+        totalSpent: 0,
+        lastDate: dateKey(line.purchase.date),
+        lastVendor: line.purchase.vendor.name,
+        lastRate: money(line.unitPrice),
+        vendors: new Set(),
+      };
+      byItem.set(line.buyItemId, row);
+    }
+    row.timesBought += 1;
+    row.totalQty = qtyNum(row.totalQty + qtyNum(line.qty));
+    row.totalSpent = money(row.totalSpent + money(line.amount));
+    row.vendors.add(line.purchase.vendor.name);
+  }
+
+  return items.map((item) => {
+    const row = byItem.get(item.id);
+    return {
+      ...serializeBuyItem(item),
+      timesBought: row?.timesBought ?? 0,
+      totalQty: row?.totalQty ?? 0,
+      totalSpent: row?.totalSpent ?? 0,
+      lastDate: row?.lastDate ?? null,
+      lastVendor: row?.lastVendor ?? null,
+      lastRate: row?.lastRate ?? null,
+      vendorCount: row?.vendors.size ?? 0,
+    };
+  });
+}
 
 function roundDiff(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;

@@ -165,6 +165,9 @@ adminExpenseRouter.patch("/:id", async (req, res) => {
   if (existing.purchaseId) {
     throw HttpError.badRequest("Edit the buy to change this expense");
   }
+  if (existing.orderId) {
+    throw HttpError.badRequest("Edit the order to change this delivery expense");
+  }
   const parsed = expenseBodySchema.partial().safeParse(req.body);
   if (!parsed.success) throw HttpError.badRequest("Invalid expense", parsed.error.flatten());
   const category = parsed.data.category
@@ -202,9 +205,12 @@ adminExpenseRouter.post("/:id/void", async (req, res) => {
   const id = req.params.id ?? "";
   const existing = await prisma.expense.findUnique({
     where: { id },
-    select: { id: true, purchaseId: true, voidedAt: true },
+    select: { id: true, purchaseId: true, orderId: true, voidedAt: true },
   });
   if (!existing) throw HttpError.notFound("Expense not found");
+  if (existing.orderId) {
+    throw HttpError.badRequest("Clear delivery we paid on the order to drop this expense");
+  }
   if (existing.purchaseId) {
     await voidPurchase(existing.purchaseId);
     res.json(await getExpense(id));

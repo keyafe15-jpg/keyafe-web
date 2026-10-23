@@ -39,6 +39,9 @@ export function ExpenseFormPage() {
   if (existing.data?.purchaseId) {
     return <Navigate to={`/expenses/buys/${existing.data.purchaseId}`} replace />;
   }
+  if (existing.data?.orderId) {
+    return <Navigate to={`/orders/${existing.data.orderId}`} replace />;
+  }
 
   return (
     <ExpenseForm

@@ -133,4 +133,5 @@ export const expenseInclude = {
   },
   vendor: { select: { id: true, name: true, phone: true, channel: true } },
   purchase: { select: { id: true } },
+  order: { select: { id: true, orderNumber: true } },
 } satisfies Prisma.ExpenseInclude;

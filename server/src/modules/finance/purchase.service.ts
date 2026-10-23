@@ -486,6 +486,7 @@ export function serializeExpense(row: {
   notes: string | null;
   createdByUserId: string;
   purchaseId: string | null;
+  orderId?: string | null;
   voidedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -498,6 +499,7 @@ export function serializeExpense(row: {
   };
   vendor: { id: string; name: string; phone: string | null; channel?: string } | null;
   purchase: { id: string } | null;
+  order?: { id: string; orderNumber: string } | null;
 }) {
   return {
     id: row.id,
@@ -512,6 +514,8 @@ export function serializeExpense(row: {
     notes: row.notes,
     createdByUserId: row.createdByUserId,
     purchaseId: row.purchaseId,
+    orderId: row.orderId ?? row.order?.id ?? null,
+    order: row.order ? { id: row.order.id, orderNumber: row.order.orderNumber } : null,
     voidedAt: row.voidedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -581,7 +585,68 @@ export function expenseListWhere(opts: {
           lines: { some: { buyItem: { name: { contains: opts.q, mode: "insensitive" } } } },
         },
       },
+      { order: { orderNumber: { contains: opts.q, mode: "insensitive" } } },
     ];
   }
   return where;
+}
+
+export async function syncOrderDeliveryExpense(input: {
+  orderId: string;
+  orderNumber: string;
+  deliveryCost: number | null;
+  shopDate: Date;
+  createdByUserId: string;
+}) {
+  await prisma.expenseCategory.upsert({
+    where: { slug: "delivery" },
+    create: { slug: "delivery", name: "Delivery", sortOrder: 5 },
+    update: {},
+  });
+  const category = await resolveCategory("delivery");
+  const existing = await prisma.expense.findUnique({
+    where: { orderId: input.orderId },
+    select: { id: true, voidedAt: true },
+  });
+  const amount =
+    input.deliveryCost !== null && input.deliveryCost > 0 ? roundMoney(input.deliveryCost) : 0;
+  const notes = `Order ${input.orderNumber} delivery`;
+
+  if (amount <= 0) {
+    if (existing && !existing.voidedAt) {
+      await prisma.expense.update({
+        where: { id: existing.id },
+        data: { voidedAt: new Date() },
+      });
+    }
+    return;
+  }
+
+  if (existing) {
+    await prisma.expense.update({
+      where: { id: existing.id },
+      data: {
+        date: input.shopDate,
+        amount,
+        categoryId: category.id,
+        purpose: "OPS",
+        notes,
+        voidedAt: null,
+      },
+    });
+    return;
+  }
+
+  await prisma.expense.create({
+    data: {
+      date: input.shopDate,
+      amount,
+      categoryId: category.id,
+      purpose: "OPS",
+      paymentMethod: "UPI",
+      notes,
+      createdByUserId: input.createdByUserId,
+      orderId: input.orderId,
+    },
+  });
 }

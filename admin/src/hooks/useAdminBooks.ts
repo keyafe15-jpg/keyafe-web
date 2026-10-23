@@ -25,6 +25,13 @@ export interface AdminBuyItem {
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  timesBought?: number;
+  totalQty?: number;
+  totalSpent?: number;
+  lastDate?: string | null;
+  lastVendor?: string | null;
+  lastRate?: number | null;
+  vendorCount?: number;
 }
 
 export interface BuyItemHistoryRow {
@@ -95,6 +102,8 @@ export interface AdminExpense {
   notes: string | null;
   createdByUserId: string;
   purchaseId: string | null;
+  orderId: string | null;
+  order: { id: string; orderNumber: string } | null;
   voidedAt: string | null;
   createdAt: string;
   updatedAt: string;

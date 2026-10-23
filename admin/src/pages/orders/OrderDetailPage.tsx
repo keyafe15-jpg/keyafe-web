@@ -64,7 +64,10 @@ import {
   canAddCreditNote,
   creditNoteLabel,
 } from "@/components/orders/CreditNotesCard";
-import { OrderBooksFields } from "@/components/orders/OrderBooksFields";
+import {
+  OrderDeliveryCostRow,
+  OrderDiscountReasonRow,
+} from "@/components/orders/OrderBooksFields";
 
 export function OrderDetailPage() {
   const { idOrNumber = "" } = useParams<{ idOrNumber: string }>();
@@ -542,13 +545,16 @@ export function OrderDetailPage() {
                 ) : (
                   <Row label="Delivery fee" value={Number(order.deliveryFee)} />
                 ))}
+              {(isDelivery || Number(order.deliveryCost) > 0) && (
+                <OrderDeliveryCostRow order={order} canUpdate={canUpdate} />
+              )}
               {Number(order.discount) > 0 && (
                 <Row
                   label={order.couponCode ? `Discount (${order.couponCode})` : "Discount"}
                   value={-Number(order.discount)}
                 />
               )}
-              <OrderBooksFields order={order} canUpdate={canUpdate} />
+              <OrderDiscountReasonRow order={order} canUpdate={canUpdate} />
               {orderGstOnTop(order) > 0 && <Row label="GST (added)" value={orderGstOnTop(order)} />}
               <div className="my-2 border-t-2 border-slate-900" />
               <div className="flex items-baseline justify-between">

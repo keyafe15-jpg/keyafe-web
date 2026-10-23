@@ -74,7 +74,7 @@ model Order {
   // Customer pays deliveryFee to the rider (e.g. Rapido), not us: it is kept
   // for the record but left out of total, sales and the invoice.
   deliveryPaidToRider Boolean @default(false)
-  /// What the rider actually took. Subsidy = max(0, deliveryCost − deliveryFee).
+  /// Shop payout for this delivery (extra on top when the customer paid the rider).
   deliveryCost        Decimal? @db.Decimal(10, 2)
   discount            Decimal  @default(0) @db.Decimal(10, 2)
   couponCode          String?
@@ -143,6 +143,8 @@ model Order {
   // Discounts and refunds given after the invoice was issued.
   creditNotes      CreditNote[]
   gatewayRefunds   GatewayRefund[]
+  /// Linked books row for delivery we paid on this order.
+  deliveryExpense  Expense?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

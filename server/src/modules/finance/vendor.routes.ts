@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { gstinIssue, normalizeGstin } from "../../lib/gstin.js";
 import { HttpError } from "../../utils/httpError.js";
@@ -83,15 +84,7 @@ adminVendorRouter.get("/", async (req, res) => {
   const channelRaw = typeof req.query.channel === "string" ? req.query.channel : "ALL";
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
-  const where: {
-    isActive?: boolean;
-    channel?: "OFFLINE" | "ONLINE";
-    OR?: {
-      name?: { contains: string; mode: "insensitive" };
-      phone?: { contains: string };
-      address?: { contains: string; mode: "insensitive" };
-    }[];
-  } = {};
+  const where: Prisma.VendorWhereInput = {};
   if (activeRaw === "ACTIVE") where.isActive = true;
   else if (activeRaw === "ARCHIVED") where.isActive = false;
   if (channelRaw === "OFFLINE" || channelRaw === "ONLINE") where.channel = channelRaw;

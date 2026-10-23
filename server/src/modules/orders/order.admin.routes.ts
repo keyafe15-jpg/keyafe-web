@@ -54,6 +54,7 @@ import {
   replaceOrderPayments,
 } from "./order-payments.js";
 import { istDayOf, istDayStart, istToday } from "../../lib/time.js";
+import { syncOrderDeliveryExpense } from "../finance/purchase.service.js";
 import {
   requirePermission,
   staffHasPermission,
@@ -1231,6 +1232,33 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
       where: { id },
       data: orderFields,
     });
+  }
+  if (parsed.data.deliveryCost !== undefined) {
+    const forBooks = await prisma.order.findUnique({
+      where: { id },
+      select: {
+        orderNumber: true,
+        createdAt: true,
+        items: { select: { deliveryDate: true } },
+      },
+    });
+    if (forBooks) {
+      const dated = forBooks.items
+        .map((i) => i.deliveryDate)
+        .filter((d): d is Date => Boolean(d))
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+      const staff = req as AuthenticatedRequest;
+      const createdByUserId = staff.staff?.id ?? staff.user?.id;
+      if (createdByUserId) {
+        await syncOrderDeliveryExpense({
+          orderId: id,
+          orderNumber: forBooks.orderNumber,
+          deliveryCost: parsed.data.deliveryCost,
+          shopDate: dated ?? istDayOf(forBooks.createdAt),
+          createdByUserId,
+        });
+      }
+    }
   }
   let updated = await getOrderById(id);
 
