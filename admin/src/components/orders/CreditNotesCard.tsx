@@ -63,12 +63,11 @@ function gstShare(order: AdminOrder, amount: number): number {
 }
 
 export function canAddCreditNote(order: AdminOrder) {
-  return (
-    Boolean(order.invoiceNumber) &&
-    order.status !== "CANCELLED" &&
-    order.paymentStatus !== "REFUNDED" &&
-    (order.money.maxDiscount > 0 || order.money.maxRefund > 0)
-  );
+  if (order.paymentStatus === "REFUNDED") return false;
+  if (order.money.maxDiscount <= 0 && order.money.maxRefund <= 0) return false;
+  if (order.invoiceNumber) return true;
+  // Delivered (or later) can mint the invoice when the credit note is saved.
+  return order.status === "DELIVERED";
 }
 
 export function CreditNotesCard({
@@ -101,8 +100,10 @@ export function CreditNotesCard({
         </h2>
         <p className="mt-0.5 text-xs text-slate-500">
           {order.invoiceNumber
-            ? `Charged less or paid money back? Record it here with the reason. Each one is a GST credit note against ${order.invoiceNumber}, so GST is paid on the reduced amount.`
-            : "This order has no bill yet, so change the price with Edit items instead. Once the tax invoice is issued, discounts and refunds are recorded here with a reason."}
+            ? `Charged less or paid money back? Record it here with the reason — including after delivery or cancel. Each one is a GST credit note against ${order.invoiceNumber}, so GST is paid on the reduced amount.`
+            : order.status === "DELIVERED"
+              ? "No invoice number yet — the first discount or refund will issue one, then record the credit note."
+              : "This order has no bill yet, so change the price with Edit items instead. Once the tax invoice is issued, discounts and refunds are recorded here with a reason."}
         </p>
       </div>
       <div className="space-y-3 p-4">

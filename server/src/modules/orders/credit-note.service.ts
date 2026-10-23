@@ -7,6 +7,7 @@ import { OFFLINE_PAYMENT_METHODS, paymentMethodLabel } from "../../lib/paymentLa
 import {
   amountInWords,
   buildInvoiceData,
+  ensureInvoiceNumber,
   financialYearLabel,
   getSellerSettings,
   invoiceFileName,
@@ -184,17 +185,23 @@ export async function issueCreditNote(
   input: IssueCreditNoteInput,
   staff?: { name: string | null } | null,
 ): Promise<CreditNote> {
-  const order = await loadOrderForCredit(orderId);
+  let order = await loadOrderForCredit(orderId);
+  if (order.paymentStatus === "REFUNDED") {
+    throw HttpError.badRequest("This order is already fully refunded.");
+  }
+  if (!order.invoiceNumber || !order.invoiceDate) {
+    if (order.status === "CANCELLED") {
+      throw HttpError.badRequest(
+        "This cancelled order has no invoice, so record the refund on the payment instead of a credit note.",
+      );
+    }
+    await ensureInvoiceNumber(orderId);
+    order = await loadOrderForCredit(orderId);
+  }
   if (!order.invoiceNumber || !order.invoiceDate) {
     throw HttpError.badRequest(
       "This order has no invoice yet. Edit the items or discount instead of issuing a credit note.",
     );
-  }
-  if (order.status === "CANCELLED") {
-    throw HttpError.badRequest("This order is cancelled.");
-  }
-  if (order.paymentStatus === "REFUNDED") {
-    throw HttpError.badRequest("This order is already fully refunded.");
   }
 
   const amount = roundMoney(input.amount);

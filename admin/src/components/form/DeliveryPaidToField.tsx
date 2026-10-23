@@ -10,16 +10,23 @@ export function DeliveryPaidToField({
   paidToRider,
   onChange,
   disabled,
+  compact,
   className,
 }: {
   paidToRider: boolean;
   onChange: (paidToRider: boolean) => void;
   disabled?: boolean;
+  compact?: boolean;
   className?: string;
 }) {
   return (
     <div className={className}>
-      <span className="mb-1 block text-xs font-medium tracking-wide text-slate-500 uppercase">
+      <span
+        className={cn(
+          "mb-1 block font-medium tracking-wide text-slate-500 uppercase",
+          compact ? "text-[11px]" : "text-xs",
+        )}
+      >
         Delivery paid to
       </span>
       <div
@@ -46,11 +53,13 @@ export function DeliveryPaidToField({
           </button>
         ))}
       </div>
-      <p className="mt-1 text-xs text-slate-500">
-        {paidToRider
-          ? "Customer pays the rider. Noted on the order, not added to the bill or sales."
-          : "Added to the bill and counted in sales."}
-      </p>
+      {!compact && (
+        <p className="mt-1 text-xs text-slate-500">
+          {paidToRider
+            ? "Customer pays the rider. Noted on the order, not added to the bill or sales."
+            : "Added to the bill and counted in sales."}
+        </p>
+      )}
     </div>
   );
 }

@@ -9,10 +9,12 @@ export function RefImagesPicker({
   keptUrls,
   files,
   onChange,
+  compact,
 }: {
   keptUrls: string[];
   files: File[];
   onChange: (keptUrls: string[], files: File[]) => void;
+  compact?: boolean;
 }) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +92,9 @@ export function RefImagesPicker({
           </label>
         )}
       </div>
-      <p className="mt-1 text-[11px] text-slate-500">Up to {MAX_REF_IMAGES} reference photos.</p>
+      {!compact && (
+        <p className="mt-1 text-[11px] text-slate-500">Up to {MAX_REF_IMAGES} reference photos.</p>
+      )}
     </div>
   );
 }

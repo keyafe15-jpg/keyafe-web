@@ -83,8 +83,7 @@ export function OrderDetailPage() {
   const [creditOpenRequest, setCreditOpenRequest] = useState(0);
   const openCreditForm = () => setCreditOpenRequest((n) => n + 1);
   const scheduleLocked = order?.status === "DELIVERED" || order?.status === "CANCELLED";
-  const itemsEditLocked =
-    scheduleLocked || Boolean(order?.invoiceNumber) || order?.paymentStatus === "REFUNDED";
+  const itemsEditLocked = scheduleLocked || order?.paymentStatus === "REFUNDED";
 
   const [adminNotes, setAdminNotes] = useState("");
   useEffect(() => {
@@ -233,23 +232,37 @@ export function OrderDetailPage() {
             {canUpdate && !itemsEditLocked && !editingItems && (
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[11px] text-slate-500">
-                  Need a different size, qty, or ref image? Edit items without cancelling the order.
+                  Need a different size, qty, delivery charge, or ref image? Edit items without
+                  cancelling the order.
+                  {order.invoiceNumber
+                    ? " Invoice already issued — download it again after you save."
+                    : ""}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setEditingItems(true)}
-                  className="rounded-md border border-brand-300 bg-white px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
-                >
-                  Edit items
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  {canAdjust && canAddCreditNote(order) && (
+                    <button
+                      type="button"
+                      onClick={openCreditForm}
+                      className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      Give discount or refund
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setEditingItems(true)}
+                    className="rounded-md border border-brand-300 bg-white px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
+                  >
+                    Edit items
+                  </button>
+                </div>
               </div>
             )}
             {itemsEditLocked && canUpdate && (
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[11px] text-slate-500">
-                  {order.invoiceNumber
-                    ? "Items locked — invoice already issued. To charge less or refund, give a discount or refund instead."
-                    : "Items locked on delivered, cancelled, or refunded orders."}
+                  Items locked on delivered, cancelled, or refunded orders. You can still give a
+                  discount or refund below.
                 </p>
                 {canAdjust && canAddCreditNote(order) && (
                   <button
@@ -421,9 +434,7 @@ export function OrderDetailPage() {
 
           {canReadInvoices && <InvoiceCard order={order} canUpdate={canUpdate} />}
 
-          {order.status !== "CANCELLED" && (
-            <CreditNotesCard order={order} openRequest={creditOpenRequest} />
-          )}
+          <CreditNotesCard order={order} openRequest={creditOpenRequest} />
 
           {/* Corporate orders need both documents: the tax invoice for the
               books and the challan to hand over with the goods. */}

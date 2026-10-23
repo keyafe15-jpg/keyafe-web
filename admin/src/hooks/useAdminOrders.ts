@@ -430,6 +430,7 @@ export interface EditOrderItemsPayload {
   items: EditOrderItemPayload[];
   collectedNow?: number;
   deliveryPaidToRider?: boolean;
+  deliveryFee?: number;
 }
 
 export interface EditOrderItemsResult {

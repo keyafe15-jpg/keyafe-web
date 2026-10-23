@@ -55,6 +55,8 @@ export const editOrderItemsSchema = z.object({
   collectedNow: z.coerce.number().nonnegative().optional().default(0),
   /** Who collects the delivery charge; omit to keep the order's current choice. */
   deliveryPaidToRider: z.boolean().optional(),
+  /** Noted delivery charge (even when the customer pays the rider). */
+  deliveryFee: z.coerce.number().nonnegative().optional(),
 });
 
 export type EditOrderItemsInput = z.infer<typeof editOrderItemsSchema>;
@@ -82,11 +84,6 @@ export async function editOrderItems(
 
   if (existing.status === "CANCELLED" || existing.status === "DELIVERED") {
     throw HttpError.badRequest("Can't edit items on a delivered or cancelled order.");
-  }
-  if (existing.invoiceNumber) {
-    throw HttpError.badRequest(
-      "This order already has an invoice number. Cancel and recreate, or adjust via credit note — item amounts can't change on an issued invoice.",
-    );
   }
   if (existing.paymentStatus === "REFUNDED") {
     throw HttpError.badRequest("Can't edit items on a refunded order.");
@@ -244,9 +241,13 @@ export async function editOrderItems(
   const subtotal = roundMoney(resolved.reduce((s, r) => s + r.lineTotal, 0));
   const discount = roundMoney(Number(existing.discount));
   const appliedDiscount = Math.min(discount, subtotal);
+  const notedDeliveryFee =
+    existing.fulfillment === "DELIVERY"
+      ? roundMoney(input.deliveryFee ?? Number(existing.deliveryFee))
+      : 0;
   const deliveryPaidToRider =
-    Number(existing.deliveryFee) > 0 && (input.deliveryPaidToRider ?? existing.deliveryPaidToRider);
-  const deliveryFee = deliveryPaidToRider ? 0 : roundMoney(Number(existing.deliveryFee));
+    notedDeliveryFee > 0 && (input.deliveryPaidToRider ?? existing.deliveryPaidToRider);
+  const deliveryFee = deliveryPaidToRider ? 0 : notedDeliveryFee;
   const chargedLines = allocateCartDiscount(
     resolved.map((r) => r.lineTotal),
     appliedDiscount,
@@ -343,6 +344,7 @@ export async function editOrderItems(
         data: {
           subtotal,
           discount: appliedDiscount,
+          deliveryFee: notedDeliveryFee,
           deliveryPaidToRider,
           total: newTotal,
           taxableAmount,
