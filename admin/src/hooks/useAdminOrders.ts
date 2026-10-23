@@ -110,6 +110,8 @@ export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
   deliveryPaidToRider: boolean;
   /** Shop payout for delivery. Extra on top when the customer paid the rider. */
   deliveryCost?: string | null;
+  deliveryPaidById?: string | null;
+  deliveryPaidBy?: { id: string; name: string } | null;
   discount: string;
   couponCode: string | null;
   discountReason?: "COUPON" | "DELIVERY" | "INFLUENCER" | "GOODWILL" | "STAFF" | "OTHER" | null;
@@ -371,12 +373,15 @@ export interface AdminOrderPayment {
   amount: string;
   screenshotUrl: string | null;
   createdAt: string;
+  receivedById?: string | null;
+  receivedBy?: { id: string; name: string } | null;
 }
 
 export interface OrderPaymentInput {
   method: "cash" | "upi" | "netbanking";
   amount: number;
   screenshotUrl?: string | null;
+  receivedById?: string | null;
 }
 
 export type OrderAddressInput = {
@@ -411,6 +416,7 @@ export interface UpdateOrderPayload {
   deliveryAddress?: OrderAddressInput | null;
   billingAddress?: OrderAddressInput | null;
   deliveryCost?: number | null;
+  deliveryPaidById?: string | null;
   discountReason?: "COUPON" | "DELIVERY" | "INFLUENCER" | "GOODWILL" | "STAFF" | "OTHER" | null;
   discountNote?: string | null;
   items?: {

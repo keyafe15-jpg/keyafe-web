@@ -340,7 +340,11 @@ export async function getOrderById(id: string) {
     where: { id },
     include: {
       items: { orderBy: orderItemSort },
-      payments: { orderBy: { createdAt: "asc" } },
+      deliveryPaidBy: { select: { id: true, name: true } },
+      payments: {
+        orderBy: { createdAt: "asc" },
+        include: { receivedBy: { select: { id: true, name: true } } },
+      },
       creditNotes: {
         orderBy: { createdAt: "desc" },
         include: { gatewayRefund: { select: { status: true, amount: true, refundId: true } } },
@@ -378,7 +382,11 @@ export async function getOrderByNumber(orderNumber: string) {
     where: { orderNumber },
     include: {
       items: { orderBy: orderItemSort },
-      payments: { orderBy: { createdAt: "asc" } },
+      deliveryPaidBy: { select: { id: true, name: true } },
+      payments: {
+        orderBy: { createdAt: "asc" },
+        include: { receivedBy: { select: { id: true, name: true } } },
+      },
       creditNotes: {
         orderBy: { createdAt: "desc" },
         include: { gatewayRefund: { select: { status: true, amount: true, refundId: true } } },

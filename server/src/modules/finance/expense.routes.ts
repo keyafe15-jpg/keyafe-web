@@ -8,6 +8,7 @@ import {
   BOOKS_PAY_METHODS,
   EXPENSE_PURPOSES,
   expenseInclude,
+  money,
   optionalDateKey,
   pageJson,
   pageParams,
@@ -17,9 +18,12 @@ import {
 } from "./books.shared.js";
 import {
   expenseListWhere,
+  createBooksPayer,
   createExpenseCategory,
   getExpense,
+  listBooksPayers,
   resolveCategory,
+  resolvePayer,
   resolveVendor,
   serializeCategory,
   serializeExpense,
@@ -54,12 +58,24 @@ adminExpenseRouter.post("/categories", async (req, res) => {
   res.status(201).json(created);
 });
 
+adminExpenseRouter.get("/payers", async (_req, res) => {
+  res.json(await listBooksPayers());
+});
+
+adminExpenseRouter.post("/payers", async (req, res) => {
+  requireBooksWrite(req as AuthenticatedRequest);
+  const parsed = z.object({ name: z.string().trim().min(1).max(80) }).safeParse(req.body);
+  if (!parsed.success) throw HttpError.badRequest("Invalid name", parsed.error.flatten());
+  res.status(201).json(await createBooksPayer(parsed.data.name));
+});
+
 const expenseBodySchema = z.object({
   date: z.string().trim(),
   amount: z.coerce.number().positive(),
   category: z.string().trim().min(1),
   purpose: z.enum(EXPENSE_PURPOSES).optional(),
   paymentMethod: z.enum(BOOKS_PAY_METHODS),
+  paidBy: z.string().trim().min(1).optional().nullable(),
   notes: z
     .string()
     .trim()
@@ -105,7 +121,7 @@ adminExpenseRouter.get("/", async (req, res) => {
     kind,
     includeVoided: req.query.includeVoided === "true",
   });
-  const [total, rows] = await Promise.all([
+  const [total, rows, agg] = await Promise.all([
     prisma.expense.count({ where }),
     prisma.expense.findMany({
       where,
@@ -114,8 +130,39 @@ adminExpenseRouter.get("/", async (req, res) => {
       take: pageSize,
       include: expenseInclude,
     }),
+    prisma.expense.aggregate({ where, _sum: { amount: true } }),
   ]);
-  res.json(pageJson(rows.map(serializeExpense), total, page, pageSize));
+  res.json({
+    ...pageJson(rows.map(serializeExpense), total, page, pageSize),
+    sum: money(agg._sum.amount ?? 0),
+  });
+});
+
+adminExpenseRouter.get("/summary", async (req, res) => {
+  const from = optionalDateKey(req.query.from);
+  const to = optionalDateKey(req.query.to);
+  const base = expenseListWhere({ from, to });
+  const [all, buys, delivery] = await Promise.all([
+    prisma.expense.aggregate({ where: base, _sum: { amount: true }, _count: { id: true } }),
+    prisma.expense.aggregate({
+      where: { ...base, purchaseId: { not: null } },
+      _sum: { amount: true },
+    }),
+    prisma.expense.aggregate({
+      where: { ...base, orderId: { not: null } },
+      _sum: { amount: true },
+    }),
+  ]);
+  const total = money(all._sum.amount ?? 0);
+  const buysSum = money(buys._sum.amount ?? 0);
+  const deliverySum = money(delivery._sum.amount ?? 0);
+  res.json({
+    total,
+    count: all._count.id,
+    buys: buysSum,
+    delivery: deliverySum,
+    other: money(total - buysSum - deliverySum),
+  });
 });
 
 adminExpenseRouter.get("/:id", async (req, res) => {
@@ -134,6 +181,7 @@ adminExpenseRouter.post("/", async (req, res) => {
   const vendorId = parsed.data.vendor
     ? await resolveVendor(parsed.data.vendor)
     : null;
+  const paidById = await resolvePayer(parsed.data.paidBy);
   const created = await prisma.expense.create({
     data: {
       date: parseDateKey(parsed.data.date),
@@ -144,6 +192,7 @@ adminExpenseRouter.post("/", async (req, res) => {
       paymentMethod: parsed.data.paymentMethod,
       notes,
       createdByUserId: staff.id,
+      paidById,
     },
     include: expenseInclude,
   });
@@ -194,6 +243,9 @@ adminExpenseRouter.patch("/:id", async (req, res) => {
       ...(vendorId !== undefined ? { vendorId } : {}),
       paymentMethod: parsed.data.paymentMethod,
       notes,
+      ...(parsed.data.paidBy !== undefined
+        ? { paidById: parsed.data.paidBy === null ? null : await resolvePayer(parsed.data.paidBy) }
+        : {}),
     },
     include: expenseInclude,
   });

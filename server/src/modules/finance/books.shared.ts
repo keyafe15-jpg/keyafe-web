@@ -83,6 +83,11 @@ export function purposeFromPurchase(purpose: PurchasePurpose): ExpensePurpose {
   return purpose;
 }
 
+export function payerBrief(p: { id: string; name: string } | null | undefined) {
+  if (!p) return null;
+  return { id: p.id, name: p.name };
+}
+
 export function vendorBrief(
   v: { id: string; name: string; phone: string | null; channel?: string } | null,
 ) {
@@ -125,6 +130,7 @@ export const purchaseInclude = {
     include: { buyItem: { select: { id: true, name: true, unit: true, packSize: true } } },
   },
   expense: { select: { id: true, categoryId: true } },
+  paidBy: { select: { id: true, name: true } },
 } satisfies Prisma.PurchaseInclude;
 
 export const expenseInclude = {
@@ -143,4 +149,5 @@ export const expenseInclude = {
     },
   },
   order: { select: { id: true, orderNumber: true } },
+  paidBy: { select: { id: true, name: true } },
 } satisfies Prisma.ExpenseInclude;

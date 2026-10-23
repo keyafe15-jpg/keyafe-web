@@ -7,12 +7,14 @@ import {
   discountReasonLabel,
   type DiscountReason,
 } from "@/pages/expenses/books-ui";
+import { PaidByField } from "@/pages/expenses/PaidByField";
 
 function useOrderBooksSave(orderId: string) {
   const update = useUpdateOrder();
   const [error, setError] = useState<string | null>(null);
   const save = (patch: {
     deliveryCost?: number | null;
+    deliveryPaidById?: string | null;
     discountReason?: DiscountReason | null;
     discountNote?: string | null;
   }) => {
@@ -44,33 +46,44 @@ export function OrderDeliveryCostRow({
   const extra = order.deliveryPaidToRider;
 
   return (
-    <div className="flex items-center justify-between gap-3 pt-0.5">
-      <span className="text-slate-700">{extra ? "Extra we paid" : "We paid the rider"}</span>
-      <div className="text-right">
-        <input
-          inputMode="decimal"
-          value={cost}
-          disabled={!canUpdate}
-          aria-label={extra ? "Extra we paid for delivery" : "What we paid the rider"}
-          onChange={(e) => setCost(e.target.value)}
-          onBlur={() => {
-            const next = cost.trim() === "" ? null : Number(cost);
-            if (next !== null && !Number.isFinite(next)) return;
-            const current =
-              order.deliveryCost == null || Number(order.deliveryCost) === 0
-                ? null
-                : Number(order.deliveryCost);
-            if (next === current || (next === 0 && current === null)) return;
-            save({ deliveryCost: next === 0 ? null : next });
-          }}
-          placeholder="0"
-          className={cn(
-            inputClass,
-            "h-8 w-[6.5rem] px-2 py-1 text-right text-sm tabular-nums",
-          )}
-        />
-        {error && <p className="mt-1 text-xs text-red-700">{error}</p>}
+    <div className="space-y-1.5 pt-0.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-slate-700">{extra ? "Extra we paid" : "We paid the rider"}</span>
+        <div className="text-right">
+          <input
+            inputMode="decimal"
+            value={cost}
+            disabled={!canUpdate}
+            aria-label={extra ? "Extra we paid for delivery" : "What we paid the rider"}
+            onChange={(e) => setCost(e.target.value)}
+            onBlur={() => {
+              const next = cost.trim() === "" ? null : Number(cost);
+              if (next !== null && !Number.isFinite(next)) return;
+              const current =
+                order.deliveryCost == null || Number(order.deliveryCost) === 0
+                  ? null
+                  : Number(order.deliveryCost);
+              if (next === current || (next === 0 && current === null)) return;
+              save({ deliveryCost: next === 0 ? null : next });
+            }}
+            placeholder="0"
+            className={cn(
+              inputClass,
+              "h-8 w-[6.5rem] px-2 py-1 text-right text-sm tabular-nums",
+            )}
+          />
+        </div>
       </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-slate-500">Paid by</span>
+        <PaidByField
+          compact
+          value={order.deliveryPaidById ?? order.deliveryPaidBy?.id ?? null}
+          onChange={(id) => save({ deliveryPaidById: id })}
+          disabled={!canUpdate}
+        />
+      </div>
+      {error && <p className="text-xs text-red-700">{error}</p>}
     </div>
   );
 }

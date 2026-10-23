@@ -21,6 +21,7 @@ import {
 } from "@/pages/expenses/books-ui";
 import { SearchCreate } from "@/pages/expenses/SearchCreate";
 import { ExpenseCategoryField } from "@/pages/expenses/ExpenseCategoryField";
+import { PaidByField } from "@/pages/expenses/PaidByField";
 import { PurposeMark } from "@/pages/expenses/PurposeMark";
 import { VendorChannelField } from "@/pages/vendors/VendorChannelField";
 import { channelLabel, type VendorChannel } from "@/pages/vendors/vendor-ui";
@@ -55,6 +56,7 @@ export function ExpenseFormPage() {
               category: existing.data.category.slug,
               purpose: existing.data.purpose,
               paymentMethod: existing.data.paymentMethod,
+              paidById: existing.data.paidById,
               notes: existing.data.notes ?? "",
               vendorId: existing.data.vendorId,
               vendorName: existing.data.vendor?.name ?? "",
@@ -67,6 +69,7 @@ export function ExpenseFormPage() {
               category: "salary",
               purpose: "OPS",
               paymentMethod: "CASH",
+              paidById: null,
               notes: "",
               vendorId: null,
               vendorName: "",
@@ -89,6 +92,7 @@ function ExpenseForm({
     category: string;
     purpose: ExpensePurpose;
     paymentMethod: BooksPaymentMethod;
+    paidById: string | null;
     notes: string;
     vendorId: string | null;
     vendorName: string;
@@ -107,6 +111,7 @@ function ExpenseForm({
   const [category, setCategory] = useState(initial.category);
   const [purpose, setPurpose] = useState<ExpensePurpose>(initial.purpose);
   const [paymentMethod, setPaymentMethod] = useState<BooksPaymentMethod>(initial.paymentMethod);
+  const [paidById, setPaidById] = useState<string | null>(initial.paidById);
   const [notes, setNotes] = useState(initial.notes);
   const [vendorId, setVendorId] = useState<string | undefined>(initial.vendorId ?? undefined);
   const [vendorName, setVendorName] = useState(initial.vendorName);
@@ -150,12 +155,17 @@ function ExpenseForm({
             setError("Add a note for miscellaneous.");
             return;
           }
+          if (!paidById) {
+            setError("Who paid for this?");
+            return;
+          }
           const body = {
             date,
             amount: n,
             category,
             purpose: marketing ? ("MARKETING" as const) : purpose,
             paymentMethod,
+            paidBy: paidById,
             notes: notes.trim() || null,
             vendor: vendorId
               ? { id: vendorId, channel: vendorChannel }
@@ -217,6 +227,14 @@ function ExpenseForm({
               ))}
             </select>
           </Field>
+          <PaidByField
+            value={paidById}
+            onChange={setPaidById}
+            disabled={!canWrite || voided}
+            required
+            autofill={!expenseId}
+            hint="Whose cash / UPI / bank this left."
+          />
         </div>
 
         <Field label="Vendor" hint="Optional — gas guy, Meta, the landlord…">

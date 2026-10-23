@@ -19,6 +19,7 @@ import {
   getPurchase,
   purchaseListWhere,
   resolveCategory,
+  resolvePayer,
   resolveVendor,
   serializePurchase,
   updatePurchase,
@@ -64,6 +65,7 @@ const createSchema = z.object({
     .transform((v) => v || null),
   shipping: z.coerce.number().nonnegative().optional(),
   category: z.string().trim().min(1).default("raw-materials"),
+  paidBy: z.string().trim().min(1).optional().nullable(),
   lines: z.array(lineSchema).min(1),
 });
 
@@ -97,6 +99,7 @@ adminPurchaseRouter.get("/", async (req, res) => {
           include: { buyItem: { select: { id: true, name: true, unit: true, packSize: true } } },
         },
         expense: { select: { id: true, categoryId: true } },
+        paidBy: { select: { id: true, name: true } },
       },
     }),
   ]);
@@ -113,6 +116,7 @@ adminPurchaseRouter.post("/", async (req, res) => {
   if (!parsed.success) throw HttpError.badRequest("Invalid buy", parsed.error.flatten());
   const vendorId = await resolveVendor(parsed.data.vendor);
   const category = await resolveCategory(parsed.data.category);
+  const paidById = await resolvePayer(parsed.data.paidBy);
   const created = await createPurchase({
     date: parseDateKey(parsed.data.date),
     vendorId,
@@ -122,6 +126,7 @@ adminPurchaseRouter.post("/", async (req, res) => {
     shipping: parsed.data.shipping,
     categoryId: category.id,
     createdByUserId: staff.id,
+    paidById,
     lines: parsed.data.lines,
   });
   res.status(201).json(created);
@@ -134,6 +139,8 @@ adminPurchaseRouter.patch("/:id", async (req, res) => {
   const data = parsed.data;
   const vendorId = data.vendor ? await resolveVendor(data.vendor) : undefined;
   const category = data.category ? await resolveCategory(data.category) : undefined;
+  const paidById =
+    data.paidBy === undefined ? undefined : data.paidBy === null ? null : await resolvePayer(data.paidBy);
   res.json(
     await updatePurchase(req.params.id ?? "", {
       date: data.date ? parseDateKey(data.date) : undefined,
@@ -143,6 +150,7 @@ adminPurchaseRouter.patch("/:id", async (req, res) => {
       notes: data.notes,
       shipping: data.shipping,
       categoryId: category?.id,
+      paidById,
       lines: data.lines,
     }),
   );

@@ -31,6 +31,7 @@ import {
 import { SearchCreate } from "@/pages/expenses/SearchCreate";
 import { ExpenseCategoryField } from "@/pages/expenses/ExpenseCategoryField";
 import { PurposeMark } from "@/pages/expenses/PurposeMark";
+import { PaidByField } from "@/pages/expenses/PaidByField";
 import { VendorChannelField } from "@/pages/vendors/VendorChannelField";
 import { channelLabel, type VendorChannel } from "@/pages/vendors/vendor-ui";
 
@@ -96,6 +97,7 @@ export function PurchaseFormPage() {
                         .reduce((sum, l) => sum + l.amount, 0);
                       return fromLines > 0 ? String(fromLines) : "";
                     })(),
+              paidById: existing.data.paidById,
               categoryId: existing.data.categoryId ?? "raw-materials",
               voidedAt: existing.data.voidedAt,
               lines: (() => {
@@ -122,6 +124,7 @@ export function PurchaseFormPage() {
               paymentMethod: "CASH",
               notes: "",
               shipping: "",
+              paidById: null,
               categoryId:
                 categories.data?.items.find((c) => c.slug === "raw-materials")?.slug ??
                 "raw-materials",
@@ -155,6 +158,7 @@ function PurchaseForm({
     paymentMethod: BooksPaymentMethod;
     notes: string;
     shipping: string;
+    paidById: string | null;
     categoryId: string;
     voidedAt: string | null;
     lines: DraftLine[];
@@ -173,6 +177,7 @@ function PurchaseForm({
   const [paymentMethod, setPaymentMethod] = useState<BooksPaymentMethod>(initial.paymentMethod);
   const [notes, setNotes] = useState(initial.notes);
   const [shipping, setShipping] = useState(initial.shipping);
+  const [paidById, setPaidById] = useState<string | null>(initial.paidById);
   const [category, setCategory] = useState(initial.categoryId);
   const [lines, setLines] = useState<DraftLine[]>(initial.lines);
   const [itemQueries, setItemQueries] = useState<Record<string, string>>({});
@@ -221,6 +226,10 @@ function PurchaseForm({
       setError("Add at least one line with qty and an item.");
       return null;
     }
+    if (!paidById) {
+      setError("Who paid for this buy?");
+      return null;
+    }
     return {
       date,
       vendor: vendorId
@@ -228,6 +237,7 @@ function PurchaseForm({
         : { name: vendorName.trim() || vendorQuery.trim(), channel: vendorChannel },
       purpose,
       paymentMethod,
+      paidBy: paidById,
       notes: notes.trim() || null,
       shipping: shippingAmt,
       category,
@@ -343,6 +353,14 @@ function PurchaseForm({
               ))}
             </select>
           </Field>
+          <PaidByField
+            value={paidById}
+            onChange={setPaidById}
+            disabled={!canWrite || voided}
+            required
+            autofill={!purchaseId}
+            hint="Whose cash / UPI / bank this left."
+          />
         </div>
 
         <div className="space-y-2">

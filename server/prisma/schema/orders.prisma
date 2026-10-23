@@ -76,6 +76,9 @@ model Order {
   deliveryPaidToRider Boolean @default(false)
   /// Shop payout for this delivery (extra on top when the customer paid the rider).
   deliveryCost        Decimal? @db.Decimal(10, 2)
+  /// Which shop person paid the rider.
+  deliveryPaidById    String?
+  deliveryPaidBy      BooksPayer? @relation("OrderDeliveryPayer", fields: [deliveryPaidById], references: [id])
   discount            Decimal  @default(0) @db.Decimal(10, 2)
   couponCode          String?
   discountReason      DiscountReason?
@@ -218,6 +221,9 @@ model OrderPayment {
   method        String
   amount        Decimal @db.Decimal(10, 2)
   screenshotUrl String?
+  /// Whose shop account the customer paid into.
+  receivedById  String?
+  receivedBy    BooksPayer? @relation("OrderPaymentReceivedBy", fields: [receivedById], references: [id])
 
   createdAt DateTime @default(now())
 

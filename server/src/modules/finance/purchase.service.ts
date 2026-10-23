@@ -12,6 +12,7 @@ import {
   purposeFromPurchase,
   purchaseInclude,
   qtyNum,
+  payerBrief,
   vendorBrief,
 } from "./books.shared.js";
 
@@ -51,9 +52,11 @@ export function serializePurchase(row: {
   shipping: { toString(): string } | number;
   total: { toString(): string } | number;
   createdByUserId: string;
+  paidById?: string | null;
   voidedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  paidBy?: { id: string; name: string } | null;
   vendor: { id: string; name: string; phone: string | null; channel?: string };
   lines: {
     id: string;
@@ -77,6 +80,8 @@ export function serializePurchase(row: {
     shipping: money(row.shipping),
     total: money(row.total),
     createdByUserId: row.createdByUserId,
+    paidById: row.paidById ?? row.paidBy?.id ?? null,
+    paidBy: payerBrief(row.paidBy),
     voidedAt: row.voidedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -208,6 +213,60 @@ export async function resolveBuyItem(input: {
   });
 }
 
+export function serializePayer(row: { id: string; name: string; sortOrder?: number }) {
+  return { id: row.id, name: row.name };
+}
+
+export function normalizePayerName(name: string) {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export async function listBooksPayers() {
+  const items = await prisma.booksPayer.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true },
+  });
+  return { items: items.map(serializePayer) };
+}
+
+export async function createBooksPayer(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw HttpError.badRequest("Name is required");
+  const nameNormalized = normalizePayerName(trimmed);
+  const existing = await prisma.booksPayer.findUnique({ where: { nameNormalized } });
+  if (existing) {
+    if (!existing.isActive) {
+      const restored = await prisma.booksPayer.update({
+        where: { id: existing.id },
+        data: { isActive: true, name: trimmed },
+      });
+      return serializePayer(restored);
+    }
+    return serializePayer(existing);
+  }
+  const last = await prisma.booksPayer.aggregate({ _max: { sortOrder: true } });
+  const created = await prisma.booksPayer.create({
+    data: {
+      name: trimmed,
+      nameNormalized,
+      sortOrder: (last._max.sortOrder ?? -1) + 1,
+    },
+  });
+  return serializePayer(created);
+}
+
+export async function resolvePayer(raw?: string | null) {
+  if (!raw?.trim()) return null;
+  const value = raw.trim();
+  const byId = await prisma.booksPayer.findFirst({
+    where: { OR: [{ id: value }, { nameNormalized: normalizePayerName(value) }], isActive: true },
+    select: { id: true },
+  });
+  if (byId) return byId.id;
+  throw HttpError.badRequest("Unknown person — add them first");
+}
+
 export async function resolveCategory(slugOrId: string) {
   const row = await prisma.expenseCategory.findFirst({
     where: {
@@ -333,6 +392,7 @@ export async function createPurchase(input: {
   shipping?: number;
   categoryId: string;
   createdByUserId: string;
+  paidById?: string | null;
   lines: LineInput[];
 }) {
   const category = await prisma.expenseCategory.findUnique({ where: { id: input.categoryId } });
@@ -353,6 +413,7 @@ export async function createPurchase(input: {
         shipping,
         total,
         createdByUserId: input.createdByUserId,
+        paidById: input.paidById ?? null,
         lines: { create: built.lines },
       },
       include: purchaseInclude,
@@ -367,6 +428,7 @@ export async function createPurchase(input: {
         paymentMethod: input.paymentMethod,
         notes: input.notes,
         createdByUserId: input.createdByUserId,
+        paidById: input.paidById ?? null,
         purchaseId: purchase.id,
       },
     });
@@ -388,6 +450,7 @@ export async function updatePurchase(
     notes?: string | null;
     shipping?: number;
     categoryId?: string;
+    paidById?: string | null;
     lines?: LineInput[];
   },
 ) {
@@ -412,6 +475,7 @@ export async function updatePurchase(
   const total = roundMoney(goods + shipping);
   const categoryId = input.categoryId ?? existing.expense?.categoryId;
   if (!categoryId) throw HttpError.badRequest("Missing category");
+  const paidById = input.paidById !== undefined ? input.paidById : existing.paidById;
 
   const updated = await prisma.$transaction(async (tx) => {
     if (built) {
@@ -427,6 +491,7 @@ export async function updatePurchase(
         notes,
         shipping,
         total,
+        paidById,
         ...(built ? { lines: { create: built.lines } } : {}),
       },
     });
@@ -441,6 +506,7 @@ export async function updatePurchase(
           vendorId,
           paymentMethod,
           notes,
+          paidById,
         },
       });
     }
@@ -487,6 +553,8 @@ export function serializeExpense(row: {
   paymentMethod: string;
   notes: string | null;
   createdByUserId: string;
+  paidById?: string | null;
+  paidBy?: { id: string; name: string } | null;
   purchaseId: string | null;
   orderId?: string | null;
   voidedAt: Date | null;
@@ -522,6 +590,8 @@ export function serializeExpense(row: {
     paymentMethod: row.paymentMethod,
     notes: row.notes,
     createdByUserId: row.createdByUserId,
+    paidById: row.paidById ?? row.paidBy?.id ?? null,
+    paidBy: payerBrief(row.paidBy),
     purchaseId: row.purchaseId,
     orderId: row.orderId ?? row.order?.id ?? null,
     order: row.order ? { id: row.order.id, orderNumber: row.order.orderNumber } : null,
@@ -602,6 +672,7 @@ export function expenseListWhere(opts: {
         },
       },
       { order: { orderNumber: { contains: opts.q, mode: "insensitive" } } },
+      { paidBy: { name: { contains: opts.q, mode: "insensitive" } } },
     ];
   }
   return where;
@@ -613,6 +684,7 @@ export async function syncOrderDeliveryExpense(input: {
   deliveryCost: number | null;
   shopDate: Date;
   createdByUserId: string;
+  paidById?: string | null;
 }) {
   await prisma.expenseCategory.upsert({
     where: { slug: "delivery" },
@@ -648,6 +720,7 @@ export async function syncOrderDeliveryExpense(input: {
         purpose: "OPS",
         notes,
         voidedAt: null,
+        ...(input.paidById !== undefined ? { paidById: input.paidById } : {}),
       },
     });
     return;
@@ -662,6 +735,7 @@ export async function syncOrderDeliveryExpense(input: {
       paymentMethod: "UPI",
       notes,
       createdByUserId: input.createdByUserId,
+      paidById: input.paidById ?? null,
       orderId: input.orderId,
     },
   });

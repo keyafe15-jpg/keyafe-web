@@ -83,7 +83,8 @@ export function ExpensesListPage() {
           <p className="mt-1 text-sm text-slate-500">
             {searching
               ? `${total} match${total === 1 ? "" : "es"} for “${search}”`
-              : "Shop buys and the other money that left. P&L comes next."}
+              : `${total} in this range`}
+            {data ? ` · ${inr(data.sum ?? 0)}` : ""}
           </p>
         </div>
         {canWrite && (
@@ -193,7 +194,10 @@ export function ExpensesListPage() {
                     <td className="max-w-[18rem] px-4 py-3 text-slate-600">
                       {itemsPreview(row)}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{payLabel(row.paymentMethod)}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {payLabel(row.paymentMethod)}
+                      {row.paidBy ? ` · ${row.paidBy.name}` : ""}
+                    </td>
                     <td className="px-4 py-3 text-right font-medium text-slate-900 tabular-nums">
                       {inr(row.amount)}
                     </td>
@@ -218,6 +222,7 @@ export function ExpensesListPage() {
                       <p className="text-xs text-slate-500">
                         {formatBooksDate(row.date)} · {purposeLabel(row.purpose)}
                         {row.buy ? ` · ${row.category.name}` : ""}
+                        {row.paidBy ? ` · ${row.paidBy.name}` : ""}
                       </p>
                       <p className="truncate text-xs text-slate-500">{itemsPreview(row)}</p>
                     </div>
@@ -231,6 +236,14 @@ export function ExpensesListPage() {
                 </li>
               ))}
             </ul>
+            <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm">
+              <span className="text-slate-500">
+                {searching ? "Matching total" : "Range total"}
+              </span>
+              <span className="font-semibold text-slate-900 tabular-nums">
+                {inr(data?.sum ?? 0)}
+              </span>
+            </div>
             <PaginationControls
               page={data?.page ?? 1}
               pageCount={data?.totalPages ?? 1}

@@ -62,6 +62,23 @@ model Vendor {
   @@index([channel, isActive])
 }
 
+/// Who from the shop paid — 2–3 people, not the same as who logged the row.
+model BooksPayer {
+  id             String  @id @default(cuid())
+  name           String
+  nameNormalized String  @unique
+  sortOrder      Int     @default(0)
+  isActive       Boolean @default(true)
+
+  purchases      Purchase[]
+  expenses       Expense[]
+  deliveryOrders Order[]        @relation("OrderDeliveryPayer")
+  orderPayments  OrderPayment[] @relation("OrderPaymentReceivedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model ExpenseCategory {
   id           String  @id @default(cuid())
   slug         String  @unique
@@ -110,6 +127,8 @@ model Purchase {
   total           Decimal             @db.Decimal(10, 2)
   createdByUserId String
   createdBy       User                @relation("PurchaseCreatedBy", fields: [createdByUserId], references: [id])
+  paidById        String?
+  paidBy          BooksPayer?         @relation(fields: [paidById], references: [id])
   voidedAt        DateTime?
 
   lines   PurchaseLine[]
@@ -152,6 +171,8 @@ model Expense {
   notes           String?
   createdByUserId String
   createdBy       User               @relation("ExpenseCreatedBy", fields: [createdByUserId], references: [id])
+  paidById        String?
+  paidBy          BooksPayer?        @relation(fields: [paidById], references: [id])
   purchaseId      String?            @unique
   purchase        Purchase?          @relation(fields: [purchaseId], references: [id])
   /// Set when this row is the delivery we paid on an order (not a shop buy).

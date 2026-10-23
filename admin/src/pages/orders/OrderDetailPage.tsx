@@ -68,6 +68,7 @@ import {
   OrderDeliveryCostRow,
   OrderDiscountReasonRow,
 } from "@/components/orders/OrderBooksFields";
+import { lastBooksPayerId, PaidByField } from "@/pages/expenses/PaidByField";
 
 export function OrderDetailPage() {
   const { idOrNumber = "" } = useParams<{ idOrNumber: string }>();
@@ -97,6 +98,7 @@ export function OrderDetailPage() {
   }, [order?.id]);
 
   const [addMethod, setAddMethod] = useState<OfflinePaymentMethod>("cash");
+  const [addReceivedBy, setAddReceivedBy] = useState<string | null>(() => lastBooksPayerId());
   const [addAmount, setAddAmount] = useState("");
   const [addFile, setAddFile] = useState<File | null>(null);
   const [addPreview, setAddPreview] = useState<string | null>(null);
@@ -128,7 +130,12 @@ export function OrderDetailPage() {
         : null;
       await update.mutateAsync({
         id: order.id,
-        addPayment: { method: addMethod, amount, screenshotUrl },
+        addPayment: {
+          method: addMethod,
+          amount,
+          screenshotUrl,
+          receivedById: addReceivedBy,
+        },
       });
       setAddAmount("");
       setAddFile(null);
@@ -382,6 +389,9 @@ export function OrderDetailPage() {
                       <span className="text-xs tabular-nums text-slate-700">
                         ₹{Number(line.amount).toFixed(2)}
                       </span>
+                      {line.receivedBy && (
+                        <span className="text-[11px] text-slate-500">{line.receivedBy.name}</span>
+                      )}
                       {line.screenshotUrl && (
                         <a
                           href={line.screenshotUrl}
@@ -485,6 +495,15 @@ export function OrderDetailPage() {
                       >
                         {lineBusy ? "Adding…" : "Add"}
                       </button>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-slate-500">Whose account</span>
+                      <PaidByField
+                        compact
+                        label="Whose account"
+                        value={addReceivedBy}
+                        onChange={setAddReceivedBy}
+                      />
                     </div>
                   </div>
                 )}

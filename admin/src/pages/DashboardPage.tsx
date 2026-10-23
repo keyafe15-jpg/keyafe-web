@@ -17,6 +17,7 @@ import { customLabel, monthRange, toInputDate } from "@/lib/dateRange";
 import { useAdminAuth } from "@/store/adminAuth";
 import { staffHasPermission } from "@/lib/permissions";
 import { useCollectionsSummary, type CollectionsScope } from "@/hooks/useCollections";
+import { useExpenseSummary } from "@/hooks/useAdminBooks";
 import { GstExportPanel } from "@/pages/orders/GstExportPanel";
 import { OrdersBackupPanel } from "@/pages/orders/OrdersBackupPanel";
 import { PendingPaymentsDrawer } from "@/pages/dashboard/PendingPaymentsDrawer";
@@ -100,6 +101,7 @@ export function DashboardPage() {
   const [drawer, setDrawer] = useState<{ scope: CollectionsScope; label: string } | null>(null);
   const user = useAdminAuth((s) => s.user);
   const canReadDashboard = staffHasPermission(user, "dashboard.read");
+  const canReadExpenses = staffHasPermission(user, "expenses.read");
   const canManageStalls = staffHasPermission(user, "stall.manage");
 
   const range =
@@ -110,6 +112,7 @@ export function DashboardPage() {
   const rangeValid = !!from && !!to && from <= to;
 
   const collections = useCollectionsSummary(from, to, canReadDashboard && rangeValid);
+  const expenses = useExpenseSummary(from, to, canReadDashboard && canReadExpenses && rangeValid);
   const money = collections.data?.range;
   const outstanding = collections.data?.outstandingAllTime;
   const collectedPct =
@@ -203,7 +206,11 @@ export function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle="Money collected and still pending, by delivery date."
+        subtitle={
+          canReadExpenses
+            ? "Sales by delivery date. Expenses by the shop date they were logged."
+            : "Money collected and still pending, by delivery date."
+        }
       />
 
       <div className="mb-4 flex flex-col gap-3 rounded-card border border-slate-200 bg-white p-3 sm:mb-5 sm:p-4 md:flex-row md:items-center md:justify-between">
@@ -256,7 +263,8 @@ export function DashboardPage() {
           </div>
         ) : (
           <p className="text-sm text-slate-500">
-            <span className="font-medium text-slate-800">{range.label}</span> · by delivery date
+            <span className="font-medium text-slate-800">{range.label}</span>
+            {canReadExpenses ? " · sales by delivery · expenses by shop date" : " · by delivery date"}
           </p>
         )}
       </div>
@@ -267,7 +275,12 @@ export function DashboardPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+      <div
+        className={cn(
+          "grid grid-cols-2 gap-3 sm:gap-4",
+          canReadExpenses ? "lg:grid-cols-4" : "sm:grid-cols-3",
+        )}
+      >
         <MoneyCard
           label="Total sales"
           value={money ? formatINR(money.sales) : "—"}
@@ -307,7 +320,10 @@ export function DashboardPage() {
                     .join(" · ")
           }
           valueClassName="text-amber-700"
-          className="col-span-2 border-amber-200 bg-amber-50/40 sm:col-span-1"
+          className={cn(
+            "border-amber-200 bg-amber-50/40",
+            !canReadExpenses && "col-span-2 sm:col-span-1",
+          )}
           onClick={
             money && (money.pendingOrders > 0 || money.breakfast.unbilled > 0)
               ? () =>
@@ -318,6 +334,27 @@ export function DashboardPage() {
               : undefined
           }
         />
+        {canReadExpenses && (
+          <MoneyCard
+            label="Expenses"
+            value={expenses.data ? formatINR(expenses.data.total) : "—"}
+            hint={
+              expenses.data
+                ? [
+                    expenses.data.count
+                      ? `${expenses.data.count} in books`
+                      : "Nothing logged",
+                    expenses.data.buys ? `buys ${formatINR(expenses.data.buys)}` : null,
+                    expenses.data.delivery ? `delivery ${formatINR(expenses.data.delivery)}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : "by shop date"
+            }
+            valueClassName="text-rose-700"
+            to="/expenses"
+          />
+        )}
       </div>
 
       {outstanding && (outstanding.pending > 0 || outstanding.breakfastUnbilled > 0) && (
@@ -471,6 +508,7 @@ function MoneyCard({
   valueClassName,
   className,
   onClick,
+  to,
 }: {
   label: string;
   value: string;
@@ -478,12 +516,13 @@ function MoneyCard({
   valueClassName?: string;
   className?: string;
   onClick?: () => void;
+  to?: string;
 }) {
   const body = (
     <>
       <span className="flex items-center justify-between gap-2 text-[11px] font-medium tracking-wide text-slate-500 uppercase sm:text-xs">
         {label}
-        {onClick && <ChevronRight className="h-4 w-4 text-amber-600" />}
+        {(onClick || to) && <ChevronRight className="h-4 w-4 text-slate-400" />}
       </span>
       <span
         className={cn(
@@ -503,17 +542,22 @@ function MoneyCard({
     className,
   );
 
-  return onClick ? (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(base, "transition hover:border-amber-400 hover:shadow-sm")}
-    >
-      {body}
-    </button>
-  ) : (
-    <div className={base}>{body}</div>
-  );
+  const interactive = cn(base, "block transition hover:border-amber-400 hover:shadow-sm");
+  if (to) {
+    return (
+      <Link to={to} className={interactive}>
+        {body}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={interactive}>
+        {body}
+      </button>
+    );
+  }
+  return <div className={base}>{body}</div>;
 }
 
 function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {

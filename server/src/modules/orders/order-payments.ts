@@ -13,6 +13,7 @@ export const orderPaymentInputSchema = z.object({
   method: z.enum(OFFLINE_PAYMENT_METHODS),
   amount: z.coerce.number().positive(),
   screenshotUrl: z.string().url().optional().nullable(),
+  receivedById: z.string().trim().min(1).optional().nullable(),
 });
 
 export type OrderPaymentInput = z.infer<typeof orderPaymentInputSchema>;
@@ -95,6 +96,7 @@ export async function replaceOrderPayments(
         method: l.method,
         amount: roundMoney(l.amount),
         screenshotUrl: l.screenshotUrl || null,
+        receivedById: l.receivedById || null,
       })),
     });
   }
@@ -115,6 +117,7 @@ export async function addOrderPayment(
       method: line.method,
       amount: roundMoney(line.amount),
       screenshotUrl: line.screenshotUrl || null,
+      receivedById: line.receivedById || null,
     },
   });
   return syncOrderFromPayments(tx, orderId, total);

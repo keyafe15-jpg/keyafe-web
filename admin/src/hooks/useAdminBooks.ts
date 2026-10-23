@@ -13,6 +13,15 @@ export interface BooksPage<T> {
   pageSize: number;
   total: number;
   totalPages: number;
+  sum?: number;
+}
+
+export interface ExpenseRangeSummary {
+  total: number;
+  count: number;
+  buys: number;
+  delivery: number;
+  other: number;
 }
 
 export interface AdminBuyItem {
@@ -72,12 +81,19 @@ export interface AdminPurchase {
   shipping: number;
   total: number;
   createdByUserId: string;
+  paidById: string | null;
+  paidBy: BooksPayer | null;
   voidedAt: string | null;
   createdAt: string;
   updatedAt: string;
   expenseId: string | null;
   categoryId: string | null;
   lines: PurchaseLine[];
+}
+
+export interface BooksPayer {
+  id: string;
+  name: string;
 }
 
 export interface ExpenseCategory {
@@ -101,6 +117,8 @@ export interface AdminExpense {
   paymentMethod: BooksPaymentMethod;
   notes: string | null;
   createdByUserId: string;
+  paidById: string | null;
+  paidBy: BooksPayer | null;
   purchaseId: string | null;
   orderId: string | null;
   order: { id: string; orderNumber: string } | null;
@@ -118,6 +136,7 @@ export interface PurchaseWritePayload {
   notes?: string | null;
   shipping?: number;
   category?: string;
+  paidBy?: string | null;
   lines: {
     buyItemId?: string;
     name?: string;
@@ -137,6 +156,7 @@ export interface ExpenseWritePayload {
   paymentMethod: BooksPaymentMethod;
   notes?: string | null;
   vendor?: { id?: string; name?: string; phone?: string | null; channel?: "OFFLINE" | "ONLINE" } | null;
+  paidBy?: string | null;
 }
 
 export function useAdminBuyItems(filter: { search?: string | null; page?: number; pageSize?: number }) {
@@ -235,6 +255,36 @@ export function useExpenseCategories() {
   });
 }
 
+export function useBooksPayers() {
+  return useQuery<{ items: BooksPayer[] }>({
+    queryKey: ["admin", "books-payers"],
+    queryFn: async () => {
+      try {
+        return await api.get<{ items: BooksPayer[] }>("/admin/expenses/payers");
+      } catch {
+        return api.get<{ items: BooksPayer[] }>("/admin/orders/payers");
+      }
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateBooksPayer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) => {
+      try {
+        return await api.post<BooksPayer>("/admin/expenses/payers", { name });
+      } catch {
+        return api.post<BooksPayer>("/admin/orders/payers", { name });
+      }
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "books-payers"] });
+    },
+  });
+}
+
 export function useCreateExpenseCategory() {
   const qc = useQueryClient();
   return useMutation({
@@ -265,10 +315,22 @@ export function useAdminExpenses(filter: {
   if (filter.from) params.set("from", filter.from);
   if (filter.to) params.set("to", filter.to);
   if (filter.search?.trim()) params.set("q", filter.search.trim());
-  return useQuery<BooksPage<AdminExpense>>({
+  return useQuery<BooksPage<AdminExpense> & { sum: number }>({
     queryKey: ["admin", "expenses", filter],
-    queryFn: () => api.get<BooksPage<AdminExpense>>(`/admin/expenses?${params}`),
+    queryFn: () => api.get<BooksPage<AdminExpense> & { sum: number }>(`/admin/expenses?${params}`),
     staleTime: 15_000,
+  });
+}
+
+export function useExpenseSummary(from: string, to: string, enabled = true) {
+  return useQuery<ExpenseRangeSummary>({
+    queryKey: ["admin", "expenses", "summary", from, to],
+    queryFn: () =>
+      api.get<ExpenseRangeSummary>(
+        `/admin/expenses/summary?${new URLSearchParams({ from, to }).toString()}`,
+      ),
+    staleTime: 30_000,
+    enabled: enabled && !!from && !!to,
   });
 }
 

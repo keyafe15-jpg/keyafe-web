@@ -54,7 +54,12 @@ import {
   replaceOrderPayments,
 } from "./order-payments.js";
 import { istDayOf, istDayStart, istToday } from "../../lib/time.js";
-import { syncOrderDeliveryExpense } from "../finance/purchase.service.js";
+import {
+  createBooksPayer,
+  listBooksPayers,
+  resolvePayer,
+  syncOrderDeliveryExpense,
+} from "../finance/purchase.service.js";
 import {
   requirePermission,
   staffHasPermission,
@@ -283,6 +288,8 @@ adminOrderRouter.get("/", requirePermission("orders.read"), async (req, res) => 
             amount: true,
             screenshotUrl: true,
             createdAt: true,
+            receivedById: true,
+            receivedBy: { select: { id: true, name: true } },
           },
           orderBy: { createdAt: "asc" },
         },
@@ -806,6 +813,24 @@ adminOrderRouter.post(
   },
 );
 
+adminOrderRouter.get(
+  "/payers",
+  requirePermission("orders.read", "expenses.read", "expenses.write"),
+  async (_req, res) => {
+    res.json(await listBooksPayers());
+  },
+);
+
+adminOrderRouter.post(
+  "/payers",
+  requirePermission("orders.update", "expenses.write"),
+  async (req, res) => {
+    const parsed = z.object({ name: z.string().trim().min(1).max(80) }).safeParse(req.body);
+    if (!parsed.success) throw HttpError.badRequest("Invalid name", parsed.error.flatten());
+    res.status(201).json(await createBooksPayer(parsed.data.name));
+  },
+);
+
 adminOrderRouter.get("/:idOrNumber", requirePermission("orders.read"), async (req, res) => {
   const key = req.params.idOrNumber ?? "";
   if (!key) throw HttpError.badRequest("Missing order id");
@@ -1044,6 +1069,7 @@ const updateSchema = z.object({
   removePaymentId: z.string().min(1).optional(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
   deliveryCost: z.coerce.number().nonnegative().nullable().optional(),
+  deliveryPaidById: z.string().trim().min(1).nullable().optional(),
   discountReason: z
     .enum(["COUPON", "DELIVERY", "INFLUENCER", "GOODWILL", "STAFF", "OTHER"])
     .nullable()
@@ -1103,9 +1129,15 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     deliveryAddress?: Prisma.InputJsonValue | null;
     billingAddress?: Prisma.InputJsonValue | null;
     deliveryCost?: number | null;
+    deliveryPaidById?: string | null;
     discountReason?: "COUPON" | "DELIVERY" | "INFLUENCER" | "GOODWILL" | "STAFF" | "OTHER" | null;
     discountNote?: string | null;
   } = { ...rest };
+  if (data.deliveryPaidById !== undefined) {
+    data.deliveryPaidById = data.deliveryPaidById
+      ? await resolvePayer(data.deliveryPaidById)
+      : null;
+  }
 
   let previousStatus: OrderStatus | undefined;
   if (status === "CANCELLED") {
@@ -1151,6 +1183,14 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     }
 
     if (!isCashfree && lineOp) {
+      if (addPayment?.receivedById) {
+        addPayment.receivedById = await resolvePayer(addPayment.receivedById);
+      }
+      if (payments) {
+        for (const line of payments) {
+          if (line.receivedById) line.receivedById = await resolvePayer(line.receivedById);
+        }
+      }
       await prisma.$transaction(async (tx) => {
         if (payments !== undefined) await replaceOrderPayments(tx, id, payments, total);
         else if (addPayment) await addOrderPayment(tx, id, addPayment, total);
@@ -1233,12 +1273,14 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
       data: orderFields,
     });
   }
-  if (parsed.data.deliveryCost !== undefined) {
+  if (parsed.data.deliveryCost !== undefined || parsed.data.deliveryPaidById !== undefined) {
     const forBooks = await prisma.order.findUnique({
       where: { id },
       select: {
         orderNumber: true,
         createdAt: true,
+        deliveryCost: true,
+        deliveryPaidById: true,
         items: { select: { deliveryDate: true } },
       },
     });
@@ -1250,12 +1292,22 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
       const staff = req as AuthenticatedRequest;
       const createdByUserId = staff.staff?.id ?? staff.user?.id;
       if (createdByUserId) {
+        const cost =
+          parsed.data.deliveryCost !== undefined
+            ? parsed.data.deliveryCost
+            : forBooks.deliveryCost != null
+              ? Number(forBooks.deliveryCost)
+              : null;
         await syncOrderDeliveryExpense({
           orderId: id,
           orderNumber: forBooks.orderNumber,
-          deliveryCost: parsed.data.deliveryCost,
+          deliveryCost: cost,
           shopDate: dated ?? istDayOf(forBooks.createdAt),
           createdByUserId,
+          paidById:
+            parsed.data.deliveryPaidById !== undefined
+              ? data.deliveryPaidById ?? null
+              : forBooks.deliveryPaidById,
         });
       }
     }
