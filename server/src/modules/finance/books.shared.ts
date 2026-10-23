@@ -55,6 +55,16 @@ export function normalizeItemName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+export function isShippingChargeName(name: string): boolean {
+  const n = normalizeItemName(name);
+  return (
+    n.includes("shipping") ||
+    n === "delivery charge" ||
+    n === "delivery charges" ||
+    n === "delhivery"
+  );
+}
+
 export function requireBooksWrite(req: AuthenticatedRequest) {
   const staff = req.staff;
   if (!staff || !staffHasPermission(staff, "expenses.write")) {

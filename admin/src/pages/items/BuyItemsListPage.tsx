@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { PaginationControls } from "@/components/ClientPagination";
+import { DebouncedSearchInput } from "@/components/form/DebouncedSearchInput";
 import { useListSearch } from "@/store/listSearch";
 import { useAdminBuyItems } from "@/hooks/useAdminBooks";
 import { packUnitLabel } from "@/pages/expenses/books-ui";
@@ -11,6 +12,7 @@ const PAGE_SIZE = 20;
 export function BuyItemsListPage() {
   const [page, setPage] = useState(1);
   const search = useListSearch((s) => s.query);
+  const setSearch = useListSearch((s) => s.setQuery);
   const { data, isLoading, isFetching } = useAdminBuyItems({
     search: search || null,
     page,
@@ -28,8 +30,14 @@ export function BuyItemsListPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">Items</h1>
         <p className="mt-1 text-sm text-slate-500">
-          What we buy — tap for price history across vendors.
+          {search
+            ? `${total} match${total === 1 ? "" : "es"} for “${search}”`
+            : "What we buy — tap for price history across vendors."}
         </p>
+      </div>
+
+      <div className="mb-4">
+        <DebouncedSearchInput placeholder="Search items…" onDebouncedChange={setSearch} />
       </div>
 
       <div className="overflow-clip rounded-card border border-slate-200 bg-white">

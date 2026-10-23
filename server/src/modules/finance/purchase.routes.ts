@@ -62,6 +62,7 @@ const createSchema = z.object({
     .optional()
     .nullable()
     .transform((v) => v || null),
+  shipping: z.coerce.number().nonnegative().optional(),
   category: z.string().trim().min(1).default("raw-materials"),
   lines: z.array(lineSchema).min(1),
 });
@@ -118,6 +119,7 @@ adminPurchaseRouter.post("/", async (req, res) => {
     purpose: parsed.data.purpose,
     paymentMethod: parsed.data.paymentMethod,
     notes: parsed.data.notes,
+    shipping: parsed.data.shipping,
     categoryId: category.id,
     createdByUserId: staff.id,
     lines: parsed.data.lines,
@@ -139,6 +141,7 @@ adminPurchaseRouter.patch("/:id", async (req, res) => {
       purpose: data.purpose,
       paymentMethod: data.paymentMethod,
       notes: data.notes,
+      shipping: data.shipping,
       categoryId: category?.id,
       lines: data.lines,
     }),

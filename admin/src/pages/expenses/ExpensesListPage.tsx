@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Plus } from "lucide-react";
 import { PaginationControls } from "@/components/ClientPagination";
+import { DebouncedSearchInput } from "@/components/form/DebouncedSearchInput";
 import { useListSearch } from "@/store/listSearch";
 import { useStaffPermission } from "@/lib/permissions";
 import { monthRange } from "@/lib/dateRange";
@@ -29,12 +30,14 @@ export function ExpensesListPage() {
   const [from, setFrom] = useState(month.from);
   const [to, setTo] = useState(month.to);
   const search = useListSearch((s) => s.query);
+  const setSearch = useListSearch((s) => s.setQuery);
   const navigate = useNavigate();
   const canWrite = useStaffPermission("expenses.write");
+  const searching = search.length > 0;
   const { data, isLoading, isFetching } = useAdminExpenses({
     kind,
-    from,
-    to,
+    from: searching ? null : from,
+    to: searching ? null : to,
     search: search || null,
     page,
     pageSize: PAGE_SIZE,
@@ -52,7 +55,9 @@ export function ExpensesListPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Expenses</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Shop buys and the other money that left. P&L comes next.
+            {searching
+              ? `${total} match${total === 1 ? "" : "es"} for “${search}”`
+              : "Shop buys and the other money that left. P&L comes next."}
           </p>
         </div>
         {canWrite && (
@@ -73,6 +78,13 @@ export function ExpensesListPage() {
         )}
       </div>
 
+      <div className="mb-3">
+        <DebouncedSearchInput
+          placeholder="Search vendor, item, category, or note…"
+          onDebouncedChange={setSearch}
+        />
+      </div>
+
       <div className="mb-3 flex flex-wrap gap-1">
         {TABS.map((t) => (
           <button
@@ -91,20 +103,22 @@ export function ExpensesListPage() {
         ))}
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <input
-          type="date"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          className={cn(inputClass, "w-auto")}
-        />
-        <input
-          type="date"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          className={cn(inputClass, "w-auto")}
-        />
-      </div>
+      {!searching && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className={cn(inputClass, "w-auto")}
+          />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className={cn(inputClass, "w-auto")}
+          />
+        </div>
+      )}
 
       <div className="overflow-clip rounded-card border border-slate-200 bg-white">
         {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}

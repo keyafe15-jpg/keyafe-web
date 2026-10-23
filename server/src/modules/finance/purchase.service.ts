@@ -7,6 +7,7 @@ import {
   dateKey,
   expenseInclude,
   money,
+  isShippingChargeName,
   normalizeItemName,
   purposeFromPurchase,
   purchaseInclude,
@@ -47,6 +48,7 @@ export function serializePurchase(row: {
   purpose: PurchasePurpose;
   paymentMethod: BooksPaymentMethod;
   notes: string | null;
+  shipping: { toString(): string } | number;
   total: { toString(): string } | number;
   createdByUserId: string;
   voidedAt: Date | null;
@@ -72,6 +74,7 @@ export function serializePurchase(row: {
     purpose: row.purpose,
     paymentMethod: row.paymentMethod,
     notes: row.notes,
+    shipping: money(row.shipping),
     total: money(row.total),
     createdByUserId: row.createdByUserId,
     voidedAt: row.voidedAt?.toISOString() ?? null,
@@ -172,6 +175,9 @@ export async function resolveBuyItem(input: {
   }
   const name = input.name?.trim();
   if (!name) throw HttpError.badRequest("Pick or type an item");
+  if (isShippingChargeName(name)) {
+    throw HttpError.badRequest("Delivery charge is a field on the buy, not an item");
+  }
   const nameNormalized = normalizeItemName(name);
   const existing = await prisma.buyItem.findUnique({
     where: { nameNormalized },
@@ -310,12 +316,20 @@ export async function buildLines(lines: LineInput[], purchasePurpose: PurchasePu
   return { lines: resolved, total };
 }
 
+function moneyOrZero(raw?: number | null) {
+  if (raw === undefined || raw === null) return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) throw HttpError.badRequest("Delivery charge cannot be negative");
+  return roundMoney(n);
+}
+
 export async function createPurchase(input: {
   date: Date;
   vendorId: string;
   purpose: PurchasePurpose;
   paymentMethod: BooksPaymentMethod;
   notes: string | null;
+  shipping?: number;
   categoryId: string;
   createdByUserId: string;
   lines: LineInput[];
@@ -323,6 +337,8 @@ export async function createPurchase(input: {
   const category = await prisma.expenseCategory.findUnique({ where: { id: input.categoryId } });
   if (!category) throw HttpError.badRequest("Unknown expense category");
   const built = await buildLines(input.lines, input.purpose);
+  const shipping = moneyOrZero(input.shipping);
+  const total = roundMoney(built.total + shipping);
   const purpose = purposeFromPurchase(input.purpose);
 
   const created = await prisma.$transaction(async (tx) => {
@@ -333,7 +349,8 @@ export async function createPurchase(input: {
         purpose: input.purpose,
         paymentMethod: input.paymentMethod,
         notes: input.notes,
-        total: built.total,
+        shipping,
+        total,
         createdByUserId: input.createdByUserId,
         lines: { create: built.lines },
       },
@@ -342,7 +359,7 @@ export async function createPurchase(input: {
     await tx.expense.create({
       data: {
         date: input.date,
-        amount: built.total,
+        amount: total,
         categoryId: input.categoryId,
         purpose,
         vendorId: input.vendorId,
@@ -368,6 +385,7 @@ export async function updatePurchase(
     purpose?: PurchasePurpose;
     paymentMethod?: BooksPaymentMethod;
     notes?: string | null;
+    shipping?: number;
     categoryId?: string;
     lines?: LineInput[];
   },
@@ -385,7 +403,12 @@ export async function updatePurchase(
   const vendorId = input.vendorId ?? existing.vendorId;
   const paymentMethod = input.paymentMethod ?? existing.paymentMethod;
   const notes = input.notes === undefined ? existing.notes : input.notes;
-  const total = built ? built.total : money(existing.total);
+  const shipping =
+    input.shipping !== undefined ? moneyOrZero(input.shipping) : money(existing.shipping);
+  const goods = built
+    ? built.total
+    : roundMoney(existing.lines.reduce((sum, line) => sum + money(line.amount), 0));
+  const total = roundMoney(goods + shipping);
   const categoryId = input.categoryId ?? existing.expense?.categoryId;
   if (!categoryId) throw HttpError.badRequest("Missing category");
 
@@ -401,6 +424,7 @@ export async function updatePurchase(
         purpose,
         paymentMethod,
         notes,
+        shipping,
         total,
         ...(built ? { lines: { create: built.lines } } : {}),
       },
@@ -550,7 +574,13 @@ export function expenseListWhere(opts: {
     where.OR = [
       { notes: { contains: opts.q, mode: "insensitive" } },
       { vendor: { name: { contains: opts.q, mode: "insensitive" } } },
+      { vendor: { phone: { contains: opts.q } } },
       { category: { name: { contains: opts.q, mode: "insensitive" } } },
+      {
+        purchase: {
+          lines: { some: { buyItem: { name: { contains: opts.q, mode: "insensitive" } } } },
+        },
+      },
     ];
   }
   return where;

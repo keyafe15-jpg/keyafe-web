@@ -18,6 +18,7 @@ import {
   BOOKS_PAY_METHODS,
   BUY_ITEM_UNITS,
   inr,
+  isShippingChargeName,
   lineQtyLabel,
   packUnitLabel,
   payLabel,
@@ -86,17 +87,31 @@ export function PurchaseFormPage() {
               purpose: existing.data.purpose,
               paymentMethod: existing.data.paymentMethod,
               notes: existing.data.notes ?? "",
+              shipping:
+                existing.data.shipping > 0
+                  ? String(existing.data.shipping)
+                  : (() => {
+                      const fromLines = existing.data.lines
+                        .filter((l) => isShippingChargeName(l.buyItem.name))
+                        .reduce((sum, l) => sum + l.amount, 0);
+                      return fromLines > 0 ? String(fromLines) : "";
+                    })(),
               categoryId: existing.data.categoryId ?? "raw-materials",
               voidedAt: existing.data.voidedAt,
-              lines: existing.data.lines.map((l) => ({
-                key: l.id,
-                buyItemId: l.buyItemId,
-                name: l.buyItem.name,
-                unit: l.buyItem.unit,
-                packSize: l.buyItem.packSize ? String(l.buyItem.packSize) : "",
-                qty: String(l.qty),
-                unitPrice: String(l.unitPrice),
-              })),
+              lines: (() => {
+                const goods = existing.data.lines
+                  .filter((l) => !isShippingChargeName(l.buyItem.name))
+                  .map((l) => ({
+                    key: l.id,
+                    buyItemId: l.buyItemId,
+                    name: l.buyItem.name,
+                    unit: l.buyItem.unit,
+                    packSize: l.buyItem.packSize ? String(l.buyItem.packSize) : "",
+                    qty: String(l.qty),
+                    unitPrice: String(l.unitPrice),
+                  }));
+                return goods.length ? goods : [emptyLine()];
+              })(),
             }
           : {
               date: toInputDate(new Date()),
@@ -106,6 +121,7 @@ export function PurchaseFormPage() {
               purpose: "PRODUCTION",
               paymentMethod: "CASH",
               notes: "",
+              shipping: "",
               categoryId:
                 categories.data?.items.find((c) => c.slug === "raw-materials")?.slug ??
                 "raw-materials",
@@ -138,6 +154,7 @@ function PurchaseForm({
     purpose: PurchasePurpose;
     paymentMethod: BooksPaymentMethod;
     notes: string;
+    shipping: string;
     categoryId: string;
     voidedAt: string | null;
     lines: DraftLine[];
@@ -155,6 +172,7 @@ function PurchaseForm({
   const [purpose, setPurpose] = useState<PurchasePurpose>(initial.purpose);
   const [paymentMethod, setPaymentMethod] = useState<BooksPaymentMethod>(initial.paymentMethod);
   const [notes, setNotes] = useState(initial.notes);
+  const [shipping, setShipping] = useState(initial.shipping);
   const [category, setCategory] = useState(initial.categoryId);
   const [lines, setLines] = useState<DraftLine[]>(initial.lines);
   const [itemQueries, setItemQueries] = useState<Record<string, string>>({});
@@ -167,7 +185,7 @@ function PurchaseForm({
   const itemSearch = Object.values(itemQueries).find((q) => q.trim()) ?? "";
   const items = useAdminBuyItems({ search: itemSearch || null, pageSize: 20 });
 
-  const total = useMemo(
+  const goods = useMemo(
     () =>
       lines.reduce((sum, line) => {
         const qty = Number(line.qty);
@@ -177,6 +195,8 @@ function PurchaseForm({
       }, 0),
     [lines],
   );
+  const shippingAmt = Number(shipping) > 0 ? Number(shipping) : 0;
+  const total = Math.round((goods + shippingAmt + Number.EPSILON) * 100) / 100;
 
   const setLine = (key: string, patch: Partial<DraftLine>) => {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -209,6 +229,7 @@ function PurchaseForm({
       purpose,
       paymentMethod,
       notes: notes.trim() || null,
+      shipping: shippingAmt,
       category,
       lines: payloadLines,
     };
@@ -464,6 +485,17 @@ function PurchaseForm({
           />
         )}
 
+        <Field label="Delivery charge" hint="Courier / shipping on this buy — not an item.">
+          <input
+            inputMode="decimal"
+            value={shipping}
+            onChange={(e) => setShipping(e.target.value)}
+            placeholder="0"
+            className={inputClass}
+            disabled={!canWrite || voided}
+          />
+        </Field>
+
         <Field label="Notes">
           <textarea
             value={notes}
@@ -474,7 +506,14 @@ function PurchaseForm({
           />
         </Field>
 
-        <p className="text-right text-lg font-semibold text-slate-900">Total {inr(total)}</p>
+        <div className="text-right">
+          {shippingAmt > 0 && (
+            <p className="text-xs text-slate-500">
+              Items {inr(goods)} · Delivery {inr(shippingAmt)}
+            </p>
+          )}
+          <p className="text-lg font-semibold text-slate-900">Total {inr(total)}</p>
+        </div>
         {error && <p className="text-xs text-red-700">{error}</p>}
         {saved && <p className="text-xs text-emerald-700">Saved.</p>}
 

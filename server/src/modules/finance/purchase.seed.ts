@@ -9,6 +9,7 @@ const ARIFE_BUYS: {
   date: string;
   paymentMethod: "UPI" | "BANK" | "CASH";
   notes: string;
+  shipping: number;
   lines: {
     name: string;
     unit: "PACKET" | "PCS";
@@ -22,11 +23,11 @@ const ARIFE_BUYS: {
     date: "2026-10-14",
     paymentMethod: "UPI",
     notes: "Arife Aesthetics order #53934 · delivered 20 Oct · Delhivery 522425100693220",
+    shipping: 180,
     lines: [
       { name: "Rakhi sample hamper box", unit: "PACKET", packSize: 10, qty: 1, unitPrice: 599 },
       { name: "Brownie L-shape window box black", unit: "PACKET", packSize: 10, qty: 1, unitPrice: 675 },
       { name: "Heart handle hamper box mint green", unit: "PACKET", packSize: 10, qty: 2, unitPrice: 300 },
-      { name: "Delhivery shipping", unit: "PCS", qty: 1, unitPrice: 180 },
     ],
   },
   {
@@ -34,11 +35,11 @@ const ARIFE_BUYS: {
     date: "2026-10-16",
     paymentMethod: "UPI",
     notes: "Arife Aesthetics order #54139 · Delhivery 522425100771866",
+    shipping: 150,
     lines: [
       { name: "Cake box transparent with handle 6x6", unit: "PACKET", packSize: 10, qty: 1, unitPrice: 499 },
       { name: "4-in-1 brownie/cookie box gold", unit: "PACKET", packSize: 10, qty: 1, unitPrice: 180 },
       { name: "Brownie L-shape window box pink", unit: "PACKET", packSize: 10, qty: 1, unitPrice: 199 },
-      { name: "Delhivery shipping", unit: "PCS", qty: 1, unitPrice: 150 },
     ],
   },
 ];
@@ -117,6 +118,7 @@ export async function seedArifePurchases() {
       purpose: "PRODUCTION",
       paymentMethod: buy.paymentMethod,
       notes: buy.notes,
+      shipping: buy.shipping,
       categoryId: category.id,
       createdByUserId,
       lines,

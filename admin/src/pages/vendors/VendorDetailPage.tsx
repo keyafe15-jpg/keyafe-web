@@ -239,6 +239,7 @@ function VendorBuysTab({ vendorId }: { vendorId: string }) {
                             ` · ${l.buyItem.name} ${lineQtyLabel(l.qty, l.buyItem.unit, l.buyItem.packSize)} @ ${inr(l.unitPrice)}`,
                         )
                         .join("")}
+                      {buy.shipping > 0 ? ` · Delivery ${inr(buy.shipping)}` : ""}
                     </p>
                   </Link>
                 </li>

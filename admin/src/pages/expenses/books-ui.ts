@@ -66,6 +66,16 @@ export function discountReasonLabel(reason: string) {
   return reason;
 }
 
+export function isShippingChargeName(name: string) {
+  const n = name.trim().toLowerCase().replace(/\s+/g, " ");
+  return (
+    n.includes("shipping") ||
+    n === "delivery charge" ||
+    n === "delivery charges" ||
+    n === "delhivery"
+  );
+}
+
 export function inr(n: number) {
   return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }

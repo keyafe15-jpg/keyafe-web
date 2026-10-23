@@ -100,6 +100,9 @@ adminVendorRouter.get("/", async (req, res) => {
       { name: { contains: q, mode: "insensitive" } },
       { phone: { contains: q } },
       { address: { contains: q, mode: "insensitive" } },
+      { notes: { contains: q, mode: "insensitive" } },
+      { gstin: { contains: q, mode: "insensitive" } },
+      { supplies: { has: q.toLowerCase() } },
     ];
   }
   const [total, items] = await Promise.all([

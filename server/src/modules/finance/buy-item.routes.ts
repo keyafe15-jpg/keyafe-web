@@ -8,6 +8,7 @@ import {
   BUY_ITEM_UNITS,
   buyItemSelect,
   dateKey,
+  isShippingChargeName,
   money,
   normalizeItemName,
   pageJson,
@@ -54,6 +55,9 @@ adminBuyItemRouter.post("/", async (req, res) => {
     })
     .safeParse(req.body);
   if (!parsed.success) throw HttpError.badRequest("Invalid item", parsed.error.flatten());
+  if (isShippingChargeName(parsed.data.name)) {
+    throw HttpError.badRequest("Delivery charge is a field on the buy, not an item");
+  }
   const nameNormalized = normalizeItemName(parsed.data.name);
   const existing = await prisma.buyItem.findUnique({
     where: { nameNormalized },

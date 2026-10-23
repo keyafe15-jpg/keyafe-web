@@ -62,6 +62,7 @@ export interface AdminPurchase {
   purpose: PurchasePurpose;
   paymentMethod: BooksPaymentMethod;
   notes: string | null;
+  shipping: number;
   total: number;
   createdByUserId: string;
   voidedAt: string | null;
@@ -105,6 +106,7 @@ export interface PurchaseWritePayload {
   purpose: PurchasePurpose;
   paymentMethod: BooksPaymentMethod;
   notes?: string | null;
+  shipping?: number;
   category?: string;
   lines: {
     buyItemId?: string;

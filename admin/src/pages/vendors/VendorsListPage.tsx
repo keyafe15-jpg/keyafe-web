@@ -7,6 +7,7 @@ import {
   type VendorChannelFilter,
 } from "@/hooks/useAdminVendors";
 import { PaginationControls } from "@/components/ClientPagination";
+import { DebouncedSearchInput } from "@/components/form/DebouncedSearchInput";
 import { useListSearch } from "@/store/listSearch";
 import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
@@ -31,6 +32,7 @@ export function VendorsListPage() {
   const [status, setStatus] = useState<VendorActiveFilter>("ACTIVE");
   const [channel, setChannel] = useState<VendorChannelFilter>("ALL");
   const search = useListSearch((s) => s.query);
+  const setSearch = useListSearch((s) => s.setQuery);
   const navigate = useNavigate();
   const canWrite = useStaffPermission("vendors.write") || useStaffPermission("vendors.read");
   const { data, isLoading, isFetching } = useAdminVendors({
@@ -77,6 +79,13 @@ export function VendorsListPage() {
             <Plus className="h-4 w-4" /> Add vendor
           </Link>
         )}
+      </div>
+
+      <div className="mb-3">
+        <DebouncedSearchInput
+          placeholder="Search name, phone, address, GSTIN…"
+          onDebouncedChange={setSearch}
+        />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
