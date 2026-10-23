@@ -1004,8 +1004,33 @@ adminOrderRouter.get("/:id/challan", requirePermission("challans.read"), async (
   res.end(pdf);
 });
 
+const addressUpdateSchema = z
+  .object({
+    line1: z.string().trim().min(1),
+    line2: z.string().trim().nullable().optional(),
+    landmark: z.string().trim().nullable().optional(),
+    mapSearchQuery: z.string().trim().nullable().optional(),
+    pincode: z.string().trim().min(3).max(12),
+    city: z.string().trim().nullable().optional(),
+    area: z.string().trim().nullable().optional(),
+    state: z.string().trim().nullable().optional(),
+    stateCode: z.string().trim().nullable().optional(),
+  })
+  .nullable();
+
 const updateSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional(),
+  customerName: z.string().trim().min(1).max(120).optional(),
+  customerPhone: z.string().trim().min(7).max(20).optional(),
+  customerEmail: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().email().nullable().optional(),
+  ),
+  customerCompanyName: z.string().trim().max(160).nullable().optional(),
+  recipientName: z.string().trim().max(120).nullable().optional(),
+  deliveryPhone: z.string().trim().max(20).nullable().optional(),
+  deliveryAddress: addressUpdateSchema.optional(),
+  billingAddress: addressUpdateSchema.optional(),
   paymentStatus: z
     .enum(["PENDING", "PARTIAL", "PAID", "FAILED", "REFUNDED"])
     .optional() satisfies z.ZodType<PaymentStatus | undefined>,
@@ -1059,6 +1084,14 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     paymentMethod?: (typeof OFFLINE_PAYMENT_METHODS)[number];
     paymentScreenshotUrls?: string[];
     adminNotes?: string | null;
+    customerName?: string;
+    customerPhone?: string;
+    customerEmail?: string | null;
+    customerCompanyName?: string | null;
+    recipientName?: string | null;
+    deliveryPhone?: string | null;
+    deliveryAddress?: Prisma.InputJsonValue | null;
+    billingAddress?: Prisma.InputJsonValue | null;
   } = { ...rest };
 
   let previousStatus: OrderStatus | undefined;

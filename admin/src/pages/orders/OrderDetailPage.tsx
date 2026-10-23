@@ -2,20 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  Phone,
   Mail,
-  Truck,
-  Store,
   Save,
   Pencil,
   FileText,
   Download,
   ClipboardList,
-  Building2,
   Trash2,
   ChevronDown,
-  Copy,
-  Check,
   XCircle,
   ImagePlus,
   X,
@@ -61,6 +55,7 @@ import { TIME_SLOTS } from "@/content/slots";
 import { useStaffPermission } from "@/lib/permissions";
 import { useOrderCustomerLookup } from "@/hooks/useAdminCustomers";
 import { OrderItemsEditPanel } from "@/components/orders/OrderItemsEditPanel";
+import { CustomerDetailsCard } from "@/components/orders/CustomerDetailsCard";
 import { OrderItemCard, SlotSelect, slotLabelFor } from "@/components/orders/OrderItemCard";
 import { ReorderHandle, ReorderList } from "@/components/reorder/ReorderList";
 import {
@@ -172,13 +167,6 @@ export function OrderDetailPage() {
   })();
   const canReorderItems = canUpdate && !scheduleLocked && listedItems.length > 1;
   const activeCredits = (order.creditNotes ?? []).filter((n) => !n.voidedAt);
-  const billingSameAsDelivery = Boolean(
-    isDelivery &&
-    order.deliveryAddress &&
-    order.billingAddress &&
-    sameAddress(order.deliveryAddress, order.billingAddress),
-  );
-
   return (
     <div>
       <Link
@@ -226,8 +214,7 @@ export function OrderDetailPage() {
         />
       </div>
 
-      <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
-        <div className="min-w-0 space-y-3 lg:space-y-6">
+      <div className="mt-6 space-y-3">
           <Card title="Items">
             {canUpdate && !itemsEditLocked && !editingItems && (
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -337,279 +324,10 @@ export function OrderDetailPage() {
             )}
           </Card>
 
-          <Card
-            title="Totals"
-            collapsible
-            summary={`₹${(activeCredits.length > 0 ? order.money.netTotal : Number(order.total)).toFixed(2)} · ${orderPaymentLabel(order)} · ${
-              isAwaitingOnlinePayment(order) ? "Awaiting payment" : order.paymentStatus.toLowerCase()
-            }`}
-          >
-            <div className="space-y-1 text-sm">
-              {Number(order.taxableAmount) > 0 && (
-                <>
-                  <Row label="Taxable amount" value={Number(order.taxableAmount)} muted />
-                  {Number(order.cgstAmount) > 0 && (
-                    <Row label="CGST" value={Number(order.cgstAmount)} muted />
-                  )}
-                  {Number(order.sgstAmount) > 0 && (
-                    <Row label="SGST" value={Number(order.sgstAmount)} muted />
-                  )}
-                  {Number(order.igstAmount) > 0 && (
-                    <Row label="IGST" value={Number(order.igstAmount)} muted />
-                  )}
-                  <div className="my-1 border-t border-dashed border-slate-200" />
-                </>
-              )}
-              <Row
-                label={orderGstOnTop(order) > 0 ? "Subtotal" : "Subtotal (incl. GST)"}
-                value={Number(order.subtotal)}
-              />
-              {isDelivery &&
-                (order.deliveryPaidToRider ? (
-                  <Row
-                    label="Delivery fee · paid to rider, not in total"
-                    value={Number(order.deliveryFee)}
-                    muted
-                  />
-                ) : (
-                  <Row label="Delivery fee" value={Number(order.deliveryFee)} />
-                ))}
-              {Number(order.discount) > 0 && (
-                <Row
-                  label={order.couponCode ? `Discount (${order.couponCode})` : "Discount"}
-                  value={-Number(order.discount)}
-                />
-              )}
-              {orderGstOnTop(order) > 0 && <Row label="GST (added)" value={orderGstOnTop(order)} />}
-              <div className="my-2 border-t-2 border-slate-900" />
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm font-semibold text-slate-900">Total</span>
-                <span className="text-2xl font-semibold text-slate-900 tabular-nums">
-                  ₹{Number(order.total).toFixed(2)}
-                </span>
-              </div>
-              {activeCredits.length > 0 && (
-                <>
-                  <div className="mt-1 space-y-1">
-                    {activeCredits.map((n) => (
-                      <Row
-                        key={n.id}
-                        label={`${creditNoteLabel(n)} · ${n.creditNoteNumber}`}
-                        value={-Number(n.amount)}
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-1 flex items-baseline justify-between border-t border-slate-200 pt-1">
-                    <span className="text-sm font-semibold text-slate-900">Net amount</span>
-                    <span className="text-lg font-semibold text-slate-900 tabular-nums">
-                      ₹{order.money.netTotal.toFixed(2)}
-                    </span>
-                  </div>
-                </>
-              )}
-              <p className="mt-1 text-[11px] text-slate-500">
-                Payment: {orderPaymentLabel(order)} ·{" "}
-                {isAwaitingOnlinePayment(order) ? "Awaiting online payment" : order.paymentStatus}
-              </p>
-              {Number(order.advanceAmount) > 0 && (
-                <>
-                  <Row label="Advance received" value={Number(order.advanceAmount)} muted />
-                  {order.money.refunds > 0 && (
-                    <Row label="Kept after refunds" value={order.money.received} muted />
-                  )}
-                  <Row label="Pending" value={order.money.pending} muted />
-                </>
-              )}
-              {canAdjust && canAddCreditNote(order) && (
-                <button
-                  type="button"
-                  onClick={openCreditForm}
-                  className="mt-2 text-xs font-medium text-brand-700 hover:underline"
-                >
-                  Give discount or refund after billing
-                </button>
-              )}
-            </div>
-          </Card>
-
-          {canReadInvoices && <InvoiceCard order={order} canUpdate={canUpdate} />}
-
-          <CreditNotesCard order={order} openRequest={creditOpenRequest} />
-
-          {/* Corporate orders need both documents: the tax invoice for the
-              books and the challan to hand over with the goods. */}
-          {canReadChallans && isCorporateOrder(order) && <ChallanCard order={order} />}
-
-          {order.customerNotes && (
-            <Card title="Customer notes">
-              <p className="text-sm text-slate-700">{order.customerNotes}</p>
-            </Card>
-          )}
-
-          <Card
-            title="Admin notes"
-            subtitle="Only visible to the kitchen"
-            collapsible
-            summary={order.adminNotes?.trim() || "No notes yet"}
-          >
-            <textarea
-              rows={3}
-              value={adminNotes}
-              onChange={(e) => setAdminNotes(e.target.value)}
-              placeholder="e.g. Batch with tomorrow's Aditi order"
-              className={textareaClass}
-            />
-            <div className="mt-2 flex items-center justify-end gap-2">
-              {update.isPending && <span className="text-xs text-slate-500">Saving…</span>}
-              <button
-                type="button"
-                onClick={() => update.mutate({ id: order.id, adminNotes })}
-                disabled={update.isPending || adminNotes === (order.adminNotes ?? "")}
-                className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-              >
-                <Save className="h-3.5 w-3.5" /> Save notes
-              </button>
-            </div>
-          </Card>
-        </div>
-
-        <aside className="min-w-0 space-y-3 lg:space-y-6">
-          <Card
-            title="Customer"
-            collapsible
-            summary={`${order.customerCompanyName ?? order.customerName} · ${order.customerPhone}`}
-          >
-            {order.customerCompanyName ? (
-              <>
-                <p className="flex items-center gap-1.5 font-medium text-slate-900">
-                  <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                  {order.customerCompanyName}
-                </p>
-                <p className="text-sm text-slate-600">Contact: {order.customerName}</p>
-              </>
-            ) : (
-              <p className="font-medium text-slate-900">{order.customerName}</p>
-            )}
-            <a
-              href={`tel:${order.customerPhone}`}
-              className="mt-1 flex items-center gap-1.5 text-sm text-brand-700 hover:underline"
-            >
-              <Phone className="h-3.5 w-3.5" /> {order.customerPhone}
-              {order.isSurpriseGift && (
-                <span className="text-[10px] font-medium tracking-wide text-violet-700 uppercase">
-                  buyer
-                </span>
-              )}
-            </a>
-            {order.customerEmail && (
-              <a
-                href={`mailto:${order.customerEmail}`}
-                className="mt-1 flex items-center gap-1.5 text-sm text-brand-700 hover:underline"
-              >
-                <Mail className="h-3.5 w-3.5" /> {order.customerEmail}
-              </a>
-            )}
-            {order.isSurpriseGift && (
-              <p className="mt-2 text-xs text-violet-700">
-                Surprise gift — use this number for all customer contact.
-              </p>
-            )}
-          </Card>
-
-          <Card
-            title={isDelivery ? "Delivery to" : "Pickup"}
-            icon={isDelivery ? <Truck className="h-4 w-4" /> : <Store className="h-4 w-4" />}
-            collapsible
-            summary={
-              isDelivery && order.deliveryAddress
-                ? [
-                    order.deliveryAddress.line1,
-                    order.deliveryAddress.area,
-                    order.deliveryAddress.pincode,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")
-                : "Bakery HQ · Howrah 711202"
-            }
-          >
-            {isDelivery && order.deliveryAddress ? (
-              <>
-                {(order.recipientName || order.deliveryPhone) && (
-                  <div className="mb-2 text-sm text-slate-800">
-                    {order.recipientName && (
-                      <p className="font-medium">{order.recipientName}</p>
-                    )}
-                    {order.deliveryPhone && (
-                      <p className="text-slate-600">
-                        {order.isSurpriseGift ? (
-                          <span>
-                            Delivery phone: {order.deliveryPhone}{" "}
-                            <span className="text-[10px] font-semibold tracking-wide text-violet-700 uppercase">
-                              do not call
-                            </span>
-                          </span>
-                        ) : (
-                          <a
-                            href={`tel:${order.deliveryPhone}`}
-                            className="text-brand-700 hover:underline"
-                          >
-                            {order.deliveryPhone}
-                          </a>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                )}
-                <address className="text-sm text-slate-700 not-italic">
-                  <p>{order.deliveryAddress.line1}</p>
-                  {order.deliveryAddress.line2 && <p>{order.deliveryAddress.line2}</p>}
-                  {order.deliveryAddress.landmark && (
-                    <p className="text-slate-500">Near {order.deliveryAddress.landmark}</p>
-                  )}
-                  <p>
-                    {[order.deliveryAddress.area, order.deliveryAddress.city]
-                      .filter(Boolean)
-                      .join(", ")}{" "}
-                    {order.deliveryAddress.pincode}
-                  </p>
-                </address>
-                {order.deliveryAddress.mapSearchQuery && (
-                  <CopyForRideApp text={order.deliveryAddress.mapSearchQuery} />
-                )}
-                {billingSameAsDelivery && (
-                  <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500">
-                    Billing address: same as delivery
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-slate-700">Bakery HQ · Howrah 711202</p>
-            )}
-          </Card>
-
-          {order.billingAddress && !billingSameAsDelivery && (
-            <Card
-              title="Billing address"
-              collapsible
-              summary={[order.billingAddress.line1, order.billingAddress.pincode]
-                .filter(Boolean)
-                .join(" · ")}
-            >
-              <address className="text-sm text-slate-700 not-italic">
-                <p>{order.billingAddress.line1}</p>
-                {order.billingAddress.line2 && <p>{order.billingAddress.line2}</p>}
-                {order.billingAddress.landmark && (
-                  <p className="text-slate-500">Near {order.billingAddress.landmark}</p>
-                )}
-                <p>
-                  {[order.billingAddress.area, order.billingAddress.city]
-                    .filter(Boolean)
-                    .join(", ")}{" "}
-                  {order.billingAddress.pincode}
-                </p>
-              </address>
-            </Card>
-          )}
+          <CustomerDetailsCard
+            order={order}
+            canEdit={canUpdate && order.status !== "CANCELLED" && order.paymentStatus !== "REFUNDED"}
+          />
 
           <Card
             title="Payment"
@@ -785,9 +503,144 @@ export function OrderDetailPage() {
             </div>
           </Card>
 
+
+          <Card
+            title="Totals"
+            collapsible
+            summary={`₹${(activeCredits.length > 0 ? order.money.netTotal : Number(order.total)).toFixed(2)} · ${orderPaymentLabel(order)} · ${
+              isAwaitingOnlinePayment(order) ? "Awaiting payment" : order.paymentStatus.toLowerCase()
+            }`}
+          >
+            <div className="space-y-1 text-sm">
+              {Number(order.taxableAmount) > 0 && (
+                <>
+                  <Row label="Taxable amount" value={Number(order.taxableAmount)} muted />
+                  {Number(order.cgstAmount) > 0 && (
+                    <Row label="CGST" value={Number(order.cgstAmount)} muted />
+                  )}
+                  {Number(order.sgstAmount) > 0 && (
+                    <Row label="SGST" value={Number(order.sgstAmount)} muted />
+                  )}
+                  {Number(order.igstAmount) > 0 && (
+                    <Row label="IGST" value={Number(order.igstAmount)} muted />
+                  )}
+                  <div className="my-1 border-t border-dashed border-slate-200" />
+                </>
+              )}
+              <Row
+                label={orderGstOnTop(order) > 0 ? "Subtotal" : "Subtotal (incl. GST)"}
+                value={Number(order.subtotal)}
+              />
+              {isDelivery &&
+                (order.deliveryPaidToRider ? (
+                  <Row
+                    label="Delivery fee · paid to rider, not in total"
+                    value={Number(order.deliveryFee)}
+                    muted
+                  />
+                ) : (
+                  <Row label="Delivery fee" value={Number(order.deliveryFee)} />
+                ))}
+              {Number(order.discount) > 0 && (
+                <Row
+                  label={order.couponCode ? `Discount (${order.couponCode})` : "Discount"}
+                  value={-Number(order.discount)}
+                />
+              )}
+              {orderGstOnTop(order) > 0 && <Row label="GST (added)" value={orderGstOnTop(order)} />}
+              <div className="my-2 border-t-2 border-slate-900" />
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm font-semibold text-slate-900">Total</span>
+                <span className="text-2xl font-semibold text-slate-900 tabular-nums">
+                  ₹{Number(order.total).toFixed(2)}
+                </span>
+              </div>
+              {activeCredits.length > 0 && (
+                <>
+                  <div className="mt-1 space-y-1">
+                    {activeCredits.map((n) => (
+                      <Row
+                        key={n.id}
+                        label={`${creditNoteLabel(n)} · ${n.creditNoteNumber}`}
+                        value={-Number(n.amount)}
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between border-t border-slate-200 pt-1">
+                    <span className="text-sm font-semibold text-slate-900">Net amount</span>
+                    <span className="text-lg font-semibold text-slate-900 tabular-nums">
+                      ₹{order.money.netTotal.toFixed(2)}
+                    </span>
+                  </div>
+                </>
+              )}
+              <p className="mt-1 text-[11px] text-slate-500">
+                Payment: {orderPaymentLabel(order)} ·{" "}
+                {isAwaitingOnlinePayment(order) ? "Awaiting online payment" : order.paymentStatus}
+              </p>
+              {Number(order.advanceAmount) > 0 && (
+                <>
+                  <Row label="Advance received" value={Number(order.advanceAmount)} muted />
+                  {order.money.refunds > 0 && (
+                    <Row label="Kept after refunds" value={order.money.received} muted />
+                  )}
+                  <Row label="Pending" value={order.money.pending} muted />
+                </>
+              )}
+              {canAdjust && canAddCreditNote(order) && (
+                <button
+                  type="button"
+                  onClick={openCreditForm}
+                  className="mt-2 text-xs font-medium text-brand-700 hover:underline"
+                >
+                  Give discount or refund after billing
+                </button>
+              )}
+            </div>
+          </Card>
+
+          {canReadInvoices && <InvoiceCard order={order} canUpdate={canUpdate} />}
+
+          <CreditNotesCard order={order} openRequest={creditOpenRequest} />
+
+          {/* Corporate orders need both documents: the tax invoice for the
+              books and the challan to hand over with the goods. */}
+          {canReadChallans && isCorporateOrder(order) && <ChallanCard order={order} />}
+
+          {order.customerNotes && (
+            <Card title="Customer notes">
+              <p className="text-sm text-slate-700">{order.customerNotes}</p>
+            </Card>
+          )}
+
+          <Card
+            title="Admin notes"
+            subtitle="Only visible to the kitchen"
+            collapsible
+            summary={order.adminNotes?.trim() || "No notes yet"}
+          >
+            <textarea
+              rows={3}
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+              placeholder="e.g. Batch with tomorrow's Aditi order"
+              className={textareaClass}
+            />
+            <div className="mt-2 flex items-center justify-end gap-2">
+              {update.isPending && <span className="text-xs text-slate-500">Saving…</span>}
+              <button
+                type="button"
+                onClick={() => update.mutate({ id: order.id, adminNotes })}
+                disabled={update.isPending || adminNotes === (order.adminNotes ?? "")}
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              >
+                <Save className="h-3.5 w-3.5" /> Save notes
+              </button>
+            </div>
+          </Card>
+
           {order.status !== "CANCELLED" && <CancelOrderCard order={order} />}
           {canDelete && <DeleteOrderCard order={order} />}
-        </aside>
       </div>
     </div>
   );
@@ -1543,44 +1396,6 @@ function Card({
       )}
       <div className={cn("p-4", collapsed && "hidden lg:block")}>{children}</div>
     </section>
-  );
-}
-
-function sameAddress(
-  a: NonNullable<AdminOrder["deliveryAddress"]>,
-  b: NonNullable<AdminOrder["billingAddress"]>,
-): boolean {
-  const norm = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
-  return (["line1", "line2", "landmark", "area", "city", "pincode"] as const).every(
-    (k) => norm(a[k]) === norm(b[k]),
-  );
-}
-
-function CopyForRideApp({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => {
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 1500);
-        });
-      }}
-      className="mt-3 flex w-full items-center gap-2.5 rounded-lg border border-brand-500/20 bg-brand-100/50 px-3 py-2 text-left hover:bg-brand-100"
-    >
-      {copied ? (
-        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-      ) : (
-        <Copy className="h-4 w-4 shrink-0 text-brand-700" />
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-semibold tracking-wide text-brand-700 uppercase">
-          {copied ? "Copied" : "Copy for Uber / Rapido"}
-        </span>
-        <span className="line-clamp-1 text-xs text-slate-700">{text}</span>
-      </span>
-    </button>
   );
 }
 

@@ -375,6 +375,18 @@ export interface OrderPaymentInput {
   screenshotUrl?: string | null;
 }
 
+export type OrderAddressInput = {
+  line1: string;
+  line2?: string | null;
+  landmark?: string | null;
+  mapSearchQuery?: string | null;
+  pincode: string;
+  city?: string | null;
+  area?: string | null;
+  state?: string | null;
+  stateCode?: string | null;
+};
+
 export interface UpdateOrderPayload {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
@@ -386,6 +398,14 @@ export interface UpdateOrderPayload {
   addPayment?: OrderPaymentInput;
   removePaymentId?: string;
   adminNotes?: string | null;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string | null;
+  customerCompanyName?: string | null;
+  recipientName?: string | null;
+  deliveryPhone?: string | null;
+  deliveryAddress?: OrderAddressInput | null;
+  billingAddress?: OrderAddressInput | null;
   items?: {
     id: string;
     deliveryDate: string | null;
