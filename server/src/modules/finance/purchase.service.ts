@@ -319,7 +319,8 @@ export async function buildLines(lines: LineInput[], purchasePurpose: PurchasePu
 function moneyOrZero(raw?: number | null) {
   if (raw === undefined || raw === null) return 0;
   const n = Number(raw);
-  if (!Number.isFinite(n) || n < 0) throw HttpError.badRequest("Delivery charge cannot be negative");
+  if (!Number.isFinite(n) || n < 0)
+    throw HttpError.badRequest("Delivery charge cannot be negative");
   return roundMoney(n);
 }
 
@@ -454,9 +455,10 @@ export async function voidPurchase(id: string) {
     include: { expense: true },
   });
   if (!existing) throw HttpError.notFound("Buy not found");
-  if (existing.voidedAt) return serializePurchase(
-    await prisma.purchase.findUniqueOrThrow({ where: { id }, include: purchaseInclude }),
-  );
+  if (existing.voidedAt)
+    return serializePurchase(
+      await prisma.purchase.findUniqueOrThrow({ where: { id }, include: purchaseInclude }),
+    );
   const now = new Date();
   await prisma.$transaction(async (tx) => {
     await tx.purchase.update({ where: { id }, data: { voidedAt: now } });
@@ -498,9 +500,16 @@ export function serializeExpense(row: {
     requiresNote: boolean;
   };
   vendor: { id: string; name: string; phone: string | null; channel?: string } | null;
-  purchase: { id: string } | null;
+  purchase:
+    | {
+        id: string;
+        shipping?: { toString(): string } | number;
+        lines?: { qty: { toString(): string } | number; buyItem: { name: string } }[];
+      }
+    | null;
   order?: { id: string; orderNumber: string } | null;
 }) {
+  const lines = row.purchase?.lines ?? [];
   return {
     id: row.id,
     date: dateKey(row.date),
@@ -516,6 +525,13 @@ export function serializeExpense(row: {
     purchaseId: row.purchaseId,
     orderId: row.orderId ?? row.order?.id ?? null,
     order: row.order ? { id: row.order.id, orderNumber: row.order.orderNumber } : null,
+    buy: row.purchase
+      ? {
+          lineCount: lines.length,
+          items: lines.map((l) => l.buyItem.name),
+          shipping: money(row.purchase.shipping ?? 0),
+        }
+      : null,
     voidedAt: row.voidedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

@@ -104,6 +104,7 @@ export interface AdminExpense {
   purchaseId: string | null;
   orderId: string | null;
   order: { id: string; orderNumber: string } | null;
+  buy: { lineCount: number; items: string[]; shipping: number } | null;
   voidedAt: string | null;
   createdAt: string;
   updatedAt: string;

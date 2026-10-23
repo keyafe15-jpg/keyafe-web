@@ -10,11 +10,37 @@ import { cn } from "@/lib/cn";
 import { inputClass } from "@/components/form/Field";
 import {
   useAdminExpenses,
+  type AdminExpense,
   type ExpenseKindFilter,
 } from "@/hooks/useAdminBooks";
-import { formatBooksDate, inr, purposeLabel } from "@/pages/expenses/books-ui";
+import { formatBooksDate, inr, payLabel, purposeLabel } from "@/pages/expenses/books-ui";
 
 const PAGE_SIZE = 20;
+
+function expenseHref(row: AdminExpense) {
+  if (row.purchaseId) return `/expenses/buys/${row.purchaseId}`;
+  if (row.orderId) return `/orders/${row.orderId}`;
+  return `/expenses/${row.id}`;
+}
+
+function expenseTitle(row: AdminExpense) {
+  if (row.buy) return row.vendor?.name ?? "Shop buy";
+  if (row.order) return `Delivery · ${row.order.orderNumber}`;
+  return row.category.name;
+}
+
+function itemsPreview(row: AdminExpense) {
+  if (row.buy) {
+    const names = row.buy.items;
+    const shown = names.slice(0, 2).join(", ");
+    const more = names.length > 2 ? ` +${names.length - 2}` : "";
+    const count = row.buy.lineCount === 1 ? "1 item" : `${row.buy.lineCount} items`;
+    const ship = row.buy.shipping > 0 ? ` · ship ${inr(row.buy.shipping)}` : "";
+    return `${count}${shown ? ` · ${shown}${more}` : ""}${ship}`;
+  }
+  if (row.order) return "Order delivery";
+  return row.notes || "—";
+}
 
 const TABS: { key: ExpenseKindFilter; label: string }[] = [
   { key: "ALL", label: "All" },
@@ -136,45 +162,74 @@ export function ExpensesListPage() {
                 Updating results…
               </div>
             )}
-            <ul className="divide-y divide-slate-100">
-              {rows.map((row) => {
-                const href = row.purchaseId
-                  ? `/expenses/buys/${row.purchaseId}`
-                  : row.orderId
-                    ? `/orders/${row.orderId}`
-                    : `/expenses/${row.id}`;
-                return (
-                  <li key={row.id}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(href)}
-                      className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-slate-900">
-                          {row.purchaseId
-                            ? row.vendor?.name ?? "Shop buy"
-                            : row.order
-                              ? `Delivery · ${row.order.orderNumber}`
-                              : row.category.name}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {formatBooksDate(row.date)}
-                          {row.purchaseId && ` · ${row.category.name}`}
-                          {` · ${purposeLabel(row.purpose)}`}
-                          {row.notes ? ` · ${row.notes}` : ""}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-900 tabular-nums">
-                          {inr(row.amount)}
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-slate-300" />
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
+            <table className="hidden w-full text-left text-sm md:table">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+                <tr>
+                  <th className="px-4 py-2 font-medium">When</th>
+                  <th className="px-4 py-2 font-medium">Who / what</th>
+                  <th className="px-4 py-2 font-medium">Lines</th>
+                  <th className="px-4 py-2 font-medium">Paid</th>
+                  <th className="px-4 py-2 text-right font-medium">Amount</th>
+                  <th className="w-8" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="cursor-pointer hover:bg-slate-50"
+                    onClick={() => navigate(expenseHref(row))}
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-700">
+                      {formatBooksDate(row.date)}
+                      <p className="text-xs text-slate-500">{purposeLabel(row.purpose)}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-slate-900">{expenseTitle(row)}</p>
+                      <p className="text-xs text-slate-500">
+                        {row.buy ? row.category.name : row.notes || row.category.name}
+                      </p>
+                    </td>
+                    <td className="max-w-[18rem] px-4 py-3 text-slate-600">
+                      {itemsPreview(row)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{payLabel(row.paymentMethod)}</td>
+                    <td className="px-4 py-3 text-right font-medium text-slate-900 tabular-nums">
+                      {inr(row.amount)}
+                    </td>
+                    <td className="px-2 py-3 text-slate-300">
+                      <ChevronRight className="h-4 w-4" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {rows.map((row) => (
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(expenseHref(row))}
+                    className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-900">{expenseTitle(row)}</p>
+                      <p className="text-xs text-slate-500">
+                        {formatBooksDate(row.date)} · {purposeLabel(row.purpose)}
+                        {row.buy ? ` · ${row.category.name}` : ""}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{itemsPreview(row)}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                        {inr(row.amount)}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-slate-300" />
+                    </div>
+                  </button>
+                </li>
+              ))}
             </ul>
             <PaginationControls
               page={data?.page ?? 1}
