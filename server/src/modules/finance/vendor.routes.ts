@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../config/db.js";
 import { gstinIssue, normalizeGstin } from "../../lib/gstin.js";
 import { HttpError } from "../../utils/httpError.js";
+import { VENDOR_CHANNELS } from "./books.shared.js";
 
 export const adminVendorRouter = Router();
 
@@ -10,6 +11,7 @@ const suppliesSchema = z.array(z.string().trim().min(1).max(40)).max(20);
 
 const vendorBodySchema = z.object({
   name: z.string().trim().min(1).max(160),
+  channel: z.enum(VENDOR_CHANNELS).optional(),
   phone: z
     .string()
     .trim()
@@ -62,6 +64,7 @@ const vendorSelect = {
   id: true,
   name: true,
   phone: true,
+  channel: true,
   supplies: true,
   gstin: true,
   address: true,
@@ -77,10 +80,12 @@ const vendorSelect = {
 adminVendorRouter.get("/", async (req, res) => {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   const activeRaw = typeof req.query.active === "string" ? req.query.active : "ACTIVE";
+  const channelRaw = typeof req.query.channel === "string" ? req.query.channel : "ALL";
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
   const where: {
     isActive?: boolean;
+    channel?: "OFFLINE" | "ONLINE";
     OR?: {
       name?: { contains: string; mode: "insensitive" };
       phone?: { contains: string };
@@ -89,6 +94,7 @@ adminVendorRouter.get("/", async (req, res) => {
   } = {};
   if (activeRaw === "ACTIVE") where.isActive = true;
   else if (activeRaw === "ARCHIVED") where.isActive = false;
+  if (channelRaw === "OFFLINE" || channelRaw === "ONLINE") where.channel = channelRaw;
   if (q) {
     where.OR = [
       { name: { contains: q, mode: "insensitive" } },

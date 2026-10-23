@@ -1044,6 +1044,10 @@ async function main() {
   await seedSameDayCategories();
   const { seedVendors } = await import("../src/modules/finance/vendor.seed.js");
   await seedVendors();
+  const { seedExpenseCategories } = await import("../src/modules/finance/expense-category.seed.js");
+  await seedExpenseCategories();
+  const { seedArifePurchases } = await import("../src/modules/finance/purchase.seed.js");
+  await seedArifePurchases();
 
   // Demo catalogue + fake orders would pollute a live shop's reports.
   if (env.NODE_ENV === "production" && process.env.SEED_DEMO_DATA !== "true") {

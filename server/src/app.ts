@@ -55,6 +55,9 @@ import {
 } from "./modules/customers/customer.admin.routes.js";
 import { adminStaffRouter } from "./modules/staff/staff.routes.js";
 import { adminVendorRouter } from "./modules/finance/vendor.routes.js";
+import { adminBuyItemRouter } from "./modules/finance/buy-item.routes.js";
+import { adminPurchaseRouter } from "./modules/finance/purchase.routes.js";
+import { adminExpenseRouter } from "./modules/finance/expense.routes.js";
 import { adminSuggestRouter } from "./modules/ai/ai.routes.js";
 import {
   adminPaymentRouter,
@@ -241,6 +244,24 @@ export function createApp() {
     requireStaff,
     requirePermission("vendors.write", "vendors.read"),
     adminVendorRouter,
+  );
+  app.use(
+    "/api/admin/buy-items",
+    requireStaff,
+    requirePermission("expenses.write", "expenses.read"),
+    adminBuyItemRouter,
+  );
+  app.use(
+    "/api/admin/purchases",
+    requireStaff,
+    requirePermission("expenses.write", "expenses.read"),
+    adminPurchaseRouter,
+  );
+  app.use(
+    "/api/admin/expenses",
+    requireStaff,
+    requirePermission("expenses.write", "expenses.read"),
+    adminExpenseRouter,
   );
   app.use("/api/admin/suggest-copy", requireStaff, adminSuggestRouter);
 

@@ -7,6 +7,8 @@ import { useAdminAuth } from "@/store/adminAuth";
 const STRICTER_PATHS: { to: string; requiresPermission: string }[] = [
   { to: "/products/new", requiresPermission: "products.write" },
   { to: "/vendors/new", requiresPermission: "vendors.write" },
+  { to: "/expenses/new", requiresPermission: "expenses.write" },
+  { to: "/expenses/new-buy", requiresPermission: "expenses.write" },
 ];
 
 function requiredPermissionForPath(pathname: string): string | undefined {

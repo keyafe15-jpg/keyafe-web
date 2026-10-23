@@ -1042,6 +1042,12 @@ const updateSchema = z.object({
   addPayment: orderPaymentInputSchema.optional(),
   removePaymentId: z.string().min(1).optional(),
   adminNotes: z.string().trim().max(2000).nullable().optional(),
+  deliveryCost: z.coerce.number().nonnegative().nullable().optional(),
+  discountReason: z
+    .enum(["COUPON", "DELIVERY", "INFLUENCER", "GOODWILL", "STAFF", "OTHER"])
+    .nullable()
+    .optional(),
+  discountNote: z.string().trim().max(400).nullable().optional(),
   items: z
     .array(
       z.object({
@@ -1064,6 +1070,9 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) {
     throw HttpError.badRequest("Invalid update", parsed.error.flatten());
+  }
+  if (parsed.data.discountReason === "OTHER" && !parsed.data.discountNote) {
+    throw HttpError.badRequest("Add a note when the discount reason is other");
   }
   const {
     advanceAmount,
@@ -1092,6 +1101,9 @@ adminOrderRouter.patch("/:id", requirePermission("orders.update"), async (req, r
     deliveryPhone?: string | null;
     deliveryAddress?: Prisma.InputJsonValue | null;
     billingAddress?: Prisma.InputJsonValue | null;
+    deliveryCost?: number | null;
+    discountReason?: "COUPON" | "DELIVERY" | "INFLUENCER" | "GOODWILL" | "STAFF" | "OTHER" | null;
+    discountNote?: string | null;
   } = { ...rest };
 
   let previousStatus: OrderStatus | undefined;

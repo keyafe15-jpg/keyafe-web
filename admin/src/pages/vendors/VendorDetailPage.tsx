@@ -6,9 +6,13 @@ import {
   useCreateVendor,
   useUpdateVendor,
 } from "@/hooks/useAdminVendors";
+import { useAdminPurchases } from "@/hooks/useAdminBooks";
 import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
 import { VendorForm } from "@/pages/vendors/VendorForm";
+import { formatBooksDate, inr, lineQtyLabel, purposeLabel } from "@/pages/expenses/books-ui";
+import { channelLabel } from "@/pages/vendors/vendor-ui";
+import { PaginationControls } from "@/components/ClientPagination";
 
 export function VendorDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -54,8 +58,11 @@ export function VendorDetailPage() {
           <h1 className="text-2xl font-semibold text-slate-900">
             {isNew ? "New vendor" : vendor?.name}
           </h1>
-          {!isNew && vendor && !vendor.isActive && (
-            <p className="mt-1 text-sm text-slate-500">Archived — hidden from the active list.</p>
+          {!isNew && vendor && (
+            <p className="mt-1 text-sm text-slate-500">
+              {channelLabel(vendor.channel)}
+              {!vendor.isActive ? " · Archived — hidden from the active list." : ""}
+            </p>
           )}
         </div>
         {!isNew && vendor && canWrite && (
@@ -141,6 +148,10 @@ export function VendorDetailPage() {
           ) : vendor ? (
             <dl className="space-y-2 text-sm">
               <div>
+                <dt className="text-xs text-slate-500">Type</dt>
+                <dd>{channelLabel(vendor.channel)}</dd>
+              </div>
+              <div>
                 <dt className="text-xs text-slate-500">Phone</dt>
                 <dd>{vendor.phone ?? "—"}</dd>
               </div>
@@ -173,15 +184,79 @@ export function VendorDetailPage() {
         </div>
       )}
 
-      {!isNew && tab === "buys" && (
-        <div className="rounded-card border border-dashed border-slate-200 bg-white px-4 py-10 text-center">
-          <p className="text-sm font-medium text-slate-800">No buys yet</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-            When you start logging shop runs, every bag from this vendor — date, qty, and rate —
-            will show up here so you can compare prices.
-          </p>
+      {!isNew && tab === "buys" && vendor && <VendorBuysTab vendorId={vendor.id} />}
+    </div>
+  );
+}
+
+function VendorBuysTab({ vendorId }: { vendorId: string }) {
+  const [page, setPage] = useState(1);
+  const canLog = useStaffPermission("expenses.write");
+  const { data, isLoading } = useAdminPurchases({ vendorId, page, pageSize: 20 });
+  const buys = data?.items ?? [];
+  const total = data?.total ?? 0;
+
+  return (
+    <div>
+      {canLog && (
+        <div className="mb-3 flex justify-end">
+          <Link
+            to={`/expenses/new-buy?vendorId=${vendorId}`}
+            className="inline-flex items-center rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Log a buy
+          </Link>
         </div>
       )}
+      <div className="overflow-clip rounded-card border border-slate-200 bg-white">
+        {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
+        {!isLoading && buys.length === 0 && (
+          <div className="px-4 py-10 text-center">
+            <p className="text-sm font-medium text-slate-800">No buys yet</p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+              Every bag from this vendor — date, qty, and rate — will show up here.
+            </p>
+          </div>
+        )}
+        {!isLoading && buys.length > 0 && (
+          <>
+            <ul className="divide-y divide-slate-100">
+              {buys.map((buy) => (
+                <li key={buy.id}>
+                  <Link
+                    to={`/expenses/buys/${buy.id}`}
+                    className="block px-4 py-3 hover:bg-slate-50"
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="font-medium text-slate-900">{formatBooksDate(buy.date)}</p>
+                      <p className="text-sm font-semibold tabular-nums">{inr(buy.total)}</p>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      {purposeLabel(buy.purpose)}
+                      {buy.lines
+                        .map(
+                          (l) =>
+                            ` · ${l.buyItem.name} ${lineQtyLabel(l.qty, l.buyItem.unit, l.buyItem.packSize)} @ ${inr(l.unitPrice)}`,
+                        )
+                        .join("")}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <PaginationControls
+              page={data?.page ?? 1}
+              pageCount={data?.totalPages ?? 1}
+              total={total}
+              firstItem={data && data.total > 0 ? (data.page - 1) * data.pageSize + 1 : 0}
+              lastItem={data ? Math.min(data.page * data.pageSize, data.total) : 0}
+              onPageChange={setPage}
+              noun="buys"
+              className="mx-4 mb-4"
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }

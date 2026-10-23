@@ -30,6 +30,12 @@ function searchConfigForPath(pathname: string): { placeholder: string } | null {
   if (pathname === "/vendors") {
     return { placeholder: "Search vendors by name, phone, or address…" };
   }
+  if (pathname === "/expenses") {
+    return { placeholder: "Search expenses by vendor, category, or note…" };
+  }
+  if (pathname === "/items") {
+    return { placeholder: "Search items we buy…" };
+  }
   return null;
 }
 

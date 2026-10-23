@@ -76,6 +76,8 @@ model User {
   orders              Order[]
   pushSubscriptions   PushSubscription[]
   productReviews      ProductReview[]
+  createdPurchases    Purchase[]           @relation("PurchaseCreatedBy")
+  createdExpenses     Expense[]            @relation("ExpenseCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

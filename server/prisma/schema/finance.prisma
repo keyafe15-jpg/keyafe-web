@@ -1,11 +1,44 @@
-// Shop books — vendors first (Phase 1). Purchases, expenses, and inventory
-// attach here in later phases. Do not hard-delete a vendor once buys exist;
-// archive with isActive / archivedAt.
+// Shop books. Do not hard-delete a vendor, buy item, or posted buy;
+// archive vendors/items and void purchases/expenses.
+
+enum BuyItemUnit {
+  KG
+  L
+  PCS
+  PACKET
+}
+
+enum PurchasePurpose {
+  PRODUCTION
+  TRIAL
+  WASTE
+}
+
+enum ExpensePurpose {
+  PRODUCTION
+  TRIAL
+  WASTE
+  OPS
+  MARKETING
+}
+
+enum BooksPaymentMethod {
+  CASH
+  UPI
+  BANK
+}
+
+enum VendorChannel {
+  OFFLINE
+  ONLINE
+}
 
 model Vendor {
-  id          String    @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
   phone       String?
+  /// Local shop vs Instagram / website / marketplace.
+  channel     VendorChannel @default(OFFLINE)
   /// What they sell: dairy, flour, packaging, gas, …
   supplies    String[]  @default([])
   gstin       String?
@@ -18,9 +51,113 @@ model Vendor {
   isActive    Boolean   @default(true)
   archivedAt  DateTime?
 
+  purchases Purchase[]
+  expenses  Expense[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([isActive, name])
   @@index([name])
+  @@index([channel, isActive])
+}
+
+model ExpenseCategory {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  name         String
+  sortOrder    Int     @default(0)
+  isActive     Boolean @default(true)
+  /// Ads / influencer / giveaway — purpose is forced to MARKETING.
+  marketing    Boolean @default(false)
+  /// Miscellaneous — a note is required.
+  requiresNote Boolean @default(false)
+
+  expenses Expense[]
+}
+
+/// Things we buy. Name + unit only; Phase 4 adds onHand on this same row.
+/// packSize: pieces in one packet (Arife 10-pc box pack → 10).
+model BuyItem {
+  id             String      @id @default(cuid())
+  name           String
+  nameNormalized String      @unique
+  unit           BuyItemUnit
+  packSize       Int?
+  isActive       Boolean     @default(true)
+  archivedAt     DateTime?
+
+  lines PurchaseLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, name])
+}
+
+model Purchase {
+  id              String              @id @default(cuid())
+  /// Midnight UTC of the IST shop day.
+  date            DateTime            @db.Date
+  vendorId        String
+  vendor          Vendor              @relation(fields: [vendorId], references: [id])
+  purpose         PurchasePurpose     @default(PRODUCTION)
+  paymentMethod   BooksPaymentMethod
+  notes           String?
+  total           Decimal             @db.Decimal(10, 2)
+  createdByUserId String
+  createdBy       User                @relation("PurchaseCreatedBy", fields: [createdByUserId], references: [id])
+  voidedAt        DateTime?
+
+  lines   PurchaseLine[]
+  expense Expense?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vendorId, date])
+  @@index([date])
+  @@index([purpose, date])
+}
+
+model PurchaseLine {
+  id         String           @id @default(cuid())
+  purchaseId String
+  purchase   Purchase         @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  buyItemId  String
+  buyItem    BuyItem          @relation(fields: [buyItemId], references: [id])
+  qty        Decimal          @db.Decimal(10, 3)
+  unitPrice  Decimal          @db.Decimal(10, 2)
+  amount     Decimal          @db.Decimal(10, 2)
+  purpose    PurchasePurpose?
+
+  @@index([buyItemId])
+  @@index([purchaseId])
+}
+
+model Expense {
+  id              String             @id @default(cuid())
+  /// Midnight UTC of the IST shop day.
+  date            DateTime           @db.Date
+  amount          Decimal            @db.Decimal(10, 2)
+  categoryId      String
+  category        ExpenseCategory    @relation(fields: [categoryId], references: [id])
+  purpose         ExpensePurpose
+  vendorId        String?
+  vendor          Vendor?            @relation(fields: [vendorId], references: [id])
+  paymentMethod   BooksPaymentMethod
+  notes           String?
+  createdByUserId String
+  createdBy       User               @relation("ExpenseCreatedBy", fields: [createdByUserId], references: [id])
+  purchaseId      String?            @unique
+  purchase        Purchase?          @relation(fields: [purchaseId], references: [id])
+  voidedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([categoryId, date])
+  @@index([purpose, date])
+  @@index([vendorId])
 }

@@ -34,6 +34,11 @@ import { StallSalesPage } from "@/pages/stall/StallSalesPage";
 import { StallMenuPage } from "@/pages/stall/StallMenuPage";
 import { VendorsListPage } from "@/pages/vendors/VendorsListPage";
 import { VendorDetailPage } from "@/pages/vendors/VendorDetailPage";
+import { ExpensesListPage } from "@/pages/expenses/ExpensesListPage";
+import { ExpenseFormPage } from "@/pages/expenses/ExpenseFormPage";
+import { PurchaseFormPage } from "@/pages/expenses/PurchaseFormPage";
+import { BuyItemsListPage } from "@/pages/items/BuyItemsListPage";
+import { BuyItemDetailPage } from "@/pages/items/BuyItemDetailPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -171,6 +176,34 @@ export const router = createBrowserRouter([
           {
             path: "vendors/:id",
             element: <VendorDetailPage />,
+          },
+          {
+            path: "expenses",
+            element: <ExpensesListPage />,
+          },
+          {
+            path: "expenses/new",
+            element: <ExpenseFormPage />,
+          },
+          {
+            path: "expenses/new-buy",
+            element: <PurchaseFormPage />,
+          },
+          {
+            path: "expenses/buys/:id",
+            element: <PurchaseFormPage />,
+          },
+          {
+            path: "expenses/:id",
+            element: <ExpenseFormPage />,
+          },
+          {
+            path: "items",
+            element: <BuyItemsListPage />,
+          },
+          {
+            path: "items/:id",
+            element: <BuyItemDetailPage />,
           },
           {
             path: "customers",

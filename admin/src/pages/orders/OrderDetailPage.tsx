@@ -64,6 +64,7 @@ import {
   canAddCreditNote,
   creditNoteLabel,
 } from "@/components/orders/CreditNotesCard";
+import { OrderBooksFields } from "@/components/orders/OrderBooksFields";
 
 export function OrderDetailPage() {
   const { idOrNumber = "" } = useParams<{ idOrNumber: string }>();
@@ -547,6 +548,7 @@ export function OrderDetailPage() {
                   value={-Number(order.discount)}
                 />
               )}
+              <OrderBooksFields order={order} canUpdate={canUpdate} />
               {orderGstOnTop(order) > 0 && <Row label="GST (added)" value={orderGstOnTop(order)} />}
               <div className="my-2 border-t-2 border-slate-900" />
               <div className="flex items-baseline justify-between">

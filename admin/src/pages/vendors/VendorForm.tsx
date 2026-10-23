@@ -3,7 +3,8 @@ import { Field, inputClass, textareaClass } from "@/components/form/Field";
 import { AddressPlacesSearch } from "@/components/address/AddressPlacesSearch";
 import { cn } from "@/lib/cn";
 import { gstinIssue, normalizeGstin } from "@/lib/gstin";
-import { supplyLabel, VENDOR_SUPPLY_TAGS } from "@/pages/vendors/vendor-ui";
+import { supplyLabel, VENDOR_SUPPLY_TAGS, type VendorChannel } from "@/pages/vendors/vendor-ui";
+import { VendorChannelField } from "@/pages/vendors/VendorChannelField";
 import type { AdminVendor, VendorWritePayload } from "@/hooks/useAdminVendors";
 
 export function VendorForm({
@@ -23,6 +24,7 @@ export function VendorForm({
 }) {
   const [name, setName] = useState(vendor?.name ?? "");
   const [phone, setPhone] = useState(vendor?.phone ?? "");
+  const [channel, setChannel] = useState<VendorChannel>(vendor?.channel ?? "OFFLINE");
   const [supplies, setSupplies] = useState<string[]>(vendor?.supplies ?? []);
   const [customSupply, setCustomSupply] = useState("");
   const [gstin, setGstin] = useState(vendor?.gstin ?? "");
@@ -63,6 +65,7 @@ export function VendorForm({
         onSubmit({
           name: name.trim(),
           phone: phone.trim() || null,
+          channel,
           supplies,
           gstin: gstinTrimmed ? normalizeGstin(gstinTrimmed) : null,
           upiId: upiId.trim() || null,
@@ -84,6 +87,11 @@ export function VendorForm({
             className={inputClass}
           />
         </Field>
+      </div>
+
+      <VendorChannelField value={channel} onChange={setChannel} />
+
+      <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
         <Field label="GSTIN" hint="Optional. Validated if you fill it.">
           <input
             value={gstin}

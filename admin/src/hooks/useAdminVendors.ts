@@ -5,6 +5,7 @@ export interface AdminVendor {
   id: string;
   name: string;
   phone: string | null;
+  channel: "OFFLINE" | "ONLINE";
   supplies: string[];
   gstin: string | null;
   address: string | null;
@@ -18,6 +19,7 @@ export interface AdminVendor {
 }
 
 export type VendorActiveFilter = "ALL" | "ACTIVE" | "ARCHIVED";
+export type VendorChannelFilter = "ALL" | "OFFLINE" | "ONLINE";
 
 export interface AdminVendorsPage {
   items: AdminVendor[];
@@ -30,6 +32,7 @@ export interface AdminVendorsPage {
 export interface VendorWritePayload {
   name: string;
   phone?: string | null;
+  channel?: "OFFLINE" | "ONLINE";
   supplies?: string[];
   gstin?: string | null;
   address?: string | null;
@@ -42,21 +45,24 @@ export interface VendorWritePayload {
 export function useAdminVendors(filter: {
   search?: string | null;
   active?: VendorActiveFilter;
+  channel?: VendorChannelFilter;
   page?: number;
   pageSize?: number;
 }) {
   const q = filter.search?.trim() || "";
   const active = filter.active ?? "ACTIVE";
+  const channel = filter.channel ?? "ALL";
   const page = filter.page ?? 1;
   const pageSize = filter.pageSize ?? 20;
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   params.set("active", active);
+  if (channel !== "ALL") params.set("channel", channel);
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
   const qs = params.toString();
   return useQuery<AdminVendorsPage>({
-    queryKey: ["admin", "vendors", { q, active, page, pageSize }],
+    queryKey: ["admin", "vendors", { q, active, channel, page, pageSize }],
     queryFn: () => api.get<AdminVendorsPage>(`/admin/vendors?${qs}`),
     staleTime: 15_000,
   });

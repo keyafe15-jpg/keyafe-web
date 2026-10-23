@@ -108,8 +108,12 @@ export interface AdminOrder extends Omit<AdminOrderListItem, "items"> {
   paymentAttempts?: AdminPaymentAttempt[];
   /** deliveryFee was paid to the rider, so it is not in total. */
   deliveryPaidToRider: boolean;
+  /** What the rider actually took. Subsidy = max(0, cost − fee). */
+  deliveryCost?: string | null;
   discount: string;
   couponCode: string | null;
+  discountReason?: "COUPON" | "DELIVERY" | "INFLUENCER" | "GOODWILL" | "STAFF" | "OTHER" | null;
+  discountNote?: string | null;
   taxableAmount: string;
   cgstAmount: string;
   sgstAmount: string;
@@ -406,6 +410,9 @@ export interface UpdateOrderPayload {
   deliveryPhone?: string | null;
   deliveryAddress?: OrderAddressInput | null;
   billingAddress?: OrderAddressInput | null;
+  deliveryCost?: number | null;
+  discountReason?: "COUPON" | "DELIVERY" | "INFLUENCER" | "GOODWILL" | "STAFF" | "OTHER" | null;
+  discountNote?: string | null;
   items?: {
     id: string;
     deliveryDate: string | null;

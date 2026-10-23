@@ -1,3 +1,10 @@
+export const VENDOR_CHANNELS = ["OFFLINE", "ONLINE"] as const;
+export type VendorChannel = (typeof VENDOR_CHANNELS)[number];
+
+export function channelLabel(channel: string) {
+  return channel === "ONLINE" ? "Online" : "Offline";
+}
+
 export const VENDOR_SUPPLY_TAGS = [
   "dairy",
   "flour",

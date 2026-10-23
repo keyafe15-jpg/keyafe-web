@@ -4,12 +4,13 @@ import { ChevronRight, Plus } from "lucide-react";
 import {
   useAdminVendors,
   type VendorActiveFilter,
+  type VendorChannelFilter,
 } from "@/hooks/useAdminVendors";
 import { PaginationControls } from "@/components/ClientPagination";
 import { useListSearch } from "@/store/listSearch";
 import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
-import { supplyLabel } from "@/pages/vendors/vendor-ui";
+import { channelLabel, supplyLabel } from "@/pages/vendors/vendor-ui";
 
 const PAGE_SIZE = 20;
 
@@ -19,15 +20,23 @@ const STATUS_TABS: { key: VendorActiveFilter; label: string }[] = [
   { key: "ALL", label: "All" },
 ];
 
+const CHANNEL_TABS: { key: VendorChannelFilter; label: string }[] = [
+  { key: "ALL", label: "Any type" },
+  { key: "OFFLINE", label: "Offline" },
+  { key: "ONLINE", label: "Online" },
+];
+
 export function VendorsListPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<VendorActiveFilter>("ACTIVE");
+  const [channel, setChannel] = useState<VendorChannelFilter>("ALL");
   const search = useListSearch((s) => s.query);
   const navigate = useNavigate();
   const canWrite = useStaffPermission("vendors.write") || useStaffPermission("vendors.read");
   const { data, isLoading, isFetching } = useAdminVendors({
     search: search || null,
     active: status,
+    channel,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -41,6 +50,11 @@ export function VendorsListPage() {
 
   const changeStatus = (next: VendorActiveFilter) => {
     setStatus(next);
+    setPage(1);
+  };
+
+  const changeChannel = (next: VendorChannelFilter) => {
+    setChannel(next);
     setPage(1);
   };
 
@@ -65,22 +79,41 @@ export function VendorsListPage() {
         )}
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-1">
-        {STATUS_TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => changeStatus(t.key)}
-            className={cn(
-              "rounded-md border px-2.5 py-1 text-xs font-medium transition",
-              status === t.key
-                ? "bg-brand-50 border-brand-500 text-brand-700"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex flex-wrap gap-1">
+          {STATUS_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => changeStatus(t.key)}
+              className={cn(
+                "rounded-md border px-2.5 py-1 text-xs font-medium transition",
+                status === t.key
+                  ? "bg-brand-50 border-brand-500 text-brand-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {CHANNEL_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => changeChannel(t.key)}
+              className={cn(
+                "rounded-md border px-2.5 py-1 text-xs font-medium transition",
+                channel === t.key
+                  ? "bg-brand-50 border-brand-500 text-brand-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="overflow-clip rounded-card border border-slate-200 bg-white">
@@ -105,6 +138,7 @@ export function VendorsListPage() {
               <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-2 font-medium">Vendor</th>
+                  <th className="px-4 py-2 font-medium">Type</th>
                   <th className="px-4 py-2 font-medium">Phone</th>
                   <th className="px-4 py-2 font-medium">Address</th>
                   <th className="px-4 py-2 font-medium">Sells</th>
@@ -130,6 +164,7 @@ export function VendorsListPage() {
                         </span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-slate-600">{channelLabel(v.channel)}</td>
                     <td className="px-4 py-3 text-slate-700 tabular-nums">
                       {v.phone ? (
                         <a href={`tel:${v.phone}`} className="text-brand-700 hover:underline">
@@ -164,6 +199,9 @@ export function VendorsListPage() {
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-900">
                         {v.name}
+                        <span className="ml-1.5 text-[10px] font-medium text-slate-500">
+                          {channelLabel(v.channel)}
+                        </span>
                         {!v.isActive && (
                           <span className="ml-1.5 text-[10px] font-medium text-slate-500">
                             Archived
