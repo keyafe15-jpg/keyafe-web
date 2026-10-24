@@ -90,7 +90,9 @@ model ExpenseCategory {
   /// Miscellaneous — a note is required.
   requiresNote Boolean @default(false)
 
-  expenses Expense[]
+  expenses      Expense[]
+  buyItems      BuyItem[]
+  purchaseLines PurchaseLine[]
 }
 
 /// Things we buy. Name + unit only; Phase 4 adds onHand on this same row.
@@ -103,6 +105,9 @@ model BuyItem {
   packSize       Int?
   isActive       Boolean     @default(true)
   archivedAt     DateTime?
+  /// Default books label — raw materials, packaging, equipment…
+  categoryId     String?
+  category       ExpenseCategory? @relation(fields: [categoryId], references: [id])
 
   lines PurchaseLine[]
 
@@ -110,6 +115,7 @@ model BuyItem {
   updatedAt DateTime @updatedAt
 
   @@index([isActive, name])
+  @@index([categoryId])
 }
 
 model Purchase {
@@ -150,6 +156,9 @@ model PurchaseLine {
   purchase   Purchase         @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   buyItemId  String
   buyItem    BuyItem          @relation(fields: [buyItemId], references: [id])
+  /// Snapshot of the item’s category on this bill.
+  categoryId String
+  category   ExpenseCategory  @relation(fields: [categoryId], references: [id])
   qty        Decimal          @db.Decimal(10, 3)
   unitPrice  Decimal          @db.Decimal(10, 2)
   amount     Decimal          @db.Decimal(10, 2)
@@ -157,6 +166,7 @@ model PurchaseLine {
 
   @@index([buyItemId])
   @@index([purchaseId])
+  @@index([categoryId])
 }
 
 model Expense {

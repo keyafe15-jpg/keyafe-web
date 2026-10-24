@@ -21,6 +21,7 @@ export type ReceiptDraftLine = {
   name: string;
   unit: (typeof BUY_ITEM_UNITS)[number];
   packSize: number | null;
+  category: string;
   qty: number;
   unitPrice: number;
 };
@@ -101,7 +102,14 @@ async function loadCatalog() {
       where: { isActive: true },
       orderBy: { name: "asc" },
       take: 80,
-      select: { id: true, name: true, nameNormalized: true, unit: true, packSize: true },
+      select: {
+        id: true,
+        name: true,
+        nameNormalized: true,
+        unit: true,
+        packSize: true,
+        category: { select: { slug: true } },
+      },
     }),
     prisma.expenseCategory.findMany({
       where: { isActive: true },
@@ -126,7 +134,14 @@ function matchCategory(
 
 function matchItem(
   name: string,
-  catalog: { id: string; name: string; nameNormalized: string; unit: string; packSize: number | null }[],
+  catalog: {
+    id: string;
+    name: string;
+    nameNormalized: string;
+    unit: string;
+    packSize: number | null;
+    category?: { slug: string } | null;
+  }[],
 ) {
   const n = normalizeItemName(name);
   return (
@@ -207,6 +222,7 @@ export async function parseReceipt(input: {
       name: matched?.name ?? name,
       unit: matched ? (matched.unit as ReceiptDraftLine["unit"]) : mapUnit(line.unit),
       packSize: packSize && packSize > 1 ? packSize : null,
+      category: matched?.category?.slug ?? "raw-materials",
       qty: qtyNum(qty),
       unitPrice: money(unitPrice),
     });

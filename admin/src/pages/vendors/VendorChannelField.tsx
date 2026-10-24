@@ -9,16 +9,22 @@ export function VendorChannelField({
   value,
   onChange,
   disabled,
+  compact,
+  className,
 }: {
   value: VendorChannel;
   onChange: (next: VendorChannel) => void;
   disabled?: boolean;
+  compact?: boolean;
+  className?: string;
 }) {
   return (
-    <div>
-      <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
-        Type
-      </p>
+    <div className={className}>
+      {!compact && (
+        <p className="mb-1 text-xs font-medium tracking-wide text-slate-500 uppercase">
+          Type
+        </p>
+      )}
       <div className="flex flex-wrap gap-1.5">
         {VENDOR_CHANNELS.map((c) => (
           <button

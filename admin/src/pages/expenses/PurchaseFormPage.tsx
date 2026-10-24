@@ -31,7 +31,6 @@ import {
   type PurchasePurpose,
 } from "@/pages/expenses/books-ui";
 import { SearchCreate } from "@/pages/expenses/SearchCreate";
-import { ExpenseCategoryField } from "@/pages/expenses/ExpenseCategoryField";
 import { PurposeMark } from "@/pages/expenses/PurposeMark";
 import { PaidByField } from "@/pages/expenses/PaidByField";
 import { ScanBillBlock } from "@/pages/expenses/ScanBillBlock";
@@ -44,16 +43,18 @@ type DraftLine = {
   name: string;
   unit: BuyItemUnit;
   packSize: string;
+  category: string;
   qty: string;
   unitPrice: string;
 };
 
-function emptyLine(): DraftLine {
+function emptyLine(category = "raw-materials"): DraftLine {
   return {
     key: Math.random().toString(36).slice(2),
     name: "",
     unit: "KG",
     packSize: "",
+    category,
     qty: "",
     unitPrice: "",
   };
@@ -68,7 +69,6 @@ export function PurchaseFormPage() {
   const canWrite = useStaffPermission("expenses.write");
   const existing = useAdminPurchase(isNew ? undefined : id);
   const prefill = useAdminVendor(prefillVendor || undefined);
-  const categories = useExpenseCategories();
 
   if (!isNew && existing.isLoading) {
     return <p className="text-sm text-slate-500">Loading buy…</p>;
@@ -110,7 +110,6 @@ export function PurchaseFormPage() {
                       return fromLines > 0 ? String(fromLines) : "";
                     })(),
               paidById: existing.data.paidById,
-              categoryId: existing.data.categoryId ?? "raw-materials",
               voidedAt: existing.data.voidedAt,
               lines: (() => {
                 const goods = existing.data.lines
@@ -124,6 +123,10 @@ export function PurchaseFormPage() {
                     name: l.buyItem.name,
                     unit: l.buyItem.unit,
                     packSize: l.buyItem.packSize ? String(l.buyItem.packSize) : "",
+                    category:
+                      l.category?.slug ??
+                      l.buyItem.category?.slug ??
+                      "raw-materials",
                     qty: String(l.qty),
                     unitPrice: String(l.unitPrice),
                   }));
@@ -141,9 +144,6 @@ export function PurchaseFormPage() {
               shipping: "",
               miscCharges: "",
               paidById: null,
-              categoryId:
-                categories.data?.items.find((c) => c.slug === "raw-materials")?.slug ??
-                "raw-materials",
               voidedAt: null,
               lines: [emptyLine()],
             }
@@ -174,7 +174,6 @@ function PurchaseForm({
     shipping: string;
     miscCharges: string;
     paidById: string | null;
-    categoryId: string;
     voidedAt: string | null;
     lines: DraftLine[];
   };
@@ -199,8 +198,8 @@ function PurchaseForm({
   const [shipping, setShipping] = useState(initial.shipping);
   const [miscCharges, setMiscCharges] = useState(initial.miscCharges);
   const [paidById, setPaidById] = useState<string | null>(initial.paidById);
-  const [category, setCategory] = useState(initial.categoryId);
   const [lines, setLines] = useState<DraftLine[]>(initial.lines);
+  const categories = useExpenseCategories();
   const [itemQueries, setItemQueries] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [scanNote, setScanNote] = useState<string | null>(null);
@@ -215,7 +214,6 @@ function PurchaseForm({
       setVendorQuery(draft.vendorName ?? "");
       setVendorChannel(draft.vendorChannel);
     }
-    if (draft.category) setCategory(draft.category);
     if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
     if (draft.shipping > 0) setShipping(String(draft.shipping));
     if (draft.miscCharges > 0) setMiscCharges(String(draft.miscCharges));
@@ -227,6 +225,7 @@ function PurchaseForm({
         name: l.name,
         unit: l.unit,
         packSize: l.packSize && l.packSize > 1 ? String(l.packSize) : "",
+        category: l.category || "raw-materials",
         qty: String(l.qty),
         unitPrice: String(l.unitPrice),
       }));
@@ -279,6 +278,7 @@ function PurchaseForm({
         name: line.name.trim() || undefined,
         unit: line.unit,
         packSize: Number(line.packSize) > 1 ? Number(line.packSize) : null,
+        category: line.category || "raw-materials",
         qty: Number(line.qty),
         unitPrice: Number(line.unitPrice),
       }))
@@ -302,7 +302,6 @@ function PurchaseForm({
       notes: notes.trim() || null,
       shipping: shippingAmt,
       miscCharges: miscAmt,
-      category,
       lines: payloadLines,
     };
   };
@@ -322,7 +321,7 @@ function PurchaseForm({
       {scanNote && <p className="mt-1 text-sm text-emerald-700">{scanNote}</p>}
 
       <form
-        className="mt-4 space-y-3 rounded-card border border-slate-200 bg-white p-4"
+        className="mt-4 space-y-2.5 rounded-card border border-slate-200 bg-white p-4"
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
@@ -347,8 +346,8 @@ function PurchaseForm({
         {!purchaseId && canWrite && !voided && (
           <ScanBillBlock kind="BUY" onDraft={applyDraft} />
         )}
-        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
-          <Field label="Date" required>
+        <div className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-2 min-[720px]:grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_auto_minmax(0,7.5rem)_minmax(0,1fr)]">
+          <Field label="Date" required className="min-w-0">
             <input
               type="date"
               value={date}
@@ -357,54 +356,57 @@ function PurchaseForm({
               disabled={!canWrite || voided}
             />
           </Field>
-          <Field label="Vendor" required>
-            <SearchCreate
-              query={vendorQuery || vendorName}
-              onQuery={(q) => {
-                setVendorQuery(q);
-                setVendorId(undefined);
-                setVendorName(q);
-              }}
-              options={(vendors.data?.items ?? []).map((v) => ({
-                id: v.id,
-                label: v.name,
-                hint: [channelLabel(v.channel), v.phone].filter(Boolean).join(" · ") || undefined,
-              }))}
-              placeholder="Shop or person"
-              createLabel={
-                (vendorQuery || vendorName).trim() && !vendorId
-                  ? `Use “${(vendorQuery || vendorName).trim()}”`
-                  : null
-              }
-              onSelect={(id) => {
-                const v = vendors.data?.items.find((row) => row.id === id);
-                setVendorId(id);
-                setVendorName(v?.name ?? "");
-                setVendorQuery(v?.name ?? "");
-                setVendorChannel(v?.channel ?? "OFFLINE");
-              }}
-              onCreate={(name) => {
-                setVendorId(undefined);
-                setVendorName(name);
-                setVendorQuery(name);
-              }}
-            />
+          <Field label="Vendor" required className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <div className="min-w-0 flex-1">
+                <SearchCreate
+                  query={vendorQuery || vendorName}
+                  onQuery={(q) => {
+                    setVendorQuery(q);
+                    setVendorId(undefined);
+                    setVendorName(q);
+                  }}
+                  options={(vendors.data?.items ?? []).map((v) => ({
+                    id: v.id,
+                    label: v.name,
+                    hint: [channelLabel(v.channel), v.phone].filter(Boolean).join(" · ") || undefined,
+                  }))}
+                  placeholder="Shop or person"
+                  createLabel={
+                    (vendorQuery || vendorName).trim() && !vendorId
+                      ? `Use “${(vendorQuery || vendorName).trim()}”`
+                      : null
+                  }
+                  onSelect={(id) => {
+                    const v = vendors.data?.items.find((row) => row.id === id);
+                    setVendorId(id);
+                    setVendorName(v?.name ?? "");
+                    setVendorQuery(v?.name ?? "");
+                    setVendorChannel(v?.channel ?? "OFFLINE");
+                  }}
+                  onCreate={(name) => {
+                    setVendorId(undefined);
+                    setVendorName(name);
+                    setVendorQuery(name);
+                  }}
+                />
+              </div>
+              <VendorChannelField
+                compact
+                className="shrink-0 min-[720px]:hidden"
+                value={vendorChannel}
+                onChange={setVendorChannel}
+                disabled={!canWrite || voided}
+              />
+            </div>
           </Field>
-        </div>
-
-        <VendorChannelField
-          value={vendorChannel}
-          onChange={setVendorChannel}
-          disabled={!canWrite || voided}
-        />
-
-        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
-          <ExpenseCategoryField
-            value={category}
-            onChange={setCategory}
+          <VendorChannelField
+            className="max-[719px]:hidden"
+            value={vendorChannel}
+            onChange={setVendorChannel}
             disabled={!canWrite || voided}
           />
-          <Field label="Paid with">
+          <Field label="Paid with" className="min-w-0">
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value as BooksPaymentMethod)}
@@ -424,11 +426,10 @@ function PurchaseForm({
             disabled={!canWrite || voided}
             required
             autofill={!purchaseId}
-            hint="Whose cash / UPI / bank this left."
           />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Lines</p>
           <div className="grid grid-cols-1 gap-2 min-[720px]:grid-cols-2">
           {lines.map((line) => {
@@ -436,44 +437,68 @@ function PurchaseForm({
             const rate = Number(line.unitPrice);
             const amount = qty > 0 && rate >= 0 ? Math.round(qty * rate * 100) / 100 : 0;
             const q = itemQueries[line.key] ?? line.name;
+            const showPack = line.unit === "PACKET" || Number(line.packSize) > 1;
             return (
               <div
                 key={line.key}
-                className="rounded-lg border border-slate-200 p-2.5"
+                className="rounded-lg border border-slate-200 p-2"
               >
-                <Field label="Item" required>
-                  <SearchCreate
-                    query={q}
-                    onQuery={(next) => {
-                      setItemQueries((prev) => ({ ...prev, [line.key]: next }));
-                      setLine(line.key, { name: next, buyItemId: undefined });
-                    }}
-                    options={(items.data?.items ?? []).map((it) => ({
-                      id: it.id,
-                      label: it.name,
-                      hint: packUnitLabel(it.unit, it.packSize),
-                    }))}
-                    placeholder="Cream, flour, box…"
-                    createLabel={
-                      q.trim() && !line.buyItemId ? `New item “${q.trim()}”` : null
-                    }
-                    onSelect={(itemId) => {
-                      const it = items.data?.items.find((row) => row.id === itemId);
-                      setLine(line.key, {
-                        buyItemId: itemId,
-                        name: it?.name ?? "",
-                        unit: it?.unit ?? line.unit,
-                        packSize: it?.packSize ? String(it.packSize) : line.packSize,
-                      });
-                      setItemQueries((prev) => ({ ...prev, [line.key]: it?.name ?? "" }));
-                    }}
-                    onCreate={(name) => {
-                      setLine(line.key, { buyItemId: undefined, name });
-                      setItemQueries((prev) => ({ ...prev, [line.key]: name }));
-                    }}
-                  />
-                </Field>
-                <div className="mt-2 grid grid-cols-2 gap-2 min-[480px]:grid-cols-4">
+                <div className="grid grid-cols-1 gap-1.5 min-[400px]:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                  <Field label="Item" required>
+                    <SearchCreate
+                      query={q}
+                      onQuery={(next) => {
+                        setItemQueries((prev) => ({ ...prev, [line.key]: next }));
+                        setLine(line.key, { name: next, buyItemId: undefined });
+                      }}
+                      options={(items.data?.items ?? []).map((it) => ({
+                        id: it.id,
+                        label: it.name,
+                        hint: packUnitLabel(it.unit, it.packSize),
+                      }))}
+                      placeholder="Cream, flour, box…"
+                      createLabel={
+                        q.trim() && !line.buyItemId ? `New item “${q.trim()}”` : null
+                      }
+                      onSelect={(itemId) => {
+                        const it = items.data?.items.find((row) => row.id === itemId);
+                        setLine(line.key, {
+                          buyItemId: itemId,
+                          name: it?.name ?? "",
+                          unit: it?.unit ?? line.unit,
+                          packSize: it?.packSize ? String(it.packSize) : line.packSize,
+                          category: it?.category?.slug ?? line.category,
+                        });
+                        setItemQueries((prev) => ({ ...prev, [line.key]: it?.name ?? "" }));
+                      }}
+                      onCreate={(name) => {
+                        setLine(line.key, { buyItemId: undefined, name });
+                        setItemQueries((prev) => ({ ...prev, [line.key]: name }));
+                      }}
+                    />
+                  </Field>
+                  <Field label="Category">
+                    <select
+                      value={line.category}
+                      onChange={(e) => setLine(line.key, { category: e.target.value })}
+                      className={selectClass}
+                      disabled={!canWrite || voided}
+                    >
+                      {(categories.data?.items ?? []).map((c) => (
+                        <option key={c.id} value={c.slug}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <div
+                  className={
+                    showPack
+                      ? "mt-1.5 grid grid-cols-2 gap-1.5 min-[480px]:grid-cols-4"
+                      : "mt-1.5 grid grid-cols-3 gap-1.5"
+                  }
+                >
                   <Field label={line.unit === "PACKET" ? "Qty (packs)" : "Qty"}>
                     <input
                       inputMode="decimal"
@@ -483,16 +508,18 @@ function PurchaseForm({
                       disabled={!canWrite || voided}
                     />
                   </Field>
-                  <Field label="Pcs / pack">
-                    <input
-                      inputMode="numeric"
-                      value={line.packSize}
-                      onChange={(e) => setLine(line.key, { packSize: e.target.value })}
-                      placeholder={line.unit === "PACKET" ? "10" : "—"}
-                      className={inputClass}
-                      disabled={!canWrite || voided}
-                    />
-                  </Field>
+                  {showPack && (
+                    <Field label="Pcs / pack">
+                      <input
+                        inputMode="numeric"
+                        value={line.packSize}
+                        onChange={(e) => setLine(line.key, { packSize: e.target.value })}
+                        placeholder="10"
+                        className={inputClass}
+                        disabled={!canWrite || voided}
+                      />
+                    </Field>
+                  )}
                   <Field label={`Rate / ${packUnitLabel(line.unit, Number(line.packSize) || null)}`}>
                     <input
                       inputMode="decimal"
@@ -523,7 +550,7 @@ function PurchaseForm({
                     </select>
                   </Field>
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
+                <div className="mt-1 flex items-center justify-between text-xs text-slate-600">
                   <span>
                     {Number(line.qty) > 0
                       ? lineQtyLabel(
@@ -568,8 +595,8 @@ function PurchaseForm({
           />
         )}
 
-        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
-          <Field label="Delivery charge" hint="Courier / shipping — not an item.">
+        <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
+          <Field label="Delivery charge">
             <input
               inputMode="decimal"
               value={shipping}
@@ -579,10 +606,7 @@ function PurchaseForm({
               disabled={!canWrite || voided}
             />
           </Field>
-          <Field
-            label="Miscellaneous charges"
-            hint="Handling, packing fee, platform fee — whatever else the bill calls it."
-          >
+          <Field label="Miscellaneous charges">
             <input
               inputMode="decimal"
               value={miscCharges}

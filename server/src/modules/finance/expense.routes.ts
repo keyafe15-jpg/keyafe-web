@@ -23,6 +23,7 @@ import {
 } from "./books.shared.js";
 import {
   expenseListWhere,
+  booksMaskSalaries,
   createBooksPayer,
   createExpenseCategory,
   getExpense,
@@ -163,7 +164,7 @@ adminExpenseRouter.get("/", async (req, res) => {
     kind,
     includeVoided: req.query.includeVoided === "true",
   });
-  const [total, rows, agg] = await Promise.all([
+  const [total, rows, agg, maskSalaries] = await Promise.all([
     prisma.expense.count({ where }),
     prisma.expense.findMany({
       where,
@@ -173,10 +174,22 @@ adminExpenseRouter.get("/", async (req, res) => {
       include: expenseInclude,
     }),
     prisma.expense.aggregate({ where, _sum: { amount: true } }),
+    booksMaskSalaries(),
   ]);
+  const salaryFilter =
+    typeof req.query.category === "string" && isSalaryCategory(req.query.category);
+  const sumMasked = Boolean(maskSalaries && salaryFilter);
+  const sum = sumMasked ? 0 : money(agg._sum.amount ?? 0);
   res.json({
-    ...pageJson(rows.map(serializeExpense), total, page, pageSize),
-    sum: money(agg._sum.amount ?? 0),
+    ...pageJson(
+      rows.map((row) => serializeExpense(row, { maskSalaries })),
+      total,
+      page,
+      pageSize,
+    ),
+    sum,
+    sumMasked,
+    maskSalaries,
   });
 });
 
@@ -184,47 +197,81 @@ adminExpenseRouter.get("/summary", async (req, res) => {
   const from = optionalDateKey(req.query.from);
   const to = optionalDateKey(req.query.to);
   const base = expenseListWhere({ from, to });
-  const [all, buys, delivery, byCategoryRows] = await Promise.all([
-    prisma.expense.aggregate({ where: base, _sum: { amount: true }, _count: { id: true } }),
-    prisma.expense.aggregate({
-      where: { ...base, purchaseId: { not: null } },
-      _sum: { amount: true },
-    }),
-    prisma.expense.aggregate({
-      where: { ...base, orderId: { not: null } },
-      _sum: { amount: true },
-    }),
-    prisma.expense.groupBy({
-      by: ["categoryId"],
-      where: base,
-      _sum: { amount: true },
-      _count: { id: true },
-    }),
-  ]);
-  const categories = byCategoryRows.length
-    ? await prisma.expenseCategory.findMany({
-        where: { id: { in: byCategoryRows.map((r) => r.categoryId) } },
+  const purchaseDate =
+    from || to
+      ? { date: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
+      : {};
+  const purchaseWhere = { voidedAt: null, ...purchaseDate };
+  const [all, buys, delivery, looseRows, lineRows, chargeAgg, chargeCount, catalog] =
+    await Promise.all([
+      prisma.expense.aggregate({ where: base, _sum: { amount: true }, _count: { id: true } }),
+      prisma.expense.aggregate({
+        where: { ...base, purchaseId: { not: null } },
+        _sum: { amount: true },
+      }),
+      prisma.expense.aggregate({
+        where: { ...base, orderId: { not: null } },
+        _sum: { amount: true },
+      }),
+      prisma.expense.groupBy({
+        by: ["categoryId"],
+        where: { ...base, purchaseId: null },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      prisma.purchaseLine.groupBy({
+        by: ["categoryId"],
+        where: { purchase: purchaseWhere },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      prisma.purchase.aggregate({
+        where: purchaseWhere,
+        _sum: { shipping: true, miscCharges: true },
+      }),
+      prisma.purchase.count({
+        where: {
+          ...purchaseWhere,
+          OR: [{ shipping: { gt: 0 } }, { miscCharges: { gt: 0 } }],
+        },
+      }),
+      prisma.expenseCategory.findMany({
         select: { id: true, slug: true, name: true, sortOrder: true },
-      })
-    : [];
-  const categoryById = new Map(categories.map((c) => [c.id, c]));
-  const byCategory = byCategoryRows
-    .map((row) => {
-      const cat = categoryById.get(row.categoryId);
-      const total = money(row._sum.amount ?? 0);
-      if (!cat || total <= 0) return null;
+      }),
+    ]);
+  const categoryById = new Map(catalog.map((c) => [c.id, c]));
+  const rolled = new Map<string, { total: number; count: number }>();
+  const add = (categoryId: string, amount: number, count: number) => {
+    if (!(amount > 0) && count <= 0) return;
+    const prev = rolled.get(categoryId) ?? { total: 0, count: 0 };
+    rolled.set(categoryId, {
+      total: money(prev.total + amount),
+      count: prev.count + count,
+    });
+  };
+  for (const row of looseRows) add(row.categoryId, money(row._sum.amount ?? 0), row._count.id);
+  for (const row of lineRows) add(row.categoryId, money(row._sum.amount ?? 0), row._count.id);
+  const misc = catalog.find((c) => c.slug === "miscellaneous");
+  const charges = money(chargeAgg._sum.shipping ?? 0) + money(chargeAgg._sum.miscCharges ?? 0);
+  if (misc && charges > 0) add(misc.id, charges, chargeCount);
+  const maskSalaries = await booksMaskSalaries();
+  const byCategory = [...rolled.entries()]
+    .map(([id, row]) => {
+      const cat = categoryById.get(id);
+      if (!cat || row.total <= 0) return null;
+      const hide = maskSalaries && isSalaryCategory(cat);
       return {
         id: cat.id,
         slug: cat.slug,
         name: cat.name,
-        total,
-        count: row._count.id,
+        total: hide ? 0 : row.total,
+        count: row.count,
+        masked: hide,
         sortOrder: cat.sortOrder,
       };
     })
     .filter((row): row is NonNullable<typeof row> => row !== null)
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-    .map(({ sortOrder: _sortOrder, ...row }) => row);
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   const total = money(all._sum.amount ?? 0);
   const buysSum = money(buys._sum.amount ?? 0);
   const deliverySum = money(delivery._sum.amount ?? 0);
@@ -234,11 +281,16 @@ adminExpenseRouter.get("/summary", async (req, res) => {
     buys: buysSum,
     delivery: deliverySum,
     other: money(total - buysSum - deliverySum),
-    byCategory,
+    maskSalaries,
+    byCategory: byCategory.map(({ sortOrder: _s, ...row }) => row),
   });
 });
 
 adminExpenseRouter.get("/salary-payees", async (_req, res) => {
+  if (await booksMaskSalaries()) {
+    res.json({ items: [] });
+    return;
+  }
   const rows = await prisma.expense.findMany({
     where: { paidTo: { not: null } },
     select: { paidTo: true },
@@ -295,7 +347,7 @@ adminExpenseRouter.post("/", async (req, res) => {
     },
     include: expenseInclude,
   });
-  res.status(201).json(serializeExpense(created));
+  res.status(201).json(serializeExpense(created, { maskSalaries: await booksMaskSalaries() }));
 });
 
 adminExpenseRouter.patch("/:id", async (req, res) => {
@@ -356,7 +408,7 @@ adminExpenseRouter.patch("/:id", async (req, res) => {
     },
     include: expenseInclude,
   });
-  res.json(serializeExpense(updated));
+  res.json(serializeExpense(updated, { maskSalaries: await booksMaskSalaries() }));
 });
 
 adminExpenseRouter.post("/:id/void", async (req, res) => {

@@ -2,8 +2,14 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { PaginationControls } from "@/components/ClientPagination";
-import { useAdminBuyItem, useDeleteBooksRow } from "@/hooks/useAdminBooks";
+import {
+  useAdminBuyItem,
+  useDeleteBooksRow,
+  useExpenseCategories,
+  useUpdateBuyItem,
+} from "@/hooks/useAdminBooks";
 import { useStaffPermission } from "@/lib/permissions";
+import { selectClass } from "@/components/form/Field";
 import {
   booksDeleteConfirm,
   formatBooksDate,
@@ -21,6 +27,8 @@ export function BuyItemDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const canWrite = useStaffPermission("expenses.write");
   const remove = useDeleteBooksRow();
+  const update = useUpdateBuyItem();
+  const categories = useExpenseCategories();
   const { data, isLoading, isError } = useAdminBuyItem(id, page);
   const history = data?.history.items ?? [];
   const total = data?.history.total ?? 0;
@@ -38,8 +46,36 @@ export function BuyItemDetailPage() {
       </Link>
       <h1 className="mt-3 text-2xl font-semibold text-slate-900">{data.name}</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Sold by {packUnitLabel(data.unit, data.packSize)}.
+        Sold by {packUnitLabel(data.unit, data.packSize)}
+        {data.category?.name ? ` · ${data.category.name}` : ""}.
       </p>
+      {canWrite && (
+        <div className="mt-3 max-w-xs">
+          <label className="mb-1 block text-xs font-medium text-slate-500">Category</label>
+          <select
+            value={data.category?.slug ?? ""}
+            disabled={update.isPending}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (!next || !data.id) return;
+              update.mutate(
+                { id: data.id, category: next },
+                {
+                  onError: (err) =>
+                    setError(err instanceof Error ? err.message : "Could not update category"),
+                },
+              );
+            }}
+            className={selectClass}
+          >
+            {(categories.data?.items ?? []).map((c) => (
+              <option key={c.id} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
       <div className="mt-4 overflow-clip rounded-card border border-slate-200 bg-white">

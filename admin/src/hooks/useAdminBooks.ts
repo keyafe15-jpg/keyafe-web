@@ -22,6 +22,7 @@ export interface ExpenseCategoryTotal {
   name: string;
   total: number;
   count: number;
+  masked?: boolean;
 }
 
 export interface ExpenseRangeSummary {
@@ -30,7 +31,12 @@ export interface ExpenseRangeSummary {
   buys: number;
   delivery: number;
   other: number;
+  maskSalaries?: boolean;
   byCategory: ExpenseCategoryTotal[];
+}
+
+export interface BooksPrivacy {
+  maskSalaries: boolean;
 }
 
 export interface AdminBuyItem {
@@ -50,6 +56,8 @@ export interface AdminBuyItem {
   lastVendor?: string | null;
   lastRate?: number | null;
   vendorCount?: number;
+  categoryId?: string | null;
+  category?: { id: string; slug: string; name: string } | null;
 }
 
 export interface BuyItemHistoryRow {
@@ -72,7 +80,16 @@ export interface AdminBuyItemDetail extends AdminBuyItem {
 export interface PurchaseLine {
   id: string;
   buyItemId: string;
-  buyItem: { id: string; name: string; unit: BuyItemUnit; packSize: number | null };
+  categoryId?: string | null;
+  category?: { id: string; slug: string; name: string } | null;
+  buyItem: {
+    id: string;
+    name: string;
+    unit: BuyItemUnit;
+    packSize: number | null;
+    categoryId?: string | null;
+    category?: { id: string; slug: string; name: string } | null;
+  };
   qty: number;
   unitPrice: number;
   amount: number;
@@ -118,7 +135,8 @@ export interface ExpenseCategory {
 export interface AdminExpense {
   id: string;
   date: string;
-  amount: number;
+  amount: number | null;
+  amountMasked?: boolean;
   categoryId: string;
   category: ExpenseCategory;
   purpose: ExpensePurpose;
@@ -154,6 +172,7 @@ export interface PurchaseWritePayload {
     name?: string;
     unit?: BuyItemUnit;
     packSize?: number | null;
+    category?: string;
     qty: number;
     unitPrice: number;
     purpose?: PurchasePurpose;
@@ -162,7 +181,7 @@ export interface PurchaseWritePayload {
 
 export interface ExpenseWritePayload {
   date: string;
-  amount: number;
+  amount?: number;
   category: string;
   purpose?: ExpensePurpose;
   paymentMethod: BooksPaymentMethod;
@@ -190,6 +209,18 @@ export function useAdminBuyItem(id: string | undefined, page = 1) {
     queryKey: ["admin", "buy-item", id, page],
     queryFn: () => api.get<AdminBuyItemDetail>(`/admin/buy-items/${id}?page=${page}&pageSize=20`),
     enabled: Boolean(id),
+  });
+}
+
+export function useUpdateBuyItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, category }: { id: string; category: string }) =>
+      api.patch<AdminBuyItem>(`/admin/buy-items/${id}`, { category }),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ["admin", "buy-items"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "buy-item", data.id] });
+    },
   });
 }
 
@@ -342,10 +373,35 @@ export function useAdminExpenses(filter: {
   if (filter.from) params.set("from", filter.from);
   if (filter.to) params.set("to", filter.to);
   if (filter.search?.trim()) params.set("q", filter.search.trim());
-  return useQuery<BooksPage<AdminExpense> & { sum: number }>({
+  return useQuery<BooksPage<AdminExpense> & { sum: number; sumMasked?: boolean; maskSalaries?: boolean }>({
     queryKey: ["admin", "expenses", filter],
-    queryFn: () => api.get<BooksPage<AdminExpense> & { sum: number }>(`/admin/expenses?${params}`),
+    queryFn: () =>
+      api.get<BooksPage<AdminExpense> & { sum: number; sumMasked?: boolean; maskSalaries?: boolean }>(
+        `/admin/expenses?${params}`,
+      ),
     staleTime: 15_000,
+  });
+}
+
+export function useBooksPrivacy(enabled = true) {
+  return useQuery<BooksPrivacy>({
+    queryKey: ["admin", "business", "books-privacy"],
+    queryFn: () => api.get<BooksPrivacy>("/admin/business/books-privacy"),
+    staleTime: 15_000,
+    enabled,
+  });
+}
+
+export function useUpdateBooksPrivacy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: BooksPrivacy) =>
+      api.patch<BooksPrivacy>("/admin/business/books-privacy", input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "business", "books-privacy"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "expenses"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "expense"] });
+    },
   });
 }
 
@@ -368,6 +424,7 @@ export interface ReceiptDraftLine {
   name: string;
   unit: BuyItemUnit;
   packSize: number | null;
+  category?: string;
   qty: number;
   unitPrice: number;
 }

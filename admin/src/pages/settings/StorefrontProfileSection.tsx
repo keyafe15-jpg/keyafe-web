@@ -9,7 +9,7 @@ import {
 } from "@/hooks/useStorefrontProfile";
 import { storefrontOrigin } from "@/lib/storefront";
 import { uploadImage } from "@/lib/uploads";
-import { InfoRow, SectionHeader } from "./SettingsSection";
+import { InfoRow, SettingsCard } from "./SettingsSection";
 
 const builtInLogo = () => `${storefrontOrigin()}/logo.png`;
 
@@ -108,7 +108,7 @@ function linkValue(href: string | null | undefined) {
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="break-all text-brand-700 hover:underline"
+      className="break-words text-brand-700 hover:underline"
     >
       {href}
     </a>
@@ -162,14 +162,13 @@ export function StorefrontProfileSection() {
     : "";
 
   return (
-    <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
-      <SectionHeader
-        title="Website profile"
-        description="Logo, tagline, links, delivery-app ratings and the address shown on the website and to Google. The shop name is the trade name in GST settings below."
-        editing={editing}
-        onEdit={startEdit}
-        onCancel={() => setEditing(false)}
-      />
+    <SettingsCard
+      title="Website profile"
+      description="Logo, tagline, links, delivery-app ratings and the address shown on the website and to Google. The shop name is the trade name in GST settings below."
+      editing={editing}
+      onEdit={startEdit}
+      onCancel={() => setEditing(false)}
+    >
 
       {isLoading ? (
         <p className="mt-4 text-sm text-slate-500">Loading…</p>
@@ -412,6 +411,6 @@ export function StorefrontProfileSection() {
           <InfoRow label="Opening hours" value={loc?.openingHours} />
         </dl>
       )}
-    </section>
+    </SettingsCard>
   );
 }

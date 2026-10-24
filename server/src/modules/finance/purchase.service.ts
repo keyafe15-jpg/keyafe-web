@@ -8,6 +8,7 @@ import {
   expenseInclude,
   money,
   isMiscChargeName,
+  isSalaryCategory,
   isShippingChargeName,
   normalizeItemName,
   purposeFromPurchase,
@@ -29,6 +30,8 @@ export function serializeBuyItem(row: {
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  categoryId?: string | null;
+  category?: { id: string; slug: string; name: string } | null;
 }) {
   return {
     id: row.id,
@@ -40,6 +43,10 @@ export function serializeBuyItem(row: {
     archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    categoryId: row.categoryId ?? row.category?.id ?? null,
+    category: row.category
+      ? { id: row.category.id, slug: row.category.slug, name: row.category.name }
+      : null,
   };
 }
 
@@ -63,11 +70,20 @@ export function serializePurchase(row: {
   lines: {
     id: string;
     buyItemId: string;
+    categoryId?: string;
     qty: { toString(): string } | number;
     unitPrice: { toString(): string } | number;
     amount: { toString(): string } | number;
     purpose: PurchasePurpose | null;
-    buyItem: { id: string; name: string; unit: string; packSize: number | null };
+    category?: { id: string; slug: string; name: string } | null;
+    buyItem: {
+      id: string;
+      name: string;
+      unit: string;
+      packSize: number | null;
+      categoryId?: string | null;
+      category?: { id: string; slug: string; name: string } | null;
+    };
   }[];
   expense: { id: string; categoryId: string } | null;
 }) {
@@ -93,11 +109,23 @@ export function serializePurchase(row: {
     lines: row.lines.map((line) => ({
       id: line.id,
       buyItemId: line.buyItemId,
+      categoryId: line.categoryId ?? line.category?.id ?? null,
+      category: line.category
+        ? { id: line.category.id, slug: line.category.slug, name: line.category.name }
+        : null,
       buyItem: {
         id: line.buyItem.id,
         name: line.buyItem.name,
         unit: line.buyItem.unit,
         packSize: line.buyItem.packSize,
+        categoryId: line.buyItem.categoryId ?? line.buyItem.category?.id ?? null,
+        category: line.buyItem.category
+          ? {
+              id: line.buyItem.category.id,
+              slug: line.buyItem.category.slug,
+              name: line.buyItem.category.name,
+            }
+          : null,
       },
       qty: qtyNum(line.qty),
       unitPrice: money(line.unitPrice),
@@ -177,6 +205,7 @@ export async function resolveBuyItem(input: {
   name?: string;
   unit?: string;
   packSize?: number | null;
+  categoryId?: string | null;
 }) {
   const packSize = packSizeOrNull(input.packSize);
   if (input.id) {
@@ -227,6 +256,7 @@ export async function resolveBuyItem(input: {
       nameNormalized,
       unit: unit as "KG" | "L" | "PCS" | "PACKET",
       packSize,
+      categoryId: input.categoryId ?? null,
     },
     select: buyItemSelect,
   });
@@ -363,10 +393,37 @@ type LineInput = {
   name?: string;
   unit?: string;
   packSize?: number | null;
+  category?: string;
   qty: number;
   unitPrice: number;
   purpose?: PurchasePurpose;
 };
+
+async function categoryIdForLine(
+  line: LineInput,
+  item: { id: string; categoryId: string | null },
+) {
+  if (line.category) return (await resolveCategory(line.category)).id;
+  if (item.categoryId) return item.categoryId;
+  return (await resolveCategory("raw-materials")).id;
+}
+
+function primaryCategoryId(lines: { categoryId: string; amount: number }[]) {
+  const sums = new Map<string, number>();
+  for (const line of lines) {
+    sums.set(line.categoryId, roundMoney((sums.get(line.categoryId) ?? 0) + line.amount));
+  }
+  let best = lines[0]?.categoryId;
+  let max = -1;
+  for (const [id, amt] of sums) {
+    if (amt > max) {
+      max = amt;
+      best = id;
+    }
+  }
+  if (!best) throw HttpError.badRequest("Missing category");
+  return best;
+}
 
 export async function buildLines(lines: LineInput[], purchasePurpose: PurchasePurpose) {
   if (lines.length === 0) throw HttpError.badRequest("Add at least one line");
@@ -375,16 +432,27 @@ export async function buildLines(lines: LineInput[], purchasePurpose: PurchasePu
   for (const line of lines) {
     if (!(line.qty > 0)) throw HttpError.badRequest("Qty must be more than 0");
     if (!(line.unitPrice >= 0)) throw HttpError.badRequest("Rate cannot be negative");
+    const hinted = line.category ? (await resolveCategory(line.category)).id : undefined;
     const item = await resolveBuyItem({
       id: line.buyItemId,
       name: line.name,
       unit: line.unit,
       packSize: line.packSize,
+      categoryId: hinted,
     });
+    const categoryId = hinted ?? (await categoryIdForLine(line, item));
+    if (!item.categoryId) {
+      await prisma.buyItem.update({
+        where: { id: item.id },
+        data: { categoryId },
+        select: { id: true },
+      });
+    }
     const amount = roundMoney(line.qty * line.unitPrice);
     total = roundMoney(total + amount);
     resolved.push({
       buyItemId: item.id,
+      categoryId,
       qty: line.qty,
       unitPrice: roundMoney(line.unitPrice),
       amount,
@@ -410,14 +478,15 @@ export async function createPurchase(input: {
   notes: string | null;
   shipping?: number;
   miscCharges?: number;
-  categoryId: string;
+  categoryId?: string;
   createdByUserId: string;
   paidById?: string | null;
   lines: LineInput[];
 }) {
-  const category = await prisma.expenseCategory.findUnique({ where: { id: input.categoryId } });
-  if (!category) throw HttpError.badRequest("Unknown expense category");
   const built = await buildLines(input.lines, input.purpose);
+  const categoryId = input.categoryId ?? primaryCategoryId(built.lines);
+  const category = await prisma.expenseCategory.findUnique({ where: { id: categoryId } });
+  if (!category) throw HttpError.badRequest("Unknown expense category");
   const shipping = moneyOrZero(input.shipping);
   const miscCharges = moneyOrZero(input.miscCharges);
   const total = roundMoney(built.total + shipping + miscCharges);
@@ -444,7 +513,7 @@ export async function createPurchase(input: {
       data: {
         date: input.date,
         amount: total,
-        categoryId: input.categoryId,
+        categoryId: category.id,
         purpose,
         vendorId: input.vendorId,
         paymentMethod: input.paymentMethod,
@@ -498,7 +567,9 @@ export async function updatePurchase(
     ? built.total
     : roundMoney(existing.lines.reduce((sum, line) => sum + money(line.amount), 0));
   const total = roundMoney(goods + shipping + miscCharges);
-  const categoryId = input.categoryId ?? existing.expense?.categoryId;
+  const categoryId =
+    input.categoryId ??
+    (built ? primaryCategoryId(built.lines) : existing.expense?.categoryId);
   if (!categoryId) throw HttpError.badRequest("Missing category");
   const paidById = input.paidById !== undefined ? input.paidById : existing.paidById;
 
@@ -594,6 +665,13 @@ export async function getPurchase(id: string) {
   return serializePurchase(row);
 }
 
+export async function booksMaskSalaries() {
+  const row = await prisma.businessSettings.findFirst({
+    select: { maskSalaries: true },
+  });
+  return Boolean(row?.maskSalaries);
+}
+
 export function serializeExpense(row: {
   id: string;
   date: Date;
@@ -629,18 +707,20 @@ export function serializeExpense(row: {
       }
     | null;
   order?: { id: string; orderNumber: string } | null;
-}) {
+}, opts?: { maskSalaries?: boolean }) {
   const lines = row.purchase?.lines ?? [];
+  const hideSalary = Boolean(opts?.maskSalaries && isSalaryCategory(row.category));
   return {
     id: row.id,
     date: dateKey(row.date),
-    amount: money(row.amount),
+    amount: hideSalary ? null : money(row.amount),
+    amountMasked: hideSalary,
     categoryId: row.categoryId,
     category: row.category,
     purpose: row.purpose,
     vendorId: row.vendorId,
     vendor: vendorBrief(row.vendor),
-    paidTo: row.paidTo ?? null,
+    paidTo: hideSalary ? null : row.paidTo ?? null,
     paymentMethod: row.paymentMethod,
     notes: row.notes,
     createdByUserId: row.createdByUserId,
@@ -664,9 +744,12 @@ export function serializeExpense(row: {
 }
 
 export async function getExpense(id: string) {
-  const row = await prisma.expense.findUnique({ where: { id }, include: expenseInclude });
+  const [row, maskSalaries] = await Promise.all([
+    prisma.expense.findUnique({ where: { id }, include: expenseInclude }),
+    booksMaskSalaries(),
+  ]);
   if (!row) throw HttpError.notFound("Expense not found");
-  return serializeExpense(row);
+  return serializeExpense(row, { maskSalaries });
 }
 
 export function purchaseListWhere(opts: {
@@ -707,7 +790,26 @@ export function expenseListWhere(opts: {
   if (opts.kind === "BUYS") where.purchaseId = { not: null };
   if (opts.kind === "OTHER") where.purchaseId = null;
   if (opts.category) {
-    where.category = { OR: [{ id: opts.category }, { slug: opts.category }] };
+    const catMatch = { OR: [{ id: opts.category }, { slug: opts.category }] };
+    const misc = opts.category === "miscellaneous";
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      {
+        OR: [
+          { purchaseId: null, category: catMatch },
+          { purchase: { lines: { some: { category: catMatch } } } },
+          ...(misc
+            ? [
+                {
+                  purchase: {
+                    OR: [{ shipping: { gt: 0 } }, { miscCharges: { gt: 0 } }],
+                  },
+                },
+              ]
+            : []),
+        ],
+      },
+    ];
   }
   if (opts.from || opts.to) {
     where.date = {

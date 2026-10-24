@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useBooksPrivacy, useUpdateBooksPrivacy } from "@/hooks/useAdminBooks";
 import { useBusinessUpi, useUpdateBusinessUpi } from "@/hooks/useBusinessUpi";
 import { useBusinessContact, useUpdateBusinessContact } from "@/hooks/useBusinessContact";
 import {
@@ -17,7 +18,7 @@ import {
 import { gstinIssue, gstinStateCode, normalizeGstin } from "@/lib/gstin";
 import { SELECTABLE_STATES, stateNameFromCode } from "@/lib/indiaStates";
 import { cn } from "@/lib/cn";
-import { InfoRow, SectionHeader } from "./settings/SettingsSection";
+import { InfoRow, SettingsCard } from "./settings/SettingsSection";
 import { StorefrontProfileSection } from "./settings/StorefrontProfileSection";
 
 export function SettingsPage() {
@@ -26,13 +27,49 @@ export function SettingsPage() {
       <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
       <p className="mt-1 text-sm text-slate-500">Business, website, GST, invoicing.</p>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
         <ContactSettingsSection />
         <StorefrontProfileSection />
         <UpiSettingsSection />
         <BusinessGstSection />
+        <BooksPrivacySection />
       </div>
     </div>
+  );
+}
+
+function BooksPrivacySection() {
+  const { data, isLoading } = useBooksPrivacy();
+  const update = useUpdateBooksPrivacy();
+  const on = Boolean(data?.maskSalaries);
+  return (
+    <SettingsCard
+      title="Books privacy"
+      description="Turn on before a staff demo. Salary amounts and who was paid drop out of the books and the dashboard."
+    >
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Loading…</p>
+      ) : (
+        <button
+          type="button"
+          disabled={update.isPending}
+          onClick={() => update.mutate({ maskSalaries: !on })}
+          className={cn(
+            "rounded-full border px-3 py-1 text-xs font-medium transition disabled:opacity-50",
+            on
+              ? "border-brand-500 bg-brand-500 text-white"
+              : "border-slate-200 bg-white text-slate-700 hover:border-brand-300",
+          )}
+        >
+          {on ? "Salaries hidden" : "Salaries visible"}
+        </button>
+      )}
+      {update.isError && (
+        <p className="mt-2 text-xs text-red-700">
+          {update.error instanceof Error ? update.error.message : "Could not save"}
+        </p>
+      )}
+    </SettingsCard>
   );
 }
 
@@ -71,20 +108,19 @@ function ContactSettingsSection() {
   };
 
   return (
-    <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
-      <SectionHeader
-        title="Contact & notifications"
-        description="Shown on the website and printed on invoices, challans and customer emails. Order alerts are emailed to the notification address."
-        editing={editing}
-        onEdit={() => {
-          resetFromServer();
-          setEditing(true);
-        }}
-        onCancel={() => {
-          resetFromServer();
-          setEditing(false);
-        }}
-      />
+    <SettingsCard
+      title="Contact & notifications"
+      description="Shown on the website and printed on invoices, challans and customer emails. Order alerts are emailed to the notification address."
+      editing={editing}
+      onEdit={() => {
+        resetFromServer();
+        setEditing(true);
+      }}
+      onCancel={() => {
+        resetFromServer();
+        setEditing(false);
+      }}
+    >
 
       {isLoading ? (
         <p className="mt-4 text-sm text-slate-500">Loading…</p>
@@ -162,7 +198,7 @@ function ContactSettingsSection() {
           />
         </dl>
       )}
-    </section>
+    </SettingsCard>
   );
 }
 
@@ -204,20 +240,19 @@ function UpiSettingsSection() {
   };
 
   return (
-    <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
-      <SectionHeader
-        title="UPI payment collection"
-        description="Shown to customers on order links so they can pay you directly — no gateway, no fees."
-        editing={editing}
-        onEdit={() => {
-          resetFromServer();
-          setEditing(true);
-        }}
-        onCancel={() => {
-          resetFromServer();
-          setEditing(false);
-        }}
-      />
+    <SettingsCard
+      title="UPI payment collection"
+      description="Shown to customers on order links so they can pay you directly — no gateway, no fees."
+      editing={editing}
+      onEdit={() => {
+        resetFromServer();
+        setEditing(true);
+      }}
+      onCancel={() => {
+        resetFromServer();
+        setEditing(false);
+      }}
+    >
 
       {isLoading ? (
         <p className="mt-4 text-sm text-slate-500">Loading…</p>
@@ -258,7 +293,7 @@ function UpiSettingsSection() {
           <InfoRow label="Payee name" value={data?.upiPayeeName} />
         </dl>
       )}
-    </section>
+    </SettingsCard>
   );
 }
 
@@ -337,20 +372,19 @@ function BusinessGstSection() {
     : null;
 
   return (
-    <section className="mt-6 rounded-card border border-slate-200 bg-white p-5">
-      <SectionHeader
-        title="Business & GST"
-        description='Printed on every tax invoice. Until a GSTIN is saved here, invoices are issued as a plain "Invoice" rather than a "Tax Invoice".'
-        editing={editing}
-        onEdit={() => {
-          resetFromServer();
-          setEditing(true);
-        }}
-        onCancel={() => {
-          resetFromServer();
-          setEditing(false);
-        }}
-      />
+    <SettingsCard
+      title="Business & GST"
+      description='Printed on every tax invoice. Until a GSTIN is saved here, invoices are issued as a plain "Invoice" rather than a "Tax Invoice".'
+      editing={editing}
+      onEdit={() => {
+        resetFromServer();
+        setEditing(true);
+      }}
+      onCancel={() => {
+        resetFromServer();
+        setEditing(false);
+      }}
+    >
 
       {isLoading || !form || !data ? (
         <p className="mt-4 text-sm text-slate-500">Loading…</p>
@@ -558,7 +592,7 @@ function BusinessGstSection() {
           <InfoRow label="Challan terms" value={data.challanTerms} />
         </dl>
       )}
-    </section>
+    </SettingsCard>
   );
 }
 

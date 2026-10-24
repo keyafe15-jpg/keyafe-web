@@ -346,6 +346,7 @@ export function DashboardPage() {
                       : "Nothing logged",
                     expenses.data.buys ? `buys ${formatINR(expenses.data.buys)}` : null,
                     expenses.data.delivery ? `delivery ${formatINR(expenses.data.delivery)}` : null,
+                    expenses.data.maskSalaries ? "salaries hidden" : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")

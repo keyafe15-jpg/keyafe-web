@@ -12,11 +12,13 @@ import {
   useAdminExpenses,
   useDeleteBooksRow,
   useExpenseSummary,
+  useUpdateBooksPrivacy,
   type AdminExpense,
   type ExpenseKindFilter,
 } from "@/hooks/useAdminBooks";
 import {
   booksDeleteConfirm,
+  booksMoney,
   formatBooksDate,
   inr,
   isSalaryCategory,
@@ -36,6 +38,7 @@ function expenseHref(row: AdminExpense) {
 function expenseTitle(row: AdminExpense) {
   if (row.buy) return row.vendor?.name ?? "Shop buy";
   if (row.order) return `Delivery · ${row.order.orderNumber}`;
+  if (row.amountMasked) return "Salary";
   if (isSalaryCategory(row.category) && row.paidTo) return row.paidTo;
   return row.category.name;
 }
@@ -72,6 +75,8 @@ export function ExpensesListPage() {
   const setSearch = useListSearch((s) => s.setQuery);
   const navigate = useNavigate();
   const canWrite = useStaffPermission("expenses.write");
+  const canPrivacy = useStaffPermission("settings.update");
+  const privacy = useUpdateBooksPrivacy();
   const remove = useDeleteBooksRow();
   const [error, setError] = useState<string | null>(null);
 
@@ -93,8 +98,16 @@ export function ExpensesListPage() {
   });
   const summary = useExpenseSummary(from, to, !searching);
   const categoryTotals = summary.data?.byCategory ?? [];
+  const selectedCategory = category
+    ? categoryTotals.find((row) => row.slug === category || row.id === category)
+    : null;
   const rows = data?.items ?? [];
   const total = data?.total ?? 0;
+  const maskSalaries = Boolean(data?.maskSalaries ?? summary.data?.maskSalaries);
+  const shownMasked =
+    Boolean(data?.sumMasked) || Boolean(selectedCategory?.masked);
+  const shownTotal =
+    searching || !selectedCategory ? (data?.sum ?? 0) : selectedCategory.total;
 
   useEffect(() => {
     setPage(1);
@@ -108,8 +121,26 @@ export function ExpensesListPage() {
           <p className="mt-1 text-sm text-slate-500">
             {searching
               ? `${total} match${total === 1 ? "" : "es"} for “${search}”`
-              : `${total} in this range`}
-            {data ? ` · ${inr(data.sum ?? 0)}` : ""}
+              : selectedCategory
+                ? `${selectedCategory.name} in this range`
+                : `${total} in this range`}
+            {data || selectedCategory
+              ? ` · ${booksMoney(shownTotal, shownMasked)}`
+              : ""}
+            {maskSalaries ? " · salaries hidden" : ""}
+            {canPrivacy && (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  disabled={privacy.isPending}
+                  onClick={() => privacy.mutate({ maskSalaries: !maskSalaries })}
+                  className="font-medium text-brand-700 hover:underline disabled:opacity-50"
+                >
+                  {maskSalaries ? "Show salaries" : "Hide salaries"}
+                </button>
+              </>
+            )}
           </p>
         </div>
         {canWrite && (
@@ -154,7 +185,7 @@ export function ExpensesListPage() {
                 )}
               >
                 {row.name}{" "}
-                <span className="tabular-nums">{inr(row.total)}</span>
+                <span className="tabular-nums">{booksMoney(row.total, row.masked)}</span>
               </button>
             );
           })}
@@ -251,7 +282,7 @@ export function ExpensesListPage() {
                       {row.paidBy ? ` · ${row.paidBy.name}` : ""}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-slate-900 tabular-nums">
-                      {inr(row.amount)}
+                      {booksMoney(row.amount, row.amountMasked)}
                     </td>
                     {canWrite && (
                       <td className="px-1 py-3" onClick={(e) => e.stopPropagation()}>
@@ -291,7 +322,7 @@ export function ExpensesListPage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="text-sm font-semibold text-slate-900 tabular-nums">
-                        {inr(row.amount)}
+                        {booksMoney(row.amount, row.amountMasked)}
                       </span>
                       <ChevronRight className="h-4 w-4 text-slate-300" />
                     </div>
@@ -312,10 +343,14 @@ export function ExpensesListPage() {
             </ul>
             <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm">
               <span className="text-slate-500">
-                {searching ? "Matching total" : "Range total"}
+                {searching
+                  ? "Matching total"
+                  : selectedCategory
+                    ? `${selectedCategory.name} total`
+                    : "Range total"}
               </span>
               <span className="font-semibold text-slate-900 tabular-nums">
-                {inr(data?.sum ?? 0)}
+                {booksMoney(shownTotal, shownMasked)}
               </span>
             </div>
             <PaginationControls

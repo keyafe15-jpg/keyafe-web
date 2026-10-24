@@ -10,6 +10,7 @@ import {
   pageJson,
   pageParams,
   parseDateKey,
+  purchaseInclude,
   PURCHASE_PURPOSES,
   requireBooksWrite,
   VENDOR_CHANNELS,
@@ -33,6 +34,7 @@ const lineSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   unit: z.enum(BUY_ITEM_UNITS).optional(),
   packSize: z.coerce.number().int().positive().nullable().optional(),
+  category: z.string().trim().min(1).optional(),
   qty: z.coerce.number().positive(),
   unitPrice: z.coerce.number().nonnegative(),
   purpose: z.enum(PURCHASE_PURPOSES).optional(),
@@ -65,7 +67,7 @@ const createSchema = z.object({
     .transform((v) => v || null),
   shipping: z.coerce.number().nonnegative().optional(),
   miscCharges: z.coerce.number().nonnegative().optional(),
-  category: z.string().trim().min(1).default("raw-materials"),
+  category: z.string().trim().min(1).optional(),
   paidBy: z.string().trim().min(1).optional().nullable(),
   lines: z.array(lineSchema).min(1),
 });
@@ -93,15 +95,7 @@ adminPurchaseRouter.get("/", async (req, res) => {
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       skip,
       take: pageSize,
-      include: {
-        vendor: { select: { id: true, name: true, phone: true, channel: true } },
-        lines: {
-          orderBy: { id: "asc" },
-          include: { buyItem: { select: { id: true, name: true, unit: true, packSize: true } } },
-        },
-        expense: { select: { id: true, categoryId: true } },
-        paidBy: { select: { id: true, name: true } },
-      },
+      include: purchaseInclude,
     }),
   ]);
   res.json(pageJson(rows.map(serializePurchase), total, page, pageSize));
@@ -116,7 +110,7 @@ adminPurchaseRouter.post("/", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) throw HttpError.badRequest("Invalid buy", parsed.error.flatten());
   const vendorId = await resolveVendor(parsed.data.vendor);
-  const category = await resolveCategory(parsed.data.category);
+  const category = parsed.data.category ? await resolveCategory(parsed.data.category) : null;
   const paidById = await resolvePayer(parsed.data.paidBy);
   const created = await createPurchase({
     date: parseDateKey(parsed.data.date),
@@ -126,7 +120,7 @@ adminPurchaseRouter.post("/", async (req, res) => {
     notes: parsed.data.notes,
     shipping: parsed.data.shipping,
     miscCharges: parsed.data.miscCharges,
-    categoryId: category.id,
+    categoryId: category?.id,
     createdByUserId: staff.id,
     paidById,
     lines: parsed.data.lines,

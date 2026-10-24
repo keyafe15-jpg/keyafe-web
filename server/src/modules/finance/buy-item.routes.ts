@@ -17,7 +17,7 @@ import {
   qtyNum,
   requireBooksWrite,
 } from "./books.shared.js";
-import { serializeBuyItem } from "./purchase.service.js";
+import { resolveCategory, serializeBuyItem } from "./purchase.service.js";
 
 export const adminBuyItemRouter = Router();
 
@@ -53,6 +53,7 @@ adminBuyItemRouter.post("/", async (req, res) => {
       name: z.string().trim().min(1).max(120),
       unit: z.enum(BUY_ITEM_UNITS),
       packSize: z.coerce.number().int().positive().nullable().optional(),
+      category: z.string().trim().min(1).optional(),
     })
     .safeParse(req.body);
   if (!parsed.success) throw HttpError.badRequest("Invalid item", parsed.error.flatten());
@@ -80,16 +81,38 @@ adminBuyItemRouter.post("/", async (req, res) => {
     res.status(200).json(serializeBuyItem(existing));
     return;
   }
+  const category = parsed.data.category ? await resolveCategory(parsed.data.category) : null;
   const created = await prisma.buyItem.create({
     data: {
       name: parsed.data.name.trim(),
       nameNormalized,
       unit: parsed.data.unit,
       packSize: parsed.data.packSize ?? null,
+      categoryId: category?.id ?? null,
     },
     select: buyItemSelect,
   });
   res.status(201).json(serializeBuyItem(created));
+});
+
+adminBuyItemRouter.patch("/:id", async (req, res) => {
+  requireBooksWrite(req as AuthenticatedRequest);
+  const id = req.params.id ?? "";
+  const parsed = z
+    .object({
+      category: z.string().trim().min(1).optional(),
+    })
+    .safeParse(req.body);
+  if (!parsed.success) throw HttpError.badRequest("Invalid item", parsed.error.flatten());
+  const existing = await prisma.buyItem.findUnique({ where: { id }, select: { id: true } });
+  if (!existing) throw HttpError.notFound("Item not found");
+  const category = parsed.data.category ? await resolveCategory(parsed.data.category) : undefined;
+  const updated = await prisma.buyItem.update({
+    where: { id },
+    data: category ? { categoryId: category.id } : {},
+    select: buyItemSelect,
+  });
+  res.json(serializeBuyItem(updated));
 });
 
 adminBuyItemRouter.get("/:id", async (req, res) => {

@@ -182,6 +182,26 @@ adminBusinessRouter.patch("/contact", async (req, res) => {
   res.json(updated);
 });
 
+adminBusinessRouter.get("/books-privacy", async (_req, res) => {
+  const settings = await prisma.businessSettings.findFirst({
+    select: { maskSalaries: true },
+  });
+  res.json({ maskSalaries: Boolean(settings?.maskSalaries) });
+});
+
+adminBusinessRouter.patch("/books-privacy", async (req, res) => {
+  const parsed = z.object({ maskSalaries: z.boolean() }).safeParse(req.body);
+  if (!parsed.success) throw HttpError.badRequest("Invalid input", parsed.error.flatten());
+  const existing = await prisma.businessSettings.findFirst({ select: { id: true } });
+  if (!existing) throw HttpError.notFound("Business settings not found");
+  const updated = await prisma.businessSettings.update({
+    where: { id: existing.id },
+    data: { maskSalaries: parsed.data.maskSalaries },
+    select: { maskSalaries: true },
+  });
+  res.json(updated);
+});
+
 // Tagline, logo, social / delivery-app links, ratings and the public address
 // shown on the storefront and to search engines.
 adminBusinessRouter.get("/storefront", async (_req, res) => {

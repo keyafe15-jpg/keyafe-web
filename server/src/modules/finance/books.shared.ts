@@ -140,6 +140,8 @@ export function categoryBrief(c: {
   };
 }
 
+const categoryBriefSelect = { id: true, slug: true, name: true } as const;
+
 export const buyItemSelect = {
   id: true,
   name: true,
@@ -150,13 +152,27 @@ export const buyItemSelect = {
   archivedAt: true,
   createdAt: true,
   updatedAt: true,
+  categoryId: true,
+  category: { select: categoryBriefSelect },
 } satisfies Prisma.BuyItemSelect;
 
 export const purchaseInclude = {
   vendor: { select: { id: true, name: true, phone: true, channel: true } },
   lines: {
     orderBy: { id: "asc" as const },
-    include: { buyItem: { select: { id: true, name: true, unit: true, packSize: true } } },
+    include: {
+      category: { select: categoryBriefSelect },
+      buyItem: {
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          packSize: true,
+          categoryId: true,
+          category: { select: categoryBriefSelect },
+        },
+      },
+    },
   },
   expense: { select: { id: true, categoryId: true } },
   paidBy: { select: { id: true, name: true } },

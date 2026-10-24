@@ -56,7 +56,8 @@ export function ExpenseFormPage() {
         existing.data
           ? {
               date: existing.data.date,
-              amount: String(existing.data.amount),
+              amount: existing.data.amountMasked ? "" : String(existing.data.amount ?? ""),
+              amountMasked: Boolean(existing.data.amountMasked),
               category: existing.data.category.slug,
               purpose: existing.data.purpose,
               paymentMethod: existing.data.paymentMethod,
@@ -71,6 +72,7 @@ export function ExpenseFormPage() {
           : {
               date: toInputDate(new Date()),
               amount: "",
+              amountMasked: false,
               category: "salary",
               purpose: "OPS",
               paymentMethod: "UPI",
@@ -95,6 +97,7 @@ function ExpenseForm({
   initial: {
     date: string;
     amount: string;
+    amountMasked: boolean;
     category: string;
     purpose: ExpensePurpose;
     paymentMethod: BooksPaymentMethod;
@@ -205,7 +208,7 @@ function ExpenseForm({
           e.preventDefault();
           setError(null);
           const n = Number(amount);
-          if (!(n > 0)) {
+          if (!(n > 0) && !(initial.amountMasked && expenseId && salary)) {
             setError("Enter an amount.");
             return;
           }
@@ -217,18 +220,19 @@ function ExpenseForm({
             setError("Who paid for this?");
             return;
           }
-          if (salary && !paidTo.trim()) {
+          if (salary && !paidTo.trim() && !(initial.amountMasked && expenseId)) {
             setError("Who was this salary paid to?");
             return;
           }
+          const hidePayroll = initial.amountMasked && salary && Boolean(expenseId);
           const body = {
             date,
-            amount: n,
+            ...(hidePayroll || !(n > 0) ? {} : { amount: n }),
             category,
             purpose: marketing ? ("MARKETING" as const) : purpose,
             paymentMethod,
             paidBy: paidById,
-            paidTo: salary ? paidTo.trim() : null,
+            ...(hidePayroll ? {} : { paidTo: salary ? paidTo.trim() : null }),
             notes: notes.trim() || null,
             vendor: salary
               ? null
@@ -267,13 +271,17 @@ function ExpenseForm({
               disabled={!canWrite || voided}
             />
           </Field>
-          <Field label="Amount" required>
+          <Field
+            label="Amount"
+            required={!initial.amountMasked}
+            hint={initial.amountMasked ? "Hidden while salaries are masked." : undefined}
+          >
             <input
               inputMode="decimal"
-              value={amount}
+              value={initial.amountMasked ? "••••" : amount}
               onChange={(e) => setAmount(e.target.value)}
               className={inputClass}
-              disabled={!canWrite || voided}
+              disabled={!canWrite || voided || initial.amountMasked}
             />
           </Field>
           <ExpenseCategoryField
@@ -313,25 +321,33 @@ function ExpenseForm({
         </div>
 
         {salary ? (
-          <Field label="Salary paid to" required hint="Who received this pay.">
-            <SearchCreate
-              query={paidTo}
-              onQuery={setPaidTo}
-              options={(payees.data?.items ?? [])
-                .filter((name) => name.toLowerCase().includes(paidTo.trim().toLowerCase()))
-                .map((name) => ({ id: name, label: name }))}
-              placeholder="Name"
-              createLabel={
-                paidTo.trim() &&
-                !(payees.data?.items ?? []).some(
-                  (name) => name.toLowerCase() === paidTo.trim().toLowerCase(),
-                )
-                  ? `Use “${paidTo.trim()}”`
-                  : null
-              }
-              onSelect={(name) => setPaidTo(name)}
-              onCreate={(name) => setPaidTo(name)}
-            />
+          <Field
+            label="Salary paid to"
+            required={!initial.amountMasked}
+            hint={initial.amountMasked ? "Hidden while salaries are masked." : "Who received this pay."}
+          >
+            {initial.amountMasked ? (
+              <input value="••••" className={inputClass} disabled />
+            ) : (
+              <SearchCreate
+                query={paidTo}
+                onQuery={setPaidTo}
+                options={(payees.data?.items ?? [])
+                  .filter((name) => name.toLowerCase().includes(paidTo.trim().toLowerCase()))
+                  .map((name) => ({ id: name, label: name }))}
+                placeholder="Name"
+                createLabel={
+                  paidTo.trim() &&
+                  !(payees.data?.items ?? []).some(
+                    (name) => name.toLowerCase() === paidTo.trim().toLowerCase(),
+                  )
+                    ? `Use “${paidTo.trim()}”`
+                    : null
+                }
+                onSelect={(name) => setPaidTo(name)}
+                onCreate={(name) => setPaidTo(name)}
+              />
+            )}
           </Field>
         ) : (
           <>

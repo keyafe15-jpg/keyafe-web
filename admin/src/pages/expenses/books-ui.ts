@@ -109,6 +109,11 @@ export function inr(n: number) {
   return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
+export function booksMoney(amount: number | null | undefined, masked?: boolean) {
+  if (masked || amount == null) return "••••";
+  return inr(amount);
+}
+
 export function booksDeleteConfirm(kind: "buy" | "expense" | "delivery") {
   if (kind === "delivery") {
     return "Delete this delivery cost? It will drop out of the books and clear what we paid on the order.";

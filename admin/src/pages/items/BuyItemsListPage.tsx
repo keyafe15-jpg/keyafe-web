@@ -87,6 +87,7 @@ export function BuyItemsListPage() {
                     <td className="px-4 py-3">
                       <p className="font-medium text-slate-900">{item.name}</p>
                       <p className="text-xs text-slate-500">
+                        {item.category?.name ? `${item.category.name} · ` : ""}
                         {packUnitLabel(item.unit, item.packSize)}
                       </p>
                     </td>
@@ -129,6 +130,7 @@ export function BuyItemsListPage() {
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-900">{item.name}</p>
                       <p className="text-xs text-slate-500">
+                        {item.category?.name ? `${item.category.name} · ` : ""}
                         {packUnitLabel(item.unit, item.packSize)}
                         {(item.timesBought ?? 0) > 0 ? ` · ${timesLabel(item.timesBought ?? 0)}` : ""}
                         {item.lastRate != null ? ` · ${lastRateLabel(item)}` : ""}
