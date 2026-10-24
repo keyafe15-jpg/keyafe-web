@@ -143,3 +143,38 @@ export function rateCompareLabel(vsLast: number | null, vsCheapest90: number | n
   }
   return bits.join(" · ");
 }
+
+export function rupees(n: number) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+/** Old buys stored exclusive rates and added GST on the total. Fold GST into the rate. */
+export function inclusiveUnitPrice(unitPrice: number, goodsExcl: number, gst: number) {
+  if (!(gst > 0) || !(goodsExcl > 0) || !(unitPrice >= 0)) return unitPrice;
+  return rupees((unitPrice * (goodsExcl + gst)) / goodsExcl);
+}
+
+export function ratesWereExclusive(
+  storedTotal: number,
+  goods: number,
+  extras: number,
+  gst: number,
+) {
+  if (!(gst > 0)) return false;
+  const exclusiveTotal = rupees(goods + extras + gst);
+  const inclusiveTotal = rupees(goods + extras);
+  return Math.abs(storedTotal - exclusiveTotal) < 0.05 && Math.abs(storedTotal - inclusiveTotal) > 0.05;
+}
+
+export function vendorScanBits(draft: {
+  vendorGstin?: string | null;
+  vendorPhone?: string | null;
+  vendorAddress?: string | null;
+}): string | null {
+  const bits = [
+    draft.vendorGstin ? `GSTIN ${draft.vendorGstin}` : null,
+    draft.vendorPhone,
+    draft.vendorAddress,
+  ].filter(Boolean);
+  return bits.length ? `${bits.join(" · ")} saved on the vendor.` : null;
+}

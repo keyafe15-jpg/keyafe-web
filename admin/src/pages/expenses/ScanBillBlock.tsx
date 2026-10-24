@@ -7,10 +7,12 @@ import { useParseReceipt, type ReceiptDraft, type ReceiptParseKind } from "@/hoo
 export function ScanBillBlock({
   kind,
   disabled,
+  vendorId,
   onDraft,
 }: {
   kind: ReceiptParseKind;
   disabled?: boolean;
+  vendorId?: string;
   onDraft: (draft: ReceiptDraft) => void;
 }) {
   const parse = useParseReceipt();
@@ -18,17 +20,20 @@ export function ScanBillBlock({
   const [preview, setPreview] = useState<string | null>(null);
   const [context, setContext] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [readDone, setReadDone] = useState(false);
 
   const pick = (next: File | null) => {
     if (preview) URL.revokeObjectURL(preview);
     if (next && /heic|heif/i.test(next.type || next.name)) {
       setFile(null);
       setPreview(null);
+      setReadDone(false);
       setError("HEIC is not supported. Use a JPEG, PNG, WebP, or a screenshot.");
       return;
     }
     setFile(next);
     setPreview(next ? URL.createObjectURL(next) : null);
+    setReadDone(false);
     setError(null);
   };
 
@@ -88,14 +93,17 @@ export function ScanBillBlock({
         </Field>
         <button
           type="button"
-          disabled={disabled || !file || parse.isPending}
+          disabled={disabled || !file || parse.isPending || readDone}
           onClick={() => {
             if (!file) return;
             setError(null);
             parse.mutate(
-              { kind, image: file, context },
+              { kind, image: file, context, vendorId },
               {
-                onSuccess: onDraft,
+                onSuccess: (draft) => {
+                  setReadDone(true);
+                  onDraft(draft);
+                },
                 onError: (err) =>
                   setError(err instanceof Error ? err.message : "Could not read that bill"),
               },
@@ -104,7 +112,7 @@ export function ScanBillBlock({
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
           <Sparkles className="h-4 w-4" />
-          {parse.isPending ? "Reading…" : "Read bill"}
+          {parse.isPending ? "Reading…" : readDone ? "Read" : "Read bill"}
         </button>
       </div>
       {error && <p className="mt-2 text-xs text-red-700">{error}</p>}

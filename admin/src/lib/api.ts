@@ -160,9 +160,13 @@ export interface BlobResponse {
 
 // Separate from `request` because that one always parses JSON, and file
 // downloads need the raw body plus the response headers.
-async function requestBlob(path: string): Promise<BlobResponse> {
+async function requestBlob(path: string, init?: RequestInit): Promise<BlobResponse> {
   const res = await fetchWithSession(path, () => ({
-    headers: authHeader(),
+    ...init,
+    headers: {
+      ...authHeader(),
+      ...(init?.headers ?? {}),
+    },
     credentials: "include",
   }));
 
@@ -200,6 +204,12 @@ async function requestForm<T>(path: string, form: FormData): Promise<T> {
 export const api = {
   get: <T>(path: string) => request<T>(path),
   getBlob: (path: string) => requestBlob(path),
+  postBlob: (path: string, body?: unknown) =>
+    requestBlob(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    }),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {
       method: "POST",

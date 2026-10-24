@@ -14,12 +14,13 @@ const CATEGORIES: {
   { slug: "rent", name: "Rent", sortOrder: 3 },
   { slug: "utilities", name: "Utilities", sortOrder: 4 },
   { slug: "delivery", name: "Delivery", sortOrder: 5 },
-  { slug: "ads", name: "Ads", sortOrder: 6, marketing: true },
-  { slug: "influencer", name: "Influencer fee", sortOrder: 7, marketing: true },
-  { slug: "giveaway", name: "Giveaway / collab", sortOrder: 8, marketing: true },
-  { slug: "equipment", name: "Equipment", sortOrder: 9 },
-  { slug: "drawings", name: "Owner drawings", sortOrder: 10 },
-  { slug: "miscellaneous", name: "Miscellaneous", sortOrder: 11, requiresNote: true },
+  { slug: "travel", name: "Travel", sortOrder: 6, requiresNote: true },
+  { slug: "ads", name: "Ads", sortOrder: 7, marketing: true },
+  { slug: "influencer", name: "Influencer fee", sortOrder: 8, marketing: true },
+  { slug: "giveaway", name: "Giveaway / collab", sortOrder: 9, marketing: true },
+  { slug: "equipment", name: "Equipment", sortOrder: 10 },
+  { slug: "drawings", name: "Owner drawings", sortOrder: 11 },
+  { slug: "miscellaneous", name: "Miscellaneous", sortOrder: 12, requiresNote: true },
 ];
 
 export async function seedExpenseCategories() {

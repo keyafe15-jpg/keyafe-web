@@ -63,6 +63,9 @@ export const PERMISSION_CATALOG = [
   { key: "expenses.read", label: "View expenses & buys", category: "books", sortOrder: 2 },
   { key: "expenses.write", label: "Log & edit expenses", category: "books", sortOrder: 3 },
 
+  { key: "recipes.read", label: "View kitchen recipes", category: "kitchen", sortOrder: 0 },
+  { key: "recipes.write", label: "Add & edit kitchen recipes", category: "kitchen", sortOrder: 1 },
+
   { key: "coupons.write", label: "Manage coupons", category: "marketing", sortOrder: 0 },
 
   { key: "delivery.write", label: "Manage delivery zones", category: "operations", sortOrder: 0 },

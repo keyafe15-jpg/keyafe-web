@@ -51,6 +51,40 @@ export function isValidGstin(raw: string): boolean {
   return gstinIssue(raw) === null;
 }
 
+/** Shape + known state — checksum is skipped so a bill photo can still be stored. */
+export function gstinLooksLike(raw: string): boolean {
+  const gstin = normalizeGstin(raw);
+  return gstin.length === 15 && GSTIN_RE.test(gstin) && Boolean(GST_STATE_NAMES[gstin.slice(0, 2)]);
+}
+
+const GSTIN_CHUNK = /[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]/g;
+
+/** GSTINs found in a pasted string or OCR blob. `loose` keeps checksum-typo reads. */
+export function extractAllGstins(
+  raw: string | null | undefined,
+  opts?: { loose?: boolean },
+): string[] {
+  if (!raw) return [];
+  const compact = normalizeGstin(raw);
+  const accept = (gstin: string) =>
+    opts?.loose ? gstinLooksLike(gstin) : gstinIssue(gstin) === null;
+  const found: string[] = [];
+  const add = (gstin: string) => {
+    if (accept(gstin) && !found.includes(gstin)) found.push(gstin);
+  };
+  add(compact);
+  for (const match of compact.match(GSTIN_CHUNK) ?? []) add(match);
+  return found;
+}
+
+/** First valid GSTIN in a pasted string or OCR blob, or null. */
+export function extractGstin(
+  raw: string | null | undefined,
+  opts?: { loose?: boolean },
+): string | null {
+  return extractAllGstins(raw, opts)[0] ?? null;
+}
+
 /**
  * State the buyer is registered in. For a GST-registered buyer this is also
  * the place of supply — see resolvePlaceOfSupply.

@@ -106,6 +106,10 @@ export interface AdminPurchase {
   notes: string | null;
   shipping: number;
   miscCharges: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  gst: number;
   total: number;
   createdByUserId: string;
   paidById: string | null;
@@ -148,10 +152,20 @@ export interface AdminExpense {
   paidById: string | null;
   paidBy: BooksPayer | null;
   paidTo: string | null;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  gst: number;
   purchaseId: string | null;
   orderId: string | null;
   order: { id: string; orderNumber: string } | null;
-  buy: { lineCount: number; items: string[]; shipping: number; miscCharges: number } | null;
+  buy: {
+    lineCount: number;
+    items: string[];
+    shipping: number;
+    miscCharges: number;
+    gst: number;
+  } | null;
   voidedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -159,12 +173,23 @@ export interface AdminExpense {
 
 export interface PurchaseWritePayload {
   date: string;
-  vendor: { id?: string; name?: string; phone?: string | null; channel?: "OFFLINE" | "ONLINE" };
+  vendor: {
+    id?: string;
+    name?: string;
+    phone?: string | null;
+    channel?: "OFFLINE" | "ONLINE";
+    gstin?: string | null;
+    address?: string | null;
+  };
   purpose: PurchasePurpose;
   paymentMethod: BooksPaymentMethod;
   notes?: string | null;
   shipping?: number;
   miscCharges?: number;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
+  gst?: number;
   category?: string;
   paidBy?: string | null;
   lines: {
@@ -186,9 +211,20 @@ export interface ExpenseWritePayload {
   purpose?: ExpensePurpose;
   paymentMethod: BooksPaymentMethod;
   notes?: string | null;
-  vendor?: { id?: string; name?: string; phone?: string | null; channel?: "OFFLINE" | "ONLINE" } | null;
+  vendor?: {
+    id?: string;
+    name?: string;
+    phone?: string | null;
+    channel?: "OFFLINE" | "ONLINE";
+    gstin?: string | null;
+    address?: string | null;
+  } | null;
   paidBy?: string | null;
   paidTo?: string | null;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
+  gst?: number;
 }
 
 export function useAdminBuyItems(filter: { search?: string | null; page?: number; pageSize?: number }) {
@@ -441,6 +477,13 @@ export interface ReceiptDraft {
   paymentMethod: BooksPaymentMethod | null;
   shipping: number;
   miscCharges: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  gst: number;
+  vendorGstin: string | null;
+  vendorPhone: string | null;
+  vendorAddress: string | null;
   amount: number | null;
   notes: string | null;
   lines: ReceiptDraftLine[];
@@ -449,13 +492,19 @@ export interface ReceiptDraft {
 export function useParseReceipt() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { kind: ReceiptParseKind; image: File; context?: string }) => {
+    mutationFn: async (input: {
+      kind: ReceiptParseKind;
+      image: File;
+      context?: string;
+      vendorId?: string;
+    }) => {
       const { compressSuggestImage } = await import("@/ai/compressSuggestImage");
       const image = await compressSuggestImage(input.image);
       const form = new FormData();
       form.append("kind", input.kind);
       form.append("image", image);
       if (input.context?.trim()) form.append("context", input.context.trim().slice(0, 400));
+      if (input.vendorId) form.append("vendorId", input.vendorId);
       return api.postForm<ReceiptDraft>("/admin/expenses/parse-receipt", form);
     },
     onSuccess: () => {

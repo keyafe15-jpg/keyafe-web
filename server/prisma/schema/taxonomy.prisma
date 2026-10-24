@@ -38,6 +38,7 @@ model Category {
   productLinks  ProductCategory[]
   defaultAddons Addon[]           @relation("CategoryDefaultAddons")
   highlights    Highlight[]
+  recipes       Recipe[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 

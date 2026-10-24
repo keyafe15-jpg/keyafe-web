@@ -109,7 +109,8 @@ model BuyItem {
   categoryId     String?
   category       ExpenseCategory? @relation(fields: [categoryId], references: [id])
 
-  lines PurchaseLine[]
+  lines       PurchaseLine[]
+  recipeLines RecipeIngredient[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -131,7 +132,11 @@ model Purchase {
   shipping        Decimal             @default(0) @db.Decimal(10, 2)
   /// Handling, packing fee, platform fee, and other extras — not a line item.
   miscCharges     Decimal             @default(0) @db.Decimal(10, 2)
-  /// Lines + shipping + miscCharges.
+  /// Tax invoice split. Intra-state = CGST + SGST; other state = IGST.
+  cgst            Decimal             @default(0) @db.Decimal(10, 2)
+  sgst            Decimal             @default(0) @db.Decimal(10, 2)
+  igst            Decimal             @default(0) @db.Decimal(10, 2)
+  /// Lines (GST-inclusive rates) + shipping + miscCharges. GST fields are the tax split only.
   total           Decimal             @db.Decimal(10, 2)
   createdByUserId String
   createdBy       User                @relation("PurchaseCreatedBy", fields: [createdByUserId], references: [id])
@@ -183,6 +188,9 @@ model Expense {
   paidTo          String?
   paymentMethod   BooksPaymentMethod
   notes           String?
+  cgst            Decimal            @default(0) @db.Decimal(10, 2)
+  sgst            Decimal            @default(0) @db.Decimal(10, 2)
+  igst            Decimal            @default(0) @db.Decimal(10, 2)
   createdByUserId String
   createdBy       User               @relation("ExpenseCreatedBy", fields: [createdByUserId], references: [id])
   paidById        String?

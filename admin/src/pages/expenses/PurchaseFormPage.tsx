@@ -23,14 +23,19 @@ import {
   isShippingChargeName,
   lineQtyLabel,
   packUnitLabel,
+  inclusiveUnitPrice,
   payLabel,
   PURCHASE_PURPOSES,
+  ratesWereExclusive,
+  rupees,
   unitLabel,
+  vendorScanBits,
   type BooksPaymentMethod,
   type BuyItemUnit,
   type PurchasePurpose,
 } from "@/pages/expenses/books-ui";
 import { SearchCreate } from "@/pages/expenses/SearchCreate";
+import { GstFields, gstAmt } from "@/pages/expenses/GstFields";
 import { PurposeMark } from "@/pages/expenses/PurposeMark";
 import { PaidByField } from "@/pages/expenses/PaidByField";
 import { ScanBillBlock } from "@/pages/expenses/ScanBillBlock";
@@ -109,28 +114,42 @@ export function PurchaseFormPage() {
                         .reduce((sum, l) => sum + l.amount, 0);
                       return fromLines > 0 ? String(fromLines) : "";
                     })(),
+              cgst: existing.data.cgst > 0 ? String(existing.data.cgst) : "",
+              sgst: existing.data.sgst > 0 ? String(existing.data.sgst) : "",
+              igst: existing.data.igst > 0 ? String(existing.data.igst) : "",
               paidById: existing.data.paidById,
               voidedAt: existing.data.voidedAt,
               lines: (() => {
-                const goods = existing.data.lines
-                  .filter(
-                    (l) =>
-                      !isShippingChargeName(l.buyItem.name) && !isMiscChargeName(l.buyItem.name),
-                  )
-                  .map((l) => ({
-                    key: l.id,
-                    buyItemId: l.buyItemId,
-                    name: l.buyItem.name,
-                    unit: l.buyItem.unit,
-                    packSize: l.buyItem.packSize ? String(l.buyItem.packSize) : "",
-                    category:
-                      l.category?.slug ??
-                      l.buyItem.category?.slug ??
-                      "raw-materials",
-                    qty: String(l.qty),
-                    unitPrice: String(l.unitPrice),
-                  }));
-                return goods.length ? goods : [emptyLine()];
+                const raw = existing.data.lines.filter(
+                  (l) =>
+                    !isShippingChargeName(l.buyItem.name) && !isMiscChargeName(l.buyItem.name),
+                );
+                const goods = raw.reduce((sum, l) => sum + l.amount, 0);
+                const extras = (existing.data.shipping ?? 0) + (existing.data.miscCharges ?? 0);
+                const foldGst = ratesWereExclusive(
+                  existing.data.total,
+                  goods,
+                  extras,
+                  existing.data.gst,
+                );
+                const next = raw.map((l) => ({
+                  key: l.id,
+                  buyItemId: l.buyItemId,
+                  name: l.buyItem.name,
+                  unit: l.buyItem.unit,
+                  packSize: l.buyItem.packSize ? String(l.buyItem.packSize) : "",
+                  category:
+                    l.category?.slug ??
+                    l.buyItem.category?.slug ??
+                    "raw-materials",
+                  qty: String(l.qty),
+                  unitPrice: String(
+                    foldGst
+                      ? inclusiveUnitPrice(l.unitPrice, goods, existing.data.gst)
+                      : l.unitPrice,
+                  ),
+                }));
+                return next.length ? next : [emptyLine()];
               })(),
             }
           : {
@@ -143,6 +162,9 @@ export function PurchaseFormPage() {
               notes: "",
               shipping: "",
               miscCharges: "",
+              cgst: "",
+              sgst: "",
+              igst: "",
               paidById: null,
               voidedAt: null,
               lines: [emptyLine()],
@@ -173,6 +195,9 @@ function PurchaseForm({
     notes: string;
     shipping: string;
     miscCharges: string;
+    cgst: string;
+    sgst: string;
+    igst: string;
     paidById: string | null;
     voidedAt: string | null;
     lines: DraftLine[];
@@ -192,11 +217,17 @@ function PurchaseForm({
   const [vendorQuery, setVendorQuery] = useState("");
   const [vendorName, setVendorName] = useState(initial.vendorName);
   const [vendorChannel, setVendorChannel] = useState<VendorChannel>(initial.vendorChannel);
+  const [vendorGstin, setVendorGstin] = useState<string | null>(null);
+  const [vendorPhone, setVendorPhone] = useState<string | null>(null);
+  const [vendorAddress, setVendorAddress] = useState<string | null>(null);
   const [purpose, setPurpose] = useState<PurchasePurpose>(initial.purpose);
   const [paymentMethod, setPaymentMethod] = useState<BooksPaymentMethod>(initial.paymentMethod);
   const [notes, setNotes] = useState(initial.notes);
   const [shipping, setShipping] = useState(initial.shipping);
   const [miscCharges, setMiscCharges] = useState(initial.miscCharges);
+  const [cgst, setCgst] = useState(initial.cgst);
+  const [sgst, setSgst] = useState(initial.sgst);
+  const [igst, setIgst] = useState(initial.igst);
   const [paidById, setPaidById] = useState<string | null>(initial.paidById);
   const [lines, setLines] = useState<DraftLine[]>(initial.lines);
   const categories = useExpenseCategories();
@@ -208,15 +239,26 @@ function PurchaseForm({
 
   const applyDraft = (draft: ReceiptDraft) => {
     if (draft.date) setDate(draft.date);
-    if (draft.vendorId) {
-      setVendorId(draft.vendorId);
+    if (draft.vendorId || draft.vendorName) {
+      setVendorId(draft.vendorId ?? undefined);
       setVendorName(draft.vendorName ?? "");
       setVendorQuery(draft.vendorName ?? "");
       setVendorChannel(draft.vendorChannel);
     }
+    if (draft.vendorGstin) setVendorGstin(draft.vendorGstin);
+    if (draft.vendorPhone) setVendorPhone(draft.vendorPhone);
+    if (draft.vendorAddress) setVendorAddress(draft.vendorAddress);
     if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
     if (draft.shipping > 0) setShipping(String(draft.shipping));
     if (draft.miscCharges > 0) setMiscCharges(String(draft.miscCharges));
+    if (draft.cgst > 0) setCgst(String(draft.cgst));
+    if (draft.sgst > 0) setSgst(String(draft.sgst));
+    if (draft.igst > 0) setIgst(String(draft.igst));
+    if (!(draft.cgst > 0) && !(draft.sgst > 0) && !(draft.igst > 0) && draft.gst > 0) {
+      const half = Math.round((draft.gst / 2) * 100) / 100;
+      setCgst(String(half));
+      setSgst(String(Math.round((draft.gst - half) * 100) / 100));
+    }
     if (draft.notes) setNotes(draft.notes);
     if (draft.lines.length > 0) {
       const next = draft.lines.map((l) => ({
@@ -233,9 +275,14 @@ function PurchaseForm({
       setItemQueries(Object.fromEntries(next.map((l) => [l.key, l.name])));
     }
     setScanNote(
-      draft.uncertain
-        ? "Some lines were unclear — check qty and rates, then save."
-        : "Check the totals, then save.",
+      [
+        draft.uncertain
+          ? "Some lines were unclear — check qty and rates, then save."
+          : "Check the totals, then save.",
+        vendorScanBits(draft),
+      ]
+        .filter(Boolean)
+        .join(" "),
     );
   };
 
@@ -255,13 +302,14 @@ function PurchaseForm({
         const qty = Number(line.qty);
         const rate = Number(line.unitPrice);
         if (!(qty > 0) || !(rate >= 0)) return sum;
-        return Math.round((sum + qty * rate + Number.EPSILON) * 100) / 100;
+        return rupees(sum + qty * rate);
       }, 0),
     [lines],
   );
   const shippingAmt = Number(shipping) > 0 ? Number(shipping) : 0;
   const miscAmt = Number(miscCharges) > 0 ? Number(miscCharges) : 0;
-  const total = Math.round((goods + shippingAmt + miscAmt + Number.EPSILON) * 100) / 100;
+  const gstTotal = gstAmt(cgst) + gstAmt(sgst) + gstAmt(igst);
+  const total = rupees(goods + shippingAmt + miscAmt);
 
   const setLine = (key: string, patch: Partial<DraftLine>) => {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -294,14 +342,29 @@ function PurchaseForm({
     return {
       date,
       vendor: vendorId
-        ? { id: vendorId, channel: vendorChannel }
-        : { name: vendorName.trim() || vendorQuery.trim(), channel: vendorChannel },
+        ? {
+            id: vendorId,
+            channel: vendorChannel,
+            gstin: vendorGstin,
+            phone: vendorPhone,
+            address: vendorAddress,
+          }
+        : {
+            name: vendorName.trim() || vendorQuery.trim(),
+            channel: vendorChannel,
+            gstin: vendorGstin,
+            phone: vendorPhone,
+            address: vendorAddress,
+          },
       purpose,
       paymentMethod,
       paidBy: paidById,
       notes: notes.trim() || null,
       shipping: shippingAmt,
       miscCharges: miscAmt,
+      cgst: gstAmt(cgst),
+      sgst: gstAmt(sgst),
+      igst: gstAmt(igst),
       lines: payloadLines,
     };
   };
@@ -344,7 +407,7 @@ function PurchaseForm({
         }}
       >
         {!purchaseId && canWrite && !voided && (
-          <ScanBillBlock kind="BUY" onDraft={applyDraft} />
+          <ScanBillBlock kind="BUY" vendorId={vendorId} onDraft={applyDraft} />
         )}
         <div className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-2 min-[720px]:grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_auto_minmax(0,7.5rem)_minmax(0,1fr)]">
           <Field label="Date" required className="min-w-0">
@@ -390,6 +453,17 @@ function PurchaseForm({
                     setVendorQuery(name);
                   }}
                 />
+                {(vendorGstin || vendorPhone || vendorAddress) && (
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {[
+                      vendorGstin ? `GSTIN ${vendorGstin}` : null,
+                      vendorPhone,
+                      vendorAddress,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                )}
               </div>
               <VendorChannelField
                 compact
@@ -520,7 +594,10 @@ function PurchaseForm({
                       />
                     </Field>
                   )}
-                  <Field label={`Rate / ${packUnitLabel(line.unit, Number(line.packSize) || null)}`}>
+                  <Field
+                    label={`Rate / ${packUnitLabel(line.unit, Number(line.packSize) || null)}`}
+                    hint="Incl. GST"
+                  >
                     <input
                       inputMode="decimal"
                       value={line.unitPrice}
@@ -618,6 +695,17 @@ function PurchaseForm({
           </Field>
         </div>
 
+        <GstFields
+          cgst={cgst}
+          sgst={sgst}
+          igst={igst}
+          onCgst={setCgst}
+          onSgst={setSgst}
+          onIgst={setIgst}
+          disabled={!canWrite || voided}
+          inRates
+        />
+
         <Field label="Notes">
           <textarea
             value={notes}
@@ -629,12 +717,13 @@ function PurchaseForm({
         </Field>
 
         <div className="text-right">
-          {(shippingAmt > 0 || miscAmt > 0) && (
+          {(shippingAmt > 0 || miscAmt > 0 || gstTotal > 0) && (
             <p className="text-xs text-slate-500">
               {[
                 `Items ${inr(goods)}`,
                 shippingAmt > 0 ? `Delivery ${inr(shippingAmt)}` : null,
                 miscAmt > 0 ? `Misc ${inr(miscAmt)}` : null,
+                gstTotal > 0 ? `GST ${inr(gstTotal)} in items` : null,
               ]
                 .filter(Boolean)
                 .join(" · ")}

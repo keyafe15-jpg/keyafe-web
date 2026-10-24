@@ -12,6 +12,7 @@ import {
   BOOKS_PAY_METHODS,
   EXPENSE_PURPOSES,
   expenseInclude,
+  gstParts,
   money,
   optionalDateKey,
   pageJson,
@@ -88,8 +89,10 @@ adminExpenseRouter.post("/parse-receipt", receiptUpload.single("image"), async (
   if (!kind) throw HttpError.badRequest("kind must be BUY or EXPENSE");
   const context =
     typeof req.body?.context === "string" ? req.body.context.trim().slice(0, 400) : null;
+  const vendorId =
+    typeof req.body?.vendorId === "string" ? req.body.vendorId.trim() || null : null;
   const image = imageFromUpload(req.file);
-  res.json(await parseReceipt({ kind, image, context }));
+  res.json(await parseReceipt({ kind, image, context, vendorId }));
 });
 
 const expenseBodySchema = z.object({
@@ -113,6 +116,10 @@ const expenseBodySchema = z.object({
     .optional()
     .nullable()
     .transform((v) => v || null),
+  cgst: z.coerce.number().nonnegative().optional(),
+  sgst: z.coerce.number().nonnegative().optional(),
+  igst: z.coerce.number().nonnegative().optional(),
+  gst: z.coerce.number().nonnegative().optional(),
   vendor: z
     .object({
       id: z.string().min(1).optional(),
@@ -125,6 +132,8 @@ const expenseBodySchema = z.object({
         .nullable()
         .transform((v) => v || null),
       channel: z.enum(VENDOR_CHANNELS).optional(),
+      gstin: z.string().trim().max(20).optional().nullable(),
+      address: z.string().trim().max(400).optional().nullable(),
     })
     .optional()
     .nullable(),
@@ -322,7 +331,7 @@ adminExpenseRouter.post("/", async (req, res) => {
   const category = await resolveCategory(parsed.data.category);
   const notes = parsed.data.notes;
   if (category.requiresNote && !notes) {
-    throw HttpError.badRequest("Add a note for miscellaneous");
+    throw HttpError.badRequest("Add a title for this category");
   }
   const salary = isSalaryCategory(category);
   const vendorId = salary
@@ -332,10 +341,14 @@ adminExpenseRouter.post("/", async (req, res) => {
       : null;
   const paidTo = paidToForCategory(category, parsed.data.paidTo);
   const paidById = await resolvePayer(parsed.data.paidBy);
+  const tax = gstParts(parsed.data);
   const created = await prisma.expense.create({
     data: {
       date: parseDateKey(parsed.data.date),
       amount: parsed.data.amount,
+      cgst: tax.cgst,
+      sgst: tax.sgst,
+      igst: tax.igst,
       categoryId: category.id,
       purpose: purposeForCategory(category, parsed.data.purpose),
       vendorId,
@@ -375,7 +388,7 @@ adminExpenseRouter.patch("/:id", async (req, res) => {
     : existing.category;
   const notes = parsed.data.notes === undefined ? existing.notes : parsed.data.notes;
   if (category.requiresNote && !notes) {
-    throw HttpError.badRequest("Add a note for miscellaneous");
+    throw HttpError.badRequest("Add a title for this category");
   }
   const salary = isSalaryCategory(category);
   let vendorId: string | null | undefined;
@@ -388,11 +401,19 @@ adminExpenseRouter.patch("/:id", async (req, res) => {
     existing.paidTo,
   );
 
+  const tax =
+    parsed.data.cgst !== undefined ||
+    parsed.data.sgst !== undefined ||
+    parsed.data.igst !== undefined ||
+    parsed.data.gst !== undefined
+      ? gstParts(parsed.data)
+      : null;
   const updated = await prisma.expense.update({
     where: { id },
     data: {
       date: parsed.data.date ? parseDateKey(parsed.data.date) : undefined,
       amount: parsed.data.amount,
+      ...(tax ? { cgst: tax.cgst, sgst: tax.sgst, igst: tax.igst } : {}),
       categoryId: category.id,
       purpose: purposeForCategory(
         category,

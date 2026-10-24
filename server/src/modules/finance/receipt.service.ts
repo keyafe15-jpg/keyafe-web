@@ -6,6 +6,8 @@ import { buildReceiptPrompt, type ReceiptParseKind } from "../ai/prompts/receipt
 import {
   BOOKS_PAY_METHODS,
   BUY_ITEM_UNITS,
+  gstParts,
+  isGstChargeName,
   isMiscChargeName,
   isSalaryCategory,
   isShippingChargeName,
@@ -14,7 +16,14 @@ import {
   qtyNum,
   VENDOR_CHANNELS,
 } from "./books.shared.js";
-import { resolveVendor } from "./purchase.service.js";
+import { extractAllGstins, normalizeGstin } from "../../lib/gstin.js";
+import { phoneLookupVariants } from "../../lib/phone.js";
+import {
+  cleanVendorAddress,
+  cleanVendorPhone,
+  resolveVendor,
+  vendorNamesClose,
+} from "./purchase.service.js";
 
 export type ReceiptDraftLine = {
   buyItemId?: string;
@@ -38,6 +47,13 @@ export type ReceiptDraft = {
   paymentMethod: (typeof BOOKS_PAY_METHODS)[number] | null;
   shipping: number;
   miscCharges: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  gst: number;
+  vendorGstin: string | null;
+  vendorPhone: string | null;
+  vendorAddress: string | null;
   amount: number | null;
   notes: string | null;
   lines: ReceiptDraftLine[];
@@ -55,9 +71,12 @@ function asObject(text: string): Record<string, unknown> {
 }
 
 function str(v: unknown): string | null {
-  if (typeof v !== "string") return null;
-  const t = v.trim();
-  return t || null;
+  if (typeof v === "string") {
+    const t = v.trim();
+    return t || null;
+  }
+  if (typeof v === "number" && Number.isFinite(v)) return String(Math.trunc(v));
+  return null;
 }
 
 function num(v: unknown): number | null {
@@ -96,7 +115,7 @@ async function loadCatalog() {
       where: { isActive: true },
       orderBy: { name: "asc" },
       take: 80,
-      select: { id: true, name: true, channel: true },
+      select: { id: true, name: true, channel: true, gstin: true },
     }),
     prisma.buyItem.findMany({
       where: { isActive: true },
@@ -151,10 +170,24 @@ function matchItem(
   );
 }
 
+function pickSellerGstin(
+  ownGstin: string | null,
+  ...blobs: (string | null | undefined)[]
+): string | null {
+  const found: string[] = [];
+  for (const blob of blobs) {
+    for (const gstin of extractAllGstins(blob, { loose: true })) {
+      if (gstin !== ownGstin && !found.includes(gstin)) found.push(gstin);
+    }
+  }
+  return found[0] ?? null;
+}
+
 export async function parseReceipt(input: {
   kind: ReceiptParseKind;
   image: SuggestImage;
   context?: string | null;
+  vendorId?: string | null;
 }): Promise<ReceiptDraft> {
   const catalog = await loadCatalog();
   const prompt = buildReceiptPrompt(
@@ -186,15 +219,89 @@ export async function parseReceipt(input: {
   const vendorName = str(obj.vendor);
   const vendorChannel = guessChannel(vendorName ?? "", str(obj.vendorChannel));
   const category = matchCategory(str(obj.category), catalog.categories);
+  const shop = await prisma.businessSettings.findFirst({
+    select: { gstin: true, supportPhone: true, altPhone: true },
+  });
+  const ownGstin = shop?.gstin ? normalizeGstin(shop.gstin) : null;
+  const ownPhones = [shop?.supportPhone, shop?.altPhone]
+    .map((p) => cleanVendorPhone(p))
+    .filter((p): p is string => Boolean(p));
+  const vendorGstin = pickSellerGstin(
+    ownGstin,
+    str(obj.vendorGstin),
+    str(obj.gstin),
+    str(obj.sellerGstin),
+    str(obj.vendor),
+    str(obj.notes),
+    text,
+  );
+  if (str(obj.vendorGstin) && !vendorGstin) {
+    logger.info({ raw: str(obj.vendorGstin) }, "Receipt GSTIN did not look valid");
+  }
+  const vendorPhoneRaw =
+    cleanVendorPhone(str(obj.vendorPhone)) ??
+    cleanVendorPhone(str(obj.phone)) ??
+    cleanVendorPhone(str(obj.sellerPhone)) ??
+    cleanVendorPhone(str(obj.vendor));
+  const vendorPhone = vendorPhoneRaw && !ownPhones.includes(vendorPhoneRaw) ? vendorPhoneRaw : null;
+  const vendorAddress =
+    cleanVendorAddress(str(obj.vendorAddress)) ??
+    cleanVendorAddress(str(obj.address)) ??
+    cleanVendorAddress(str(obj.sellerAddress));
   let vendorId: string | null = null;
-  if (vendorName && !isSalaryCategory(category ?? "")) {
-    vendorId = await resolveVendor({ name: vendorName, channel: vendorChannel });
+  const hinted = input.vendorId
+    ? await prisma.vendor.findUnique({
+        where: { id: input.vendorId },
+        select: { id: true, name: true },
+      })
+    : null;
+  const vendorNameResolved =
+    vendorName ??
+    catalog.vendors.find((v) => v.gstin && v.gstin === vendorGstin)?.name ??
+    hinted?.name ??
+    null;
+  const salary = isSalaryCategory(category ?? "");
+  const vendorPatch = {
+    channel: vendorChannel,
+    gstin: vendorGstin,
+    phone: vendorPhone,
+    address: vendorAddress,
+  };
+  if (!salary && hinted && (!vendorName || vendorNamesClose(hinted.name, vendorName))) {
+    vendorId = await resolveVendor({
+      id: hinted.id,
+      ...vendorPatch,
+    });
+  } else if (!salary && vendorNameResolved) {
+    vendorId = await resolveVendor({
+      name: vendorNameResolved,
+      ...vendorPatch,
+    });
+  } else if (!salary && (vendorGstin || vendorPhone)) {
+    const existing = vendorGstin
+      ? await prisma.vendor.findFirst({ where: { gstin: vendorGstin }, select: { id: true } })
+      : null;
+    const byPhone =
+      existing ??
+      (vendorPhone
+        ? await prisma.vendor.findFirst({
+            where: { phone: { in: phoneLookupVariants(vendorPhone) } },
+            select: { id: true },
+          })
+        : null);
+    if (byPhone) {
+      vendorId = await resolveVendor({
+        id: byPhone.id,
+        ...vendorPatch,
+      });
+    }
   }
 
   const rawLines = Array.isArray(obj.lines) ? obj.lines : [];
   const lines: ReceiptDraftLine[] = [];
   let shippingFromLines = 0;
   let miscFromLines = 0;
+  let gstFromLines = 0;
   for (const row of rawLines) {
     if (!row || typeof row !== "object") continue;
     const line = row as Record<string, unknown>;
@@ -206,6 +313,10 @@ export async function parseReceipt(input: {
       qty != null && qty > 0 && unitPrice != null && unitPrice >= 0 ? money(qty * unitPrice) : num(line.amount);
     if (isShippingChargeName(name)) {
       if (lineAmt != null && lineAmt > 0) shippingFromLines = money(shippingFromLines + lineAmt);
+      continue;
+    }
+    if (isGstChargeName(name)) {
+      if (lineAmt != null && lineAmt > 0) gstFromLines = money(gstFromLines + lineAmt);
       continue;
     }
     if (isMiscChargeName(name)) {
@@ -232,6 +343,12 @@ export async function parseReceipt(input: {
   const miscField = Math.max(0, money(num(obj.miscCharges) ?? 0));
   const shipping = shippingField > 0 ? shippingField : shippingFromLines;
   const miscCharges = miscField > 0 ? miscField : miscFromLines;
+  const tax = gstParts({
+    cgst: num(obj.cgst),
+    sgst: num(obj.sgst),
+    igst: num(obj.igst),
+    gst: num(obj.gst) ?? (gstFromLines > 0 ? gstFromLines : null),
+  });
   const amount = num(obj.amount);
   const looksLikeBuy =
     obj.looksLikeBuy === true || (input.kind === "BUY" && lines.length > 0) || lines.length >= 2;
@@ -252,6 +369,13 @@ export async function parseReceipt(input: {
       : null,
     shipping,
     miscCharges,
+    cgst: tax.cgst,
+    sgst: tax.sgst,
+    igst: tax.igst,
+    gst: tax.gst,
+    vendorGstin,
+    vendorPhone,
+    vendorAddress,
     amount: amount != null && amount > 0 ? money(amount) : null,
     notes: str(obj.notes),
     lines,

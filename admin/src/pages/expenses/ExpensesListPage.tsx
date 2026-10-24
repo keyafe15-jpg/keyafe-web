@@ -51,7 +51,8 @@ function itemsPreview(row: AdminExpense) {
     const count = row.buy.lineCount === 1 ? "1 item" : `${row.buy.lineCount} items`;
     const ship = row.buy.shipping > 0 ? ` · ship ${inr(row.buy.shipping)}` : "";
     const misc = row.buy.miscCharges > 0 ? ` · misc ${inr(row.buy.miscCharges)}` : "";
-    return `${count}${shown ? ` · ${shown}${more}` : ""}${ship}${misc}`;
+    const gst = row.buy.gst > 0 ? ` · GST ${inr(row.buy.gst)}` : "";
+    return `${count}${shown ? ` · ${shown}${more}` : ""}${ship}${misc}${gst}`;
   }
   if (row.order) return "Order delivery";
   return row.notes || "—";

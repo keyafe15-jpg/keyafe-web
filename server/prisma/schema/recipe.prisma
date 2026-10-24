@@ -1,0 +1,93 @@
+enum RecipeUnit {
+  G
+  KG
+  ML
+  L
+  PCS
+  TSP
+  TBSP
+  CUP
+}
+
+/// Kitchen formula. Shop Category is the folder (Cakes, Cookies…).
+model Recipe {
+  id               String         @id @default(cuid())
+  name             String
+  categoryId       String
+  category         Category       @relation(fields: [categoryId], references: [id])
+  currentVersionId String?        @unique
+  currentVersion   RecipeVersion? @relation("RecipeCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  archivedAt       DateTime?
+
+  versions           RecipeVersion[]     @relation("RecipeVersions")
+  usedInIngredients  RecipeIngredient[]  @relation("IngredientComponent")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId, name])
+  @@index([archivedAt])
+}
+
+model RecipeVersion {
+  id         String     @id @default(cuid())
+  recipeId   String
+  recipe     Recipe     @relation("RecipeVersions", fields: [recipeId], references: [id], onDelete: Cascade)
+  label      String
+  yieldQty   Decimal?   @db.Decimal(10, 3)
+  yieldUnit  RecipeUnit?
+  yieldNote  String?
+  printedAt  DateTime?
+
+  ingredients RecipeIngredient[]
+  steps       RecipeStep[]
+  usageRows   RecipeUsageRow[]
+  currentFor  Recipe?            @relation("RecipeCurrentVersion")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([recipeId, createdAt])
+}
+
+model RecipeIngredient {
+  id                 String     @id @default(cuid())
+  versionId          String
+  version            RecipeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  name               String
+  qty                Decimal    @db.Decimal(10, 3)
+  unit               RecipeUnit
+  note               String?
+  sortOrder          Int        @default(0)
+  buyItemId          String?
+  buyItem            BuyItem?   @relation(fields: [buyItemId], references: [id], onDelete: SetNull)
+  componentRecipeId  String?
+  componentRecipe    Recipe?    @relation("IngredientComponent", fields: [componentRecipeId], references: [id], onDelete: Restrict)
+
+  @@index([versionId, sortOrder])
+  @@index([componentRecipeId])
+}
+
+model RecipeStep {
+  id        String        @id @default(cuid())
+  versionId String
+  version   RecipeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  sortOrder Int           @default(0)
+  text      String
+
+  @@index([versionId, sortOrder])
+}
+
+/// Portion lookup: how much of this recipe for a size / style.
+model RecipeUsageRow {
+  id        String        @id @default(cuid())
+  versionId String
+  version   RecipeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  axis1     String
+  axis2     String?
+  qty       Decimal       @db.Decimal(10, 3)
+  unit      RecipeUnit
+  sortOrder Int           @default(0)
+
+  @@index([versionId, sortOrder])
+}

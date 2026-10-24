@@ -58,6 +58,7 @@ import { adminVendorRouter } from "./modules/finance/vendor.routes.js";
 import { adminBuyItemRouter } from "./modules/finance/buy-item.routes.js";
 import { adminPurchaseRouter } from "./modules/finance/purchase.routes.js";
 import { adminExpenseRouter } from "./modules/finance/expense.routes.js";
+import { adminRecipeRouter } from "./modules/recipes/recipe.routes.js";
 import { adminSuggestRouter } from "./modules/ai/ai.routes.js";
 import {
   adminPaymentRouter,
@@ -262,6 +263,12 @@ export function createApp() {
     requireStaff,
     requirePermission("expenses.write", "expenses.read"),
     adminExpenseRouter,
+  );
+  app.use(
+    "/api/admin/recipes",
+    requireStaff,
+    requirePermission("recipes.write", "recipes.read"),
+    adminRecipeRouter,
   );
   app.use("/api/admin/suggest-copy", requireStaff, adminSuggestRouter);
 

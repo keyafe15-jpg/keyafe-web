@@ -20,6 +20,7 @@ export interface AdminVendor {
 
 export type VendorActiveFilter = "ALL" | "ACTIVE" | "ARCHIVED";
 export type VendorChannelFilter = "ALL" | "OFFLINE" | "ONLINE";
+export type VendorSort = "name" | "updatedAt";
 
 export interface AdminVendorsPage {
   items: AdminVendor[];
@@ -46,23 +47,26 @@ export function useAdminVendors(filter: {
   search?: string | null;
   active?: VendorActiveFilter;
   channel?: VendorChannelFilter;
+  sort?: VendorSort;
   page?: number;
   pageSize?: number;
 }) {
   const q = filter.search?.trim() || "";
   const active = filter.active ?? "ACTIVE";
   const channel = filter.channel ?? "ALL";
+  const sort = filter.sort ?? "name";
   const page = filter.page ?? 1;
   const pageSize = filter.pageSize ?? 20;
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   params.set("active", active);
   if (channel !== "ALL") params.set("channel", channel);
+  if (sort !== "name") params.set("sort", sort);
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
   const qs = params.toString();
   return useQuery<AdminVendorsPage>({
-    queryKey: ["admin", "vendors", { q, active, channel, page, pageSize }],
+    queryKey: ["admin", "vendors", { q, active, channel, sort, page, pageSize }],
     queryFn: () => api.get<AdminVendorsPage>(`/admin/vendors?${qs}`),
     staleTime: 15_000,
   });

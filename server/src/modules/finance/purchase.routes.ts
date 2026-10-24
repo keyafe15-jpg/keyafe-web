@@ -51,6 +51,8 @@ const vendorRefSchema = z.object({
     .nullable()
     .transform((v) => v || null),
   channel: z.enum(VENDOR_CHANNELS).optional(),
+  gstin: z.string().trim().max(20).optional().nullable(),
+  address: z.string().trim().max(400).optional().nullable(),
 });
 
 const createSchema = z.object({
@@ -67,6 +69,10 @@ const createSchema = z.object({
     .transform((v) => v || null),
   shipping: z.coerce.number().nonnegative().optional(),
   miscCharges: z.coerce.number().nonnegative().optional(),
+  cgst: z.coerce.number().nonnegative().optional(),
+  sgst: z.coerce.number().nonnegative().optional(),
+  igst: z.coerce.number().nonnegative().optional(),
+  gst: z.coerce.number().nonnegative().optional(),
   category: z.string().trim().min(1).optional(),
   paidBy: z.string().trim().min(1).optional().nullable(),
   lines: z.array(lineSchema).min(1),
@@ -120,6 +126,10 @@ adminPurchaseRouter.post("/", async (req, res) => {
     notes: parsed.data.notes,
     shipping: parsed.data.shipping,
     miscCharges: parsed.data.miscCharges,
+    cgst: parsed.data.cgst,
+    sgst: parsed.data.sgst,
+    igst: parsed.data.igst,
+    gst: parsed.data.gst,
     categoryId: category?.id,
     createdByUserId: staff.id,
     paidById,
@@ -146,6 +156,10 @@ adminPurchaseRouter.patch("/:id", async (req, res) => {
       notes: data.notes,
       shipping: data.shipping,
       miscCharges: data.miscCharges,
+      cgst: data.cgst,
+      sgst: data.sgst,
+      igst: data.igst,
+      gst: data.gst,
       categoryId: category?.id,
       paidById,
       lines: data.lines,

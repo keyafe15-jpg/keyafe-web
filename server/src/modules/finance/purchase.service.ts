@@ -1,11 +1,14 @@
 import type { BooksPaymentMethod, ExpensePurpose, Prisma, PurchasePurpose } from "@prisma/client";
 import { prisma } from "../../config/db.js";
+import { gstinLooksLike, normalizeGstin } from "../../lib/gstin.js";
+import { normalizeCustomerPhone, phoneLookupVariants } from "../../lib/phone.js";
 import { HttpError } from "../../utils/httpError.js";
 import { roundMoney } from "../coupons/coupon.service.js";
 import {
   buyItemSelect,
   dateKey,
   expenseInclude,
+  gstParts,
   money,
   isMiscChargeName,
   isSalaryCategory,
@@ -59,6 +62,9 @@ export function serializePurchase(row: {
   notes: string | null;
   shipping: { toString(): string } | number;
   miscCharges?: { toString(): string } | number;
+  cgst?: { toString(): string } | number;
+  sgst?: { toString(): string } | number;
+  igst?: { toString(): string } | number;
   total: { toString(): string } | number;
   createdByUserId: string;
   paidById?: string | null;
@@ -97,6 +103,10 @@ export function serializePurchase(row: {
     notes: row.notes,
     shipping: money(row.shipping),
     miscCharges: money(row.miscCharges ?? 0),
+    cgst: money(row.cgst ?? 0),
+    sgst: money(row.sgst ?? 0),
+    igst: money(row.igst ?? 0),
+    gst: money(money(row.cgst ?? 0) + money(row.sgst ?? 0) + money(row.igst ?? 0)),
     total: money(row.total),
     createdByUserId: row.createdByUserId,
     paidById: row.paidById ?? row.paidBy?.id ?? null,
@@ -135,12 +145,118 @@ export function serializePurchase(row: {
   };
 }
 
+function cleanVendorGstin(raw?: string | null): string | null {
+  if (!raw?.trim()) return null;
+  const gstin = normalizeGstin(raw);
+  return gstinLooksLike(gstin) ? gstin : null;
+}
+
+function foldVendorName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(
+      /\b(pvt|private|ltd|limited|llp|opc|enterprise|enterprises|trader|traders|trading|and|the|co|company|dist|distributor|distributors)\b/g,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function vendorNameScore(a: string, b: string): number {
+  const fa = foldVendorName(a);
+  const fb = foldVendorName(b);
+  if (!fa || !fb) return 0;
+  if (fa === fb) return 100;
+  if (fa.includes(fb) || fb.includes(fa)) {
+    const short = Math.min(fa.length, fb.length);
+    const long = Math.max(fa.length, fb.length);
+    if (short < 4) return 0;
+    return 60 + (40 * short) / long;
+  }
+  return 0;
+}
+
+export function vendorNamesClose(a: string, b: string): boolean {
+  return vendorNameScore(a, b) >= 70;
+}
+
+async function findVendorByName(name: string) {
+  const exact = await prisma.vendor.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (exact) return exact;
+  const candidates = await prisma.vendor.findMany({
+    select: { id: true, name: true, isActive: true },
+    take: 400,
+  });
+  const ranked = candidates
+    .map((row) => ({ row, score: vendorNameScore(name, row.name) }))
+    .filter((hit) => hit.score >= 70)
+    .sort((a, b) => b.score - a.score || Number(b.row.isActive) - Number(a.row.isActive));
+  if (ranked.length === 0) return null;
+  if (ranked.length > 1 && ranked[0]!.score - ranked[1]!.score < 10 && ranked[0]!.score < 100) {
+    return null;
+  }
+  return { id: ranked[0]!.row.id };
+}
+
+export function cleanVendorPhone(raw?: string | null): string | null {
+  if (!raw?.trim()) return null;
+  const fromWhole = normalizeCustomerPhone(raw);
+  if (/^[6-9]\d{9}$/.test(fromWhole)) return fromWhole;
+  const mobile = raw.match(/(?:\+91[\s-]*)?[6-9]\d{9}/);
+  if (mobile) {
+    const n = normalizeCustomerPhone(mobile[0]);
+    if (/^[6-9]\d{9}$/.test(n)) return n;
+  }
+  const digits = fromWhole.replace(/\D/g, "");
+  if (digits.length >= 8 && digits.length <= 12) return fromWhole.slice(0, 20);
+  return null;
+}
+
+export function cleanVendorAddress(raw?: string | null): string | null {
+  const t = raw?.replace(/\s+/g, " ").trim() ?? "";
+  if (t.length < 8 || /\bkeyafe\b/i.test(t)) return null;
+  return t.slice(0, 400);
+}
+
+/** Fill blank vendor fields only — never overwrite a value staff already set. */
+export async function fillVendorBlanks(
+  id: string,
+  patch: { gstin?: string | null; phone?: string | null; address?: string | null },
+) {
+  const gstin = patch.gstin ?? null;
+  const phone = patch.phone ?? null;
+  const address = patch.address ?? null;
+  if (!gstin && !phone && !address) return;
+  const row = await prisma.vendor.findUnique({
+    where: { id },
+    select: { gstin: true, phone: true, address: true },
+  });
+  if (!row) return;
+  const data: { gstin?: string; phone?: string; address?: string } = {};
+  if (gstin && !row.gstin?.trim()) data.gstin = gstin;
+  if (phone && !row.phone?.trim()) data.phone = phone;
+  if (address && !row.address?.trim()) data.address = address;
+  if (Object.keys(data).length === 0) return;
+  await prisma.vendor.update({ where: { id }, data });
+}
+
 export async function resolveVendor(input: {
   id?: string;
   name?: string;
   phone?: string | null;
   channel?: "ONLINE" | "OFFLINE";
+  gstin?: string | null;
+  address?: string | null;
 }) {
+  const gstin = cleanVendorGstin(input.gstin);
+  const phone = cleanVendorPhone(input.phone);
+  const address = cleanVendorAddress(input.address);
+  const blanks = { gstin, phone, address };
   if (input.id) {
     const existing = await prisma.vendor.findUnique({
       where: { id: input.id },
@@ -153,15 +269,28 @@ export async function resolveVendor(input: {
         data: { channel: input.channel },
       });
     }
+    await fillVendorBlanks(existing.id, blanks);
     return existing.id;
+  }
+  if (gstin) {
+    const byGstin = await prisma.vendor.findFirst({
+      where: { gstin },
+      select: { id: true },
+    });
+    if (byGstin) {
+      if (input.channel) {
+        await prisma.vendor.update({
+          where: { id: byGstin.id },
+          data: { channel: input.channel },
+        });
+      }
+      await fillVendorBlanks(byGstin.id, blanks);
+      return byGstin.id;
+    }
   }
   const name = input.name?.trim();
   if (!name) throw HttpError.badRequest("Pick or type a vendor");
-  const phone = input.phone?.trim() || null;
-  const byName = await prisma.vendor.findFirst({
-    where: { name: { equals: name, mode: "insensitive" } },
-    select: { id: true },
-  });
+  const byName = await findVendorByName(name);
   if (byName) {
     if (input.channel) {
       await prisma.vendor.update({
@@ -169,11 +298,12 @@ export async function resolveVendor(input: {
         data: { channel: input.channel },
       });
     }
+    await fillVendorBlanks(byName.id, blanks);
     return byName.id;
   }
   if (phone) {
     const byPhone = await prisma.vendor.findFirst({
-      where: { phone },
+      where: { phone: { in: phoneLookupVariants(phone) } },
       select: { id: true },
     });
     if (byPhone) {
@@ -183,11 +313,18 @@ export async function resolveVendor(input: {
           data: { channel: input.channel },
         });
       }
+      await fillVendorBlanks(byPhone.id, blanks);
       return byPhone.id;
     }
   }
   const created = await prisma.vendor.create({
-    data: { name, phone, channel: input.channel ?? "OFFLINE" },
+    data: {
+      name,
+      phone,
+      channel: input.channel ?? "OFFLINE",
+      gstin,
+      address,
+    },
     select: { id: true },
   });
   return created.id;
@@ -478,6 +615,10 @@ export async function createPurchase(input: {
   notes: string | null;
   shipping?: number;
   miscCharges?: number;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
+  gst?: number;
   categoryId?: string;
   createdByUserId: string;
   paidById?: string | null;
@@ -489,6 +630,7 @@ export async function createPurchase(input: {
   if (!category) throw HttpError.badRequest("Unknown expense category");
   const shipping = moneyOrZero(input.shipping);
   const miscCharges = moneyOrZero(input.miscCharges);
+  const tax = gstParts(input);
   const total = roundMoney(built.total + shipping + miscCharges);
   const purpose = purposeFromPurchase(input.purpose);
 
@@ -502,6 +644,9 @@ export async function createPurchase(input: {
         notes: input.notes,
         shipping,
         miscCharges,
+        cgst: tax.cgst,
+        sgst: tax.sgst,
+        igst: tax.igst,
         total,
         createdByUserId: input.createdByUserId,
         paidById: input.paidById ?? null,
@@ -513,6 +658,9 @@ export async function createPurchase(input: {
       data: {
         date: input.date,
         amount: total,
+        cgst: tax.cgst,
+        sgst: tax.sgst,
+        igst: tax.igst,
         categoryId: category.id,
         purpose,
         vendorId: input.vendorId,
@@ -541,6 +689,10 @@ export async function updatePurchase(
     notes?: string | null;
     shipping?: number;
     miscCharges?: number;
+    cgst?: number;
+    sgst?: number;
+    igst?: number;
+    gst?: number;
     categoryId?: string;
     paidById?: string | null;
     lines?: LineInput[];
@@ -563,6 +715,12 @@ export async function updatePurchase(
     input.shipping !== undefined ? moneyOrZero(input.shipping) : money(existing.shipping);
   const miscCharges =
     input.miscCharges !== undefined ? moneyOrZero(input.miscCharges) : money(existing.miscCharges);
+  const tax = gstParts({
+    cgst: input.cgst !== undefined ? input.cgst : money(existing.cgst ?? 0),
+    sgst: input.sgst !== undefined ? input.sgst : money(existing.sgst ?? 0),
+    igst: input.igst !== undefined ? input.igst : money(existing.igst ?? 0),
+    gst: input.gst,
+  });
   const goods = built
     ? built.total
     : roundMoney(existing.lines.reduce((sum, line) => sum + money(line.amount), 0));
@@ -587,6 +745,9 @@ export async function updatePurchase(
         notes,
         shipping,
         miscCharges,
+        cgst: tax.cgst,
+        sgst: tax.sgst,
+        igst: tax.igst,
         total,
         paidById,
         ...(built ? { lines: { create: built.lines } } : {}),
@@ -598,6 +759,9 @@ export async function updatePurchase(
         data: {
           date,
           amount: total,
+          cgst: tax.cgst,
+          sgst: tax.sgst,
+          igst: tax.igst,
           categoryId,
           purpose: purposeFromPurchase(purpose),
           vendorId,
@@ -682,6 +846,9 @@ export function serializeExpense(row: {
   paidTo?: string | null;
   paymentMethod: string;
   notes: string | null;
+  cgst?: { toString(): string } | number;
+  sgst?: { toString(): string } | number;
+  igst?: { toString(): string } | number;
   createdByUserId: string;
   paidById?: string | null;
   paidBy?: { id: string; name: string } | null;
@@ -703,6 +870,9 @@ export function serializeExpense(row: {
         id: string;
         shipping?: { toString(): string } | number;
         miscCharges?: { toString(): string } | number;
+        cgst?: { toString(): string } | number;
+        sgst?: { toString(): string } | number;
+        igst?: { toString(): string } | number;
         lines?: { qty: { toString(): string } | number; buyItem: { name: string } }[];
       }
     | null;
@@ -723,6 +893,16 @@ export function serializeExpense(row: {
     paidTo: hideSalary ? null : row.paidTo ?? null,
     paymentMethod: row.paymentMethod,
     notes: row.notes,
+    cgst: hideSalary ? 0 : money(row.cgst ?? row.purchase?.cgst ?? 0),
+    sgst: hideSalary ? 0 : money(row.sgst ?? row.purchase?.sgst ?? 0),
+    igst: hideSalary ? 0 : money(row.igst ?? row.purchase?.igst ?? 0),
+    gst: hideSalary
+      ? 0
+      : money(
+          money(row.cgst ?? row.purchase?.cgst ?? 0) +
+            money(row.sgst ?? row.purchase?.sgst ?? 0) +
+            money(row.igst ?? row.purchase?.igst ?? 0),
+        ),
     createdByUserId: row.createdByUserId,
     paidById: row.paidById ?? row.paidBy?.id ?? null,
     paidBy: payerBrief(row.paidBy),
@@ -735,6 +915,11 @@ export function serializeExpense(row: {
           items: lines.map((l) => l.buyItem.name),
           shipping: money(row.purchase.shipping ?? 0),
           miscCharges: money(row.purchase.miscCharges ?? 0),
+          gst: money(
+            money(row.purchase.cgst ?? 0) +
+              money(row.purchase.sgst ?? 0) +
+              money(row.purchase.igst ?? 0),
+          ),
         }
       : null,
     voidedAt: row.voidedAt?.toISOString() ?? null,

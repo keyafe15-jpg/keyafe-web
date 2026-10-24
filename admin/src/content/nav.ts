@@ -20,6 +20,7 @@ import {
   Handshake,
   Wallet,
   ShoppingBasket,
+  BookOpen,
   FileText,
   Megaphone,
   MessageSquareQuote,
@@ -133,6 +134,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Products",
         icon: Package,
         requiresPermission: "products.read",
+      },
+      {
+        to: "/recipes",
+        label: "Recipes",
+        icon: BookOpen,
+        requiresPermission: "recipes.read",
       },
       {
         to: "/stores",

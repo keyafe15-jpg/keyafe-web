@@ -5,6 +5,7 @@ import {
   useAdminVendors,
   type VendorActiveFilter,
   type VendorChannelFilter,
+  type VendorSort,
 } from "@/hooks/useAdminVendors";
 import { PaginationControls } from "@/components/ClientPagination";
 import { DebouncedSearchInput } from "@/components/form/DebouncedSearchInput";
@@ -27,10 +28,16 @@ const CHANNEL_TABS: { key: VendorChannelFilter; label: string }[] = [
   { key: "ONLINE", label: "Online" },
 ];
 
+const SORT_TABS: { key: VendorSort; label: string }[] = [
+  { key: "updatedAt", label: "Recent" },
+  { key: "name", label: "A–Z" },
+];
+
 export function VendorsListPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<VendorActiveFilter>("ACTIVE");
   const [channel, setChannel] = useState<VendorChannelFilter>("ALL");
+  const [sort, setSort] = useState<VendorSort>("updatedAt");
   const search = useListSearch((s) => s.query);
   const setSearch = useListSearch((s) => s.setQuery);
   const navigate = useNavigate();
@@ -39,6 +46,7 @@ export function VendorsListPage() {
     search: search || null,
     active: status,
     channel,
+    sort,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -57,6 +65,11 @@ export function VendorsListPage() {
 
   const changeChannel = (next: VendorChannelFilter) => {
     setChannel(next);
+    setPage(1);
+  };
+
+  const changeSort = (next: VendorSort) => {
+    setSort(next);
     setPage(1);
   };
 
@@ -115,6 +128,23 @@ export function VendorsListPage() {
               className={cn(
                 "rounded-md border px-2.5 py-1 text-xs font-medium transition",
                 channel === t.key
+                  ? "bg-brand-50 border-brand-500 text-brand-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {SORT_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => changeSort(t.key)}
+              className={cn(
+                "rounded-md border px-2.5 py-1 text-xs font-medium transition",
+                sort === t.key
                   ? "bg-brand-50 border-brand-500 text-brand-700"
                   : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
               )}

@@ -19,7 +19,11 @@ export function ExpenseCategoryField({
   const items = categories.data?.items ?? [];
 
   return (
-    <Field label="Category" required hint="Trade license, GST, anything you spend on.">
+    <Field
+      label="Category"
+      required
+      hint="Travel is bike parking, bus, auto. Delivery is sending cakes."
+    >
       {!adding ? (
         <div className="flex gap-2">
           <select

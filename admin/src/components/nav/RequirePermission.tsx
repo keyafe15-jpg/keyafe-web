@@ -9,6 +9,7 @@ const STRICTER_PATHS: { to: string; requiresPermission: string }[] = [
   { to: "/vendors/new", requiresPermission: "vendors.write" },
   { to: "/expenses/new", requiresPermission: "expenses.write" },
   { to: "/expenses/new-buy", requiresPermission: "expenses.write" },
+  { to: "/recipes/new", requiresPermission: "recipes.write" },
 ];
 
 function requiredPermissionForPath(pathname: string): string | undefined {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { Field, inputClass, selectClass, textareaClass } from "@/components/form/Field";
+import { Field, inputClass, selectClass } from "@/components/form/Field";
 import { toInputDate } from "@/lib/dateRange";
 import { useStaffPermission } from "@/lib/permissions";
 import { useAdminVendors } from "@/hooks/useAdminVendors";
@@ -19,6 +19,7 @@ import {
   EXPENSE_PURPOSES,
   isSalaryCategory,
   payLabel,
+  vendorScanBits,
   type BooksPaymentMethod,
   type ExpensePurpose,
 } from "@/pages/expenses/books-ui";
@@ -26,6 +27,7 @@ import { SearchCreate } from "@/pages/expenses/SearchCreate";
 import { ExpenseCategoryField } from "@/pages/expenses/ExpenseCategoryField";
 import { PaidByField } from "@/pages/expenses/PaidByField";
 import { ScanBillBlock } from "@/pages/expenses/ScanBillBlock";
+import { GstFields, gstAmt } from "@/pages/expenses/GstFields";
 import { PurposeMark } from "@/pages/expenses/PurposeMark";
 import { VendorChannelField } from "@/pages/vendors/VendorChannelField";
 import { channelLabel, type VendorChannel } from "@/pages/vendors/vendor-ui";
@@ -64,6 +66,9 @@ export function ExpenseFormPage() {
               paidById: existing.data.paidById,
               paidTo: existing.data.paidTo ?? "",
               notes: existing.data.notes ?? "",
+              cgst: existing.data.cgst > 0 ? String(existing.data.cgst) : "",
+              sgst: existing.data.sgst > 0 ? String(existing.data.sgst) : "",
+              igst: existing.data.igst > 0 ? String(existing.data.igst) : "",
               vendorId: existing.data.vendorId,
               vendorName: existing.data.vendor?.name ?? "",
               vendorChannel: existing.data.vendor?.channel ?? "OFFLINE",
@@ -79,6 +84,9 @@ export function ExpenseFormPage() {
               paidById: null,
               paidTo: "",
               notes: "",
+              cgst: "",
+              sgst: "",
+              igst: "",
               vendorId: null,
               vendorName: "",
               vendorChannel: "OFFLINE",
@@ -104,6 +112,9 @@ function ExpenseForm({
     paidById: string | null;
     paidTo: string;
     notes: string;
+    cgst: string;
+    sgst: string;
+    igst: string;
     vendorId: string | null;
     vendorName: string;
     vendorChannel: VendorChannel;
@@ -129,9 +140,15 @@ function ExpenseForm({
   const [paidById, setPaidById] = useState<string | null>(initial.paidById);
   const [paidTo, setPaidTo] = useState(initial.paidTo);
   const [notes, setNotes] = useState(initial.notes);
+  const [cgst, setCgst] = useState(initial.cgst);
+  const [sgst, setSgst] = useState(initial.sgst);
+  const [igst, setIgst] = useState(initial.igst);
   const [vendorId, setVendorId] = useState<string | undefined>(initial.vendorId ?? undefined);
   const [vendorName, setVendorName] = useState(initial.vendorName);
   const [vendorChannel, setVendorChannel] = useState<VendorChannel>(initial.vendorChannel);
+  const [vendorGstin, setVendorGstin] = useState<string | null>(null);
+  const [vendorPhone, setVendorPhone] = useState<string | null>(null);
+  const [vendorAddress, setVendorAddress] = useState<string | null>(null);
   const [vendorQuery, setVendorQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [scanNote, setScanNote] = useState<string | null>(null);
@@ -154,14 +171,25 @@ function ExpenseForm({
       setVendorId(undefined);
       setVendorName("");
       setVendorQuery("");
-    } else if (draft.vendorId) {
-      setVendorId(draft.vendorId);
+    } else if (draft.vendorId || draft.vendorName) {
+      setVendorId(draft.vendorId ?? undefined);
       setVendorName(draft.vendorName ?? "");
       setVendorQuery(draft.vendorName ?? "");
       setVendorChannel(draft.vendorChannel);
     }
+    if (draft.vendorGstin) setVendorGstin(draft.vendorGstin);
+    if (draft.vendorPhone) setVendorPhone(draft.vendorPhone);
+    if (draft.vendorAddress) setVendorAddress(draft.vendorAddress);
     if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
     if (draft.notes) setNotes(draft.notes);
+    if (draft.cgst > 0) setCgst(String(draft.cgst));
+    if (draft.sgst > 0) setSgst(String(draft.sgst));
+    if (draft.igst > 0) setIgst(String(draft.igst));
+    if (!(draft.cgst > 0) && !(draft.sgst > 0) && !(draft.igst > 0) && draft.gst > 0) {
+      const half = Math.round((draft.gst / 2) * 100) / 100;
+      setCgst(String(half));
+      setSgst(String(Math.round((draft.gst - half) * 100) / 100));
+    }
     const fromLines =
       draft.lines.reduce((sum, l) => sum + l.qty * l.unitPrice, 0) +
       draft.shipping +
@@ -170,9 +198,14 @@ function ExpenseForm({
     if (nextAmount > 0) setAmount(String(nextAmount));
     setBuyDraft(draft.looksLikeBuy ? draft : null);
     setScanNote(
-      draft.uncertain
-        ? "Some of the bill was unclear — check the amount, then save."
-        : "Check the amount, then save.",
+      [
+        draft.uncertain
+          ? "Some of the bill was unclear — check the amount, then save."
+          : "Check the amount, then save.",
+        vendorScanBits(draft),
+      ]
+        .filter(Boolean)
+        .join(" "),
     );
   };
 
@@ -213,7 +246,7 @@ function ExpenseForm({
             return;
           }
           if (requiresNote && !notes.trim()) {
-            setError("Add a note for miscellaneous.");
+            setError("Add a title for this category.");
             return;
           }
           if (!paidById) {
@@ -234,12 +267,27 @@ function ExpenseForm({
             paidBy: paidById,
             ...(hidePayroll ? {} : { paidTo: salary ? paidTo.trim() : null }),
             notes: notes.trim() || null,
+            ...(hidePayroll || salary
+              ? {}
+              : { cgst: gstAmt(cgst), sgst: gstAmt(sgst), igst: gstAmt(igst) }),
             vendor: salary
               ? null
               : vendorId
-                ? { id: vendorId, channel: vendorChannel }
+                ? {
+                    id: vendorId,
+                    channel: vendorChannel,
+                    gstin: vendorGstin,
+                    phone: vendorPhone,
+                    address: vendorAddress,
+                  }
                 : vendorName.trim()
-                  ? { name: vendorName.trim(), channel: vendorChannel }
+                  ? {
+                      name: vendorName.trim(),
+                      channel: vendorChannel,
+                      gstin: vendorGstin,
+                      phone: vendorPhone,
+                      address: vendorAddress,
+                    }
                   : null,
           };
           if (expenseId) {
@@ -259,8 +307,25 @@ function ExpenseForm({
         }}
       >
         {!expenseId && canWrite && !voided && (
-          <ScanBillBlock kind="EXPENSE" onDraft={applyDraft} />
+          <ScanBillBlock kind="EXPENSE" vendorId={vendorId} onDraft={applyDraft} />
         )}
+        <Field
+          label="Title"
+          required={requiresNote}
+          hint={
+            requiresNote
+              ? "Required — bike parking, bus to Howrah, trade license…"
+              : "What this spend was for. Shows on the list."
+          }
+        >
+          <input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. Bike parking"
+            className={inputClass}
+            disabled={!canWrite || voided}
+          />
+        </Field>
         <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
           <Field label="Date" required>
             <input
@@ -274,7 +339,11 @@ function ExpenseForm({
           <Field
             label="Amount"
             required={!initial.amountMasked}
-            hint={initial.amountMasked ? "Hidden while salaries are masked." : undefined}
+            hint={
+              initial.amountMasked
+                ? "Hidden while salaries are masked."
+                : "What you paid — GST sits in the fields below."
+            }
           >
             <input
               inputMode="decimal"
@@ -284,6 +353,19 @@ function ExpenseForm({
               disabled={!canWrite || voided || initial.amountMasked}
             />
           </Field>
+        </div>
+        {!salary && (
+          <GstFields
+            cgst={cgst}
+            sgst={sgst}
+            igst={igst}
+            onCgst={setCgst}
+            onSgst={setSgst}
+            onIgst={setIgst}
+            disabled={!canWrite || voided || initial.amountMasked}
+          />
+        )}
+        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
           <ExpenseCategoryField
             value={category}
             onChange={(next) => {
@@ -351,7 +433,16 @@ function ExpenseForm({
           </Field>
         ) : (
           <>
-            <Field label="Vendor" hint="Optional — gas guy, Meta, the landlord…">
+            <Field
+              label="Vendor"
+              hint={
+                vendorGstin || vendorPhone || vendorAddress
+                  ? [vendorGstin ? `GSTIN ${vendorGstin}` : null, vendorPhone, vendorAddress]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : "Optional — gas guy, Meta, the landlord…"
+              }
+            >
               <SearchCreate
                 query={vendorQuery || vendorName}
                 onQuery={(q) => {
@@ -402,16 +493,6 @@ function ExpenseForm({
             disabled={!canWrite || voided}
           />
         )}
-
-        <Field label="Note" required={requiresNote} hint={requiresNote ? "Required for miscellaneous." : undefined}>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            className={textareaClass}
-            disabled={!canWrite || voided}
-          />
-        </Field>
 
         {error && <p className="text-xs text-red-700">{error}</p>}
 

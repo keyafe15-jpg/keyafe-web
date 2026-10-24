@@ -47,6 +47,48 @@ export function money(n: number | string | { toString(): string }): number {
   return roundMoney(Number(n));
 }
 
+export function moneyOrZero(n?: number | string | null): number {
+  if (n == null || n === "") return 0;
+  const v = Number(n);
+  if (!Number.isFinite(v) || v < 0) return 0;
+  return money(v);
+}
+
+/** Prefer the tax-summary split. A lone GST total is treated as intra-state (half CGST / half SGST). */
+export function gstParts(input: {
+  cgst?: number | null;
+  sgst?: number | null;
+  igst?: number | null;
+  gst?: number | null;
+}) {
+  let cgst = moneyOrZero(input.cgst);
+  let sgst = moneyOrZero(input.sgst);
+  let igst = moneyOrZero(input.igst);
+  const named = money(cgst + sgst + igst);
+  const combined = moneyOrZero(input.gst);
+  if (named <= 0 && combined > 0) {
+    const half = money(combined / 2);
+    cgst = half;
+    sgst = money(combined - half);
+  }
+  return { cgst, sgst, igst, gst: money(cgst + sgst + igst) };
+}
+
+export function isGstChargeName(name: string): boolean {
+  const n = normalizeItemName(name);
+  return (
+    n === "gst" ||
+    n === "cgst" ||
+    n === "sgst" ||
+    n === "igst" ||
+    n.includes("cgst") ||
+    n.includes("sgst") ||
+    n.includes("igst") ||
+    n.includes("gst amt") ||
+    n.includes("gst amount")
+  );
+}
+
 export function qtyNum(n: number | string | { toString(): string }): number {
   return Math.round((Number(n) + Number.EPSILON) * 1000) / 1000;
 }
@@ -188,6 +230,9 @@ export const expenseInclude = {
       id: true,
       shipping: true,
       miscCharges: true,
+      cgst: true,
+      sgst: true,
+      igst: true,
       lines: {
         orderBy: { id: "asc" as const },
         select: { qty: true, buyItem: { select: { name: true } } },

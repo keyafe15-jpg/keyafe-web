@@ -39,6 +39,9 @@ import { ExpenseFormPage } from "@/pages/expenses/ExpenseFormPage";
 import { PurchaseFormPage } from "@/pages/expenses/PurchaseFormPage";
 import { BuyItemsListPage } from "@/pages/items/BuyItemsListPage";
 import { BuyItemDetailPage } from "@/pages/items/BuyItemDetailPage";
+import { RecipesListPage } from "@/pages/recipes/RecipesListPage";
+import { RecipeFormPage } from "@/pages/recipes/RecipeFormPage";
+import { RecipeDetailPage } from "@/pages/recipes/RecipeDetailPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -204,6 +207,22 @@ export const router = createBrowserRouter([
           {
             path: "items/:id",
             element: <BuyItemDetailPage />,
+          },
+          {
+            path: "recipes",
+            element: <RecipesListPage />,
+          },
+          {
+            path: "recipes/new",
+            element: <RecipeFormPage />,
+          },
+          {
+            path: "recipes/:id",
+            element: <RecipeDetailPage />,
+          },
+          {
+            path: "recipes/:id/edit",
+            element: <RecipeFormPage />,
           },
           {
             path: "customers",

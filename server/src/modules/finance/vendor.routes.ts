@@ -82,8 +82,13 @@ adminVendorRouter.get("/", async (req, res) => {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   const activeRaw = typeof req.query.active === "string" ? req.query.active : "ACTIVE";
   const channelRaw = typeof req.query.channel === "string" ? req.query.channel : "ALL";
+  const sortRaw = typeof req.query.sort === "string" ? req.query.sort : "name";
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
+  const orderBy: Prisma.VendorOrderByWithRelationInput[] =
+    sortRaw === "updatedAt"
+      ? [{ updatedAt: "desc" }, { name: "asc" }]
+      : [{ name: "asc" }];
   const where: Prisma.VendorWhereInput = {};
   if (activeRaw === "ACTIVE") where.isActive = true;
   else if (activeRaw === "ARCHIVED") where.isActive = false;
@@ -102,7 +107,7 @@ adminVendorRouter.get("/", async (req, res) => {
     prisma.vendor.count({ where }),
     prisma.vendor.findMany({
       where,
-      orderBy: [{ name: "asc" }],
+      orderBy,
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: vendorSelect,
