@@ -8,6 +8,7 @@ import {
   BUY_ITEM_UNITS,
   buyItemSelect,
   dateKey,
+  isMiscChargeName,
   isShippingChargeName,
   money,
   normalizeItemName,
@@ -57,6 +58,9 @@ adminBuyItemRouter.post("/", async (req, res) => {
   if (!parsed.success) throw HttpError.badRequest("Invalid item", parsed.error.flatten());
   if (isShippingChargeName(parsed.data.name)) {
     throw HttpError.badRequest("Delivery charge is a field on the buy, not an item");
+  }
+  if (isMiscChargeName(parsed.data.name)) {
+    throw HttpError.badRequest("Handling and other extras are miscellaneous charges, not an item");
   }
   const nameNormalized = normalizeItemName(parsed.data.name);
   const existing = await prisma.buyItem.findUnique({

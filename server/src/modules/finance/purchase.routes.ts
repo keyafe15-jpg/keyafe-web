@@ -64,6 +64,7 @@ const createSchema = z.object({
     .nullable()
     .transform((v) => v || null),
   shipping: z.coerce.number().nonnegative().optional(),
+  miscCharges: z.coerce.number().nonnegative().optional(),
   category: z.string().trim().min(1).default("raw-materials"),
   paidBy: z.string().trim().min(1).optional().nullable(),
   lines: z.array(lineSchema).min(1),
@@ -124,6 +125,7 @@ adminPurchaseRouter.post("/", async (req, res) => {
     paymentMethod: parsed.data.paymentMethod,
     notes: parsed.data.notes,
     shipping: parsed.data.shipping,
+    miscCharges: parsed.data.miscCharges,
     categoryId: category.id,
     createdByUserId: staff.id,
     paidById,
@@ -149,6 +151,7 @@ adminPurchaseRouter.patch("/:id", async (req, res) => {
       paymentMethod: data.paymentMethod,
       notes: data.notes,
       shipping: data.shipping,
+      miscCharges: data.miscCharges,
       categoryId: category?.id,
       paidById,
       lines: data.lines,

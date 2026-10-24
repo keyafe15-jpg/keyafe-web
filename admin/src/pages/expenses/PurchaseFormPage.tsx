@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Field, inputClass, selectClass, textareaClass } from "@/components/form/Field";
 import { toInputDate } from "@/lib/dateRange";
@@ -13,11 +13,13 @@ import {
   useVoidPurchase,
   useExpenseCategories,
   type PurchaseWritePayload,
+  type ReceiptDraft,
 } from "@/hooks/useAdminBooks";
 import {
   BOOKS_PAY_METHODS,
   BUY_ITEM_UNITS,
   inr,
+  isMiscChargeName,
   isShippingChargeName,
   lineQtyLabel,
   packUnitLabel,
@@ -32,6 +34,7 @@ import { SearchCreate } from "@/pages/expenses/SearchCreate";
 import { ExpenseCategoryField } from "@/pages/expenses/ExpenseCategoryField";
 import { PurposeMark } from "@/pages/expenses/PurposeMark";
 import { PaidByField } from "@/pages/expenses/PaidByField";
+import { ScanBillBlock } from "@/pages/expenses/ScanBillBlock";
 import { VendorChannelField } from "@/pages/vendors/VendorChannelField";
 import { channelLabel, type VendorChannel } from "@/pages/vendors/vendor-ui";
 
@@ -61,7 +64,7 @@ export function PurchaseFormPage() {
   const isNew = !id;
   const [params] = useSearchParams();
   const prefillVendor = params.get("vendorId");
-  const navigate = useNavigate();
+  const incomingDraft = (useLocation().state as { receiptDraft?: ReceiptDraft } | null)?.receiptDraft;
   const canWrite = useStaffPermission("expenses.write");
   const existing = useAdminPurchase(isNew ? undefined : id);
   const prefill = useAdminVendor(prefillVendor || undefined);
@@ -97,12 +100,24 @@ export function PurchaseFormPage() {
                         .reduce((sum, l) => sum + l.amount, 0);
                       return fromLines > 0 ? String(fromLines) : "";
                     })(),
+              miscCharges:
+                existing.data.miscCharges > 0
+                  ? String(existing.data.miscCharges)
+                  : (() => {
+                      const fromLines = existing.data.lines
+                        .filter((l) => isMiscChargeName(l.buyItem.name))
+                        .reduce((sum, l) => sum + l.amount, 0);
+                      return fromLines > 0 ? String(fromLines) : "";
+                    })(),
               paidById: existing.data.paidById,
               categoryId: existing.data.categoryId ?? "raw-materials",
               voidedAt: existing.data.voidedAt,
               lines: (() => {
                 const goods = existing.data.lines
-                  .filter((l) => !isShippingChargeName(l.buyItem.name))
+                  .filter(
+                    (l) =>
+                      !isShippingChargeName(l.buyItem.name) && !isMiscChargeName(l.buyItem.name),
+                  )
                   .map((l) => ({
                     key: l.id,
                     buyItemId: l.buyItemId,
@@ -121,9 +136,10 @@ export function PurchaseFormPage() {
               vendorName: prefill.data?.name ?? "",
               vendorChannel: prefill.data?.channel ?? "OFFLINE",
               purpose: "PRODUCTION",
-              paymentMethod: "CASH",
+              paymentMethod: "UPI",
               notes: "",
               shipping: "",
+              miscCharges: "",
               paidById: null,
               categoryId:
                 categories.data?.items.find((c) => c.slug === "raw-materials")?.slug ??
@@ -133,9 +149,7 @@ export function PurchaseFormPage() {
             }
       }
       purchaseId={existing.data?.id}
-      onSaved={(nextId) => {
-        if (isNew) navigate(`/expenses/buys/${nextId}`, { replace: true });
-      }}
+      incomingDraft={isNew ? incomingDraft : undefined}
     />
   );
 }
@@ -144,11 +158,11 @@ function PurchaseForm({
   canWrite,
   initial,
   purchaseId,
-  onSaved,
+  incomingDraft,
 }: {
   canWrite: boolean;
   purchaseId?: string;
-  onSaved: (id: string) => void;
+  incomingDraft?: ReceiptDraft;
   initial: {
     date: string;
     vendorId?: string;
@@ -158,6 +172,7 @@ function PurchaseForm({
     paymentMethod: BooksPaymentMethod;
     notes: string;
     shipping: string;
+    miscCharges: string;
     paidById: string | null;
     categoryId: string;
     voidedAt: string | null;
@@ -165,6 +180,11 @@ function PurchaseForm({
   };
 }) {
   const navigate = useNavigate();
+  const leaveAfterSave = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx;
+    if (typeof idx === "number" && idx > 0) navigate(-1);
+    else navigate("/expenses");
+  };
   const create = useCreatePurchase();
   const update = useUpdatePurchase();
   const voidBuy = useVoidPurchase();
@@ -177,14 +197,54 @@ function PurchaseForm({
   const [paymentMethod, setPaymentMethod] = useState<BooksPaymentMethod>(initial.paymentMethod);
   const [notes, setNotes] = useState(initial.notes);
   const [shipping, setShipping] = useState(initial.shipping);
+  const [miscCharges, setMiscCharges] = useState(initial.miscCharges);
   const [paidById, setPaidById] = useState<string | null>(initial.paidById);
   const [category, setCategory] = useState(initial.categoryId);
   const [lines, setLines] = useState<DraftLine[]>(initial.lines);
   const [itemQueries, setItemQueries] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [scanNote, setScanNote] = useState<string | null>(null);
   const voided = Boolean(initial.voidedAt);
   const pending = create.isPending || update.isPending;
+
+  const applyDraft = (draft: ReceiptDraft) => {
+    if (draft.date) setDate(draft.date);
+    if (draft.vendorId) {
+      setVendorId(draft.vendorId);
+      setVendorName(draft.vendorName ?? "");
+      setVendorQuery(draft.vendorName ?? "");
+      setVendorChannel(draft.vendorChannel);
+    }
+    if (draft.category) setCategory(draft.category);
+    if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+    if (draft.shipping > 0) setShipping(String(draft.shipping));
+    if (draft.miscCharges > 0) setMiscCharges(String(draft.miscCharges));
+    if (draft.notes) setNotes(draft.notes);
+    if (draft.lines.length > 0) {
+      const next = draft.lines.map((l) => ({
+        key: Math.random().toString(36).slice(2),
+        buyItemId: l.buyItemId,
+        name: l.name,
+        unit: l.unit,
+        packSize: l.packSize && l.packSize > 1 ? String(l.packSize) : "",
+        qty: String(l.qty),
+        unitPrice: String(l.unitPrice),
+      }));
+      setLines(next);
+      setItemQueries(Object.fromEntries(next.map((l) => [l.key, l.name])));
+    }
+    setScanNote(
+      draft.uncertain
+        ? "Some lines were unclear — check qty and rates, then save."
+        : "Check the totals, then save.",
+    );
+  };
+
+  useEffect(() => {
+    if (incomingDraft) applyDraft(incomingDraft);
+    // once, on handoff from the expense form
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const vendors = useAdminVendors({ search: vendorQuery || null, active: "ACTIVE", pageSize: 20 });
   const itemSearch = Object.values(itemQueries).find((q) => q.trim()) ?? "";
@@ -201,7 +261,8 @@ function PurchaseForm({
     [lines],
   );
   const shippingAmt = Number(shipping) > 0 ? Number(shipping) : 0;
-  const total = Math.round((goods + shippingAmt + Number.EPSILON) * 100) / 100;
+  const miscAmt = Number(miscCharges) > 0 ? Number(miscCharges) : 0;
+  const total = Math.round((goods + shippingAmt + miscAmt + Number.EPSILON) * 100) / 100;
 
   const setLine = (key: string, patch: Partial<DraftLine>) => {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -240,6 +301,7 @@ function PurchaseForm({
       paidBy: paidById,
       notes: notes.trim() || null,
       shipping: shippingAmt,
+      miscCharges: miscAmt,
       category,
       lines: payloadLines,
     };
@@ -257,31 +319,34 @@ function PurchaseForm({
         {purchaseId ? "Edit buy" : "Log a buy"}
       </h1>
       {voided && <p className="mt-1 text-sm text-slate-500">Voided — not in the books.</p>}
+      {scanNote && <p className="mt-1 text-sm text-emerald-700">{scanNote}</p>}
 
       <form
         className="mt-4 space-y-3 rounded-card border border-slate-200 bg-white p-4"
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
-          setSaved(false);
           const body = buildPayload();
           if (!body) return;
           if (purchaseId) {
             update.mutate(
               { id: purchaseId, ...body },
               {
-                onSuccess: () => setSaved(true),
+                onSuccess: leaveAfterSave,
                 onError: (err) => setError(err instanceof Error ? err.message : "Could not save"),
               },
             );
           } else {
             create.mutate(body, {
-              onSuccess: (row) => onSaved(row.id),
+              onSuccess: leaveAfterSave,
               onError: (err) => setError(err instanceof Error ? err.message : "Could not save"),
             });
           }
         }}
       >
+        {!purchaseId && canWrite && !voided && (
+          <ScanBillBlock kind="BUY" onDraft={applyDraft} />
+        )}
         <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
           <Field label="Date" required>
             <input
@@ -503,16 +568,31 @@ function PurchaseForm({
           />
         )}
 
-        <Field label="Delivery charge" hint="Courier / shipping on this buy — not an item.">
-          <input
-            inputMode="decimal"
-            value={shipping}
-            onChange={(e) => setShipping(e.target.value)}
-            placeholder="0"
-            className={inputClass}
-            disabled={!canWrite || voided}
-          />
-        </Field>
+        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
+          <Field label="Delivery charge" hint="Courier / shipping — not an item.">
+            <input
+              inputMode="decimal"
+              value={shipping}
+              onChange={(e) => setShipping(e.target.value)}
+              placeholder="0"
+              className={inputClass}
+              disabled={!canWrite || voided}
+            />
+          </Field>
+          <Field
+            label="Miscellaneous charges"
+            hint="Handling, packing fee, platform fee — whatever else the bill calls it."
+          >
+            <input
+              inputMode="decimal"
+              value={miscCharges}
+              onChange={(e) => setMiscCharges(e.target.value)}
+              placeholder="0"
+              className={inputClass}
+              disabled={!canWrite || voided}
+            />
+          </Field>
+        </div>
 
         <Field label="Notes">
           <textarea
@@ -525,15 +605,20 @@ function PurchaseForm({
         </Field>
 
         <div className="text-right">
-          {shippingAmt > 0 && (
+          {(shippingAmt > 0 || miscAmt > 0) && (
             <p className="text-xs text-slate-500">
-              Items {inr(goods)} · Delivery {inr(shippingAmt)}
+              {[
+                `Items ${inr(goods)}`,
+                shippingAmt > 0 ? `Delivery ${inr(shippingAmt)}` : null,
+                miscAmt > 0 ? `Misc ${inr(miscAmt)}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           )}
           <p className="text-lg font-semibold text-slate-900">Total {inr(total)}</p>
         </div>
         {error && <p className="text-xs text-red-700">{error}</p>}
-        {saved && <p className="text-xs text-emerald-700">Saved.</p>}
 
         {canWrite && !voided && (
           <div className="flex flex-wrap justify-end gap-2">
@@ -542,16 +627,16 @@ function PurchaseForm({
                 type="button"
                 disabled={voidBuy.isPending}
                 onClick={() => {
-                  if (!window.confirm("Void this buy? It will drop out of the books.")) return;
+                  if (!window.confirm("Delete this buy? It will drop out of the books.")) return;
                   voidBuy.mutate(purchaseId, {
                     onSuccess: () => navigate("/expenses"),
                     onError: (err) =>
-                      setError(err instanceof Error ? err.message : "Could not void"),
+                      setError(err instanceof Error ? err.message : "Could not delete"),
                   });
                 }}
                 className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
               >
-                Void
+                Delete
               </button>
             )}
             <button

@@ -146,22 +146,25 @@ type GeminiResponse = {
   error?: { message?: string };
 };
 
-export async function suggestCopy(
-  ctx: SuggestContext,
-  image: SuggestImage | null,
-): Promise<SuggestBundle> {
+export async function geminiGenerateText(opts: {
+  prompt: string;
+  image?: SuggestImage | null;
+  temperature: number;
+  maxOutputTokens: number;
+  timeoutMs?: number;
+}): Promise<string> {
   const key = env.GEMINI_API_KEY?.trim();
   if (!key) {
     logger.warn("GEMINI_API_KEY is not set");
     throw HttpError.badGateway("AI suggestions are not configured.");
   }
 
-  const parts: Array<Record<string, unknown>> = [{ text: buildCopyPrompt(ctx, Boolean(image)) }];
-  if (image) {
+  const parts: Array<Record<string, unknown>> = [{ text: opts.prompt }];
+  if (opts.image) {
     parts.push({
       inline_data: {
-        mime_type: image.mime,
-        data: image.data.toString("base64"),
+        mime_type: opts.image.mime,
+        data: opts.image.data.toString("base64"),
       },
     });
   }
@@ -169,7 +172,7 @@ export async function suggestCopy(
   const model = env.GEMINI_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20_000);
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 20_000);
 
   let res: Response;
   try {
@@ -182,8 +185,8 @@ export async function suggestCopy(
       body: JSON.stringify({
         contents: [{ parts }],
         generationConfig: {
-          temperature: 0.85,
-          maxOutputTokens: 900,
+          temperature: opts.temperature,
+          maxOutputTokens: opts.maxOutputTokens,
           responseMimeType: "application/json",
           thinkingConfig: { thinkingLevel: "minimal" },
         },
@@ -222,6 +225,19 @@ export async function suggestCopy(
     logger.warn({ finish: body.candidates?.[0]?.finishReason }, "Gemini empty response");
     throw HttpError.badGateway("AI suggestions are unavailable right now.");
   }
+  return text;
+}
+
+export async function suggestCopy(
+  ctx: SuggestContext,
+  image: SuggestImage | null,
+): Promise<SuggestBundle> {
+  const text = await geminiGenerateText({
+    prompt: buildCopyPrompt(ctx, Boolean(image)),
+    image,
+    temperature: 0.85,
+    maxOutputTokens: 900,
+  });
 
   let bundle: SuggestBundle;
   try {

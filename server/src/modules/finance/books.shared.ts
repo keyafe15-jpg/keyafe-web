@@ -59,9 +59,34 @@ export function isShippingChargeName(name: string): boolean {
   const n = normalizeItemName(name);
   return (
     n.includes("shipping") ||
-    n === "delivery charge" ||
-    n === "delivery charges" ||
-    n === "delhivery"
+    n.includes("delivery charge") ||
+    n === "delivery" ||
+    n === "delhivery" ||
+    n === "courier"
+  );
+}
+
+/** Handling, packing fee, platform fee — extras on the buy, not goods. */
+export function isMiscChargeName(name: string): boolean {
+  const n = normalizeItemName(name);
+  if (isShippingChargeName(n)) return false;
+  return (
+    n.includes("handling") ||
+    n.includes("convenience") ||
+    n.includes("platform fee") ||
+    n.includes("platform charge") ||
+    n.includes("service charge") ||
+    n.includes("service fee") ||
+    n.includes("processing") ||
+    n.includes("surcharge") ||
+    n.includes("packing charge") ||
+    n.includes("packing fee") ||
+    n.includes("packaging charge") ||
+    n.includes("packaging fee") ||
+    n.includes("extra charge") ||
+    n.includes("other charge") ||
+    n.includes("miscellaneous") ||
+    n.includes("misc charge")
   );
 }
 
@@ -93,6 +118,10 @@ export function vendorBrief(
 ) {
   if (!v) return null;
   return { id: v.id, name: v.name, phone: v.phone, channel: v.channel ?? "OFFLINE" };
+}
+
+export function isSalaryCategory(category: { slug: string } | string) {
+  return (typeof category === "string" ? category : category.slug) === "salary";
 }
 
 export function categoryBrief(c: {
@@ -142,6 +171,7 @@ export const expenseInclude = {
     select: {
       id: true,
       shipping: true,
+      miscCharges: true,
       lines: {
         orderBy: { id: "asc" as const },
         select: { qty: true, buyItem: { select: { name: true } } },

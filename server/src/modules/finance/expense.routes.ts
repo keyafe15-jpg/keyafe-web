@@ -1,9 +1,13 @@
 import { Router } from "express";
+import multer from "multer";
 import { z } from "zod";
 import type { ExpensePurpose } from "@prisma/client";
+import { env } from "../../config/env.js";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import type { AuthenticatedRequest } from "../../middleware/auth.js";
+import { imageFromUpload, rateLimitSuggest } from "../ai/ai.service.js";
+import { parseReceipt } from "./receipt.service.js";
 import {
   BOOKS_PAY_METHODS,
   EXPENSE_PURPOSES,
@@ -14,6 +18,7 @@ import {
   pageParams,
   parseDateKey,
   requireBooksWrite,
+  isSalaryCategory,
   VENDOR_CHANNELS,
 } from "./books.shared.js";
 import {
@@ -27,10 +32,15 @@ import {
   resolveVendor,
   serializeCategory,
   serializeExpense,
-  voidPurchase,
+  voidExpense,
 } from "./purchase.service.js";
 
 export const adminExpenseRouter = Router();
+
+const receiptUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: env.UPLOAD_MAX_BYTES },
+});
 
 adminExpenseRouter.get("/categories", async (_req, res) => {
   const items = await prisma.expenseCategory.findMany({
@@ -69,6 +79,18 @@ adminExpenseRouter.post("/payers", async (req, res) => {
   res.status(201).json(await createBooksPayer(parsed.data.name));
 });
 
+adminExpenseRouter.post("/parse-receipt", receiptUpload.single("image"), async (req, res) => {
+  const staff = requireBooksWrite(req as AuthenticatedRequest);
+  rateLimitSuggest(staff.id);
+  if (!req.file) throw HttpError.badRequest("Add a photo or screenshot of the bill.");
+  const kind = req.body?.kind === "EXPENSE" ? "EXPENSE" : req.body?.kind === "BUY" ? "BUY" : null;
+  if (!kind) throw HttpError.badRequest("kind must be BUY or EXPENSE");
+  const context =
+    typeof req.body?.context === "string" ? req.body.context.trim().slice(0, 400) : null;
+  const image = imageFromUpload(req.file);
+  res.json(await parseReceipt({ kind, image, context }));
+});
+
 const expenseBodySchema = z.object({
   date: z.string().trim(),
   amount: z.coerce.number().positive(),
@@ -76,6 +98,13 @@ const expenseBodySchema = z.object({
   purpose: z.enum(EXPENSE_PURPOSES).optional(),
   paymentMethod: z.enum(BOOKS_PAY_METHODS),
   paidBy: z.string().trim().min(1).optional().nullable(),
+  paidTo: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .nullable()
+    .transform((v) => v || null),
   notes: z
     .string()
     .trim()
@@ -106,6 +135,19 @@ function purposeForCategory(
 ): ExpensePurpose {
   if (category.marketing) return "MARKETING";
   return requested ?? "OPS";
+}
+
+function paidToForCategory(
+  category: { slug: string },
+  paidTo: string | null | undefined,
+  existing?: string | null,
+) {
+  const name = (paidTo === undefined ? existing : paidTo)?.trim() || null;
+  if (isSalaryCategory(category)) {
+    if (!name) throw HttpError.badRequest("Who was this salary paid to?");
+    return name;
+  }
+  return null;
 }
 
 adminExpenseRouter.get("/", async (req, res) => {
@@ -142,7 +184,7 @@ adminExpenseRouter.get("/summary", async (req, res) => {
   const from = optionalDateKey(req.query.from);
   const to = optionalDateKey(req.query.to);
   const base = expenseListWhere({ from, to });
-  const [all, buys, delivery] = await Promise.all([
+  const [all, buys, delivery, byCategoryRows] = await Promise.all([
     prisma.expense.aggregate({ where: base, _sum: { amount: true }, _count: { id: true } }),
     prisma.expense.aggregate({
       where: { ...base, purchaseId: { not: null } },
@@ -152,7 +194,37 @@ adminExpenseRouter.get("/summary", async (req, res) => {
       where: { ...base, orderId: { not: null } },
       _sum: { amount: true },
     }),
+    prisma.expense.groupBy({
+      by: ["categoryId"],
+      where: base,
+      _sum: { amount: true },
+      _count: { id: true },
+    }),
   ]);
+  const categories = byCategoryRows.length
+    ? await prisma.expenseCategory.findMany({
+        where: { id: { in: byCategoryRows.map((r) => r.categoryId) } },
+        select: { id: true, slug: true, name: true, sortOrder: true },
+      })
+    : [];
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const byCategory = byCategoryRows
+    .map((row) => {
+      const cat = categoryById.get(row.categoryId);
+      const total = money(row._sum.amount ?? 0);
+      if (!cat || total <= 0) return null;
+      return {
+        id: cat.id,
+        slug: cat.slug,
+        name: cat.name,
+        total,
+        count: row._count.id,
+        sortOrder: cat.sortOrder,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+    .map(({ sortOrder: _sortOrder, ...row }) => row);
   const total = money(all._sum.amount ?? 0);
   const buysSum = money(buys._sum.amount ?? 0);
   const deliverySum = money(delivery._sum.amount ?? 0);
@@ -162,7 +234,29 @@ adminExpenseRouter.get("/summary", async (req, res) => {
     buys: buysSum,
     delivery: deliverySum,
     other: money(total - buysSum - deliverySum),
+    byCategory,
   });
+});
+
+adminExpenseRouter.get("/salary-payees", async (_req, res) => {
+  const rows = await prisma.expense.findMany({
+    where: { paidTo: { not: null } },
+    select: { paidTo: true },
+    orderBy: { updatedAt: "desc" },
+    take: 200,
+  });
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const row of rows) {
+    const name = row.paidTo?.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push(name);
+  }
+  items.sort((a, b) => a.localeCompare(b));
+  res.json({ items });
 });
 
 adminExpenseRouter.get("/:id", async (req, res) => {
@@ -178,9 +272,13 @@ adminExpenseRouter.post("/", async (req, res) => {
   if (category.requiresNote && !notes) {
     throw HttpError.badRequest("Add a note for miscellaneous");
   }
-  const vendorId = parsed.data.vendor
-    ? await resolveVendor(parsed.data.vendor)
-    : null;
+  const salary = isSalaryCategory(category);
+  const vendorId = salary
+    ? null
+    : parsed.data.vendor
+      ? await resolveVendor(parsed.data.vendor)
+      : null;
+  const paidTo = paidToForCategory(category, parsed.data.paidTo);
   const paidById = await resolvePayer(parsed.data.paidBy);
   const created = await prisma.expense.create({
     data: {
@@ -189,6 +287,7 @@ adminExpenseRouter.post("/", async (req, res) => {
       categoryId: category.id,
       purpose: purposeForCategory(category, parsed.data.purpose),
       vendorId,
+      paidTo,
       paymentMethod: parsed.data.paymentMethod,
       notes,
       createdByUserId: staff.id,
@@ -226,9 +325,16 @@ adminExpenseRouter.patch("/:id", async (req, res) => {
   if (category.requiresNote && !notes) {
     throw HttpError.badRequest("Add a note for miscellaneous");
   }
+  const salary = isSalaryCategory(category);
   let vendorId: string | null | undefined;
-  if (parsed.data.vendor === null) vendorId = null;
+  if (salary) vendorId = null;
+  else if (parsed.data.vendor === null) vendorId = null;
   else if (parsed.data.vendor) vendorId = await resolveVendor(parsed.data.vendor);
+  const paidTo = paidToForCategory(
+    category,
+    parsed.data.paidTo,
+    existing.paidTo,
+  );
 
   const updated = await prisma.expense.update({
     where: { id },
@@ -241,6 +347,7 @@ adminExpenseRouter.patch("/:id", async (req, res) => {
         parsed.data.purpose ?? (existing.purpose as ExpensePurpose),
       ),
       ...(vendorId !== undefined ? { vendorId } : {}),
+      paidTo,
       paymentMethod: parsed.data.paymentMethod,
       notes,
       ...(parsed.data.paidBy !== undefined
@@ -254,22 +361,5 @@ adminExpenseRouter.patch("/:id", async (req, res) => {
 
 adminExpenseRouter.post("/:id/void", async (req, res) => {
   requireBooksWrite(req as AuthenticatedRequest);
-  const id = req.params.id ?? "";
-  const existing = await prisma.expense.findUnique({
-    where: { id },
-    select: { id: true, purchaseId: true, orderId: true, voidedAt: true },
-  });
-  if (!existing) throw HttpError.notFound("Expense not found");
-  if (existing.orderId) {
-    throw HttpError.badRequest("Clear delivery we paid on the order to drop this expense");
-  }
-  if (existing.purchaseId) {
-    await voidPurchase(existing.purchaseId);
-    res.json(await getExpense(id));
-    return;
-  }
-  if (!existing.voidedAt) {
-    await prisma.expense.update({ where: { id }, data: { voidedAt: new Date() } });
-  }
-  res.json(await getExpense(id));
+  res.json(await voidExpense(req.params.id ?? ""));
 });

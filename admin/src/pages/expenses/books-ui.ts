@@ -7,7 +7,7 @@ export type PurchasePurpose = (typeof PURCHASE_PURPOSES)[number];
 export const EXPENSE_PURPOSES = ["PRODUCTION", "TRIAL", "WASTE", "OPS", "MARKETING"] as const;
 export type ExpensePurpose = (typeof EXPENSE_PURPOSES)[number];
 
-export const BOOKS_PAY_METHODS = ["CASH", "UPI", "BANK"] as const;
+export const BOOKS_PAY_METHODS = ["UPI", "CASH", "BANK"] as const;
 export type BooksPaymentMethod = (typeof BOOKS_PAY_METHODS)[number];
 
 export const DISCOUNT_REASONS = [
@@ -49,6 +49,11 @@ export function purposeLabel(purpose: string) {
   return purpose;
 }
 
+export function isSalaryCategory(category: { slug?: string } | string | null | undefined) {
+  if (!category) return false;
+  return (typeof category === "string" ? category : category.slug) === "salary";
+}
+
 export function payLabel(method: string) {
   if (method === "CASH") return "Cash";
   if (method === "UPI") return "UPI";
@@ -70,14 +75,45 @@ export function isShippingChargeName(name: string) {
   const n = name.trim().toLowerCase().replace(/\s+/g, " ");
   return (
     n.includes("shipping") ||
-    n === "delivery charge" ||
-    n === "delivery charges" ||
-    n === "delhivery"
+    n.includes("delivery charge") ||
+    n === "delivery" ||
+    n === "delhivery" ||
+    n === "courier"
+  );
+}
+
+export function isMiscChargeName(name: string) {
+  const n = name.trim().toLowerCase().replace(/\s+/g, " ");
+  if (isShippingChargeName(n)) return false;
+  return (
+    n.includes("handling") ||
+    n.includes("convenience") ||
+    n.includes("platform fee") ||
+    n.includes("platform charge") ||
+    n.includes("service charge") ||
+    n.includes("service fee") ||
+    n.includes("processing") ||
+    n.includes("surcharge") ||
+    n.includes("packing charge") ||
+    n.includes("packing fee") ||
+    n.includes("packaging charge") ||
+    n.includes("packaging fee") ||
+    n.includes("extra charge") ||
+    n.includes("other charge") ||
+    n.includes("miscellaneous") ||
+    n.includes("misc charge")
   );
 }
 
 export function inr(n: number) {
   return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+export function booksDeleteConfirm(kind: "buy" | "expense" | "delivery") {
+  if (kind === "delivery") {
+    return "Delete this delivery cost? It will drop out of the books and clear what we paid on the order.";
+  }
+  return `Delete this ${kind}? It will drop out of the books.`;
 }
 
 export function formatBooksDate(isoDay: string) {

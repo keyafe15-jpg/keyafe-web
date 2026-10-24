@@ -9,12 +9,15 @@ import {
   useAdminExpense,
   useCreateExpense,
   useExpenseCategories,
+  useSalaryPayees,
   useUpdateExpense,
   useVoidExpense,
+  type ReceiptDraft,
 } from "@/hooks/useAdminBooks";
 import {
   BOOKS_PAY_METHODS,
   EXPENSE_PURPOSES,
+  isSalaryCategory,
   payLabel,
   type BooksPaymentMethod,
   type ExpensePurpose,
@@ -22,6 +25,7 @@ import {
 import { SearchCreate } from "@/pages/expenses/SearchCreate";
 import { ExpenseCategoryField } from "@/pages/expenses/ExpenseCategoryField";
 import { PaidByField } from "@/pages/expenses/PaidByField";
+import { ScanBillBlock } from "@/pages/expenses/ScanBillBlock";
 import { PurposeMark } from "@/pages/expenses/PurposeMark";
 import { VendorChannelField } from "@/pages/vendors/VendorChannelField";
 import { channelLabel, type VendorChannel } from "@/pages/vendors/vendor-ui";
@@ -57,6 +61,7 @@ export function ExpenseFormPage() {
               purpose: existing.data.purpose,
               paymentMethod: existing.data.paymentMethod,
               paidById: existing.data.paidById,
+              paidTo: existing.data.paidTo ?? "",
               notes: existing.data.notes ?? "",
               vendorId: existing.data.vendorId,
               vendorName: existing.data.vendor?.name ?? "",
@@ -68,8 +73,9 @@ export function ExpenseFormPage() {
               amount: "",
               category: "salary",
               purpose: "OPS",
-              paymentMethod: "CASH",
+              paymentMethod: "UPI",
               paidById: null,
+              paidTo: "",
               notes: "",
               vendorId: null,
               vendorName: "",
@@ -93,6 +99,7 @@ function ExpenseForm({
     purpose: ExpensePurpose;
     paymentMethod: BooksPaymentMethod;
     paidById: string | null;
+    paidTo: string;
     notes: string;
     vendorId: string | null;
     vendorName: string;
@@ -101,6 +108,11 @@ function ExpenseForm({
   };
 }) {
   const navigate = useNavigate();
+  const leaveAfterSave = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx;
+    if (typeof idx === "number" && idx > 0) navigate(-1);
+    else navigate("/expenses");
+  };
   const canWrite = useStaffPermission("expenses.write");
   const create = useCreateExpense();
   const update = useUpdateExpense();
@@ -112,20 +124,54 @@ function ExpenseForm({
   const [purpose, setPurpose] = useState<ExpensePurpose>(initial.purpose);
   const [paymentMethod, setPaymentMethod] = useState<BooksPaymentMethod>(initial.paymentMethod);
   const [paidById, setPaidById] = useState<string | null>(initial.paidById);
+  const [paidTo, setPaidTo] = useState(initial.paidTo);
   const [notes, setNotes] = useState(initial.notes);
   const [vendorId, setVendorId] = useState<string | undefined>(initial.vendorId ?? undefined);
   const [vendorName, setVendorName] = useState(initial.vendorName);
   const [vendorChannel, setVendorChannel] = useState<VendorChannel>(initial.vendorChannel);
   const [vendorQuery, setVendorQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [scanNote, setScanNote] = useState<string | null>(null);
+  const [buyDraft, setBuyDraft] = useState<ReceiptDraft | null>(null);
   const voided = Boolean(initial.voidedAt);
   const pending = create.isPending || update.isPending;
   const vendors = useAdminVendors({ search: vendorQuery || null, active: "ACTIVE", pageSize: 20 });
+  const payees = useSalaryPayees();
 
   const cat = (categories.data?.items ?? []).find((c) => c.slug === category || c.id === category);
   const marketing = Boolean(cat?.marketing);
   const requiresNote = Boolean(cat?.requiresNote);
+  const salary = isSalaryCategory(cat?.slug ?? category);
+
+  const applyDraft = (draft: ReceiptDraft) => {
+    if (draft.date) setDate(draft.date);
+    if (draft.category) setCategory(draft.category);
+    const nextSalary = isSalaryCategory(draft.category);
+    if (nextSalary) {
+      setVendorId(undefined);
+      setVendorName("");
+      setVendorQuery("");
+    } else if (draft.vendorId) {
+      setVendorId(draft.vendorId);
+      setVendorName(draft.vendorName ?? "");
+      setVendorQuery(draft.vendorName ?? "");
+      setVendorChannel(draft.vendorChannel);
+    }
+    if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+    if (draft.notes) setNotes(draft.notes);
+    const fromLines =
+      draft.lines.reduce((sum, l) => sum + l.qty * l.unitPrice, 0) +
+      draft.shipping +
+      (draft.miscCharges ?? 0);
+    const nextAmount = draft.amount && draft.amount > 0 ? draft.amount : fromLines;
+    if (nextAmount > 0) setAmount(String(nextAmount));
+    setBuyDraft(draft.looksLikeBuy ? draft : null);
+    setScanNote(
+      draft.uncertain
+        ? "Some of the bill was unclear — check the amount, then save."
+        : "Check the amount, then save.",
+    );
+  };
 
   return (
     <div>
@@ -139,13 +185,25 @@ function ExpenseForm({
         {expenseId ? "Edit expense" : "Log an expense"}
       </h1>
       {voided && <p className="mt-1 text-sm text-slate-500">Voided — not in the books.</p>}
+      {scanNote && <p className="mt-1 text-sm text-emerald-700">{scanNote}</p>}
+      {buyDraft && (
+        <p className="mt-1 text-sm text-slate-600">
+          This looks like a shop buy.{" "}
+          <button
+            type="button"
+            onClick={() => navigate("/expenses/new-buy", { state: { receiptDraft: buyDraft } })}
+            className="font-medium text-brand-700 underline"
+          >
+            Open as a buy
+          </button>
+        </p>
+      )}
 
       <form
         className="mt-4 space-y-3 rounded-card border border-slate-200 bg-white p-4"
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
-          setSaved(false);
           const n = Number(amount);
           if (!(n > 0)) {
             setError("Enter an amount.");
@@ -159,6 +217,10 @@ function ExpenseForm({
             setError("Who paid for this?");
             return;
           }
+          if (salary && !paidTo.trim()) {
+            setError("Who was this salary paid to?");
+            return;
+          }
           const body = {
             date,
             amount: n,
@@ -166,29 +228,35 @@ function ExpenseForm({
             purpose: marketing ? ("MARKETING" as const) : purpose,
             paymentMethod,
             paidBy: paidById,
+            paidTo: salary ? paidTo.trim() : null,
             notes: notes.trim() || null,
-            vendor: vendorId
-              ? { id: vendorId, channel: vendorChannel }
-              : vendorName.trim()
-                ? { name: vendorName.trim(), channel: vendorChannel }
-                : null,
+            vendor: salary
+              ? null
+              : vendorId
+                ? { id: vendorId, channel: vendorChannel }
+                : vendorName.trim()
+                  ? { name: vendorName.trim(), channel: vendorChannel }
+                  : null,
           };
           if (expenseId) {
             update.mutate(
               { id: expenseId, ...body },
               {
-                onSuccess: () => setSaved(true),
+                onSuccess: leaveAfterSave,
                 onError: (err) => setError(err instanceof Error ? err.message : "Could not save"),
               },
             );
           } else {
             create.mutate(body, {
-              onSuccess: (row) => navigate(`/expenses/${row.id}`, { replace: true }),
+              onSuccess: leaveAfterSave,
               onError: (err) => setError(err instanceof Error ? err.message : "Could not save"),
             });
           }
         }}
       >
+        {!expenseId && canWrite && !voided && (
+          <ScanBillBlock kind="EXPENSE" onDraft={applyDraft} />
+        )}
         <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
           <Field label="Date" required>
             <input
@@ -210,7 +278,14 @@ function ExpenseForm({
           </Field>
           <ExpenseCategoryField
             value={category}
-            onChange={setCategory}
+            onChange={(next) => {
+              setCategory(next);
+              if (isSalaryCategory(next)) {
+                setVendorId(undefined);
+                setVendorName("");
+                setVendorQuery("");
+              }
+            }}
             disabled={!canWrite || voided}
           />
           <Field label="Paid with">
@@ -237,46 +312,70 @@ function ExpenseForm({
           />
         </div>
 
-        <Field label="Vendor" hint="Optional — gas guy, Meta, the landlord…">
-          <SearchCreate
-            query={vendorQuery || vendorName}
-            onQuery={(q) => {
-              setVendorQuery(q);
-              setVendorId(undefined);
-              setVendorName(q);
-            }}
-            options={(vendors.data?.items ?? []).map((v) => ({
-              id: v.id,
-              label: v.name,
-              hint: [channelLabel(v.channel), v.phone].filter(Boolean).join(" · ") || undefined,
-            }))}
-            placeholder="Optional"
-            createLabel={
-              (vendorQuery || vendorName).trim() && !vendorId
-                ? `Use “${(vendorQuery || vendorName).trim()}”`
-                : null
-            }
-            onSelect={(id) => {
-              const v = vendors.data?.items.find((row) => row.id === id);
-              setVendorId(id);
-              setVendorName(v?.name ?? "");
-              setVendorQuery(v?.name ?? "");
-              setVendorChannel(v?.channel ?? "OFFLINE");
-            }}
-            onCreate={(name) => {
-              setVendorId(undefined);
-              setVendorName(name);
-              setVendorQuery(name);
-            }}
-          />
-        </Field>
-
-        {(vendorId || vendorName.trim()) && (
-          <VendorChannelField
-            value={vendorChannel}
-            onChange={setVendorChannel}
-            disabled={!canWrite || voided}
-          />
+        {salary ? (
+          <Field label="Salary paid to" required hint="Who received this pay.">
+            <SearchCreate
+              query={paidTo}
+              onQuery={setPaidTo}
+              options={(payees.data?.items ?? [])
+                .filter((name) => name.toLowerCase().includes(paidTo.trim().toLowerCase()))
+                .map((name) => ({ id: name, label: name }))}
+              placeholder="Name"
+              createLabel={
+                paidTo.trim() &&
+                !(payees.data?.items ?? []).some(
+                  (name) => name.toLowerCase() === paidTo.trim().toLowerCase(),
+                )
+                  ? `Use “${paidTo.trim()}”`
+                  : null
+              }
+              onSelect={(name) => setPaidTo(name)}
+              onCreate={(name) => setPaidTo(name)}
+            />
+          </Field>
+        ) : (
+          <>
+            <Field label="Vendor" hint="Optional — gas guy, Meta, the landlord…">
+              <SearchCreate
+                query={vendorQuery || vendorName}
+                onQuery={(q) => {
+                  setVendorQuery(q);
+                  setVendorId(undefined);
+                  setVendorName(q);
+                }}
+                options={(vendors.data?.items ?? []).map((v) => ({
+                  id: v.id,
+                  label: v.name,
+                  hint: [channelLabel(v.channel), v.phone].filter(Boolean).join(" · ") || undefined,
+                }))}
+                placeholder="Optional"
+                createLabel={
+                  (vendorQuery || vendorName).trim() && !vendorId
+                    ? `Use “${(vendorQuery || vendorName).trim()}”`
+                    : null
+                }
+                onSelect={(id) => {
+                  const v = vendors.data?.items.find((row) => row.id === id);
+                  setVendorId(id);
+                  setVendorName(v?.name ?? "");
+                  setVendorQuery(v?.name ?? "");
+                  setVendorChannel(v?.channel ?? "OFFLINE");
+                }}
+                onCreate={(name) => {
+                  setVendorId(undefined);
+                  setVendorName(name);
+                  setVendorQuery(name);
+                }}
+              />
+            </Field>
+            {(vendorId || vendorName.trim()) && (
+              <VendorChannelField
+                value={vendorChannel}
+                onChange={setVendorChannel}
+                disabled={!canWrite || voided}
+              />
+            )}
+          </>
         )}
 
         {expenseId && !marketing && (
@@ -299,7 +398,6 @@ function ExpenseForm({
         </Field>
 
         {error && <p className="text-xs text-red-700">{error}</p>}
-        {saved && <p className="text-xs text-emerald-700">Saved.</p>}
 
         {canWrite && !voided && (
           <div className="flex flex-wrap justify-end gap-2">
@@ -308,16 +406,16 @@ function ExpenseForm({
                 type="button"
                 disabled={voidExp.isPending}
                 onClick={() => {
-                  if (!window.confirm("Void this expense? It will drop out of the books.")) return;
+                  if (!window.confirm("Delete this expense? It will drop out of the books.")) return;
                   voidExp.mutate(expenseId, {
                     onSuccess: () => navigate("/expenses"),
                     onError: (err) =>
-                      setError(err instanceof Error ? err.message : "Could not void"),
+                      setError(err instanceof Error ? err.message : "Could not delete"),
                   });
                 }}
                 className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
               >
-                Void
+                Delete
               </button>
             )}
             <button

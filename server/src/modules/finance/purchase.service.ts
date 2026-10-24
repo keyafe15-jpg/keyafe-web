@@ -7,6 +7,7 @@ import {
   dateKey,
   expenseInclude,
   money,
+  isMiscChargeName,
   isShippingChargeName,
   normalizeItemName,
   purposeFromPurchase,
@@ -50,6 +51,7 @@ export function serializePurchase(row: {
   paymentMethod: BooksPaymentMethod;
   notes: string | null;
   shipping: { toString(): string } | number;
+  miscCharges?: { toString(): string } | number;
   total: { toString(): string } | number;
   createdByUserId: string;
   paidById?: string | null;
@@ -78,6 +80,7 @@ export function serializePurchase(row: {
     paymentMethod: row.paymentMethod,
     notes: row.notes,
     shipping: money(row.shipping),
+    miscCharges: money(row.miscCharges ?? 0),
     total: money(row.total),
     createdByUserId: row.createdByUserId,
     paidById: row.paidById ?? row.paidBy?.id ?? null,
@@ -127,6 +130,19 @@ export async function resolveVendor(input: {
   const name = input.name?.trim();
   if (!name) throw HttpError.badRequest("Pick or type a vendor");
   const phone = input.phone?.trim() || null;
+  const byName = await prisma.vendor.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (byName) {
+    if (input.channel) {
+      await prisma.vendor.update({
+        where: { id: byName.id },
+        data: { channel: input.channel },
+      });
+    }
+    return byName.id;
+  }
   if (phone) {
     const byPhone = await prisma.vendor.findFirst({
       where: { phone },
@@ -182,6 +198,9 @@ export async function resolveBuyItem(input: {
   if (!name) throw HttpError.badRequest("Pick or type an item");
   if (isShippingChargeName(name)) {
     throw HttpError.badRequest("Delivery charge is a field on the buy, not an item");
+  }
+  if (isMiscChargeName(name)) {
+    throw HttpError.badRequest("Handling and other extras are miscellaneous charges, not an item");
   }
   const nameNormalized = normalizeItemName(name);
   const existing = await prisma.buyItem.findUnique({
@@ -379,7 +398,7 @@ function moneyOrZero(raw?: number | null) {
   if (raw === undefined || raw === null) return 0;
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 0)
-    throw HttpError.badRequest("Delivery charge cannot be negative");
+    throw HttpError.badRequest("Charge cannot be negative");
   return roundMoney(n);
 }
 
@@ -390,6 +409,7 @@ export async function createPurchase(input: {
   paymentMethod: BooksPaymentMethod;
   notes: string | null;
   shipping?: number;
+  miscCharges?: number;
   categoryId: string;
   createdByUserId: string;
   paidById?: string | null;
@@ -399,7 +419,8 @@ export async function createPurchase(input: {
   if (!category) throw HttpError.badRequest("Unknown expense category");
   const built = await buildLines(input.lines, input.purpose);
   const shipping = moneyOrZero(input.shipping);
-  const total = roundMoney(built.total + shipping);
+  const miscCharges = moneyOrZero(input.miscCharges);
+  const total = roundMoney(built.total + shipping + miscCharges);
   const purpose = purposeFromPurchase(input.purpose);
 
   const created = await prisma.$transaction(async (tx) => {
@@ -411,6 +432,7 @@ export async function createPurchase(input: {
         paymentMethod: input.paymentMethod,
         notes: input.notes,
         shipping,
+        miscCharges,
         total,
         createdByUserId: input.createdByUserId,
         paidById: input.paidById ?? null,
@@ -449,6 +471,7 @@ export async function updatePurchase(
     paymentMethod?: BooksPaymentMethod;
     notes?: string | null;
     shipping?: number;
+    miscCharges?: number;
     categoryId?: string;
     paidById?: string | null;
     lines?: LineInput[];
@@ -469,10 +492,12 @@ export async function updatePurchase(
   const notes = input.notes === undefined ? existing.notes : input.notes;
   const shipping =
     input.shipping !== undefined ? moneyOrZero(input.shipping) : money(existing.shipping);
+  const miscCharges =
+    input.miscCharges !== undefined ? moneyOrZero(input.miscCharges) : money(existing.miscCharges);
   const goods = built
     ? built.total
     : roundMoney(existing.lines.reduce((sum, line) => sum + money(line.amount), 0));
-  const total = roundMoney(goods + shipping);
+  const total = roundMoney(goods + shipping + miscCharges);
   const categoryId = input.categoryId ?? existing.expense?.categoryId;
   if (!categoryId) throw HttpError.badRequest("Missing category");
   const paidById = input.paidById !== undefined ? input.paidById : existing.paidById;
@@ -490,6 +515,7 @@ export async function updatePurchase(
         paymentMethod,
         notes,
         shipping,
+        miscCharges,
         total,
         paidById,
         ...(built ? { lines: { create: built.lines } } : {}),
@@ -537,6 +563,31 @@ export async function voidPurchase(id: string) {
   );
 }
 
+export async function voidExpense(id: string) {
+  const existing = await prisma.expense.findUnique({
+    where: { id },
+    select: { id: true, purchaseId: true, orderId: true, voidedAt: true },
+  });
+  if (!existing) throw HttpError.notFound("Expense not found");
+  if (existing.purchaseId) {
+    await voidPurchase(existing.purchaseId);
+    return getExpense(id);
+  }
+  if (!existing.voidedAt) {
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.expense.update({ where: { id }, data: { voidedAt: now } });
+      if (existing.orderId) {
+        await tx.order.update({
+          where: { id: existing.orderId },
+          data: { deliveryCost: null, deliveryPaidById: null },
+        });
+      }
+    });
+  }
+  return getExpense(id);
+}
+
 export async function getPurchase(id: string) {
   const row = await prisma.purchase.findUnique({ where: { id }, include: purchaseInclude });
   if (!row) throw HttpError.notFound("Buy not found");
@@ -550,6 +601,7 @@ export function serializeExpense(row: {
   categoryId: string;
   purpose: string;
   vendorId: string | null;
+  paidTo?: string | null;
   paymentMethod: string;
   notes: string | null;
   createdByUserId: string;
@@ -572,6 +624,7 @@ export function serializeExpense(row: {
     | {
         id: string;
         shipping?: { toString(): string } | number;
+        miscCharges?: { toString(): string } | number;
         lines?: { qty: { toString(): string } | number; buyItem: { name: string } }[];
       }
     | null;
@@ -587,6 +640,7 @@ export function serializeExpense(row: {
     purpose: row.purpose,
     vendorId: row.vendorId,
     vendor: vendorBrief(row.vendor),
+    paidTo: row.paidTo ?? null,
     paymentMethod: row.paymentMethod,
     notes: row.notes,
     createdByUserId: row.createdByUserId,
@@ -600,6 +654,7 @@ export function serializeExpense(row: {
           lineCount: lines.length,
           items: lines.map((l) => l.buyItem.name),
           shipping: money(row.purchase.shipping ?? 0),
+          miscCharges: money(row.purchase.miscCharges ?? 0),
         }
       : null,
     voidedAt: row.voidedAt?.toISOString() ?? null,
@@ -673,6 +728,7 @@ export function expenseListWhere(opts: {
       },
       { order: { orderNumber: { contains: opts.q, mode: "insensitive" } } },
       { paidBy: { name: { contains: opts.q, mode: "insensitive" } } },
+      { paidTo: { contains: opts.q, mode: "insensitive" } },
     ];
   }
   return where;

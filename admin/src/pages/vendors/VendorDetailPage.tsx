@@ -6,11 +6,18 @@ import {
   useCreateVendor,
   useUpdateVendor,
 } from "@/hooks/useAdminVendors";
-import { useAdminPurchases } from "@/hooks/useAdminBooks";
+import { useAdminPurchases, useDeleteBooksRow } from "@/hooks/useAdminBooks";
 import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
 import { VendorForm } from "@/pages/vendors/VendorForm";
-import { formatBooksDate, inr, lineQtyLabel, purposeLabel } from "@/pages/expenses/books-ui";
+import {
+  booksDeleteConfirm,
+  formatBooksDate,
+  inr,
+  lineQtyLabel,
+  purposeLabel,
+} from "@/pages/expenses/books-ui";
+import { BooksDeleteButton } from "@/pages/expenses/BooksDeleteButton";
 import { channelLabel } from "@/pages/vendors/vendor-ui";
 import { PaginationControls } from "@/components/ClientPagination";
 
@@ -193,6 +200,8 @@ function VendorBuysTab({ vendorId }: { vendorId: string }) {
   const [page, setPage] = useState(1);
   const canLog = useStaffPermission("expenses.write");
   const { data, isLoading } = useAdminPurchases({ vendorId, page, pageSize: 20 });
+  const remove = useDeleteBooksRow();
+  const [error, setError] = useState<string | null>(null);
   const buys = data?.items ?? [];
   const total = data?.total ?? 0;
 
@@ -208,6 +217,7 @@ function VendorBuysTab({ vendorId }: { vendorId: string }) {
           </Link>
         </div>
       )}
+      {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
       <div className="overflow-clip rounded-card border border-slate-200 bg-white">
         {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
         {!isLoading && buys.length === 0 && (
@@ -222,10 +232,10 @@ function VendorBuysTab({ vendorId }: { vendorId: string }) {
           <>
             <ul className="divide-y divide-slate-100">
               {buys.map((buy) => (
-                <li key={buy.id}>
+                <li key={buy.id} className="flex items-start">
                   <Link
                     to={`/expenses/buys/${buy.id}`}
-                    className="block px-4 py-3 hover:bg-slate-50"
+                    className="min-w-0 flex-1 px-4 py-3 hover:bg-slate-50"
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <p className="font-medium text-slate-900">{formatBooksDate(buy.date)}</p>
@@ -240,8 +250,23 @@ function VendorBuysTab({ vendorId }: { vendorId: string }) {
                         )
                         .join("")}
                       {buy.shipping > 0 ? ` · Delivery ${inr(buy.shipping)}` : ""}
+                      {buy.miscCharges > 0 ? ` · Misc ${inr(buy.miscCharges)}` : ""}
                     </p>
                   </Link>
+                  {canLog && (
+                    <div className="shrink-0 py-3 pr-3">
+                      <BooksDeleteButton
+                        confirm={booksDeleteConfirm("buy")}
+                        pending={remove.pending}
+                        onDelete={() => {
+                          setError(null);
+                          return remove.deleteBuy(buy.id).catch((err: unknown) => {
+                            setError(err instanceof Error ? err.message : "Could not delete");
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

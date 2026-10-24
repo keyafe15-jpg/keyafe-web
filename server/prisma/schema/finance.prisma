@@ -123,7 +123,9 @@ model Purchase {
   notes           String?
   /// Courier / shipping on this buy — not a line item.
   shipping        Decimal             @default(0) @db.Decimal(10, 2)
-  /// Lines + shipping.
+  /// Handling, packing fee, platform fee, and other extras — not a line item.
+  miscCharges     Decimal             @default(0) @db.Decimal(10, 2)
+  /// Lines + shipping + miscCharges.
   total           Decimal             @db.Decimal(10, 2)
   createdByUserId String
   createdBy       User                @relation("PurchaseCreatedBy", fields: [createdByUserId], references: [id])
@@ -167,6 +169,8 @@ model Expense {
   purpose         ExpensePurpose
   vendorId        String?
   vendor          Vendor?            @relation(fields: [vendorId], references: [id])
+  /// Who received this salary. Only set on salary expenses — not a vendor.
+  paidTo          String?
   paymentMethod   BooksPaymentMethod
   notes           String?
   createdByUserId String

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
   BooksPaymentMethod,
@@ -16,12 +16,21 @@ export interface BooksPage<T> {
   sum?: number;
 }
 
+export interface ExpenseCategoryTotal {
+  id: string;
+  slug: string;
+  name: string;
+  total: number;
+  count: number;
+}
+
 export interface ExpenseRangeSummary {
   total: number;
   count: number;
   buys: number;
   delivery: number;
   other: number;
+  byCategory: ExpenseCategoryTotal[];
 }
 
 export interface AdminBuyItem {
@@ -79,6 +88,7 @@ export interface AdminPurchase {
   paymentMethod: BooksPaymentMethod;
   notes: string | null;
   shipping: number;
+  miscCharges: number;
   total: number;
   createdByUserId: string;
   paidById: string | null;
@@ -119,10 +129,11 @@ export interface AdminExpense {
   createdByUserId: string;
   paidById: string | null;
   paidBy: BooksPayer | null;
+  paidTo: string | null;
   purchaseId: string | null;
   orderId: string | null;
   order: { id: string; orderNumber: string } | null;
-  buy: { lineCount: number; items: string[]; shipping: number } | null;
+  buy: { lineCount: number; items: string[]; shipping: number; miscCharges: number } | null;
   voidedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -135,6 +146,7 @@ export interface PurchaseWritePayload {
   paymentMethod: BooksPaymentMethod;
   notes?: string | null;
   shipping?: number;
+  miscCharges?: number;
   category?: string;
   paidBy?: string | null;
   lines: {
@@ -157,6 +169,7 @@ export interface ExpenseWritePayload {
   notes?: string | null;
   vendor?: { id?: string; name?: string; phone?: string | null; channel?: "OFFLINE" | "ONLINE" } | null;
   paidBy?: string | null;
+  paidTo?: string | null;
 }
 
 export function useAdminBuyItems(filter: { search?: string | null; page?: number; pageSize?: number }) {
@@ -235,15 +248,21 @@ export function useUpdatePurchase() {
   });
 }
 
+function invalidateBooks(qc: QueryClient) {
+  void qc.invalidateQueries({ queryKey: ["admin", "purchases"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "purchase"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "expenses"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "expense"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "buy-items"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "buy-item"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "vendors"] });
+}
+
 export function useVoidPurchase() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.post<AdminPurchase>(`/admin/purchases/${id}/void`, {}),
-    onSuccess: (data) => {
-      void qc.invalidateQueries({ queryKey: ["admin", "purchases"] });
-      void qc.invalidateQueries({ queryKey: ["admin", "purchase", data.id] });
-      void qc.invalidateQueries({ queryKey: ["admin", "expenses"] });
-    },
+    onSuccess: () => invalidateBooks(qc),
   });
 }
 
@@ -282,6 +301,14 @@ export function useCreateBooksPayer() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "books-payers"] });
     },
+  });
+}
+
+export function useSalaryPayees() {
+  return useQuery<{ items: string[] }>({
+    queryKey: ["admin", "salary-payees"],
+    queryFn: () => api.get<{ items: string[] }>("/admin/expenses/salary-payees"),
+    staleTime: 60_000,
   });
 }
 
@@ -334,6 +361,52 @@ export function useExpenseSummary(from: string, to: string, enabled = true) {
   });
 }
 
+export type ReceiptParseKind = "BUY" | "EXPENSE";
+
+export interface ReceiptDraftLine {
+  buyItemId?: string;
+  name: string;
+  unit: BuyItemUnit;
+  packSize: number | null;
+  qty: number;
+  unitPrice: number;
+}
+
+export interface ReceiptDraft {
+  kind: ReceiptParseKind;
+  looksLikeBuy: boolean;
+  uncertain: boolean;
+  date: string | null;
+  vendorId: string | null;
+  vendorName: string | null;
+  vendorChannel: "ONLINE" | "OFFLINE";
+  category: string | null;
+  paymentMethod: BooksPaymentMethod | null;
+  shipping: number;
+  miscCharges: number;
+  amount: number | null;
+  notes: string | null;
+  lines: ReceiptDraftLine[];
+}
+
+export function useParseReceipt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { kind: ReceiptParseKind; image: File; context?: string }) => {
+      const { compressSuggestImage } = await import("@/ai/compressSuggestImage");
+      const image = await compressSuggestImage(input.image);
+      const form = new FormData();
+      form.append("kind", input.kind);
+      form.append("image", image);
+      if (input.context?.trim()) form.append("context", input.context.trim().slice(0, 400));
+      return api.postForm<ReceiptDraft>("/admin/expenses/parse-receipt", form);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "vendors"] });
+    },
+  });
+}
+
 export function useAdminExpense(id: string | undefined) {
   return useQuery<AdminExpense>({
     queryKey: ["admin", "expense", id],
@@ -348,6 +421,7 @@ export function useCreateExpense() {
     mutationFn: (body: ExpenseWritePayload) => api.post<AdminExpense>("/admin/expenses", body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "expenses"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "salary-payees"] });
     },
   });
 }
@@ -360,6 +434,7 @@ export function useUpdateExpense() {
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: ["admin", "expenses"] });
       void qc.invalidateQueries({ queryKey: ["admin", "expense", data.id] });
+      void qc.invalidateQueries({ queryKey: ["admin", "salary-payees"] });
     },
   });
 }
@@ -369,12 +444,24 @@ export function useVoidExpense() {
   return useMutation({
     mutationFn: (id: string) => api.post<AdminExpense>(`/admin/expenses/${id}/void`, {}),
     onSuccess: (data) => {
-      void qc.invalidateQueries({ queryKey: ["admin", "expenses"] });
-      void qc.invalidateQueries({ queryKey: ["admin", "expense", data.id] });
-      if (data.purchaseId) {
-        void qc.invalidateQueries({ queryKey: ["admin", "purchases"] });
-        void qc.invalidateQueries({ queryKey: ["admin", "purchase", data.purchaseId] });
+      invalidateBooks(qc);
+      if (data.orderId) {
+        void qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+        void qc.invalidateQueries({ queryKey: ["admin", "order", data.orderId] });
       }
     },
   });
+}
+
+export function useDeleteBooksRow() {
+  const voidBuy = useVoidPurchase();
+  const voidExp = useVoidExpense();
+  return {
+    pending: voidBuy.isPending || voidExp.isPending,
+    deleteExpense: (row: Pick<AdminExpense, "id" | "purchaseId" | "orderId">) => {
+      if (row.purchaseId) return voidBuy.mutateAsync(row.purchaseId).then(() => undefined);
+      return voidExp.mutateAsync(row.id).then(() => undefined);
+    },
+    deleteBuy: (purchaseId: string) => voidBuy.mutateAsync(purchaseId).then(() => undefined),
+  };
 }
