@@ -4,7 +4,9 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { gstinIssue, normalizeGstin } from "../../lib/gstin.js";
 import { HttpError } from "../../utils/httpError.js";
+import { staffHasPermission, type AuthenticatedRequest } from "../../middleware/auth.js";
 import { VENDOR_CHANNELS } from "./books.shared.js";
+import { importVendors } from "./vendor.import.js";
 
 export const adminVendorRouter = Router();
 
@@ -122,6 +124,49 @@ adminVendorRouter.get("/", async (req, res) => {
   });
 });
 
+function requireVendorWrite(req: AuthenticatedRequest) {
+  const staff = req.staff;
+  if (!staff || !staffHasPermission(staff, "vendors.write")) {
+    throw HttpError.forbidden("You don't have permission to edit vendors");
+  }
+  return staff;
+}
+
+const importRowSchema = z.object({
+  name: z.string().trim().min(1).max(160),
+  phone: z.string().trim().max(40).optional().nullable(),
+  channel: z.enum(VENDOR_CHANNELS).optional(),
+  gstin: z.string().trim().max(20).optional().nullable(),
+  address: z.string().trim().max(400).optional().nullable(),
+  supplies: suppliesSchema.optional(),
+  notes: z.string().trim().max(2000).optional().nullable(),
+  upiId: z.string().trim().max(120).optional().nullable(),
+  accountHint: z.string().trim().max(160).optional().nullable(),
+});
+
+adminVendorRouter.post("/import", async (req, res) => {
+  requireVendorWrite(req as AuthenticatedRequest);
+  const parsed = z
+    .object({ rows: z.array(importRowSchema).min(1).max(500) })
+    .safeParse(req.body);
+  if (!parsed.success) throw HttpError.badRequest("Invalid vendor import", parsed.error.flatten());
+  res.json(await importVendors(parsed.data.rows));
+});
+
+adminVendorRouter.post("/delete-all", async (req, res) => {
+  requireVendorWrite(req as AuthenticatedRequest);
+  const [kept, deleted] = await prisma.$transaction(async (tx) => {
+    const withBuys = await tx.vendor.count({ where: { purchases: { some: {} } } });
+    await tx.expense.updateMany({
+      where: { purchaseId: null, vendor: { purchases: { none: {} } } },
+      data: { vendorId: null },
+    });
+    const gone = await tx.vendor.deleteMany({ where: { purchases: { none: {} } } });
+    return [withBuys, gone.count] as const;
+  });
+  res.json({ deleted, kept });
+});
+
 adminVendorRouter.get("/:id", async (req, res) => {
   const id = req.params.id ?? "";
   const vendor = await prisma.vendor.findUnique({ where: { id }, select: vendorSelect });
@@ -169,4 +214,28 @@ adminVendorRouter.patch("/:id", async (req, res) => {
     select: vendorSelect,
   });
   res.json(updated);
+});
+
+async function deleteVendorIfUnused(id: string) {
+  const existing = await prisma.vendor.findUnique({
+    where: { id },
+    select: { id: true, _count: { select: { purchases: true } } },
+  });
+  if (!existing) throw HttpError.notFound("Vendor not found");
+  if (existing._count.purchases > 0) {
+    throw HttpError.badRequest("This vendor has buys. Delete those first.");
+  }
+  await prisma.$transaction([
+    prisma.expense.updateMany({
+      where: { vendorId: id, purchaseId: null },
+      data: { vendorId: null },
+    }),
+    prisma.vendor.delete({ where: { id } }),
+  ]);
+}
+
+adminVendorRouter.delete("/:id", async (req, res) => {
+  requireVendorWrite(req as AuthenticatedRequest);
+  await deleteVendorIfUnused(req.params.id ?? "");
+  res.json({ ok: true });
 });

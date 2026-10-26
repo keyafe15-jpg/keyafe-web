@@ -80,6 +80,24 @@ export function useAdminVendor(id: string | undefined) {
   });
 }
 
+export interface VendorImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: { name: string; message: string }[];
+}
+
+export function useImportVendors() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (rows: VendorWritePayload[]) =>
+      api.post<VendorImportResult>("/admin/vendors/import", { rows }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "vendors"] });
+    },
+  });
+}
+
 export function useCreateVendor() {
   const qc = useQueryClient();
   return useMutation({
@@ -98,6 +116,27 @@ export function useUpdateVendor() {
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: ["admin", "vendors"] });
       void qc.invalidateQueries({ queryKey: ["admin", "vendor", data.id] });
+    },
+  });
+}
+
+export function useDeleteVendor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<{ ok: true }>(`/admin/vendors/${id}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "vendors"] });
+    },
+  });
+}
+
+export function useDeleteAllVendors() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ deleted: number; kept: number }>("/admin/vendors/delete-all"),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "vendors"] });
     },
   });
 }

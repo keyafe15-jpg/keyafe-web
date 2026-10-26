@@ -3,15 +3,22 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Plus } from "lucide-react";
 import {
   useAdminVendors,
+  useDeleteAllVendors,
+  useDeleteVendor,
+  useImportVendors,
   type VendorActiveFilter,
   type VendorChannelFilter,
   type VendorSort,
+  type VendorWritePayload,
 } from "@/hooks/useAdminVendors";
+import { BooksDeleteButton } from "@/pages/expenses/BooksDeleteButton";
 import { PaginationControls } from "@/components/ClientPagination";
 import { DebouncedSearchInput } from "@/components/form/DebouncedSearchInput";
 import { useListSearch } from "@/store/listSearch";
 import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
+import { BulkSpreadsheetImport } from "@/components/form/BulkSpreadsheetImport";
+import { cellString, splitList } from "@/lib/spreadsheetImport";
 import { channelLabel, supplyLabel } from "@/pages/vendors/vendor-ui";
 
 const PAGE_SIZE = 20;
@@ -33,6 +40,48 @@ const SORT_TABS: { key: VendorSort; label: string }[] = [
   { key: "name", label: "A–Z" },
 ];
 
+const IMPORT_COLUMNS =
+  "name, phone, channel (offline/online), gstin, address, supplies, upi, payHint, notes";
+
+const VENDOR_TEMPLATE = `name,phone,channel,gstin,address,supplies,upi,payHint,notes
+Rajdwip Dairy,9830012345,offline,,Bikram Super Market Dunlop,"dairy, ice-cream",,,
+Arife Aesthetics,,online,,,boxes,name@upi,,
+`;
+
+function parseChannel(value: unknown): "OFFLINE" | "ONLINE" | undefined {
+  const s = cellString(value).toLowerCase();
+  if (!s) return undefined;
+  if (/\b(online|instagram|website|amazon|flipkart|app)\b/.test(s)) return "ONLINE";
+  if (/\b(offline|shop|market|kirana)\b/.test(s)) return "OFFLINE";
+  return undefined;
+}
+
+function parseVendorImportRow(row: Record<string, unknown>): VendorWritePayload | null {
+  const name = cellString(row.name ?? row.vendor ?? row.shop);
+  if (!name) return null;
+  return {
+    name,
+    phone: cellString(row.phone ?? row.mobile) || null,
+    channel: parseChannel(row.channel ?? row.type),
+    gstin: cellString(row.gstin ?? row.gstno ?? row.gst) || null,
+    address: cellString(row.address ?? row.location) || null,
+    supplies: splitList(row.supplies ?? row.sells ?? row.tags),
+    upiId: cellString(row.upi ?? row.upiid) || null,
+    accountHint: cellString(row.payhint ?? row.accounthint ?? row.pay) || null,
+    notes: cellString(row.notes) || null,
+  };
+}
+
+function downloadVendorTemplate() {
+  const blob = new Blob([VENDOR_TEMPLATE], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "vendors-template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function VendorsListPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<VendorActiveFilter>("ACTIVE");
@@ -41,7 +90,11 @@ export function VendorsListPage() {
   const search = useListSearch((s) => s.query);
   const setSearch = useListSearch((s) => s.setQuery);
   const navigate = useNavigate();
-  const canWrite = useStaffPermission("vendors.write") || useStaffPermission("vendors.read");
+  const canWrite = useStaffPermission("vendors.write");
+  const remove = useDeleteVendor();
+  const removeAll = useDeleteAllVendors();
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const { data, isLoading, isFetching } = useAdminVendors({
     search: search || null,
     active: status,
@@ -73,6 +126,30 @@ export function VendorsListPage() {
     setPage(1);
   };
 
+  const confirmDeleteAll = () => {
+    if (
+      !window.confirm(
+        "Delete ALL vendors that have no buys? Shops with buys stay. This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setNote(null);
+    removeAll.mutate(undefined, {
+      onSuccess: (res) => {
+        setNote(
+          res.deleted === 0 && res.kept > 0
+            ? `Nothing deleted — ${res.kept} vendor${res.kept === 1 ? "" : "s"} still have buys.`
+            : `Deleted ${res.deleted} vendor${res.deleted === 1 ? "" : "s"}${
+                res.kept > 0 ? `. Kept ${res.kept} with buys.` : "."
+              }`,
+        );
+      },
+      onError: (err) => setError(err instanceof Error ? err.message : "Could not delete"),
+    });
+  };
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
@@ -85,14 +162,28 @@ export function VendorsListPage() {
           </p>
         </div>
         {canWrite && (
-          <Link
-            to="/vendors/new"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            <Plus className="h-4 w-4" /> Add vendor
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={removeAll.isPending}
+              onClick={confirmDeleteAll}
+              className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              {removeAll.isPending ? "Deleting…" : "Delete all"}
+            </button>
+            <Link
+              to="/vendors/new"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              <Plus className="h-4 w-4" /> Add vendor
+            </Link>
+          </div>
         )}
       </div>
+
+      {note && <p className="mb-3 text-sm text-emerald-700">{note}</p>}
+      {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
+      {canWrite && <VendorBulkImport />}
 
       <div className="mb-3">
         <DebouncedSearchInput
@@ -182,7 +273,7 @@ export function VendorsListPage() {
                   <th className="px-4 py-2 font-medium">Address</th>
                   <th className="px-4 py-2 font-medium">Sells</th>
                   <th className="px-4 py-2 font-medium">Pay</th>
-                  <th className="w-8" />
+                  <th className="w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -220,8 +311,25 @@ export function VendorsListPage() {
                       {v.supplies.length ? v.supplies.map(supplyLabel).join(", ") : "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-600">{v.upiId || v.accountHint || "—"}</td>
-                    <td className="px-2 py-3 text-slate-300">
-                      <ChevronRight className="h-4 w-4" />
+                    <td className="px-2 py-3">
+                      <div className="flex items-center justify-end gap-1 text-slate-300">
+                        {canWrite && (
+                          <BooksDeleteButton
+                            confirm={`Delete ${v.name}? This cannot be undone.`}
+                            pending={remove.isPending}
+                            onDelete={() => {
+                              setError(null);
+                              return remove.mutateAsync(v.id).then(
+                                () => undefined,
+                                (err: unknown) => {
+                                  setError(err instanceof Error ? err.message : "Could not delete");
+                                },
+                              );
+                            }}
+                          />
+                        )}
+                        <ChevronRight className="h-4 w-4" />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -230,10 +338,10 @@ export function VendorsListPage() {
 
             <ul className="divide-y divide-slate-100 md:hidden">
               {vendors.map((v) => (
-                <li key={v.id}>
+                <li key={v.id} className="flex items-start">
                   <Link
                     to={`/vendors/${v.id}`}
-                    className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-slate-50"
+                    className="flex min-w-0 flex-1 items-start justify-between gap-3 px-4 py-3 hover:bg-slate-50"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-900">
@@ -261,6 +369,23 @@ export function VendorsListPage() {
                     </div>
                     <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
                   </Link>
+                  {canWrite && (
+                    <div className="shrink-0 py-3 pr-3">
+                      <BooksDeleteButton
+                        confirm={`Delete ${v.name}? This cannot be undone.`}
+                        pending={remove.isPending}
+                        onDelete={() => {
+                          setError(null);
+                          return remove.mutateAsync(v.id).then(
+                            () => undefined,
+                            (err: unknown) => {
+                              setError(err instanceof Error ? err.message : "Could not delete");
+                            },
+                          );
+                        }}
+                      />
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -279,5 +404,54 @@ export function VendorsListPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function VendorBulkImport() {
+  const importVendors = useImportVendors();
+
+  return (
+    <BulkSpreadsheetImport<VendorWritePayload>
+      collapsible
+      title="Import vendors from CSV"
+      description={
+        <>
+          CSV, XLS, or XLSX. Matching name, GSTIN, or phone updates blank fields only.{" "}
+          <button
+            type="button"
+            onClick={downloadVendorTemplate}
+            className="font-medium text-brand-700 underline"
+          >
+            Download template
+          </button>
+        </>
+      }
+      columnsHint={IMPORT_COLUMNS}
+      parseRow={parseVendorImportRow}
+      rowKey={(row, i) => `${row.name}-${i}`}
+      previewColumns={[
+        {
+          id: "name",
+          header: "Vendor",
+          cell: (row) => <span className="font-medium text-slate-900">{row.name}</span>,
+        },
+        { id: "phone", header: "Phone", cell: (row) => row.phone || "—" },
+        {
+          id: "channel",
+          header: "Type",
+          cell: (row) => (row.channel ? channelLabel(row.channel) : "—"),
+        },
+        { id: "gstin", header: "GSTIN", cell: (row) => row.gstin || "—" },
+        { id: "address", header: "Address", cell: (row) => row.address || "—" },
+      ]}
+      onImport={async (rows) => {
+        const res = await importVendors.mutateAsync(rows);
+        const fail = res.errors.length
+          ? ` · ${res.errors.length} failed${res.errors[0] ? ` (${res.errors[0].name})` : ""}`
+          : "";
+        return `Created ${res.created}, updated ${res.updated}, skipped ${res.skipped}${fail}`;
+      }}
+      emptyFileMessage="No vendor rows with a name in that file."
+    />
   );
 }

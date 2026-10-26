@@ -182,7 +182,7 @@ export function vendorNamesClose(a: string, b: string): boolean {
   return vendorNameScore(a, b) >= 70;
 }
 
-async function findVendorByName(name: string) {
+export async function findVendorByName(name: string) {
   const exact = await prisma.vendor.findFirst({
     where: { name: { equals: name, mode: "insensitive" } },
     select: { id: true },

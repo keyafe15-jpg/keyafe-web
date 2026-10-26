@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import {
   useAdminVendor,
   useCreateVendor,
+  useDeleteVendor,
   useUpdateVendor,
 } from "@/hooks/useAdminVendors";
 import { useAdminPurchases, useDeleteBooksRow } from "@/hooks/useAdminBooks";
@@ -25,11 +26,11 @@ export function VendorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const isNew = !id;
   const navigate = useNavigate();
-  const canWrite =
-    useStaffPermission("vendors.write") || useStaffPermission("vendors.read");
+  const canWrite = useStaffPermission("vendors.write");
   const vendorQuery = useAdminVendor(isNew ? undefined : id);
   const create = useCreateVendor();
   const update = useUpdateVendor();
+  const remove = useDeleteVendor();
   const [tab, setTab] = useState<"details" | "buys">("details");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -73,26 +74,47 @@ export function VendorDetailPage() {
           )}
         </div>
         {!isNew && vendor && canWrite && (
-          <button
-            type="button"
-            disabled={update.isPending}
-            onClick={() => {
-              setError(null);
-              update.mutate(
-                { id: vendor.id, isActive: !vendor.isActive },
-                {
-                  onError: (err) => {
-                    setError(err instanceof Error ? err.message : "Could not update");
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={update.isPending}
+              onClick={() => {
+                setError(null);
+                update.mutate(
+                  { id: vendor.id, isActive: !vendor.isActive },
+                  {
+                    onError: (err) => {
+                      setError(err instanceof Error ? err.message : "Could not update");
+                    },
                   },
-                },
-              );
-            }}
-            className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            {vendor.isActive ? "Archive" : "Restore"}
-          </button>
+                );
+              }}
+              className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {vendor.isActive ? "Archive" : "Restore"}
+            </button>
+            <button
+              type="button"
+              disabled={remove.isPending}
+              onClick={() => {
+                if (!window.confirm(`Delete ${vendor.name}? This cannot be undone.`)) return;
+                setError(null);
+                remove.mutate(vendor.id, {
+                  onSuccess: () => navigate("/vendors", { replace: true }),
+                  onError: (err) => {
+                    setError(err instanceof Error ? err.message : "Could not delete");
+                  },
+                });
+              }}
+              className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              {remove.isPending ? "Deleting…" : "Delete"}
+            </button>
+          </div>
         )}
       </div>
+
+      {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
 
       {!isNew && (
         <div className="mb-4 flex gap-1">
