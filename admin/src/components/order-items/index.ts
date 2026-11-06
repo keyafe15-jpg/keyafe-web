@@ -10,6 +10,7 @@ export {
   resolveFlavourName,
   resolveReferenceImageUrl,
   resolveReferenceImageUrls,
+  toEditOrderItemPayload,
   toOfflineOrderItemPayload,
   toOrderLinkItemPayload,
   orderItemsIssue,
@@ -18,6 +19,8 @@ export {
 export { saveItemsToCatalog, wantsCatalogSave, type CatalogSaveEntry } from "./saveToCatalog";
 export {
   addonIdsFromHint,
+  adminOrderItemToDraft,
+  extraChargeItem,
   leftoverNotesAfterAddons,
   newOrderItem,
   orderLinkItemToDraft,

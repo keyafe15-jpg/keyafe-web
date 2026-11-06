@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { Check, Package, PackagePlus, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/productConfiguration";
 import { Price, applyFactor, formatINR } from "@keyafe/shared";
 import { cn } from "@/lib/cn";
+import { isExtraChargeItem } from "@/lib/extraCharge";
 import { composeLineNotes, mergeInstructions } from "./payload";
 import type { OrderItemDraft } from "./types";
 import { AddonsPanel } from "./AddonGroupPicker";
@@ -44,6 +45,8 @@ export function OrderItemRow({
   onPatch,
   onRemove,
   canRemove,
+  mode = "take",
+  footer,
 }: {
   index: number;
   item: OrderItemDraft;
@@ -57,7 +60,12 @@ export function OrderItemRow({
   onPatch: (patch: Partial<OrderItemDraft>) => void;
   onRemove: () => void;
   canRemove: boolean;
+  mode?: "take" | "edit";
+  footer?: ReactNode;
 }) {
+  const frozen = item.priceFrozen;
+  const userPatch = (patch: Partial<OrderItemDraft>) =>
+    onPatch(frozen ? { ...patch, priceFrozen: false } : patch);
   const selectedProduct = useMemo(
     () => products.find((p) => p.id === item.productId),
     [products, item.productId],
@@ -139,6 +147,12 @@ export function OrderItemRow({
   // Preselect default size from the size OptionGroup (non-pizza).
   useEffect(() => {
     if (!hasOptionGroupSize || !productDetail || item.sizeOptionId) return;
+    const matched = optionIdByLabel(sizeOptions, item.sizeLabel);
+    if (matched) {
+      onPatch({ sizeOptionId: matched });
+      return;
+    }
+    if (frozen || item.sizeLabel.trim()) return;
     const def = sizeOptions.find((o) => o.isDefault) ?? sizeOptions[0];
     if (def?.id) onPatch({ sizeOptionId: def.id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,7 +165,7 @@ export function OrderItemRow({
     if (!sku) return;
     const attrs = sku.attributes as { weightGrams?: number } | null;
     onPatch({
-      unitPrice: applyFactor(sku.price, factor).toFixed(0),
+      ...(frozen ? {} : { unitPrice: applyFactor(sku.price, factor).toFixed(0) }),
       sizeLabel: sku.label,
       sizeGrams: attrs?.weightGrams ? String(attrs.weightGrams) : "",
     });
@@ -165,7 +179,9 @@ export function OrderItemRow({
     if (!picked) return;
     const base = Number(productDetail.basePrice);
     onPatch({
-      unitPrice: applyFactor(optionUnitPrice(base, picked, sizePriceMode), factor).toFixed(0),
+      ...(frozen
+        ? {}
+        : { unitPrice: applyFactor(optionUnitPrice(base, picked, sizePriceMode), factor).toFixed(0) }),
       sizeLabel: picked.label,
       sizeGrams: picked.weightGrams ? String(picked.weightGrams) : "",
     });
@@ -177,10 +193,18 @@ export function OrderItemRow({
     if (!isPizza || !productDetail) return;
     const patch: Partial<OrderItemDraft> = {};
     if (!item.sizeOptionId && sizeOptions.length > 0) {
-      patch.sizeOptionId = sizeOptions.find((o) => o.isDefault)?.id ?? sizeOptions[0].id ?? "";
+      const matched = optionIdByLabel(sizeOptions, item.sizeLabel);
+      if (matched) patch.sizeOptionId = matched;
+      else if (!frozen && !item.sizeLabel.trim()) {
+        patch.sizeOptionId = sizeOptions.find((o) => o.isDefault)?.id ?? sizeOptions[0].id ?? "";
+      }
     }
     if (!item.crustOptionId && crustOptions.length > 0) {
-      patch.crustOptionId = crustOptions.find((o) => o.isDefault)?.id ?? crustOptions[0].id ?? "";
+      const matched = optionIdByLabel(crustOptions, item.crustLabel);
+      if (matched) patch.crustOptionId = matched;
+      else if (!frozen && !item.crustLabel.trim()) {
+        patch.crustOptionId = crustOptions.find((o) => o.isDefault)?.id ?? crustOptions[0].id ?? "";
+      }
     }
     if (Object.keys(patch).length) onPatch(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,14 +213,15 @@ export function OrderItemRow({
   // Default to 1 lb when cake product loads (pounds-only — no size dropdown).
   useEffect(() => {
     if (!soldByPound) return;
-    if (item.customPounds.trim()) return;
+    if (item.customPounds.trim() || frozen) return;
     onPatch({ customPounds: "1", cakeSizeId: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [soldByPound, productDetail?.id]);
 
   // Preselect flavour when there's an obvious default.
   useEffect(() => {
-    if (!isCakeConfigurator || item.flavourId || pickerFlavours.length === 0) return;
+    if (!isCakeConfigurator || item.flavourId || item.customFlavour.trim() || frozen) return;
+    if (pickerFlavours.length === 0) return;
     onPatch({ flavourId: pickerFlavours[0].id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCakeConfigurator, productDetail?.id, pickerFlavours.length]);
@@ -218,6 +243,7 @@ export function OrderItemRow({
       .reduce((s, a) => s + Number(a.priceDelta), 0);
 
     if (!soldByPound) {
+      if (frozen) return;
       const flat = base + (hasAttachedFlavours ? 0 : flavourAdditional);
       onPatch({
         unitPrice: (applyFactor(flat, factor) + addonsDelta).toFixed(0),
@@ -236,7 +262,7 @@ export function OrderItemRow({
 
     const computed = computeCakeUnitPrice(base, grams, flavourAdditional, hasAttachedFlavours);
     onPatch({
-      unitPrice: (applyFactor(computed, factor) + addonsDelta).toFixed(0),
+      ...(frozen ? {} : { unitPrice: (applyFactor(computed, factor) + addonsDelta).toFixed(0) }),
       sizeGrams: String(grams),
       sizeLabel: formatCustomPoundLabel(parsedPounds),
       cakeSizeId: "",
@@ -265,10 +291,11 @@ export function OrderItemRow({
       applyFactor(crustDelta, factor) +
       toppingsDelta +
       addonsDelta;
-    const patch: Partial<OrderItemDraft> = { unitPrice: computed.toFixed(0) };
+    const patch: Partial<OrderItemDraft> = frozen ? {} : { unitPrice: computed.toFixed(0) };
     if (pickedSize) patch.sizeLabel = pickedSize.label;
-    patch.crustLabel = pickedCrust ? pickedCrust.label : "";
-    onPatch(patch);
+    if (pickedCrust) patch.crustLabel = pickedCrust.label;
+    else if (!frozen) patch.crustLabel = "";
+    if (Object.keys(patch).length) onPatch(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isPizza,
@@ -321,7 +348,7 @@ export function OrderItemRow({
 
   useEffect(() => {
     if (!isCustomPizza || !item.expanded) return;
-    if (item.sizeOptionId || item.customPizzaSize.trim()) return;
+    if (item.sizeOptionId || item.customPizzaSize.trim() || item.sizeLabel.trim() || frozen) return;
     if (pizzaSizePresets.length === 0) return;
     const first = pizzaSizePresets[0];
     onPatch({ sizeOptionId: first.key, sizeLabel: first.label });
@@ -347,14 +374,14 @@ export function OrderItemRow({
 
     if (isCustomPizza) {
       const priceAdjust = isOn ? -delta : delta;
-      onPatch({
+      userPatch({
         toppingSelections: next,
         unitPrice: Math.max(0, Number(item.unitPrice || 0) + priceAdjust).toFixed(0),
       });
       return;
     }
 
-    onPatch({ toppingSelections: next });
+    userPatch({ toppingSelections: next });
   };
 
   const toggleAddon = (id: string) => {
@@ -367,13 +394,13 @@ export function OrderItemRow({
     const priceIsManual = item.kind === "CUSTOM" || (!isPizza && !isCakeConfigurator);
     if (priceIsManual) {
       const priceAdjust = isOn ? -delta : delta;
-      onPatch({
+      userPatch({
         addonSelections: next,
         unitPrice: Math.max(0, Number(item.unitPrice || 0) + priceAdjust).toFixed(0),
       });
       return;
     }
-    onPatch({ addonSelections: next });
+    userPatch({ addonSelections: next });
   };
 
   const cakeBasePrice = productDetail ? Number(productDetail.basePrice) : 0;
@@ -472,7 +499,7 @@ export function OrderItemRow({
   });
 
   const changeCustomTemplate = (template: OrderItemDraft["customTemplate"]) =>
-    onPatch({
+    userPatch({
       customTemplate: template,
       cakeSizeId: "",
       customPounds: template === "CAKE" ? item.customPounds || "1" : "",
@@ -499,6 +526,103 @@ export function OrderItemRow({
     ...(productImage ? [productImage] : []),
     ...item.keptImageUrls,
   ].filter((url, i, all) => all.indexOf(url) === i);
+
+  if (isExtraChargeItem(item)) {
+    const reason = item.description.trim();
+    const charge = Number(item.unitPrice) || 0;
+    if (!item.expanded) {
+      return (
+        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+          <div className="flex items-start gap-2">
+            <button
+              type="button"
+              onClick={() => onPatch({ expanded: true })}
+              className="min-w-0 flex-1 text-left"
+            >
+              <p className="text-sm font-medium leading-snug text-slate-900">
+                Extra charge
+                <span className="ml-1.5 text-[11px] font-normal text-slate-400">#{index + 1}</span>
+              </p>
+              {reason ? (
+                <p className="mt-0.5 text-[12px] leading-snug break-words text-slate-600">{reason}</p>
+              ) : (
+                <p className="mt-0.5 text-[12px] text-slate-400">Add a reason</p>
+              )}
+            </button>
+            <p className="shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-slate-900">
+              {charge > 0 ? `₹${charge.toFixed(charge % 1 ? 2 : 0)}` : "—"}
+            </p>
+            <div className="-mr-1 flex">
+              <button
+                type="button"
+                onClick={() => onPatch({ expanded: true })}
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-brand-700"
+                aria-label="Edit extra charge"
+                title="Edit extra charge"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onRemove}
+                disabled={!canRemove}
+                className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                aria-label="Remove extra charge"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+        <div className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
+            Extra charge
+          </span>
+          <button
+            type="button"
+            onClick={() => onPatch({ expanded: false })}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
+          >
+            <Check className="h-3.5 w-3.5" />
+            Done
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={!canRemove}
+            className="-my-1 shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+            aria-label="Remove extra charge"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
+          <Field label="Reason">
+            <input
+              value={item.description}
+              onChange={(e) => onPatch({ description: e.target.value })}
+              placeholder="e.g. packing, late night"
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Charge" required>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={item.unitPrice}
+              onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
+              placeholder="0"
+              className={cn(inputClass, "px-2")}
+            />
+          </Field>
+        </div>
+      </div>
+    );
+  }
 
   if (!item.expanded) {
     return (
@@ -540,6 +664,7 @@ export function OrderItemRow({
               </button>
             </div>
           }
+          footer={footer}
         />
       </div>
     );
@@ -661,7 +786,9 @@ export function OrderItemRow({
                 <Field label="Product" required>
                   <SearchableSelect
                     value={item.productId}
-                    onChange={(productId) => onPatch({ productId, ...resetCatalogProductPick() })}
+                    onChange={(productId) =>
+                      userPatch({ productId, ...resetCatalogProductPick() })
+                    }
                     searchPlaceholder="Search products…"
                     placeholder="— Pick product —"
                     options={catalogPicker.productOptions(item.catalogCategoryId)}
@@ -674,7 +801,7 @@ export function OrderItemRow({
               <Field label="Variant (SKU)" required>
                 <SearchableSelect
                   value={item.variantId}
-                  onChange={(variantId) => onPatch({ variantId })}
+                  onChange={(variantId) => userPatch({ variantId })}
                   searchPlaceholder="Search SKUs…"
                   allowEmpty={false}
                   placeholder="— Pick SKU —"
@@ -691,7 +818,7 @@ export function OrderItemRow({
               <Field label={sizeGroup?.label ?? "Size"} required hint="From product option groups">
                 <SearchableSelect
                   value={item.sizeOptionId}
-                  onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
+                  onChange={(sizeOptionId) => userPatch({ sizeOptionId })}
                   searchPlaceholder="Search sizes…"
                   allowEmpty={false}
                   placeholder="— Pick size —"
@@ -783,7 +910,7 @@ export function OrderItemRow({
                 min={0.1}
                 step={0.1}
                 value={item.customPounds}
-                onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
+                onChange={(e) => userPatch({ customPounds: e.target.value, cakeSizeId: "" })}
                 placeholder="1"
                 className={cn(inputClass, "px-2")}
               />
@@ -808,7 +935,7 @@ export function OrderItemRow({
                   value={item.unitPrice}
                   onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
                   placeholder="500"
-                  disabled={autoPriced}
+                  disabled={autoPriced && !frozen}
                   title={autoPriced ? "Worked out from the product options" : undefined}
                   className={cn(inputClass, "px-2", autoPriced && "bg-slate-100 text-slate-600")}
                 />
@@ -833,7 +960,7 @@ export function OrderItemRow({
                   value={item.unitPrice}
                   onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
                   placeholder="500"
-                  disabled={autoPriced}
+                  disabled={autoPriced && !frozen}
                   title={autoPriced ? "Worked out from the product options" : undefined}
                   className={cn(inputClass, "px-2", autoPriced && "bg-slate-100 text-slate-600")}
                 />
@@ -884,7 +1011,7 @@ export function OrderItemRow({
                     max={productDetail.maxGrams ? productDetail.maxGrams / 500 : undefined}
                     step={0.1}
                     value={item.customPounds}
-                    onChange={(e) => onPatch({ customPounds: e.target.value, cakeSizeId: "" })}
+                    onChange={(e) => userPatch({ customPounds: e.target.value, cakeSizeId: "" })}
                     placeholder="1"
                     className={cn(inputClass, "w-full")}
                   />
@@ -896,7 +1023,7 @@ export function OrderItemRow({
               <Field label="Flavour" required={!hasAttachedFlavours}>
                 <SearchableSelect
                   value={item.flavourId}
-                  onChange={(flavourId) => onPatch({ flavourId })}
+                  onChange={(flavourId) => userPatch({ flavourId })}
                   searchPlaceholder="Search flavours…"
                   allowEmpty={hasAttachedFlavours}
                   placeholder="— Pick flavour —"
@@ -952,7 +1079,7 @@ export function OrderItemRow({
                 <Field label="Size" required>
                   <SearchableSelect
                     value={item.sizeOptionId}
-                    onChange={(sizeOptionId) => onPatch({ sizeOptionId })}
+                    onChange={(sizeOptionId) => userPatch({ sizeOptionId })}
                     searchPlaceholder="Search sizes…"
                     allowEmpty={false}
                     placeholder="— Pick size —"
@@ -971,7 +1098,7 @@ export function OrderItemRow({
                 <Field label="Crust">
                   <select
                     value={item.crustOptionId}
-                    onChange={(e) => onPatch({ crustOptionId: e.target.value })}
+                    onChange={(e) => userPatch({ crustOptionId: e.target.value })}
                     className={selectClass}
                   >
                     {crustOptions.map((o) => {
@@ -1069,7 +1196,7 @@ export function OrderItemRow({
                       <SearchableSelect
                         value={item.flavourId}
                         onChange={(flavourId) =>
-                          onPatch({
+                          userPatch({
                             flavourId,
                             customFlavour: flavourId ? "" : item.customFlavour,
                           })
@@ -1094,7 +1221,7 @@ export function OrderItemRow({
                     <input
                       value={item.customFlavour}
                       onChange={(e) =>
-                        onPatch({
+                        userPatch({
                           customFlavour: e.target.value,
                           flavourId: e.target.value.trim() ? "" : item.flavourId,
                         })
@@ -1121,7 +1248,7 @@ export function OrderItemRow({
                       <SearchableSelect
                         value={item.customPizzaSize.trim() ? "" : item.sizeOptionId}
                         onChange={(sizeKey) =>
-                          onPatch({
+                          userPatch({
                             sizeOptionId: sizeKey,
                             customPizzaSize: "",
                             sizeLabel: pizzaSizeLabelForKey(pizzaSizePresets, sizeKey),
@@ -1148,7 +1275,7 @@ export function OrderItemRow({
                     <input
                       value={item.customPizzaSize}
                       onChange={(e) =>
-                        onPatch({
+                        userPatch({
                           customPizzaSize: e.target.value,
                           sizeOptionId: e.target.value.trim() ? "" : item.sizeOptionId,
                           sizeLabel: e.target.value.trim() || item.sizeLabel,
@@ -1164,7 +1291,7 @@ export function OrderItemRow({
                         value={item.crustOptionId}
                         onChange={(e) => {
                           const crust = pizzaCrustPresets.find((c) => c.id === e.target.value);
-                          onPatch({
+                          userPatch({
                             crustOptionId: e.target.value,
                             crustLabel: crust?.label ?? "",
                           });
@@ -1307,7 +1434,7 @@ export function OrderItemRow({
           </div>
         )}
 
-        {item.kind === "CUSTOM" && shopCategoryOptions && (
+        {item.kind === "CUSTOM" && mode !== "edit" && shopCategoryOptions && (
           <div
             className={cn(
               "mt-3 rounded-lg border px-3 py-2 transition",
@@ -1353,6 +1480,7 @@ export function OrderItemRow({
             )}
           </div>
         )}
+        {footer ? <div className="mt-3">{footer}</div> : null}
       </div>
     </div>
   );
@@ -1372,6 +1500,15 @@ const TEMPLATE_LABEL: Record<OrderItemDraft["customTemplate"], string> = {
   PIZZA: "Pizza",
   OTHER: "Other",
 };
+
+function optionIdByLabel(
+  options: Array<{ id?: string; label: string }>,
+  label: string,
+): string {
+  const needle = label.trim().toLowerCase();
+  if (!needle) return "";
+  return options.find((o) => o.label.trim().toLowerCase() === needle)?.id ?? "";
+}
 
 function inchesFromSizeOption(
   opt: { key?: string; label?: string; diameterMm?: number | null } | undefined,

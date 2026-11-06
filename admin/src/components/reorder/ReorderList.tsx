@@ -21,7 +21,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
-import { GripVertical } from "lucide-react";
+import { GripHorizontal, GripVertical } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export type ReorderItemContext = {
@@ -142,8 +142,10 @@ function SortableItem({
 /** Optional grip button — spread `handleProps` from ReorderList context. */
 export function ReorderHandle({
   className,
+  layout = "side",
   ...props
-}: HTMLAttributes<HTMLButtonElement> & { className?: string }) {
+}: HTMLAttributes<HTMLButtonElement> & { className?: string; layout?: "side" | "below" }) {
+  const below = layout === "below";
   return (
     <button
       type="button"
@@ -151,12 +153,15 @@ export function ReorderHandle({
       title="Drag to reorder"
       className={cn(
         // touch-none stops mobile browsers from claiming the gesture as a scroll.
-        "inline-flex h-9 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-slate-400 transition select-none hover:bg-slate-100 hover:text-slate-700 active:cursor-grabbing active:bg-slate-100 md:h-8 md:w-8",
+        "inline-flex shrink-0 cursor-grab touch-none items-center justify-center text-slate-400 transition select-none hover:bg-slate-100 hover:text-slate-700 active:cursor-grabbing active:bg-slate-100",
+        below
+          ? "mt-0.5 h-6 w-full rounded-md"
+          : "h-9 w-9 rounded-md md:h-8 md:w-8",
         className,
       )}
       {...props}
     >
-      <GripVertical className="h-4 w-4" />
+      {below ? <GripHorizontal className="h-4 w-4" /> : <GripVertical className="h-4 w-4" />}
     </button>
   );
 }

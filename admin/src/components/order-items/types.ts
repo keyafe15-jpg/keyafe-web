@@ -1,6 +1,7 @@
 import { extrasPlainText, parseLineNotes, splitCakeMessage } from "@keyafe/shared";
 import type { OrderLinkItem, OrderLinkKind } from "@/hooks/useAdminOrderLinks";
 import type { ProductTemplate } from "@/hooks/useAdminProducts";
+import type { AdminOrderItem } from "@/hooks/useAdminOrders";
 
 const PIZZA_SPEC_GROUPS = new Set(["crust", "toppings", "condiments"]);
 
@@ -95,6 +96,12 @@ export interface OrderItemDraft {
   /** Custom items only — also create a hidden product from this item once the order saves. */
   saveToCatalog: boolean;
   saveCategoryId: string;
+
+  /**
+   * Hydrated from a saved order. Catalog auto-price stays off until staff
+   * change size / crust / flavour / add-ons.
+   */
+  priceFrozen: boolean;
 }
 
 export function newOrderItem(kind: OrderLinkKind = "CUSTOM"): OrderItemDraft {
@@ -128,6 +135,18 @@ export function newOrderItem(kind: OrderLinkKind = "CUSTOM"): OrderItemDraft {
     variantId: "",
     saveToCatalog: false,
     saveCategoryId: "",
+    priceFrozen: false,
+  };
+}
+
+export function extraChargeItem(): OrderItemDraft {
+  return {
+    ...newOrderItem("CUSTOM"),
+    customTemplate: "OTHER",
+    productName: "Extra charge",
+    customPounds: "",
+    qty: "1",
+    expanded: true,
   };
 }
 
@@ -170,5 +189,140 @@ export function orderLinkItemToDraft(
     variantId: "",
     saveToCatalog: false,
     saveCategoryId: "",
+    priceFrozen: false,
+  };
+}
+
+function leftoverKitchenNotes(
+  raw: string | null | undefined,
+  addons: Array<{ id: string; name: string }>,
+): string {
+  const text = leftoverNotesAfterAddons(raw, addons);
+  if (!text) return "";
+  const parsed = parseLineNotes(text);
+  const kept: string[] = [];
+  for (const extra of parsed.extras) {
+    if (PIZZA_SPEC_GROUPS.has(extra.group.trim().toLowerCase())) continue;
+    kept.push(`${extra.group}: ${extra.names}`);
+  }
+  if (parsed.notes) kept.push(parsed.notes);
+  return kept.join("\n");
+}
+
+function namesFromExtra(extras: { group: string; names: string }[], group: string): string[] {
+  return extras
+    .filter((extra) => extra.group.trim().toLowerCase() === group)
+    .flatMap((extra) =>
+      extra.names
+        .split(/[·,]/)
+        .map((name) => name.trim())
+        .filter(Boolean),
+    );
+}
+
+function matchIdsByName<T extends { id: string; name: string }>(names: string[], rows: T[]): string[] {
+  if (names.length === 0 || rows.length === 0) return [];
+  const wanted = new Set(names.map((n) => n.toLowerCase()));
+  return rows.filter((row) => wanted.has(row.name.trim().toLowerCase())).map((row) => row.id);
+}
+
+function inferTemplate(it: AdminOrderItem, productTemplate?: ProductTemplate): ProductTemplate {
+  if (productTemplate) return productTemplate;
+  const extras = [
+    ...parseLineNotes(it.instructions).extras,
+    ...splitCakeMessage(it.messageOnCake).extras,
+  ];
+  if (extras.some((e) => PIZZA_SPEC_GROUPS.has(e.group.trim().toLowerCase()))) return "PIZZA";
+  if (/pizza/i.test(it.productName)) return "PIZZA";
+  if (
+    it.flavourId ||
+    it.flavourName ||
+    splitCakeMessage(it.messageOnCake).message ||
+    it.sizeGrams ||
+    /\blb\b/i.test(it.sizeLabel ?? "")
+  ) {
+    return "CAKE";
+  }
+  return "OTHER";
+}
+
+function poundsFromItem(it: AdminOrderItem): string {
+  if (it.sizeGrams && it.sizeGrams > 0) {
+    return String(Math.round((it.sizeGrams / 500) * 10) / 10);
+  }
+  const fromLabel = it.sizeLabel?.match(/(\d+(?:\.\d+)?)\s*lb/i);
+  return fromLabel ? fromLabel[1]! : "";
+}
+
+/** Saved order line → the same draft the take-order editor uses. */
+export function adminOrderItemToDraft(
+  it: AdminOrderItem,
+  opts: {
+    product?: { template: ProductTemplate; categories?: { id: string }[] };
+    addons?: Array<{ id: string; name: string }>;
+    toppings?: Array<{ id: string; name: string }>;
+    flavours?: Array<{ id: string; name: string }>;
+  } = {},
+): OrderItemDraft {
+  const addons = opts.addons ?? [];
+  const toppings = opts.toppings ?? [];
+  const flavours = opts.flavours ?? [];
+  const kind: OrderLinkKind = it.productId ? "CATALOG" : "CUSTOM";
+  const customTemplate = inferTemplate(it, opts.product?.template);
+  const extras = [
+    ...parseLineNotes(it.instructions).extras,
+    ...splitCakeMessage(it.messageOnCake).extras,
+  ];
+  const crustLabel = namesFromExtra(extras, "crust")[0] ?? "";
+  const toppingNames = [
+    ...namesFromExtra(extras, "toppings"),
+    ...namesFromExtra(extras, "condiments"),
+  ];
+  const flavourId =
+    (it.flavourId && flavours.some((f) => f.id === it.flavourId) ? it.flavourId : "") ||
+    flavours.find((f) => f.name.trim().toLowerCase() === (it.flavourName ?? "").trim().toLowerCase())
+      ?.id ||
+    "";
+  const pounds = poundsFromItem(it);
+  const refs = it.referenceImageUrls?.length
+    ? it.referenceImageUrls
+    : it.referenceImageUrl
+      ? [it.referenceImageUrl]
+      : [];
+
+  return {
+    id: it.id,
+    kind,
+    catalogCategoryId: opts.product?.categories?.[0]?.id ?? "",
+    productId: it.productId ?? "",
+    productName: it.productName,
+    sizeLabel: it.sizeLabel ?? "",
+    sizeGrams: it.sizeGrams != null ? String(it.sizeGrams) : "",
+    customTemplate,
+    flavourId,
+    customFlavour: !flavourId && it.flavourName ? it.flavourName : "",
+    messageOnCake: splitCakeMessage(it.messageOnCake).message ?? "",
+    instructions: leftoverKitchenNotes(it.instructions, addons),
+    description: it.description ?? "",
+    unitPrice: String(Number(it.unitPrice)),
+    qty: String(it.qty),
+    refFiles: [],
+    keptImageUrls: refs,
+    expanded: false,
+    sizeOptionId: "",
+    crustOptionId: "",
+    crustLabel,
+    toppingSelections: matchIdsByName(toppingNames, toppings),
+    addonSelections: addonIdsFromHint(
+      [it.instructions, it.messageOnCake].filter(Boolean).join("\n"),
+      addons,
+    ),
+    cakeSizeId: "",
+    customPounds: customTemplate === "CAKE" ? pounds || (kind === "CUSTOM" ? "1" : "") : "",
+    customPizzaSize: customTemplate === "PIZZA" ? (it.sizeLabel ?? "") : "",
+    variantId: "",
+    saveToCatalog: false,
+    saveCategoryId: "",
+    priceFrozen: true,
   };
 }

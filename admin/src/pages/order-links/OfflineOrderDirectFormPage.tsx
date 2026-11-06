@@ -780,6 +780,7 @@ export function OfflineOrderDirectFormPage() {
             patchItem={patchItem}
             removeItem={removeItem}
             addItem={addItem}
+            onReorder={setItems}
           />
 
           <Section title="Customer">

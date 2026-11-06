@@ -137,6 +137,31 @@ export function toOrderLinkItemPayload(
   };
 }
 
+export function toEditOrderItemPayload(
+  item: OrderItemDraft,
+  referenceImageUrls: string[],
+  flavours: Array<{ id: string; name: string }>,
+  allToppings: AdminTopping[],
+  allAddons: AdminAddon[] = [],
+) {
+  const lineNotes = composeLineNotes(item, allToppings, allAddons);
+  return {
+    productId: item.kind === "CATALOG" ? item.productId || null : null,
+    productName: item.productName.trim(),
+    sizeLabel: item.sizeLabel.trim() || null,
+    sizeGrams: item.sizeGrams ? Number(item.sizeGrams) : null,
+    flavourId: item.flavourId || null,
+    flavourName: resolveFlavourName(item, flavours),
+    referenceImageUrl: referenceImageUrls[0] ?? null,
+    referenceImageUrls,
+    messageOnCake: item.messageOnCake.trim() || null,
+    instructions: mergeInstructions(lineNotes, item.instructions),
+    description: item.kind === "CUSTOM" ? item.description.trim() || null : null,
+    unitPrice: Number(item.unitPrice) || 0,
+    qty: Math.max(1, Math.round(Number(item.qty)) || 1),
+  };
+}
+
 export function toOfflineOrderItemPayload(
   item: OrderItemDraft,
   referenceImageUrls: string[],

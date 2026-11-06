@@ -90,10 +90,8 @@ export function OrderDetailPage() {
     if (order) setAdminNotes(order.adminNotes ?? "");
   }, [order?.adminNotes]);
 
-  const [editingItems, setEditingItems] = useState(false);
   const [itemOrderIds, setItemOrderIds] = useState<string[] | null>(null);
   useEffect(() => {
-    setEditingItems(false);
     setItemOrderIds(null);
   }, [order?.id]);
 
@@ -227,54 +225,30 @@ export function OrderDetailPage() {
 
       <div className="mt-6 space-y-3">
           <Card title="Items">
-            {canUpdate && !itemsEditLocked && !editingItems && (
+            {canUpdate && (
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[11px] text-slate-500">
-                  Need a different size, qty, delivery charge, or ref image? Edit items without
-                  cancelling the order.
-                  {order.invoiceNumber
-                    ? " Invoice already issued — download it again after you save."
-                    : ""}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {canAdjust && canAddCreditNote(order) && (
-                    <button
-                      type="button"
-                      onClick={openCreditForm}
-                      className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
-                      Give discount or refund
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setEditingItems(true)}
-                    className="rounded-md border border-brand-300 bg-white px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
-                  >
-                    Edit items
-                  </button>
-                </div>
-              </div>
-            )}
-            {itemsEditLocked && canUpdate && (
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] text-slate-500">
-                  Items locked on delivered, cancelled, or refunded orders. You can still give a
-                  discount or refund below.
+                  {itemsEditLocked
+                    ? "Items locked on delivered, cancelled, or refunded orders. You can still give a discount or refund below."
+                    : `Tap an item to change size, qty, or extras.${
+                        order.invoiceNumber
+                          ? " Invoice already issued — download it again after you save."
+                          : ""
+                      }`}
                 </p>
                 {canAdjust && canAddCreditNote(order) && (
                   <button
                     type="button"
                     onClick={openCreditForm}
-                    className="rounded-md border border-brand-300 bg-white px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
+                    className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
                     Give discount or refund
                   </button>
                 )}
               </div>
             )}
-            {editingItems && canUpdate && !itemsEditLocked ? (
-              <OrderItemsEditPanel order={order} onClose={() => setEditingItems(false)} />
+            {canUpdate && !itemsEditLocked ? (
+              <OrderItemsEditPanel order={order} />
             ) : (
               <>
             {canUpdate && order.items.length > 1 && !scheduleLocked && (
@@ -306,28 +280,19 @@ export function OrderDetailPage() {
               disabled={!canReorderItems || reorderItems.isPending}
             >
               {(it, ctx) => (
-                <li
-                  ref={ctx.setNodeRef}
-                  style={ctx.style}
-                  className="flex items-start gap-1"
-                >
+                <li ref={ctx.setNodeRef} style={ctx.style}>
+                  <OrderItemCard
+                    item={it}
+                    pending={update.isPending}
+                    onSaveSchedule={
+                      canUpdate && !scheduleLocked
+                        ? (payload) => update.mutateAsync({ id: order.id, items: [payload] })
+                        : undefined
+                    }
+                  />
                   {canReorderItems && (
-                    <ReorderHandle
-                      {...ctx.handleProps}
-                      className="mt-3 text-slate-300 hover:text-slate-600"
-                    />
+                    <ReorderHandle layout="below" {...ctx.handleProps} />
                   )}
-                  <div className="min-w-0 flex-1">
-                    <OrderItemCard
-                      item={it}
-                      pending={update.isPending}
-                      onSaveSchedule={
-                        canUpdate && !scheduleLocked
-                          ? (payload) => update.mutateAsync({ id: order.id, items: [payload] })
-                          : undefined
-                      }
-                    />
-                  </div>
                 </li>
               )}
             </ReorderList>

@@ -28,7 +28,7 @@ export function slotLabelFor(key: string) {
   return key;
 }
 
-function scheduleText(item: OrderItem) {
+function scheduleText(item: Pick<OrderItem, "deliveryDate" | "deliverySlotLabel">) {
   if (!item.deliveryDate || !item.deliverySlotLabel) return "Ships pan-India via courier";
   const date = new Date(item.deliveryDate).toLocaleDateString("en-IN", {
     weekday: "short",
@@ -78,6 +78,55 @@ export function SlotSelect({
  * One ordered item. The delivery date and slot read as plain text; when
  * `onSaveSchedule` is given, a pen icon opens an inline editor for them.
  */
+export function OrderItemScheduleFooter({
+  item,
+  pending = false,
+  onSaveSchedule,
+  showEditButton = true,
+  editorOpen = false,
+}: {
+  item: Pick<OrderItem, "id" | "deliveryDate" | "deliverySlotKey" | "deliverySlotLabel">;
+  pending?: boolean;
+  onSaveSchedule?: (payload: ItemSchedulePayload) => Promise<unknown>;
+  showEditButton?: boolean;
+  /** When true, the date/slot fields are shown without a second pen. */
+  editorOpen?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const open = editorOpen || editing;
+  return (
+    <>
+      {!open && (
+        <div className="flex items-start gap-1">
+          <p className="min-w-0 text-[11px] font-medium leading-snug break-words text-brand-700">
+            {scheduleText(item)}
+          </p>
+          {onSaveSchedule && showEditButton && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="-my-1 shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-brand-700"
+              aria-label="Change delivery date and slot"
+              title="Change delivery date and slot"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      )}
+      {onSaveSchedule && open && (
+        <ItemScheduleEditor
+          item={item}
+          pending={pending}
+          onSave={onSaveSchedule}
+          onClose={() => setEditing(false)}
+          embedded={editorOpen}
+        />
+      )}
+    </>
+  );
+}
+
 export function OrderItemCard({
   item,
   pending = false,
@@ -87,7 +136,6 @@ export function OrderItemCard({
   pending?: boolean;
   onSaveSchedule?: (payload: ItemSchedulePayload) => Promise<unknown>;
 }) {
-  const [editing, setEditing] = useState(false);
   return (
     <div className="py-3">
       <OrderItemSummary
@@ -104,35 +152,13 @@ export function OrderItemCard({
           lineTotal: Number(item.lineTotal),
         }}
         footer={
-          <div className="flex items-start gap-1">
-            <p className="min-w-0 text-[11px] font-medium leading-snug break-words text-brand-700">
-              {scheduleText(item)}
-            </p>
-            {onSaveSchedule && !editing && (
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="-my-1 shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-brand-700"
-                aria-label="Change delivery date and slot"
-                title="Change delivery date and slot"
-              >
-                <Pencil className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-        }
-      />
-
-      {onSaveSchedule && editing && (
-        <div className="sm:pl-[4.75rem]">
-          <ItemScheduleEditor
+          <OrderItemScheduleFooter
             item={item}
             pending={pending}
-            onSave={onSaveSchedule}
-            onClose={() => setEditing(false)}
+            onSaveSchedule={onSaveSchedule}
           />
-        </div>
-      )}
+        }
+      />
     </div>
   );
 }
@@ -142,11 +168,13 @@ function ItemScheduleEditor({
   pending,
   onSave,
   onClose,
+  embedded = false,
 }: {
-  item: OrderItem;
+  item: Pick<OrderItem, "id" | "deliveryDate" | "deliverySlotKey" | "deliverySlotLabel">;
   pending: boolean;
   onSave: (payload: ItemSchedulePayload) => Promise<unknown>;
   onClose: () => void;
+  embedded?: boolean;
 }) {
   const [date, setDate] = useState(toYmd(item.deliveryDate));
   const [slotKey, setSlotKey] = useState(item.deliverySlotKey || TIME_SLOTS[0].key);
@@ -165,7 +193,7 @@ function ItemScheduleEditor({
         deliverySlotKey: date ? slotKey : null,
         deliverySlotLabel: date ? slotLabelFor(slotKey) : null,
       });
-      onClose();
+      if (!embedded) onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update");
     }
@@ -201,14 +229,16 @@ function ItemScheduleEditor({
         >
           {pending ? "Saving…" : "Save"}
         </button>
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={pending}
-          className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
-        >
-          Cancel
-        </button>
+        {!embedded && (
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={pending}
+            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+        )}
       </div>
       {error && <p className="mt-2 text-xs text-brand-600">{error}</p>}
     </div>

@@ -292,6 +292,7 @@ export function OrderLinkFormPage() {
             patchItem={patchItem}
             removeItem={removeItem}
             addItem={addItem}
+            onReorder={setItems}
           />
 
           <Section title="Discount (optional)" subtitle="Applies to items only, not delivery.">

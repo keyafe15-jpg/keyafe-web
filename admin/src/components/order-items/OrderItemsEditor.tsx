@@ -9,6 +9,11 @@ import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
 import type { OrderLinkKind } from "@/hooks/useAdminOrderLinks";
 import { useStaffPermission } from "@/lib/permissions";
+import {
+  ReorderHandle,
+  ReorderList,
+  type ReorderItemContext,
+} from "@/components/reorder/ReorderList";
 import { FormSection } from "./FormSection";
 import { OrderItemRow } from "./OrderItemRow";
 import type { OrderItemDraft } from "./types";
@@ -21,7 +26,11 @@ type Props = {
   patchItem: (id: string, patch: Partial<OrderItemDraft>) => void;
   removeItem: (id: string) => void;
   addItem: (kind: OrderLinkKind) => void;
+  onReorder?: (next: OrderItemDraft[]) => void;
   listClassName?: string;
+  mode?: "take" | "edit";
+  extraAction?: ReactNode;
+  itemFooter?: (item: OrderItemDraft) => ReactNode;
 };
 
 export function OrderItemsEditor({
@@ -29,7 +38,11 @@ export function OrderItemsEditor({
   patchItem,
   removeItem,
   addItem,
+  onReorder,
   listClassName = "space-y-3",
+  mode = "take",
+  extraAction,
+  itemFooter,
 }: Props) {
   const { data: products = EMPTY_PRODUCTS } = useAllAdminProducts();
   const { data: categoryTree = EMPTY_TREE } = useCategoryTree();
@@ -54,51 +67,83 @@ export function OrderItemsEditor({
     [categoryTree],
   );
 
+  const addButtons = (
+    <div className="grid grid-cols-2 gap-2 sm:flex">
+      <AddItemButton
+        onClick={() => addItem("CUSTOM")}
+        icon={<Sparkles className="h-4 w-4" />}
+        label="Custom item"
+        shortLabel="Custom"
+        hint="Your own price"
+        className="border-brand-100 bg-brand-100/40 text-brand-700 hover:border-brand-500"
+        iconClassName="bg-brand-100 text-brand-700"
+      />
+      <AddItemButton
+        onClick={() => addItem("CATALOG")}
+        icon={<Package className="h-4 w-4" />}
+        label="Catalog item"
+        shortLabel="Catalog"
+        hint="From the menu"
+        className="border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-500"
+        iconClassName="bg-sky-100 text-sky-700"
+      />
+    </div>
+  );
+
+  const canReorder = Boolean(onReorder) && items.length > 1;
+
+  const renderRow = (item: OrderItemDraft, idx: number, ctx?: ReorderItemContext) => (
+    <div key={item.id} ref={ctx?.setNodeRef} style={ctx?.style}>
+      <OrderItemRow
+        index={idx}
+        item={item}
+        products={products}
+        catalogPicker={catalogPicker}
+        shopCategoryOptions={mode === "edit" ? shopCategoryOptions : canAddProducts ? shopCategoryOptions : null}
+        flavours={flavours}
+        allToppings={allToppings}
+        allAddons={allAddons}
+        onPatch={(patch) => patchItem(item.id, patch)}
+        onRemove={() => removeItem(item.id)}
+        canRemove={items.length > 1}
+        mode={mode}
+        footer={itemFooter?.(item)}
+      />
+      {ctx && (
+        <ReorderHandle layout="below" {...ctx.handleProps} />
+      )}
+    </div>
+  );
+
+  const rows = canReorder ? (
+    <ReorderList items={items} onReorder={onReorder!} className={listClassName}>
+      {(item, ctx) => renderRow(item, items.findIndex((it) => it.id === item.id), ctx)}
+    </ReorderList>
+  ) : (
+    <div className={listClassName}>
+      {items.map((item, idx) => renderRow(item, idx))}
+    </div>
+  );
+
+  if (mode === "edit") {
+    return (
+      <div>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          {addButtons}
+          {extraAction}
+        </div>
+        <div className="mt-2.5">{rows}</div>
+      </div>
+    );
+  }
+
   return (
     <FormSection
       title="Items"
       subtitle="Add a custom one-off, or pick from the menu."
-      action={
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          <AddItemButton
-            onClick={() => addItem("CUSTOM")}
-            icon={<Sparkles className="h-4 w-4" />}
-            label="Custom item"
-            shortLabel="Custom"
-            hint="Your own price"
-            className="border-brand-100 bg-brand-100/40 text-brand-700 hover:border-brand-500"
-            iconClassName="bg-brand-100 text-brand-700"
-          />
-          <AddItemButton
-            onClick={() => addItem("CATALOG")}
-            icon={<Package className="h-4 w-4" />}
-            label="Catalog item"
-            shortLabel="Catalog"
-            hint="From the menu"
-            className="border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-500"
-            iconClassName="bg-sky-100 text-sky-700"
-          />
-        </div>
-      }
+      action={addButtons}
     >
-      <div className={listClassName}>
-        {items.map((item, idx) => (
-          <OrderItemRow
-            key={item.id}
-            index={idx}
-            item={item}
-            products={products}
-            catalogPicker={catalogPicker}
-            shopCategoryOptions={canAddProducts ? shopCategoryOptions : null}
-            flavours={flavours}
-            allToppings={allToppings}
-            allAddons={allAddons}
-            onPatch={(patch) => patchItem(item.id, patch)}
-            onRemove={() => removeItem(item.id)}
-            canRemove={items.length > 1}
-          />
-        ))}
-      </div>
+      {rows}
     </FormSection>
   );
 }
