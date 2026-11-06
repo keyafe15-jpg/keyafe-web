@@ -127,6 +127,36 @@ function RecipeForm({
   const [scanNote, setScanNote] = useState<string | null>(null);
   const pending = create.isPending || update.isPending;
 
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+  const linkLine = (name: string): Pick<DraftLine, "name" | "buyItemId" | "componentRecipeId"> => {
+    const n = norm(name);
+    if (n.length < 2) return { name };
+    const recipe = (recipes.data?.items ?? []).find(
+      (r) => r.id !== recipeId && (norm(r.name) === n || (n.length >= 4 && norm(r.name).includes(n))),
+    );
+    if (recipe) return { name: recipe.name, componentRecipeId: recipe.id };
+    const item = (items.data?.items ?? []).find(
+      (it) => norm(it.name) === n || (n.length >= 4 && (norm(it.name).includes(n) || n.includes(norm(it.name)))),
+    );
+    if (item) return { name: item.name, buyItemId: item.id };
+    return { name };
+  };
+
+  const toDraftLines = (rows: RecipeDraft["ingredients"]): DraftLine[] =>
+    rows.map((l) => {
+      const linked = l.buyItemId || l.componentRecipeId ? null : linkLine(l.name);
+      return {
+        key: Math.random().toString(36).slice(2),
+        name: linked?.name ?? l.name,
+        qty: String(l.qty),
+        unit: l.unit,
+        note: l.note ?? "",
+        buyItemId: l.buyItemId ?? linked?.buyItemId,
+        componentRecipeId: l.componentRecipeId ?? linked?.componentRecipeId,
+      };
+    });
+
   const applyDraft = (draft: RecipeDraft) => {
     if (draft.name) setName(draft.name);
     if (draft.categoryId) setCategoryId(draft.categoryId);
@@ -134,15 +164,7 @@ function RecipeForm({
     if (draft.yieldUnit) setYieldUnit(draft.yieldUnit);
     if (draft.yieldNote) setYieldNote(draft.yieldNote);
     if (draft.ingredients.length) {
-      const next = draft.ingredients.map((l) => ({
-        key: Math.random().toString(36).slice(2),
-        name: l.name,
-        qty: String(l.qty),
-        unit: l.unit,
-        note: l.note ?? "",
-        buyItemId: l.buyItemId ?? undefined,
-        componentRecipeId: l.componentRecipeId ?? undefined,
-      }));
+      const next = toDraftLines(draft.ingredients);
       setLines(next);
       setLineQueries(Object.fromEntries(next.map((l) => [l.key, l.name])));
     }
@@ -163,6 +185,21 @@ function RecipeForm({
         ? "Some lines were unclear — check qty and names, then save."
         : "Check the lines, then save.",
     );
+  };
+
+  const insertPastedLines = (rows: RecipeDraft["ingredients"]) => {
+    const next = toDraftLines(rows);
+    setLines((prev) => {
+      const kept = prev.filter(
+        (l) => l.name.trim() || l.qty.trim() || l.buyItemId || l.componentRecipeId,
+      );
+      return kept.length ? [...kept, ...next] : next;
+    });
+    setLineQueries((prev) => ({
+      ...prev,
+      ...Object.fromEntries(next.map((l) => [l.key, l.name])),
+    }));
+    setScanNote(`Inserted ${next.length} ingredient${next.length === 1 ? "" : "s"}. Check qty and names, then save.`);
   };
 
   const setLine = (key: string, patch: Partial<DraftLine>) => {
@@ -278,7 +315,7 @@ function RecipeForm({
           }
         }}
       >
-        {!recipeId && canWrite && <ScanRecipeBlock onDraft={applyDraft} />}
+        {canWrite && <ScanRecipeBlock onDraft={applyDraft} onInsertLines={insertPastedLines} />}
 
         <div className="grid grid-cols-1 gap-2 min-[560px]:grid-cols-2">
           <Field label="Name" required>

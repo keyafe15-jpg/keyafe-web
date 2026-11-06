@@ -34,6 +34,7 @@ import {
 } from "./stall.service.js";
 import {
   addBreakfast,
+  buildBreakfastInvoice,
   buildBreakfastStatement,
   createBreakfastBill,
   deleteBreakfast,
@@ -211,6 +212,21 @@ adminStallRouter.get("/:stallId/breakfast/statement", canManage, async (req, res
   res.setHeader("Content-Length", pdf.length);
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.end(pdf);
+});
+
+adminStallRouter.get("/:stallId/breakfast/invoice", canManage, async (req, res) => {
+  const orderId = typeof req.query.orderId === "string" ? req.query.orderId : null;
+  const { pdf, filename, invoiceNumber } = await buildBreakfastInvoice(
+    param(req, "stallId"),
+    monthQuery(req.query.month),
+    orderId,
+  );
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Length", pdf.length);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("X-Invoice-Number", invoiceNumber);
   res.end(pdf);
 });
 

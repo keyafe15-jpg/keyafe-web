@@ -10,6 +10,7 @@ import { computeLineTax, getSellerStateCode, sumLineTax } from "../orders/order.
 import {
   addressLines,
   asAddress,
+  buildInvoicePdf,
   ensureInvoiceNumber,
   getSellerSettings,
 } from "../orders/invoice.service.js";
@@ -250,9 +251,9 @@ export async function getBreakfastMonth(stallId: string, month: string) {
 }
 
 /**
- * Raises the month's bill: one already-delivered order for the company with a
- * line per breakfast day, so it gets a GST invoice number straight away and
- * shows as pending until the company pays.
+ * Raises the month's bill: one already-delivered order for the company. The
+ * tax invoice is a single titled line (total + GST) for the corporate books;
+ * the day-wise plates stay on the breakfast statement.
  */
 export async function createBreakfastBill(stallId: string, month: string) {
   const stall = await requireOfficeStall(stallId);
@@ -269,29 +270,27 @@ export async function createBreakfastBill(stallId: string, month: string) {
   }
 
   const sellerStateCode = await getSellerStateCode();
-  const lines = entries.map((e) => {
-    const lineTotal = fromPaise(toPaise(e.platePrice) * e.plates);
-    const tax = computeLineTax({
-      lineInclusive: lineTotal,
-      gstRate: BREAKFAST_GST_RATE,
-      priceIsGstInclusive: true,
-      isIntraState: true,
-    });
-    return {
-      productName: `Breakfast plate · ${dayLabel(e.date)}`,
-      description: e.items,
-      deliveryDate: e.date,
-      unitPrice: Number(e.platePrice),
-      qty: e.plates,
-      lineTotal,
-      hsnCode: BREAKFAST_SAC_CODE,
-      gstRate: BREAKFAST_GST_RATE,
-      ...tax,
-    };
-  });
-  const total = fromPaise(lines.reduce((n, l) => n + toPaise(l.lineTotal), 0));
-  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax(lines);
   const plates = entries.reduce((n, e) => n + e.plates, 0);
+  const total = fromPaise(entries.reduce((n, e) => n + toPaise(e.platePrice) * e.plates, 0));
+  const lastDay = entries[entries.length - 1]!.date;
+  const tax = computeLineTax({
+    lineInclusive: total,
+    gstRate: BREAKFAST_GST_RATE,
+    priceIsGstInclusive: true,
+    isIntraState: true,
+  });
+  const line = {
+    productName: `Breakfast at ${stall.name} — ${monthLabel(month)} (${plates} plates)`,
+    description: `${plates} plates. Day-wise list is on the breakfast statement.`,
+    deliveryDate: lastDay,
+    unitPrice: total,
+    qty: 1,
+    lineTotal: total,
+    hsnCode: BREAKFAST_SAC_CODE,
+    gstRate: BREAKFAST_GST_RATE,
+    ...tax,
+  };
+  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax([line]);
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.order.create({
@@ -318,7 +317,7 @@ export async function createBreakfastBill(stallId: string, month: string) {
         status: "DELIVERED",
         source: "STALL_BILL",
         adminNotes: `Breakfast at ${stall.name}, ${monthLabel(month)}: ${plates} plates.`,
-        items: { create: lines },
+        items: { create: line },
       },
       select: { id: true, orderNumber: true },
     });
@@ -490,4 +489,22 @@ export async function buildBreakfastStatement(stallId: string, month: string) {
   });
   const slug = data.stall.name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return { pdf, filename: `breakfast-${slug}-${month}.pdf` };
+}
+
+export async function buildBreakfastInvoice(
+  stallId: string,
+  month: string,
+  orderId?: string | null,
+) {
+  const data = await getBreakfastMonth(stallId, month);
+  const bills = data.bills.filter((b) => b.paymentStatus !== "REFUNDED");
+  if (bills.length === 0) {
+    throw HttpError.badRequest("Create the month-end bill first — the tax invoice is issued with it.");
+  }
+  const bill = orderId ? bills.find((b) => b.id === orderId) : bills[bills.length - 1];
+  if (!bill) {
+    throw HttpError.badRequest("That bill is not for this stall and month.");
+  }
+  const { data: invoice, pdf, filename } = await buildInvoicePdf(bill.id);
+  return { pdf, filename, invoiceNumber: invoice.invoiceNumber };
 }

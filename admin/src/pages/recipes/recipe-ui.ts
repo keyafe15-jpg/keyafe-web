@@ -76,3 +76,85 @@ export function formatRecipeQty(qty: number, unit: string) {
 export function scaleQty(qty: number, factor: number) {
   return Math.round(qty * factor * 1000) / 1000;
 }
+
+export type PastedRecipeLine = {
+  name: string;
+  qty: number;
+  unit: RecipeUnit;
+  note: string | null;
+};
+
+const PASTE_UNIT =
+  "tablespoons?|tbsps?|teaspoons?|tsps?|cups?|kilograms?|kilos?|kg|millilitres?|milliliters?|ml|litres?|liters?|ltr|grams?|gms?|gm|pcs|pieces?|pc|nos|g|l";
+const PASTE_QTY = `(?:\\d+\\s*)?[¼½¾⅓⅔⅛⅜⅝⅞]|\\d+\\s+\\d+\\s*/\\s*\\d+|\\d+\\s*/\\s*\\d+|\\d+(?:\\.\\d+)?`;
+const SKIP_PASTE_LINE =
+  /^(ingredients?|method|process|steps?|directions?|procedure|notes?|recipe)\s*:?\s*$/i;
+
+function cleanPastedName(raw: string) {
+  return raw
+    .replace(/^[-*•]+\s*/, "")
+    .replace(/^\d+[.)]\s*/, "")
+    .replace(/\s+/g, " ")
+    .replace(/[–—:|,-]+\s*$/g, "")
+    .trim();
+}
+
+function cleanPastedNote(raw: string) {
+  const t = raw.replace(/^[–—:|()[\]\s]+/, "").replace(/[)\]\s]+$/, "").trim();
+  return t || null;
+}
+
+function lineFromParts(nameRaw: string, qtyRaw: string, unitRaw: string, noteRaw: string): PastedRecipeLine | null {
+  const name = cleanPastedName(nameRaw);
+  const qty = parseRecipeQty(qtyRaw);
+  if (!name || !qty) return null;
+  return {
+    name,
+    qty,
+    unit: unitFromQtyText(unitRaw) ?? unitFromQtyText(`${qtyRaw}${unitRaw}`) ?? "G",
+    note: cleanPastedNote(noteRaw),
+  };
+}
+
+/** One kitchen line: "maida - 100g", "sugar 50g", "100 g butter", "1/2 tsp vanilla". */
+export function parsePastedRecipeLine(raw: string): PastedRecipeLine | null {
+  let s = raw.replace(/\s+/g, " ").trim();
+  if (!s || SKIP_PASTE_LINE.test(s)) return null;
+  s = s.replace(/^[-*•]+\s*/, "").replace(/^\d+[.)]\s*/, "");
+
+  const qtyUnit = `(${PASTE_QTY})\\s*(${PASTE_UNIT})(?![a-z])`;
+  const nameThenQty = new RegExp(`^(.+?)\\s*[-–—:|]\\s*${qtyUnit}(.*)$`, "i");
+  const qtyThenName = new RegExp(`^${qtyUnit}\\s+(.+)$`, "i");
+  const nameSpaceQty = new RegExp(`^(.+?)\\s+${qtyUnit}(.*)$`, "i");
+
+  let m = s.match(nameThenQty);
+  if (m) return lineFromParts(m[1] ?? "", m[2] ?? "", m[3] ?? "", m[4] ?? "");
+  m = s.match(qtyThenName);
+  if (m) return lineFromParts(m[3] ?? "", m[1] ?? "", m[2] ?? "", "");
+  m = s.match(nameSpaceQty);
+  if (m) return lineFromParts(m[1] ?? "", m[2] ?? "", m[3] ?? "", m[4] ?? "");
+
+  const qtyFirst = s.match(new RegExp(`^(${PASTE_QTY})\\s+(.+)$`, "i"));
+  if (qtyFirst) {
+    const row = lineFromParts(qtyFirst[2] ?? "", qtyFirst[1] ?? "", "pcs", "");
+    if (row) return row;
+  }
+  const nameThenBareQty = s.match(new RegExp(`^(.+?)\\s*[-–—:|]?\\s*(${PASTE_QTY})\\s*$`, "i"));
+  if (nameThenBareQty) return lineFromParts(nameThenBareQty[1] ?? "", nameThenBareQty[2] ?? "", "g", "");
+  return null;
+}
+
+export function parsePastedRecipeText(text: string): { ingredients: PastedRecipeLine[]; skipped: number } {
+  const ingredients: PastedRecipeLine[] = [];
+  let skipped = 0;
+  for (const raw of text.split(/\r?\n/)) {
+    if (!raw.trim()) continue;
+    const row = parsePastedRecipeLine(raw);
+    if (!row) {
+      skipped += 1;
+      continue;
+    }
+    ingredients.push(row);
+  }
+  return { ingredients, skipped };
+}

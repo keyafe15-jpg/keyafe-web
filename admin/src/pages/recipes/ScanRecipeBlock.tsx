@@ -1,21 +1,26 @@
 import { useState } from "react";
-import { ImagePlus, Sparkles, X } from "lucide-react";
-import { Field, inputClass } from "@/components/form/Field";
+import { ClipboardPaste, ImagePlus, Sparkles, X } from "lucide-react";
+import { Field, inputClass, textareaClass } from "@/components/form/Field";
 import { cn } from "@/lib/cn";
 import { useParseRecipe, type RecipeDraft } from "@/hooks/useAdminRecipes";
+import { parsePastedRecipeText } from "@/pages/recipes/recipe-ui";
 
 export function ScanRecipeBlock({
   disabled,
   onDraft,
+  onInsertLines,
 }: {
   disabled?: boolean;
   onDraft: (draft: RecipeDraft) => void;
+  onInsertLines: (lines: RecipeDraft["ingredients"]) => void;
 }) {
   const parse = useParseRecipe();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [context, setContext] = useState("");
+  const [paste, setPaste] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pasteNote, setPasteNote] = useState<string | null>(null);
 
   const pick = (next: File | null) => {
     if (preview) URL.revokeObjectURL(preview);
@@ -32,9 +37,9 @@ export function ScanRecipeBlock({
 
   return (
     <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 p-3">
-      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Scan recipe</p>
+      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Add from photo or list</p>
       <p className="mt-0.5 text-xs text-slate-500">
-        Handwritten sheet or screenshot. Close and well lit. Not stored — check the lines, then save.
+        Photo uses a scan. A pasted list is free and stays on this page — check the lines, then save.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {preview ? (
@@ -105,6 +110,53 @@ export function ScanRecipeBlock({
           {parse.isPending ? "Reading…" : "Read recipe"}
         </button>
       </div>
+      <div className="mt-3 border-t border-slate-200/80 pt-3">
+        <Field
+          label="Or paste a list"
+          hint="Free — no scan. One ingredient per line, e.g. maida - 100g"
+        >
+          <textarea
+            value={paste}
+            onChange={(e) => setPaste(e.target.value)}
+            placeholder={"maida - 100g\nbutter - 50g\nsugar 50g"}
+            rows={4}
+            className={cn(textareaClass, "min-h-20")}
+            disabled={disabled}
+          />
+        </Field>
+        <button
+          type="button"
+          disabled={disabled || !paste.trim()}
+          onClick={() => {
+            const { ingredients, skipped } = parsePastedRecipeText(paste);
+            if (!ingredients.length) {
+              setPasteNote(null);
+              setError("Could not read those lines. Use one per line, like maida - 100g.");
+              return;
+            }
+            setError(null);
+            setPasteNote(
+              skipped
+                ? `Inserted ${ingredients.length} — skipped ${skipped} line${skipped === 1 ? "" : "s"} without a qty.`
+                : null,
+            );
+            onInsertLines(
+              ingredients.map((l) => ({
+                name: l.name,
+                qty: l.qty,
+                unit: l.unit,
+                note: l.note,
+              })),
+            );
+            setPaste("");
+          }}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-brand-500 hover:text-brand-700 disabled:opacity-50"
+        >
+          <ClipboardPaste className="h-4 w-4" />
+          Insert lines
+        </button>
+      </div>
+      {pasteNote && <p className="mt-2 text-xs text-amber-800">{pasteNote}</p>}
       {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
     </div>
   );

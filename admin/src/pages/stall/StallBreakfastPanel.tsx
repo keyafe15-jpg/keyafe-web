@@ -5,6 +5,7 @@ import {
   useAddStallBreakfast,
   useCreateStallBreakfastBill,
   useDeleteStallBreakfast,
+  useDownloadBreakfastInvoice,
   useDownloadBreakfastStatement,
   useManageStalls,
   useStalls,
@@ -127,6 +128,7 @@ function BreakfastMonth({
   const del = useDeleteStallBreakfast();
   const bill = useCreateStallBreakfastBill(stall.id);
   const statement = useDownloadBreakfastStatement();
+  const invoice = useDownloadBreakfastInvoice();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "error" | "ok"; text: string } | null>(null);
@@ -303,11 +305,18 @@ function BreakfastMonth({
           billReady={billReady}
           creating={bill.isPending}
           onCreate={createBill}
-          downloading={statement.isPending}
+          downloadingStatement={statement.isPending}
+          downloadingInvoice={invoice.isPending}
           onStatement={() =>
             statement.mutate(
               { stallId: stall.id, month },
               { onError: (err) => fail(err, "Could not download the statement") },
+            )
+          }
+          onInvoice={(orderId) =>
+            invoice.mutate(
+              { stallId: stall.id, month, orderId },
+              { onError: (err) => fail(err, "Could not download the tax invoice") },
             )
           }
         />
@@ -377,15 +386,19 @@ function BillsSection({
   billReady,
   creating,
   onCreate,
-  downloading,
+  downloadingStatement,
+  downloadingInvoice,
   onStatement,
+  onInvoice,
 }: {
   data: StallBreakfastMonth;
   billReady: boolean;
   creating: boolean;
   onCreate: () => void;
-  downloading: boolean;
+  downloadingStatement: boolean;
+  downloadingInvoice: boolean;
   onStatement: () => void;
+  onInvoice: (orderId?: string) => void;
 }) {
   const canBill = billReady && data.totals.unbilledCount > 0;
   return (
@@ -414,6 +427,15 @@ function BillsSection({
               >
                 {b.paymentStatus === "PAID" ? "Paid" : "Payment pending"}
               </span>
+              <button
+                type="button"
+                onClick={() => onInvoice(b.id)}
+                disabled={downloadingInvoice}
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline disabled:opacity-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {downloadingInvoice ? "Preparing…" : "Tax invoice"}
+              </button>
               <span className="ml-auto text-sm font-semibold text-slate-900 tabular-nums">
                 {formatINR(b.total)}
               </span>
@@ -423,8 +445,8 @@ function BillsSection({
       )}
       <p className="mt-2 text-xs text-slate-500">
         {data.bills.length > 0
-          ? "Open the order for the tax invoice and to mark it paid when the company pays."
-          : "Creates one order for the company with a line per day and issues its GST invoice. It shows under Pending until marked paid."}
+          ? "The tax invoice is the GST bill for the company (title, total, tax). The statement is the day-wise plates. Open the order to mark it paid when the company pays."
+          : "Creates one order for the company and issues its GST invoice. It shows under Pending until marked paid. Day-wise plates stay on the statement."}
       </p>
       {!billReady && data.totals.unbilledCount > 0 && (
         <p className="mt-2 text-xs font-medium text-amber-700">
@@ -446,11 +468,22 @@ function BillsSection({
           <button
             type="button"
             onClick={onStatement}
-            disabled={downloading}
+            disabled={downloadingStatement}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
-            {downloading ? "Preparing…" : "Download statement"}
+            {downloadingStatement ? "Preparing…" : "Download statement"}
+          </button>
+        )}
+        {data.bills.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onInvoice()}
+            disabled={downloadingInvoice}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+            {downloadingInvoice ? "Preparing…" : "Download tax invoice"}
           </button>
         )}
       </div>

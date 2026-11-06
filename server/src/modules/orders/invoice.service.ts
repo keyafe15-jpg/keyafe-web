@@ -233,6 +233,8 @@ export interface InvoiceData {
   compositionNote: string | null;
   /** True when per-line tax is missing, so lines are shown without a GST split. */
   isLegacyOrder: boolean;
+  /** Stall breakfast bills point corporates at the day-wise statement. */
+  annexureNote: string | null;
 }
 
 export interface AddressShape {
@@ -443,7 +445,7 @@ export async function buildInvoiceData(
   const hasLineTax = order.items.every((i) => i.taxableValue !== null);
   const isLegacyOrder = !hasLineTax;
 
-  const lines: InvoiceLine[] = order.items
+  const rawLines: InvoiceLine[] = order.items
     .filter((item) => !isZeroExtraCharge(item))
     .map((item) => {
     const lineTotal = Number(item.lineTotal);
@@ -461,6 +463,9 @@ export async function buildInvoiceData(
       lineTotal,
     };
   });
+  // Office breakfast is billed as one supply. Day-wise plates live on the
+  // statement; the tax invoice the company files is a single titled line.
+  const lines = summariseStallBillLines(order, rawLines);
 
   // Per-line values when we have them; otherwise the order-level snapshot.
   const lineTaxableSum = roundMoney(lines.reduce((s, l) => s + l.taxableValue, 0));
@@ -571,7 +576,44 @@ export async function buildInvoiceData(
         ? "Composition taxable person, not eligible to collect tax on supplies."
         : null,
     isLegacyOrder,
+    annexureNote:
+      order.source === "STALL_BILL"
+        ? "Day-wise plates are on the breakfast statement issued with this invoice."
+        : null,
   };
+}
+
+/** One GST line for a stall breakfast bill, even when the order still has a row per day. */
+function summariseStallBillLines(order: OrderWithItems, lines: InvoiceLine[]): InvoiceLine[] {
+  if (order.source !== "STALL_BILL" || lines.length <= 1) return lines;
+  const rates = new Set(lines.map((l) => l.gstRate));
+  if (rates.size > 1) return lines;
+
+  const taxableValue = roundMoney(lines.reduce((s, l) => s + l.taxableValue, 0));
+  const cgstAmount = roundMoney(lines.reduce((s, l) => s + l.cgstAmount, 0));
+  const sgstAmount = roundMoney(lines.reduce((s, l) => s + l.sgstAmount, 0));
+  const igstAmount = roundMoney(lines.reduce((s, l) => s + l.igstAmount, 0));
+  const lineTotal = roundMoney(lines.reduce((s, l) => s + l.lineTotal, 0));
+  const plates = roundMoney(lines.reduce((s, l) => s + l.qty, 0));
+  const fromNotes = order.adminNotes?.replace(/:\s*[\d.]+\s*plates\.?\s*$/i, "").trim();
+  const description = fromNotes
+    ? `${fromNotes} (${plates} plates)`
+    : `Office breakfast (${plates} plates)`;
+  const first = lines[0]!;
+  return [
+    {
+      description,
+      hsnCode: lines.find((l) => l.hsnCode)?.hsnCode ?? first.hsnCode,
+      qty: 1,
+      unitPrice: lineTotal,
+      taxableValue,
+      gstRate: first.gstRate,
+      cgstAmount,
+      sgstAmount,
+      igstAmount,
+      lineTotal,
+    },
+  ];
 }
 
 /** Issues (or reuses) the number and returns the full printable invoice. */

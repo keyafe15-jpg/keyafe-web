@@ -410,6 +410,18 @@ export function useCreateStallBreakfastBill(stallId: string | null) {
   });
 }
 
+function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Revoking immediately can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 export function useDownloadBreakfastStatement() {
   return useMutation({
     mutationFn: async ({ stallId, month }: { stallId: string; month: string }) => {
@@ -417,17 +429,34 @@ export function useDownloadBreakfastStatement() {
         `/admin/stalls/${stallId}/breakfast/statement?month=${month}`,
       );
       const name = filename ?? `breakfast-${month}.pdf`;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      // Revoking immediately can cancel the download in some browsers.
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      saveBlob(blob, name);
       return { filename: name };
     },
+  });
+}
+
+export function useDownloadBreakfastInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      stallId,
+      month,
+      orderId,
+    }: {
+      stallId: string;
+      month: string;
+      orderId?: string;
+    }) => {
+      const qs = new URLSearchParams({ month });
+      if (orderId) qs.set("orderId", orderId);
+      const { blob, filename, headers } = await api.getBlob(
+        `/admin/stalls/${stallId}/breakfast/invoice?${qs}`,
+      );
+      const name = filename ?? `breakfast-invoice-${month}.pdf`;
+      saveBlob(blob, name);
+      return { filename: name, invoiceNumber: headers.get("X-Invoice-Number") };
+    },
+    onSuccess: () => refreshBreakfast(qc),
   });
 }
 
