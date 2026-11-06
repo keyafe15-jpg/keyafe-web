@@ -64,6 +64,7 @@ export function OrderItemsEditor({
             onClick={() => addItem("CUSTOM")}
             icon={<Sparkles className="h-4 w-4" />}
             label="Custom item"
+            shortLabel="Custom"
             hint="Your own price"
             className="border-brand-100 bg-brand-100/40 text-brand-700 hover:border-brand-500"
             iconClassName="bg-brand-100 text-brand-700"
@@ -72,6 +73,7 @@ export function OrderItemsEditor({
             onClick={() => addItem("CATALOG")}
             icon={<Package className="h-4 w-4" />}
             label="Catalog item"
+            shortLabel="Catalog"
             hint="From the menu"
             className="border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-500"
             iconClassName="bg-sky-100 text-sky-700"
@@ -106,6 +108,7 @@ function AddItemButton({
   onClick,
   icon,
   label,
+  shortLabel,
   hint,
   className,
   iconClassName,
@@ -113,6 +116,7 @@ function AddItemButton({
   onClick: () => void;
   icon: ReactNode;
   label: string;
+  shortLabel?: string;
   hint: string;
   className: string;
   iconClassName: string;
@@ -121,14 +125,15 @@ function AddItemButton({
     <button
       type="button"
       onClick={onClick}
+      title={label}
       className={cn(
-        "flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition",
+        "flex min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left transition sm:gap-2 sm:px-2.5",
         className,
       )}
     >
       <span
         className={cn(
-          "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+          "hidden h-7 w-7 shrink-0 items-center justify-center rounded-md sm:flex",
           iconClassName,
         )}
       >
@@ -137,9 +142,10 @@ function AddItemButton({
       <span className="min-w-0">
         <span className="flex items-center gap-0.5 text-xs font-semibold">
           <Plus className="h-3 w-3 shrink-0" />
-          <span className="truncate">{label}</span>
+          <span className="sm:hidden">{shortLabel ?? label}</span>
+          <span className="hidden sm:inline">{label}</span>
         </span>
-        <span className="block truncate text-[11px] text-slate-500">{hint}</span>
+        <span className="block text-[11px] text-slate-500">{hint}</span>
       </span>
     </button>
   );

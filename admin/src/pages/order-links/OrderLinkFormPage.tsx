@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Copy, Check } from "lucide-react";
 import {
   useAdminOrderLink,
@@ -265,7 +265,8 @@ export function OrderLinkFormPage() {
     }
   };
 
-  if (created) return <CreatedView created={created} />;
+  if (!isEdit) return <Navigate to="/offline-orders/new" replace />;
+  if (created) return <OrderLinkCreatedView created={created} />;
 
   return (
     <div className="pb-24">
@@ -520,7 +521,7 @@ function Section({
   );
 }
 
-function CreatedView({ created }: { created: { token: string; url: string } }) {
+export function OrderLinkCreatedView({ created }: { created: { token: string; url: string } }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(created.url);

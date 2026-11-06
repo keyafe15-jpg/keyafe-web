@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Pencil } from "lucide-react";
 import type { AdminOrder } from "@/hooks/useAdminOrders";
 import { inputClass, selectClass } from "@/components/form/Field";
-import { listedItemImages, RefImageStrip } from "@/components/orders/RefImageStrip";
+import { listedItemImages } from "@/components/orders/RefImageStrip";
+import { OrderItemSummary } from "@/components/orders/OrderItemSummary";
 import { TIME_SLOTS } from "@/content/slots";
 import { cn } from "@/lib/cn";
-import { LineExtras } from "@/components/orders/LineExtras";
 
 type OrderItem = AdminOrder["items"][number];
 
@@ -34,7 +34,6 @@ function scheduleText(item: OrderItem) {
     weekday: "short",
     day: "numeric",
     month: "short",
-    year: "numeric",
   });
   return `${date} · ${item.deliverySlotLabel}`;
 }
@@ -91,23 +90,24 @@ export function OrderItemCard({
   const [editing, setEditing] = useState(false);
   return (
     <div className="py-3">
-      <div className="flex items-start gap-3">
-        <RefImageStrip urls={listedItemImages(item)} alt={item.productName} />
-        <div className="min-w-0 flex-1">
-          <p className="flex min-w-0 flex-wrap items-baseline gap-2">
-            <span className="min-w-0 font-medium break-words text-slate-900">{item.productName}</span>
-            <span className="inline-flex shrink-0 items-center rounded-md bg-brand-100 px-1.5 py-0.5 text-sm font-bold leading-none text-brand-700 tabular-nums">
-              ×{item.qty}
-            </span>
-          </p>
-          <p className="text-xs text-slate-500">
-            {[item.sizeLabel, item.flavourName].filter(Boolean).join(" · ")}
-          </p>
-          {item.description && (
-            <p className="mt-0.5 text-xs whitespace-pre-line text-slate-700">{item.description}</p>
-          )}
-          <div className="mt-1 flex items-start gap-1">
-            <p className="text-[11px] font-medium text-brand-700">{scheduleText(item)}</p>
+      <OrderItemSummary
+        item={{
+          name: item.productName,
+          qty: item.qty,
+          imageUrls: listedItemImages(item),
+          sizeLine: item.sizeLabel || undefined,
+          flavour: item.flavourName || undefined,
+          description: item.description || undefined,
+          messageOnCake: item.messageOnCake,
+          instructions: item.instructions,
+          unitPrice: Number(item.unitPrice),
+          lineTotal: Number(item.lineTotal),
+        }}
+        footer={
+          <div className="flex items-start gap-1">
+            <p className="min-w-0 text-[11px] font-medium leading-snug break-words text-brand-700">
+              {scheduleText(item)}
+            </p>
             {onSaveSchedule && !editing && (
               <button
                 type="button"
@@ -120,30 +120,11 @@ export function OrderItemCard({
               </button>
             )}
           </div>
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-xs text-slate-500">
-            ₹{Number(item.unitPrice).toFixed(0)} × {item.qty}
-          </p>
-          <p className="font-medium text-slate-900 tabular-nums">
-            ₹{Number(item.lineTotal).toFixed(2)}
-          </p>
-          {item.gstRate !== null && (
-            <p className="mt-0.5 text-[11px] text-slate-400">
-              {item.hsnCode ? `HSN ${item.hsnCode} · ` : ""}
-              GST {Number(item.gstRate)}%
-            </p>
-          )}
-        </div>
-      </div>
-      <LineExtras
-        className="mt-2"
-        instructions={item.instructions}
-        messageOnCake={item.messageOnCake}
+        }
       />
 
       {onSaveSchedule && editing && (
-        <div className="sm:pl-[68px]">
+        <div className="sm:pl-[4.75rem]">
           <ItemScheduleEditor
             item={item}
             pending={pending}

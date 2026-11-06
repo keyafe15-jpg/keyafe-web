@@ -5,12 +5,19 @@ import {
   ChevronDown,
   HandCoins,
   Hourglass,
+  Link2,
   Store,
   Truck,
   Wallet,
 } from "lucide-react";
 import { useCreateOfflineOrder } from "@/hooks/useOfflineOrders";
+import {
+  useCreateOrderLink,
+  useOnlinePaymentAvailable,
+} from "@/hooks/useAdminOrderLinks";
 import { useCreateProduct } from "@/hooks/useAdminProducts";
+import { OrderLinkCreatedView } from "@/pages/order-links/OrderLinkFormPage";
+import { orderLinkUrl } from "@/lib/storefront";
 import { TIME_SLOTS } from "@/content/slots";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/uploads";
@@ -30,6 +37,7 @@ import {
   resolveReferenceImageUrls,
   saveItemsToCatalog,
   toOfflineOrderItemPayload,
+  toOrderLinkItemPayload,
   useOrderItemRefPreviews,
   useOrderItemsGstOnTop,
   useOrderItemsState,
@@ -40,7 +48,11 @@ import {
 import { useFlavours } from "@/hooks/useFlavours";
 import { useAdminToppings } from "@/hooks/useToppings";
 import { useAdminAddons } from "@/hooks/useAddons";
-import { AddressPlacesSearch, type ParsedPlace } from "@/components/address/AddressPlacesSearch";
+import {
+  CompactAddressFields,
+  compactAddressInputClass,
+} from "@/components/address/CompactAddressFields";
+import type { ParsedPlace } from "@/components/address/AddressPlacesSearch";
 import { CustomerLookupField } from "@/components/form/CustomerLookup";
 import {
   emptyPaymentLine,
@@ -53,8 +65,10 @@ import type { DeliveryDistrict } from "@/hooks/useAdminDeliveryPincodes";
 import { useStaffPermission } from "@/lib/permissions";
 import { cn } from "@/lib/cn";
 import {
+  LINK_DRAFT_KEY,
   PLACE_DRAFT_KEY,
   clearDraft,
+  linkDraftHasContent,
   placeDraftHasContent,
   readDraft,
   restoreItems,
@@ -62,6 +76,8 @@ import {
   serializeItems,
   serializePaymentLines,
   useDebouncedDraftSave,
+  type LinkDraft,
+  type OfflineFinish,
   type PlaceDraft,
 } from "@/lib/offlineOrderDraft";
 
@@ -111,11 +127,37 @@ function formatDay(iso: string): string {
 export function OfflineOrderDirectFormPage() {
   const navigate = useNavigate();
   const create = useCreateOfflineOrder();
+  const createLink = useCreateOrderLink();
   const createProduct = useCreateProduct();
   const { data: flavours = [] } = useFlavours();
   const { data: allToppings = [] } = useAdminToppings();
   const { data: allAddons = [] } = useAdminAddons();
-  const [initialDraft] = useState(() => readDraft<PlaceDraft>(PLACE_DRAFT_KEY));
+  const { data: onlinePaymentAvailable = false } = useOnlinePaymentAvailable();
+  const [initialDraft] = useState<Partial<PlaceDraft> | null>(() => {
+    const place = readDraft<PlaceDraft>(PLACE_DRAFT_KEY);
+    if (place && placeDraftHasContent(place)) return place;
+    const link = readDraft<LinkDraft>(LINK_DRAFT_KEY);
+    if (link && linkDraftHasContent(link)) {
+      clearDraft(LINK_DRAFT_KEY);
+      return {
+        finish: "link",
+        items: link.items,
+        customerName: link.customerName,
+        customerPhone: link.customerPhone,
+        adminNotes: link.adminNotes,
+        expiresInDays: link.expiresInDays,
+        discountType: link.discountType,
+        discountValue: link.discountValue,
+        deliveryFeeInput: link.deliveryFeeInput,
+        deliveryPaidToRider: link.deliveryPaidToRider,
+        allowOnlinePayment: link.allowOnlinePayment,
+      };
+    }
+    return null;
+  });
+  const [finish, setFinish] = useState<OfflineFinish>(initialDraft?.finish ?? "place");
+  const isLink = finish === "link";
+  const [createdLink, setCreatedLink] = useState<{ token: string; url: string } | null>(null);
   const { items, patchItem, removeItem, addItem, setItems } = useOrderItemsState(
     "CUSTOM",
     initialDraft ? restoreItems(initialDraft.items) : undefined,
@@ -204,6 +246,10 @@ export function OfflineOrderDirectFormPage() {
   const [zoneDistrict, setZoneDistrict] = useState<DeliveryDistrict>(
     initialDraft?.zoneDistrict ?? "KOLKATA",
   );
+  const [expiresInDays, setExpiresInDays] = useState(initialDraft?.expiresInDays ?? "7");
+  const [allowOnlinePayment, setAllowOnlinePayment] = useState(
+    initialDraft?.allowOnlinePayment ?? false,
+  );
 
   useOrderItemRefPreviews(items, setItems);
 
@@ -219,6 +265,7 @@ export function OfflineOrderDirectFormPage() {
 
   const placeDraft = useMemo<PlaceDraft>(
     () => ({
+      finish,
       items: serializeItems(items),
       customerName,
       customerPhone,
@@ -260,8 +307,11 @@ export function OfflineOrderDirectFormPage() {
       zoneCity,
       zoneArea,
       zoneDistrict,
+      expiresInDays,
+      allowOnlinePayment,
     }),
     [
+      finish,
       items,
       customerName,
       customerPhone,
@@ -303,6 +353,8 @@ export function OfflineOrderDirectFormPage() {
       zoneCity,
       zoneArea,
       zoneDistrict,
+      expiresInDays,
+      allowOnlinePayment,
     ],
   );
   useDebouncedDraftSave(PLACE_DRAFT_KEY, placeDraft, true, placeDraftHasContent(placeDraft));
@@ -355,7 +407,7 @@ export function OfflineOrderDirectFormPage() {
   }, [hasOtherRecipient]);
 
   useEffect(() => {
-    if (fulfillment !== "DELIVERY") return;
+    if (isLink || fulfillment !== "DELIVERY") return;
     if (!/^\d{6}$/.test(pincode)) return;
     let cancelled = false;
     setPincodeChecking(true);
@@ -375,9 +427,10 @@ export function OfflineOrderDirectFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [pincode, fulfillment]);
+  }, [pincode, fulfillment, isLink]);
 
   useEffect(() => {
+    if (isLink) return;
     if (fulfillment === "PICKUP") {
       setDeliveryFeeInput("");
       return;
@@ -388,7 +441,7 @@ export function OfflineOrderDirectFormPage() {
     } else {
       setDeliveryFeeInput("");
     }
-  }, [fulfillment, pincodeInfo]);
+  }, [fulfillment, pincodeInfo, isLink]);
 
   const place = pickedPlace?.pincode === pincode ? pickedPlace : null;
   /** Checked and not in the delivery table: staff set the charge themselves. */
@@ -477,6 +530,10 @@ export function OfflineOrderDirectFormPage() {
   const submitBlocker = ((): string | null => {
     const itemIssue = orderItemsIssue(items);
     if (itemIssue) return itemIssue;
+    if (isLink) {
+      if (uploading) return "Uploading…";
+      return null;
+    }
     if (customerName.trim().length < 2) return "Add customer name";
     if (!/^[0-9+\-\s]{7,15}$/.test(customerPhone.trim())) return "Enter a valid customer phone";
     if (isBusinessOrder && customerCompanyName.trim().length < 2) return "Add company name";
@@ -494,24 +551,70 @@ export function OfflineOrderDirectFormPage() {
   })();
 
   const canSubmit = submitBlocker === null;
-  const showBlocker = submitBlocker !== null && !uploading && !create.isPending;
+  const pending =
+    create.isPending || createLink.isPending || addingProducts;
+  const showBlocker = submitBlocker !== null && !uploading && !pending;
 
   const slot = useMemo(() => TIME_SLOTS.find((s) => s.key === slotKey) ?? TIME_SLOTS[0], [slotKey]);
 
   const submit = async () => {
     setError(null);
     try {
-      const itemPayloads = [];
       const savedImages: CatalogSaveEntry[] = [];
+      setUploading(true);
+      const linkItems = [];
+      const itemPayloads = [];
       for (const it of items) {
-        setUploading(true);
         const referenceImageUrls = await resolveReferenceImageUrls(it);
         savedImages.push({ item: it, referenceImageUrl: referenceImageUrls[0] ?? null });
-        itemPayloads.push(
-          toOfflineOrderItemPayload(it, referenceImageUrls, flavours, allToppings, allAddons),
-        );
+        if (isLink) {
+          linkItems.push(
+            toOrderLinkItemPayload(it, referenceImageUrls, flavours, allToppings, allAddons),
+          );
+        } else {
+          itemPayloads.push(
+            toOfflineOrderItemPayload(it, referenceImageUrls, flavours, allToppings, allAddons),
+          );
+        }
       }
       setUploading(false);
+
+      const addToProductList = async () => {
+        setAddingProducts(savedImages.some(({ item }) => wantsCatalogSave(item)));
+        const failed = await saveItemsToCatalog(
+          savedImages,
+          allToppings,
+          allAddons,
+          createProduct.mutateAsync,
+        );
+        setAddingProducts(false);
+        if (failed.length > 0) {
+          window.alert(
+            `${isLink ? "Link saved" : "Order placed"}, but these couldn't be added to the product list:\n\n${failed.join("\n")}`,
+          );
+        }
+      };
+
+      if (isLink) {
+        const locked =
+          deliveryFeeInput.trim() !== "" ? Math.max(0, Number(deliveryFeeInput) || 0) : null;
+        const link = await createLink.mutateAsync({
+          items: linkItems,
+          customerName: customerName.trim() || null,
+          customerPhone: customerPhone.trim() || null,
+          adminNotes: adminNotes.trim() || null,
+          expiresInDays: expiresInDays ? Number(expiresInDays) : null,
+          discountType: discount > 0 ? discountType : null,
+          discountValue: discount > 0 ? Number(discountValue) : null,
+          deliveryFee: locked,
+          deliveryPaidToRider,
+          allowOnlinePayment,
+        });
+        clearDraft(PLACE_DRAFT_KEY);
+        await addToProductList();
+        setCreatedLink({ token: link.token, url: orderLinkUrl(link.token) });
+        return;
+      }
 
       const payments: {
         method: "cash" | "upi" | "netbanking";
@@ -611,18 +714,7 @@ export function OfflineOrderDirectFormPage() {
 
       const order = await create.mutateAsync(payload);
       clearDraft(PLACE_DRAFT_KEY);
-      setAddingProducts(savedImages.some(({ item }) => wantsCatalogSave(item)));
-      const failed = await saveItemsToCatalog(
-        savedImages,
-        allToppings,
-        allAddons,
-        createProduct.mutateAsync,
-      );
-      if (failed.length > 0) {
-        window.alert(
-          `Order placed, but these couldn't be added to the product list:\n\n${failed.join("\n")}`,
-        );
-      }
+      await addToProductList();
       navigate(`/orders/${order.orderNumber}`);
     } catch (err) {
       setUploading(false);
@@ -630,8 +722,26 @@ export function OfflineOrderDirectFormPage() {
     }
   };
 
+  if (createdLink) return <OrderLinkCreatedView created={createdLink} />;
+
+  const submitLabel = uploading
+    ? "Uploading…"
+    : addingProducts
+      ? "Adding to product list…"
+      : pending
+        ? isLink
+          ? "Saving…"
+          : isPastOrder
+            ? "Saving…"
+            : "Placing order…"
+        : isLink
+          ? "Create link"
+          : isPastOrder
+            ? "Save past order"
+            : "Place order";
+
   return (
-    <div className="pb-24">
+    <div className="pb-28 lg:pb-24">
       <Link
         to="/offline-orders"
         className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-500"
@@ -639,12 +749,29 @@ export function OfflineOrderDirectFormPage() {
         <ArrowLeft className="h-3 w-3" /> Back to offline orders
       </Link>
       <h1 className="mt-2 text-xl font-semibold text-slate-900 sm:mt-3 sm:text-2xl">
-        New offline order — full details
+        New offline order
       </h1>
       <p className="mt-1 hidden text-sm text-slate-500 sm:block">
-        Enter one or more items and the customer's details. Order is placed straight away — no
-        customer link needed.
+        {isLink
+          ? "Lock the items and price, then send a link. The customer fills contact and address."
+          : "Enter items and the customer's details. The order is placed straight away."}
       </p>
+      <div className="mt-3 grid w-full grid-cols-2 gap-2 sm:max-w-xl">
+        <ToggleButton
+          active={!isLink}
+          onClick={() => setFinish("place")}
+          icon={<Store className="h-4 w-4" />}
+          title="Place now"
+          subtitle="You have all the details"
+        />
+        <ToggleButton
+          active={isLink}
+          onClick={() => setFinish("link")}
+          icon={<Link2 className="h-4 w-4" />}
+          title="Send link"
+          subtitle="Customer finishes on WhatsApp"
+        />
+      </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4 sm:space-y-6">
@@ -657,7 +784,11 @@ export function OfflineOrderDirectFormPage() {
 
           <Section title="Customer">
             <div className={pairGrid}>
-              <Field label="Name" required hint="Type to search past customers">
+              <Field
+                label="Name"
+                required={!isLink}
+                hint="Type to search past customers"
+              >
                 <CustomerLookupField
                   value={customerName}
                   onChange={setCustomerName}
@@ -665,7 +796,11 @@ export function OfflineOrderDirectFormPage() {
                   placeholder="Aarav Kumar"
                 />
               </Field>
-              <Field label="Phone" required hint="Type to search by number">
+              <Field
+                label="Phone"
+                required={!isLink}
+                hint="Type to search by number"
+              >
                 <CustomerLookupField
                   type="tel"
                   value={customerPhone}
@@ -674,23 +809,27 @@ export function OfflineOrderDirectFormPage() {
                   placeholder="9876543210"
                 />
               </Field>
-              <Field label="Email" className="col-span-2">
-                <input
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="Optional — gets the confirmation email"
-                  className={inputClass}
-                />
-              </Field>
+              {!isLink && (
+                <Field label="Email" className="col-span-2">
+                  <input
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="Optional — gets the confirmation email"
+                    className={inputClass}
+                  />
+                </Field>
+              )}
 
+              {!isLink && (
               <CheckboxRow
                 checked={isBusinessOrder}
                 onChange={setIsBusinessOrder}
                 title="Business order — needs a GST invoice"
               />
+              )}
 
-              {isBusinessOrder && (
+              {!isLink && isBusinessOrder && (
                 <>
                   <Field label="Company name" required className="col-span-2 sm:col-span-1">
                     <input
@@ -719,7 +858,7 @@ export function OfflineOrderDirectFormPage() {
                 </>
               )}
 
-              {fulfillment === "DELIVERY" && (
+              {!isLink && fulfillment === "DELIVERY" && (
                 <>
                   <CheckboxRow
                     checked={recipientIsCustomer}
@@ -759,6 +898,31 @@ export function OfflineOrderDirectFormPage() {
             </div>
           </Section>
 
+          {isLink ? (
+          <Section
+            title="Delivery (optional)"
+            subtitle="Leave blank to use the customer’s pincode rate when they order."
+          >
+            <div className="space-y-3">
+              <Field
+                label="Fix delivery charge as"
+                hint="Rupees. Blank means we charge whatever the pincode table says."
+              >
+                <input
+                  inputMode="decimal"
+                  value={deliveryFeeInput}
+                  onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
+                  placeholder="e.g. 80"
+                  className={inputClass}
+                />
+              </Field>
+              <DeliveryPaidToField
+                paidToRider={deliveryPaidToRider}
+                onChange={setDeliveryPaidToRider}
+              />
+            </div>
+          </Section>
+          ) : (
           <Section title={fulfillment === "DELIVERY" ? "Delivery" : "Pickup"}>
             <div className="grid grid-cols-2 gap-2">
               <ToggleButton
@@ -842,71 +1006,59 @@ export function OfflineOrderDirectFormPage() {
                       </select>
                     </Field>
                   )}
-                  <Field label="Search address" required className="col-span-2">
-                    <AddressPlacesSearch
-                      value={mapSearchQuery}
-                      onChange={setMapSearchQuery}
-                      onPlaceSelect={(place) => {
-                        if (place.line1) setLine1(place.line1);
-                        if (place.pincode) {
-                          skipTableFeeRef.current = false;
-                          setLastChargedFee(null);
-                          setPincode(place.pincode);
-                        }
-                        setPickedPlace(place);
-                      }}
-                      placeholder="Building, society, or area"
-                    />
-                  </Field>
-                  <Field label="Address line 1" required className="col-span-2">
-                    <input
-                      value={line1}
-                      onChange={(e) => setLine1(e.target.value)}
-                      placeholder="12A, Prince Anwar Shah Road"
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Line 2">
-                    <input
-                      value={line2}
-                      onChange={(e) => setLine2(e.target.value)}
-                      placeholder="Flat 3B"
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Landmark">
-                    <input
-                      value={landmark}
-                      onChange={(e) => setLandmark(e.target.value)}
-                      placeholder="Near South City"
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Pincode" required>
-                    <input
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={pincode}
-                      onChange={(e) => {
+                  <CompactAddressFields
+                    searchValue={mapSearchQuery}
+                    onSearchChange={setMapSearchQuery}
+                    onPlaceSelect={(place) => {
+                      if (place.line1) setLine1(place.line1);
+                      if (place.pincode) {
                         skipTableFeeRef.current = false;
                         setLastChargedFee(null);
-                        setPincode(e.target.value.replace(/\D/g, "").slice(0, 6));
-                      }}
-                      placeholder="700001"
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Delivery ₹">
-                    <input
-                      inputMode="decimal"
-                      value={deliveryFeeInput}
-                      onChange={(e) => setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))}
-                      placeholder={unlistedPincode ? "Enter charge" : "From pincode"}
-                      className={inputClass}
-                      disabled={!deliveryPriced}
-                    />
-                  </Field>
-                  {(pincodeChecking || pincodeInfo || pincodeError) && (
+                        setPincode(place.pincode);
+                      }
+                      setPickedPlace(place);
+                    }}
+                    line1={line1}
+                    line2={line2}
+                    landmark={landmark}
+                    pincode={pincode}
+                    onLine1={setLine1}
+                    onLine2={setLine2}
+                    onLandmark={setLandmark}
+                    onPincode={(value) => {
+                      skipTableFeeRef.current = false;
+                      setLastChargedFee(null);
+                      setPincode(value);
+                    }}
+                    line1Error={
+                      addressIssue === "Add address line 1" ? addressIssue : undefined
+                    }
+                    pincodeError={
+                      addressIssue === "Enter a 6-digit pincode" ? addressIssue : undefined
+                    }
+                    forceOpen={
+                      addressIssue === "Add address line 1" ||
+                      addressIssue === "Enter a 6-digit pincode"
+                    }
+                    besidePincode={
+                      <label className="min-w-0">
+                        <span className="mb-0.5 block text-[11px] font-medium text-slate-500">
+                          Delivery ₹
+                        </span>
+                        <input
+                          inputMode="decimal"
+                          value={deliveryFeeInput}
+                          onChange={(e) =>
+                            setDeliveryFeeInput(e.target.value.replace(/[^0-9.]/g, ""))
+                          }
+                          placeholder={unlistedPincode ? "Enter charge" : "From pincode"}
+                          className={compactAddressInputClass}
+                          disabled={!deliveryPriced}
+                        />
+                      </label>
+                    }
+                  />
+                  {pincode.trim().length > 0 && (pincodeChecking || pincodeInfo || pincodeError) && (
                     <p
                       className={cn(
                         "col-span-2 -mt-1 text-xs",
@@ -992,58 +1144,89 @@ export function OfflineOrderDirectFormPage() {
 
                   {!billingSameAsDelivery && (
                     <>
-                      <Field label="Billing address search" required className="col-span-2">
-                        <AddressPlacesSearch
-                          value={billMapSearchQuery}
-                          onChange={setBillMapSearchQuery}
-                          onPlaceSelect={(place) => {
-                            if (place.line1) setBillLine1(place.line1);
-                            if (place.pincode) setBillPincode(place.pincode);
-                          }}
-                          placeholder="Billing building or area"
-                        />
-                      </Field>
-                      <Field label="Billing line 1" required className="col-span-2">
-                        <input
-                          value={billLine1}
-                          onChange={(e) => setBillLine1(e.target.value)}
-                          placeholder="Registered / billing street"
-                          className={inputClass}
-                        />
-                      </Field>
-                      <Field label="Line 2">
-                        <input
-                          value={billLine2}
-                          onChange={(e) => setBillLine2(e.target.value)}
-                          className={inputClass}
-                        />
-                      </Field>
-                      <Field label="Landmark">
-                        <input
-                          value={billLandmark}
-                          onChange={(e) => setBillLandmark(e.target.value)}
-                          className={inputClass}
-                        />
-                      </Field>
-                      <Field label="Billing pincode" required>
-                        <input
-                          inputMode="numeric"
-                          maxLength={6}
-                          value={billPincode}
-                          onChange={(e) =>
-                            setBillPincode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                          }
-                          placeholder="700001"
-                          className={inputClass}
-                        />
-                      </Field>
+                      <CompactAddressFields
+                        searchLabel="Billing address search"
+                        searchPlaceholder="Billing building or area"
+                        searchValue={billMapSearchQuery}
+                        onSearchChange={setBillMapSearchQuery}
+                        onPlaceSelect={(place) => {
+                          if (place.line1) setBillLine1(place.line1);
+                          if (place.pincode) setBillPincode(place.pincode);
+                        }}
+                        line1={billLine1}
+                        line2={billLine2}
+                        landmark={billLandmark}
+                        pincode={billPincode}
+                        onLine1={setBillLine1}
+                        onLine2={setBillLine2}
+                        onLandmark={setBillLandmark}
+                        onPincode={setBillPincode}
+                        line1Error={
+                          addressIssue === "Add billing address line 1"
+                            ? addressIssue
+                            : undefined
+                        }
+                        pincodeError={
+                          addressIssue === "Enter a 6-digit billing pincode"
+                            ? addressIssue
+                            : undefined
+                        }
+                        forceOpen={
+                          addressIssue === "Add billing address line 1" ||
+                          addressIssue === "Enter a 6-digit billing pincode"
+                        }
+                      />
                     </>
                   )}
                 </>
               )}
             </div>
           </Section>
+          )}
 
+          {isLink && (
+          <Section title="Link" subtitle="How the customer pays and how long this stays open.">
+            <div className="space-y-3">
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-slate-200 p-3">
+                <input
+                  type="checkbox"
+                  checked={allowOnlinePayment}
+                  onChange={(e) => setAllowOnlinePayment(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500/20"
+                />
+                <span className="text-sm text-slate-700">
+                  <span className="font-medium text-slate-900">Collect payment online (Cashfree)</span>
+                  <span className="mt-0.5 block text-[11px] text-slate-500">
+                    {allowOnlinePayment
+                      ? "Customer can pay in full or an advance online, or choose pay on delivery."
+                      : "Off: customer pays on delivery or pickup — no gateway fee."}
+                  </span>
+                  {allowOnlinePayment && !onlinePaymentAvailable && (
+                    <span className="mt-1 block text-[11px] text-amber-700">
+                      Cashfree isn’t set up on the server yet, so the customer will only see pay on
+                      delivery until it is.
+                    </span>
+                  )}
+                </span>
+              </label>
+              <Field
+                label="Link expires after"
+                hint="Days. Blank = never."
+              >
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={expiresInDays}
+                  onChange={(e) => setExpiresInDays(e.target.value)}
+                  className={cn(inputClass, "w-24")}
+                />
+              </Field>
+            </div>
+          </Section>
+          )}
+
+          {!isLink && (
           <Section title="Payment">
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <ToggleButton
@@ -1100,6 +1283,7 @@ export function OfflineOrderDirectFormPage() {
               </div>
             )}
           </Section>
+          )}
 
           <Section
             title="Discount"
@@ -1120,16 +1304,23 @@ export function OfflineOrderDirectFormPage() {
           </Section>
 
           <Section title="Notes">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-              <Field label="For kitchen / delivery">
-                <textarea
-                  rows={2}
-                  value={customerNotes}
-                  onChange={(e) => setCustomerNotes(e.target.value)}
-                  placeholder="Handle gently, ring bell twice…"
-                  className={cn(textareaClass, "min-h-0")}
-                />
-              </Field>
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-3 sm:gap-4",
+                !isLink && "sm:grid-cols-2",
+              )}
+            >
+              {!isLink && (
+                <Field label="For kitchen / delivery">
+                  <textarea
+                    rows={2}
+                    value={customerNotes}
+                    onChange={(e) => setCustomerNotes(e.target.value)}
+                    placeholder="Handle gently, ring bell twice…"
+                    className={cn(textareaClass, "min-h-0")}
+                  />
+                </Field>
+              )}
               <Field label="Internal (admin only)">
                 <textarea
                   rows={2}
@@ -1171,7 +1362,25 @@ export function OfflineOrderDirectFormPage() {
                   <span className="tabular-nums">−₹{discount.toFixed(0)}</span>
                 </div>
               )}
-              {deliveryPriced && deliveryPaidToRider ? (
+              {isLink ? (
+                deliveryFeeInput.trim() !== "" && (
+                  <div
+                    className={cn(
+                      "flex justify-between",
+                      deliveryPaidToRider ? "text-slate-500" : "text-slate-700",
+                    )}
+                  >
+                    <span>
+                      {deliveryPaidToRider
+                        ? "Delivery (locked) · paid to rider, not in total"
+                        : "Delivery (locked)"}
+                    </span>
+                    <span className="tabular-nums">
+                      ₹{Math.max(0, Number(deliveryFeeInput) || 0).toFixed(0)}
+                    </span>
+                  </div>
+                )
+              ) : deliveryPriced && deliveryPaidToRider ? (
                 <div className="flex justify-between text-slate-500">
                   <span>Delivery · paid to rider, not in total</span>
                   <span className="tabular-nums">₹{deliveryFee.toFixed(0)}</span>
@@ -1194,7 +1403,7 @@ export function OfflineOrderDirectFormPage() {
                 <span>Total</span>
                 <span className="tabular-nums">₹{grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}</span>
               </div>
-              {paymentPlan === "ON_DELIVERY" && (
+              {!isLink && paymentPlan === "ON_DELIVERY" && (
                 <div className="flex justify-between font-medium text-amber-700">
                   <span>Due on delivery</span>
                   <span className="tabular-nums">
@@ -1202,7 +1411,7 @@ export function OfflineOrderDirectFormPage() {
                   </span>
                 </div>
               )}
-              {paymentPlan === "ADVANCE" && collectedNow > 0 && (
+              {!isLink && paymentPlan === "ADVANCE" && collectedNow > 0 && (
                 <>
                   <div className="flex justify-between text-emerald-700">
                     <span>Advance</span>
@@ -1221,27 +1430,17 @@ export function OfflineOrderDirectFormPage() {
             )}
 
             <div
-              className="group relative mt-4 sm:mt-5"
+              className="group relative mt-4 hidden sm:mt-5 lg:block"
               tabIndex={showBlocker ? 0 : undefined}
               aria-describedby={showBlocker ? "submit-blocker" : undefined}
             >
               <button
                 type="button"
                 onClick={submit}
-                disabled={!canSubmit || create.isPending || addingProducts}
+                disabled={!canSubmit || pending}
                 className={cn(submitClass, "w-full", showBlocker && "pointer-events-none")}
               >
-                {uploading
-                  ? "Uploading…"
-                  : addingProducts
-                    ? "Adding to product list…"
-                    : create.isPending
-                      ? isPastOrder
-                        ? "Saving…"
-                        : "Placing order…"
-                      : isPastOrder
-                        ? "Save past order"
-                        : "Place order"}
+                {submitLabel}
               </button>
               {showBlocker && (
                 <span
@@ -1255,12 +1454,51 @@ export function OfflineOrderDirectFormPage() {
             </div>
             <Link
               to="/offline-orders"
-              className="mt-2 block text-center text-xs text-slate-500 hover:text-brand-500"
+              className="mt-2 hidden text-center text-xs text-slate-500 hover:text-brand-500 lg:block"
             >
               Cancel
             </Link>
           </div>
         </aside>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+        {error && (
+          <p className="mx-auto mb-2 max-w-lg rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            {error}
+          </p>
+        )}
+        <div className="mx-auto flex max-w-lg items-center gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] text-slate-500">Total</p>
+            <p className="text-base font-semibold text-slate-900 tabular-nums">
+              ₹{grandTotal.toFixed(gstOnTop > 0 ? 2 : 0)}
+            </p>
+          </div>
+          <div
+            className="group relative min-w-0 flex-1"
+            tabIndex={showBlocker ? 0 : undefined}
+            aria-describedby={showBlocker ? "sticky-submit-blocker" : undefined}
+          >
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!canSubmit || pending}
+              className={cn(submitClass, "w-full", showBlocker && "pointer-events-none")}
+            >
+              {submitLabel}
+            </button>
+            {showBlocker && (
+              <span
+                id="sticky-submit-blocker"
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition group-focus-within:opacity-100 group-hover:opacity-100 group-focus:opacity-100 after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-slate-900"
+              >
+                {submitBlocker}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1399,7 +1637,7 @@ function ToggleButton({
       <span className="min-w-0">
         <span
           className={cn(
-            "block truncate text-sm font-medium",
+            "block text-sm font-medium",
             active ? "text-brand-700 sm:text-slate-900" : "text-slate-900",
           )}
         >

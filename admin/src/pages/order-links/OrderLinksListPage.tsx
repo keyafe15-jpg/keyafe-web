@@ -48,24 +48,15 @@ export function OrderLinksListPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Offline orders</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Two ways to place an order without the storefront checkout — send a pre-filled link on
-            WhatsApp, or enter the whole thing yourself for a phone customer.
+            Place the order yourself, or lock the items and send a link for the customer to finish.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Link
-            to="/offline-orders/place"
-            className="hover:bg-brand-50 inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-500 bg-white px-3 py-2 text-sm font-medium text-brand-700 transition"
-          >
-            <Plus className="h-4 w-4" /> Enter full details
-          </Link>
-          <Link
-            to="/offline-orders/new"
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
-          >
-            <Plus className="h-4 w-4" /> Send link to customer
-          </Link>
-        </div>
+        <Link
+          to="/offline-orders/new"
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
+        >
+          <Plus className="h-4 w-4" /> New order
+        </Link>
       </div>
 
       {(placeDraft || linkDraft) && (
@@ -75,7 +66,7 @@ export function OrderLinksListPage() {
               title={placeDraft.title}
               summary={placeDraft.summary}
               kindLabel={placeDraft.kindLabel}
-              to="/offline-orders/place"
+              to="/offline-orders/new"
               onDiscard={() => {
                 clearDraft(PLACE_DRAFT_KEY);
                 setDraftTick((n) => n + 1);
@@ -126,11 +117,7 @@ export function OrderLinksListPage() {
                 ? "No expired links. "
                 : "No cancelled links. "}
             <Link to="/offline-orders/new" className="text-brand-500 hover:underline">
-              Send a link
-            </Link>
-            {" or "}
-            <Link to="/offline-orders/place" className="text-brand-500 hover:underline">
-              enter full details
+              New order
             </Link>
             .
           </div>

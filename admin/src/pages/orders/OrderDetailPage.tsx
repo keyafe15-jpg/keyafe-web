@@ -666,8 +666,12 @@ export function OrderDetailPage() {
             </div>
           </Card>
 
-          {order.status !== "CANCELLED" && <CancelOrderCard order={order} />}
-          {canDelete && <DeleteOrderCard order={order} />}
+          {(order.status !== "CANCELLED" || canDelete) && (
+            <section className="rounded-card divide-y divide-slate-100 border border-slate-200 bg-white">
+              {order.status !== "CANCELLED" && <CancelOrderCard order={order} />}
+              {canDelete && <DeleteOrderCard order={order} />}
+            </section>
+          )}
       </div>
     </div>
   );
@@ -1054,51 +1058,54 @@ function CancelOrderCard({ order }: { order: AdminOrder }) {
   };
 
   return (
-    <section className="rounded-card border border-amber-200 bg-white">
-      <div className="px-4 py-3">
-        <p className="text-sm font-semibold text-slate-900">Cancel order</p>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Stops the order and emails the customer. Works even if the kitchen has started.
-        </p>
-        {!confirming ? (
+    <div className="px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-900">Cancel order</p>
+          {!confirming && (
+            <p className="text-[11px] leading-snug text-slate-500">Stops the order and emails the customer</p>
+          )}
+        </div>
+        {!confirming && (
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-300 px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50"
           >
-            <XCircle className="h-3.5 w-3.5" /> Cancel order
+            <XCircle className="h-3.5 w-3.5" /> Cancel
           </button>
-        ) : (
-          <div className="mt-3 space-y-2">
-            <p className="text-xs font-medium text-slate-800">
-              Cancel {order.orderNumber}? The customer will be notified.
-            </p>
-            {error && <p className="text-xs text-red-700">{error}</p>}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void cancel()}
-                disabled={update.isPending}
-                className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
-              >
-                {update.isPending ? "Cancelling…" : "Yes, cancel order"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirming(false);
-                  setError(null);
-                }}
-                disabled={update.isPending}
-                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Keep order
-              </button>
-            </div>
-          </div>
         )}
       </div>
-    </section>
+      {confirming && (
+        <div className="mt-2 space-y-2">
+          <p className="text-xs font-medium text-slate-800">
+            Cancel {order.orderNumber}? The customer will be notified.
+          </p>
+          {error && <p className="text-xs text-red-700">{error}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void cancel()}
+              disabled={update.isPending}
+              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {update.isPending ? "Cancelling…" : "Yes, cancel order"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirming(false);
+                setError(null);
+              }}
+              disabled={update.isPending}
+              className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Keep order
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1138,24 +1145,29 @@ function DeleteOrderCard({ order }: { order: AdminOrder }) {
   };
 
   return (
-    <section className="rounded-card border border-red-200 bg-white">
-      <div className="px-4 py-3">
-        <p className="text-sm font-semibold text-slate-900">Delete order</p>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Permanently removes the order, its items and payment records. This can't be undone — to
-          stop an order, cancel it instead.
-        </p>
-        {!open ? (
+    <div className="px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-900">Delete order</p>
+          {!open && (
+            <p className="text-[11px] leading-snug text-slate-500">
+              Permanent — cancel instead to stop it
+            </p>
+          )}
+        </div>
+        {!open && (
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
           >
-            <Trash2 className="h-3.5 w-3.5" /> Delete order
+            <Trash2 className="h-3.5 w-3.5" /> Delete
           </button>
-        ) : (
+        )}
+      </div>
+      {open && (
           <form
-            className="mt-3 space-y-2.5"
+            className="mt-2 space-y-2.5"
             onSubmit={(e) => {
               e.preventDefault();
               if (matches) void submit();
@@ -1204,9 +1216,8 @@ function DeleteOrderCard({ order }: { order: AdminOrder }) {
               </button>
             </div>
           </form>
-        )}
-      </div>
-    </section>
+      )}
+    </div>
   );
 }
 

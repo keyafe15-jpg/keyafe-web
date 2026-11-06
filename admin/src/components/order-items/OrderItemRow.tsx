@@ -1,12 +1,5 @@
 import { useEffect, useMemo } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  Package,
-  PackagePlus,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { Check, Package, PackagePlus, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { useAdminProduct, type AdminProduct } from "@/hooks/useAdminProducts";
 import type { AdminTopping } from "@/hooks/useToppings";
 import type { AdminAddon } from "@/hooks/useAddons";
@@ -15,6 +8,11 @@ import { SuggestCopyButton } from "@/ai/SuggestCopyButton";
 import { QtyStepper } from "@/components/form/QtyStepper";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/form/SearchableSelect";
 import { ImageLightboxThumb } from "@/components/ui/ImageLightboxThumb";
+import {
+  hasOrderItemExtras,
+  OrderItemExtras,
+  OrderItemSummary,
+} from "@/components/orders/OrderItemSummary";
 import { resetCatalogProductPick, type CatalogPicker } from "@/lib/catalogProductOptions";
 import {
   availableFixedSkus,
@@ -28,6 +26,7 @@ import {
 } from "@/lib/productConfiguration";
 import { Price, applyFactor, formatINR } from "@keyafe/shared";
 import { cn } from "@/lib/cn";
+import { composeLineNotes, mergeInstructions } from "./payload";
 import type { OrderItemDraft } from "./types";
 import { AddonsPanel } from "./AddonGroupPicker";
 import { RefImagesPicker } from "./RefImagesPicker";
@@ -432,7 +431,45 @@ export function OrderItemRow({
   const showWasHint =
     originalUnitPrice != null && item.unitPrice !== "" && unitPriceNum < originalUnitPrice;
 
-  const showCustomDetails = item.kind === "CUSTOM" && item.expanded;
+  const showCustomDetails = item.kind === "CUSTOM";
+  const displayName =
+    item.productName.trim() ||
+    selectedProduct?.name ||
+    (item.kind === "CATALOG" ? "Pick a product" : "Untitled");
+  const qtyNum = Number(item.qty) || 1;
+  const unitNum = Number(item.unitPrice) || 0;
+  const lineTotal = unitNum * qtyNum;
+  const flavourName = pickedCakeFlavour?.name || item.customFlavour.trim() || "";
+  const composedInstructions = mergeInstructions(
+    composeLineNotes(item, allToppings, allAddons),
+    item.instructions,
+  );
+  const glance = itemGlanceBits(item, {
+    poundsLabel:
+      isCustomCake || soldByPound || !!productDetail?.sellByPound
+        ? formatCustomPoundLabel(parsedCustomPounds ?? 1)
+        : parsedCustomPounds != null
+          ? formatCustomPoundLabel(parsedCustomPounds)
+          : customGrams != null
+            ? formatCustomPoundLabel(customGrams / 500)
+            : pickedSize?.weightGrams
+              ? formatCustomPoundLabel(pickedSize.weightGrams / 500)
+              : "",
+    pizzaInches:
+      inchesFromSizeOption(pickedSize) ||
+      inchesFromSizeOption(pizzaSizePresets.find((s) => s.key === item.sizeOptionId)) ||
+      inchesFromSizeOption({
+        label: item.sizeLabel || item.customPizzaSize,
+        key: item.sizeOptionId,
+      }),
+    pizzaSizeLabel:
+      isPizza || isCustomPizza
+        ? pickedSize?.label ||
+          item.sizeLabel.trim() ||
+          item.customPizzaSize.trim() ||
+          pizzaSizeLabelForKey(pizzaSizePresets, item.sizeOptionId)
+        : "",
+  });
 
   const changeCustomTemplate = (template: OrderItemDraft["customTemplate"]) =>
     onPatch({
@@ -458,6 +495,55 @@ export function OrderItemRow({
     item.kind === "CATALOG" && item.productId
       ? (selectedProduct?.images[0] ?? productDetail?.images?.[0] ?? null)
       : null;
+  const summaryImages = [
+    ...(productImage ? [productImage] : []),
+    ...item.keptImageUrls,
+  ].filter((url, i, all) => all.indexOf(url) === i);
+
+  if (!item.expanded) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+        <OrderItemSummary
+          item={{
+            name: displayName,
+            qty: qtyNum,
+            imageUrls: summaryImages,
+            sizeLine: glance.sizeBits.join(" · ") || undefined,
+            flavour: flavourName || undefined,
+            description: item.description.trim() || undefined,
+            messageOnCake: item.messageOnCake,
+            instructions: composedInstructions,
+            unitPrice: unitNum,
+            lineTotal,
+          }}
+          index={index}
+          onActivate={() => onPatch({ expanded: true })}
+          actions={
+            <div className="-mr-1 flex">
+              <button
+                type="button"
+                onClick={() => onPatch({ expanded: true })}
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-brand-700"
+                aria-label={`Edit ${displayName}`}
+                title="Edit item"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onRemove}
+                disabled={!canRemove}
+                className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                aria-label="Remove item"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
@@ -475,43 +561,38 @@ export function OrderItemRow({
           )}
           {item.kind === "CATALOG" ? "Catalog" : "Custom"}
         </span>
-        <span className="text-xs text-slate-400">#{index + 1}</span>
-        {item.kind === "CUSTOM" && (
-          <button
-            type="button"
-            onClick={() => onPatch({ expanded: !item.expanded })}
-            aria-expanded={item.expanded}
-            className="ml-auto inline-flex min-w-0 items-center gap-1 truncate text-xs font-medium text-slate-600 hover:text-brand-700"
-          >
-            {item.expanded ? (
-              <ChevronDown className="h-3 w-3 shrink-0" />
-            ) : (
-              <ChevronRight className="h-3 w-3 shrink-0" />
-            )}
-            <span className="truncate">
-              {item.expanded
-                ? "Hide details"
-                : isCustomCake
-                  ? "Flavour, message…"
-                  : isCustomPizza
-                    ? "Size, crust, toppings…"
-                    : "Description, notes…"}
-            </span>
-          </button>
-        )}
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
+          {item.productName.trim() || selectedProduct?.name || `Item #${index + 1}`}
+        </span>
+        <button
+          type="button"
+          onClick={() => onPatch({ expanded: false })}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
+        >
+          <Check className="h-3.5 w-3.5" />
+          Done
+        </button>
         <button
           type="button"
           onClick={onRemove}
           disabled={!canRemove}
-          className={cn(
-            "-my-1 shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400",
-            item.kind !== "CUSTOM" && "ml-auto",
-          )}
+          className="-my-1 shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
           aria-label="Remove item"
         >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
+
+      {hasOrderItemExtras({
+        messageOnCake: item.messageOnCake,
+        instructions: composedInstructions,
+      }) && (
+        <OrderItemExtras
+          className="mt-3"
+          messageOnCake={item.messageOnCake}
+          instructions={composedInstructions}
+        />
+      )}
 
       <div>
         {item.kind === "CUSTOM" && (
@@ -647,7 +728,7 @@ export function OrderItemRow({
           className={cn(
             "mt-3 grid gap-x-2 gap-y-3",
             item.kind === "CATALOG"
-              ? "grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)_7.5rem] sm:grid-cols-[minmax(0,1fr)_7rem_8rem]"
+              ? "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7rem_8rem]"
               : cn(
                   // Phones: category + name, then the numbers. From sm up it's one row.
                   "grid-cols-12",
@@ -675,8 +756,9 @@ export function OrderItemRow({
             </Field>
           )}
           <Field
-            label={item.kind === "CATALOG" ? "Name (override)" : "Name"}
+            label="Name"
             required
+            hint={item.kind === "CATALOG" ? "Overrides the product name if you type one" : undefined}
             className={item.kind === "CUSTOM" ? customSpan[8] : undefined}
           >
             <input
@@ -717,36 +799,53 @@ export function OrderItemRow({
               />
             </Field>
           )}
-          <Field
-            label="Price"
-            required
-            className={
-              item.kind !== "CUSTOM"
-                ? undefined
-                : customSpan[customMeasure === "POUNDS" ? 5 : customMeasure === "SIZE" ? 4 : 8]
-            }
-          >
-            <input
-              type="text"
-              inputMode="decimal"
-              value={item.unitPrice}
-              onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
-              placeholder="500"
-              disabled={autoPriced}
-              title={autoPriced ? "Worked out from the product options" : undefined}
-              className={cn(inputClass, "px-2", autoPriced && "bg-slate-100 text-slate-600")}
-            />
-          </Field>
-          <Field
-            label="Qty"
-            required
-            className={cn("min-w-0", item.kind === "CUSTOM" && customSpan[4])}
-          >
-            <QtyStepper
-              value={Number(item.qty) || 1}
-              onChange={(qty) => onPatch({ qty: String(qty) })}
-            />
-          </Field>
+          {item.kind === "CATALOG" ? (
+            <div className="grid min-w-0 grid-cols-2 gap-2 sm:contents">
+              <Field label="Price" required className="min-w-0">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={item.unitPrice}
+                  onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
+                  placeholder="500"
+                  disabled={autoPriced}
+                  title={autoPriced ? "Worked out from the product options" : undefined}
+                  className={cn(inputClass, "px-2", autoPriced && "bg-slate-100 text-slate-600")}
+                />
+              </Field>
+              <Field label="Qty" required className="min-w-0">
+                <QtyStepper
+                  value={Number(item.qty) || 1}
+                  onChange={(qty) => onPatch({ qty: String(qty) })}
+                />
+              </Field>
+            </div>
+          ) : (
+            <>
+              <Field
+                label="Price"
+                required
+                className={customSpan[customMeasure === "POUNDS" ? 5 : customMeasure === "SIZE" ? 4 : 8]}
+              >
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={item.unitPrice}
+                  onChange={(e) => onPatch({ unitPrice: e.target.value.replace(/[^\d.]/g, "") })}
+                  placeholder="500"
+                  disabled={autoPriced}
+                  title={autoPriced ? "Worked out from the product options" : undefined}
+                  className={cn(inputClass, "px-2", autoPriced && "bg-slate-100 text-slate-600")}
+                />
+              </Field>
+              <Field label="Qty" required className={cn("min-w-0", customSpan[4])}>
+                <QtyStepper
+                  value={Number(item.qty) || 1}
+                  onChange={(qty) => onPatch({ qty: String(qty) })}
+                />
+              </Field>
+            </>
+          )}
         </div>
         {showWasHint && (
           <p className="mt-1 text-[11px] text-slate-500">
@@ -1273,6 +1372,63 @@ const TEMPLATE_LABEL: Record<OrderItemDraft["customTemplate"], string> = {
   PIZZA: "Pizza",
   OTHER: "Other",
 };
+
+function inchesFromSizeOption(
+  opt: { key?: string; label?: string; diameterMm?: number | null } | undefined,
+): string {
+  if (!opt) return "";
+  if (opt.diameterMm != null && opt.diameterMm > 0) {
+    const inches = opt.diameterMm <= 24 ? opt.diameterMm : opt.diameterMm / 25.4;
+    const rounded = Math.round(inches * 2) / 2;
+    const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    return `${text} in`;
+  }
+  const key = opt.key?.trim() ?? "";
+  const fromKey = key.match(/^(?:inch:)?(\d+(?:\.\d+)?)(?:in)?$/i);
+  if (fromKey && /in/i.test(key)) return `${fromKey[1]} in`;
+  const fromLabel = opt.label?.match(/(\d+(?:\.\d+)?)\s*(?:inch|inches|in|")/i);
+  if (fromLabel) return `${fromLabel[1]} in`;
+  return "";
+}
+
+function itemGlanceBits(
+  item: OrderItemDraft,
+  extras: {
+    poundsLabel: string;
+    pizzaInches: string;
+    pizzaSizeLabel: string;
+  },
+): { sizeBits: string[] } {
+  const sizeBits: string[] = [];
+  const seen = new Set<string>();
+  const pushSize = (value: string) => {
+    const bit = value.trim();
+    if (!bit || seen.has(bit.toLowerCase())) return;
+    seen.add(bit.toLowerCase());
+    sizeBits.push(bit);
+  };
+
+  if (item.kind === "CUSTOM") pushSize(TEMPLATE_LABEL[item.customTemplate]);
+  pushSize(extras.poundsLabel);
+  pushSize(extras.pizzaInches);
+  if (extras.pizzaSizeLabel && extras.pizzaSizeLabel !== extras.pizzaInches) {
+    const inchesNum = extras.pizzaInches.replace(/[^\d.]/g, "");
+    const labelNum = extras.pizzaSizeLabel.replace(/[^\d.]/g, "");
+    if (!inchesNum || labelNum !== inchesNum) pushSize(extras.pizzaSizeLabel);
+  }
+  const otherSize = item.sizeLabel.trim() || item.customPizzaSize.trim();
+  if (
+    otherSize &&
+    otherSize !== extras.poundsLabel &&
+    otherSize !== extras.pizzaInches &&
+    otherSize !== extras.pizzaSizeLabel &&
+    !/^\d+(\.\d+)?\s*lb$/i.test(otherSize)
+  ) {
+    pushSize(otherSize);
+  }
+
+  return { sizeBits };
+}
 
 /** "₹200 (was ₹250)" when discounted — native options can't render a strike-through. */
 function priceLabel(actual: number, factor: number | null): string {

@@ -74,6 +74,7 @@ export interface OrderItemDraft {
   qty: string;
   refFiles: File[];
   keptImageUrls: string[];
+  /** When true, the full editor is open; when false, a compact readonly summary. */
   expanded: boolean;
 
   /** Custom one-off items only — drives cake/pizza/other field sets. */
@@ -114,7 +115,7 @@ export function newOrderItem(kind: OrderLinkKind = "CUSTOM"): OrderItemDraft {
     qty: "1",
     refFiles: [],
     keptImageUrls: [],
-    expanded: kind === "CUSTOM",
+    expanded: true,
     customTemplate: "CAKE",
     sizeOptionId: "",
     crustOptionId: "",
@@ -157,7 +158,7 @@ export function orderLinkItemToDraft(
         : it.referenceImageUrl
           ? [it.referenceImageUrl]
           : [],
-    expanded: it.kind === "CUSTOM",
+    expanded: false,
     sizeOptionId: "",
     crustOptionId: "",
     crustLabel: "",

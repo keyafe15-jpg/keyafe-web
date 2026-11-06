@@ -68,11 +68,11 @@ export const router = createBrowserRouter([
           },
           {
             path: "offline-orders/new",
-            element: <OrderLinkFormPage />,
+            element: <OfflineOrderDirectFormPage />,
           },
           {
             path: "offline-orders/place",
-            element: <OfflineOrderDirectFormPage />,
+            element: <Navigate to="/offline-orders/new" replace />,
           },
           {
             path: "offline-orders/:id/edit",

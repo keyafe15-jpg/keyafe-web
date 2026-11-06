@@ -11,7 +11,13 @@ export function useOrderItemsState(
   );
 
   const patchItem = useCallback((id: string, patch: Partial<OrderItemDraft>) => {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.id === id) return { ...it, ...patch };
+        if (patch.expanded === true) return { ...it, expanded: false };
+        return it;
+      }),
+    );
   }, []);
 
   const removeItem = useCallback(
@@ -25,7 +31,7 @@ export function useOrderItemsState(
   );
 
   const addItem = useCallback((kind: OrderLinkKind) => {
-    setItems((prev) => [newOrderItem(kind), ...prev]);
+    setItems((prev) => [newOrderItem(kind), ...prev.map((it) => ({ ...it, expanded: false }))]);
   }, []);
 
   return { items, setItems, patchItem, removeItem, addItem };

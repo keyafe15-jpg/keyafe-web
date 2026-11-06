@@ -457,7 +457,14 @@ export function ProductFormPage() {
         addonIds: [...addonIds],
         sizeOptions:
           values.template !== "CAKE"
-            ? sizeOptions.map((o) => ({ ...o, imageUrl: resolvePhoto(o.imageUrl) }))
+            ? sizeOptions.map((o) => ({
+                ...o,
+                imageUrl: resolvePhoto(o.imageUrl),
+                diameterMm:
+                  values.template === "PIZZA"
+                    ? inchesToDiameterMm(diameterMmToInches(o.diameterMm))
+                    : o.diameterMm,
+              }))
             : undefined,
         crustOptions: values.template === "PIZZA" ? crustOptions : undefined,
       };
@@ -921,14 +928,14 @@ export function ProductFormPage() {
             <>
               <Section
                 title="Sizes"
-                description="Inch-based sizes with a customer-visible price for each."
+                description="Name the size, set its price, and the pizza diameter in inches."
               >
                 <OptionsEditor
                   options={sizeOptions}
                   onChange={setSizeOptions}
                   priceMode="ABSOLUTE"
                   suggestKey={(label) => sizeKeyFromLabel(label)}
-                  labelPlaceholder='e.g. 8"'
+                  labelPlaceholder="e.g. Regular"
                   showDiameter
                   photos={photoChoices}
                 />
@@ -1464,6 +1471,22 @@ function normalizeOption(
   };
 }
 
+const MM_PER_INCH = 25.4;
+
+/** Values ≤ 24 were typed as inches into the old millimetre field. */
+function diameterMmToInches(mm: number | null | undefined): string {
+  if (mm == null || mm <= 0) return "";
+  const inches = mm <= 24 ? mm : mm / MM_PER_INCH;
+  const rounded = Math.round(inches * 2) / 2;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function inchesToDiameterMm(raw: string): number | null {
+  const n = Number(raw);
+  if (!raw.trim() || !Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * MM_PER_INCH);
+}
+
 function sizeKeyFromLabel(label: string): string {
   const m = label.match(/(\d+)/);
   if (m) return `${m[1]}in`;
@@ -1597,6 +1620,7 @@ function OptionRow({
   onRemove: () => void;
 }) {
   const [priceStr, setPriceStr] = useState<string>(opt.price === 0 ? "" : String(opt.price));
+  const [inchStr, setInchStr] = useState<string>(() => diameterMmToInches(opt.diameterMm));
 
   // Sync external changes (e.g. server load) into local string.
   useEffect(() => {
@@ -1604,6 +1628,87 @@ function OptionRow({
     if (Number(priceStr || 0) !== opt.price) setPriceStr(externalStr);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opt.price]);
+
+  useEffect(() => {
+    const external = diameterMmToInches(opt.diameterMm);
+    if (inchesToDiameterMm(inchStr) !== inchesToDiameterMm(external)) setInchStr(external);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opt.diameterMm]);
+
+  const priceInput = (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={priceStr}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^\d.]/g, "");
+        setPriceStr(raw);
+        const n = raw === "" || raw === "." ? 0 : Number(raw);
+        onPatch({ price: Number.isFinite(n) ? n : 0 });
+      }}
+      placeholder={priceMode === "ABSOLUTE" ? "e.g. 500" : "e.g. 50"}
+      aria-label="Price"
+      className={cn(inputClass, "px-2 py-1.5")}
+    />
+  );
+
+  if (showDiameter) {
+    return (
+      <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2.5">
+        <div className="flex items-center gap-2">
+          {photos && (
+            <VariantPhotoPicker
+              value={opt.imageUrl}
+              photos={photos}
+              onChange={(imageUrl) => onPatch({ imageUrl })}
+            />
+          )}
+          <input
+            value={opt.label}
+            onChange={(e) => onLabel(e.target.value)}
+            placeholder={labelPlaceholder}
+            aria-label="Size name"
+            className={cn(inputClass, "min-w-0 flex-1 py-1.5")}
+          />
+          <button
+            type="button"
+            onClick={onRemove}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"
+            aria-label="Remove"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="min-w-0">
+            <span className="mb-0.5 block text-[11px] font-medium text-slate-500">
+              {priceMode === "ABSOLUTE" ? "Price (₹)" : "Extra (₹)"}
+            </span>
+            {priceInput}
+          </label>
+          <label className="min-w-0">
+            <span className="mb-0.5 block text-[11px] font-medium text-slate-500">Diameter</span>
+            <span className="flex items-center gap-1.5">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={inchStr}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^\d.]/g, "");
+                  setInchStr(raw);
+                  onPatch({ diameterMm: inchesToDiameterMm(raw) });
+                }}
+                placeholder="8"
+                aria-label="Diameter in inches"
+                className={cn(inputClass, "min-w-0 px-2 py-1.5")}
+              />
+              <span className="shrink-0 text-xs font-medium text-slate-500">in</span>
+            </span>
+          </label>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1626,35 +1731,7 @@ function OptionRow({
         aria-label="Label"
         className={cn(inputClass, "py-1.5")}
       />
-      <input
-        type="text"
-        inputMode="decimal"
-        value={priceStr}
-        onChange={(e) => {
-          const raw = e.target.value.replace(/[^\d.]/g, "");
-          setPriceStr(raw);
-          const n = raw === "" || raw === "." ? 0 : Number(raw);
-          onPatch({ price: Number.isFinite(n) ? n : 0 });
-        }}
-        placeholder={priceMode === "ABSOLUTE" ? "e.g. 500" : "e.g. 50"}
-        aria-label="Price"
-        className={cn(inputClass, "px-2 py-1.5")}
-      />
-      {showDiameter && (
-        <input
-          type="number"
-          min={1}
-          value={opt.diameterMm ?? ""}
-          onChange={(e) =>
-            onPatch({
-              diameterMm: e.target.value ? Number(e.target.value) : null,
-            })
-          }
-          placeholder="mm"
-          aria-label="Diameter in mm"
-          className={cn(inputClass, "px-2 py-1.5")}
-        />
-      )}
+      {priceInput}
       <button
         type="button"
         onClick={onRemove}
@@ -1718,7 +1795,7 @@ function OptionsEditor({
       {options.length === 0 && (
         <p className="text-xs text-slate-500">No options yet — add one below.</p>
       )}
-      {options.length > 0 && (
+      {options.length > 0 && !showDiameter && (
         <div
           className={cn(
             "grid gap-1.5 px-1.5 text-[10px] font-medium tracking-wide text-slate-500 uppercase",
@@ -1728,7 +1805,6 @@ function OptionsEditor({
           {rowPhotos && <span>Pic</span>}
           <span>Label</span>
           <span>{priceHeader}</span>
-          {showDiameter && <span>Diameter</span>}
           <span />
         </div>
       )}

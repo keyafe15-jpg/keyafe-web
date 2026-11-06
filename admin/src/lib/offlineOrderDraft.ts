@@ -27,7 +27,10 @@ export type PlaceDraftPincodeInfo = {
   deliveryFee: number;
 };
 
+export type OfflineFinish = "place" | "link";
+
 export type PlaceDraft = {
+  finish: OfflineFinish;
   items: StoredOrderItem[];
   customerName: string;
   customerPhone: string;
@@ -69,6 +72,8 @@ export type PlaceDraft = {
   zoneCity: string;
   zoneArea: string;
   zoneDistrict: DeliveryDistrict;
+  expiresInDays: string;
+  allowOnlinePayment: boolean;
 };
 
 export type LinkDraft = {
@@ -177,7 +182,12 @@ export function peekDraft(key: string): DraftPeek | null {
     key,
     title,
     summary: bits.join(" · "),
-    kindLabel: key === PLACE_DRAFT_KEY ? "Full details" : "Customer link",
+    kindLabel:
+      key === PLACE_DRAFT_KEY
+        ? data.finish === "link"
+          ? "Customer link"
+          : "Place now"
+        : "Customer link",
   };
 }
 
@@ -191,6 +201,10 @@ export function restoreItems(raw: unknown): OrderItemDraft[] {
     const base = newOrderItem();
     if (!row || typeof row !== "object") return base;
     const o = row as Partial<OrderItemDraft>;
+    const filled = Boolean(
+      (typeof o.productName === "string" && o.productName.trim()) ||
+        (typeof o.productId === "string" && o.productId),
+    );
     return {
       ...base,
       ...o,
@@ -205,6 +219,7 @@ export function restoreItems(raw: unknown): OrderItemDraft[] {
       addonSelections: Array.isArray(o.addonSelections)
         ? o.addonSelections.filter((u): u is string => typeof u === "string")
         : [],
+      expanded: filled ? false : true,
     };
   });
 }
