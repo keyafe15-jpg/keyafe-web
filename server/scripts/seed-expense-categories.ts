@@ -1,3 +1,4 @@
+import "../src/config/env.js";
 import { seedExpenseCategories } from "../src/modules/finance/expense-category.seed.js";
 import { prisma } from "../src/config/db.js";
 

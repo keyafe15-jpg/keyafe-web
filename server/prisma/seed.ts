@@ -1046,6 +1046,8 @@ async function main() {
   await seedVendors();
   const { seedExpenseCategories } = await import("../src/modules/finance/expense-category.seed.js");
   await seedExpenseCategories();
+  const { seedBooksPayers } = await import("../src/modules/finance/payer.seed.js");
+  await seedBooksPayers();
   const { seedArifePurchases } = await import("../src/modules/finance/purchase.seed.js");
   await seedArifePurchases();
 
