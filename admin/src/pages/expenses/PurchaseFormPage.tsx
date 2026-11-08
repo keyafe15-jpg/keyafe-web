@@ -370,21 +370,21 @@ function PurchaseForm({
   };
 
   return (
-    <div>
+    <div className="min-w-0">
       <Link
         to="/expenses"
         className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-500"
       >
         <ArrowLeft className="h-3 w-3" /> All expenses
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold text-slate-900">
+      <h1 className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">
         {purchaseId ? "Edit buy" : "Log a buy"}
       </h1>
       {voided && <p className="mt-1 text-sm text-slate-500">Voided — not in the books.</p>}
       {scanNote && <p className="mt-1 text-sm text-emerald-700">{scanNote}</p>}
 
       <form
-        className="mt-4 space-y-2.5 rounded-card border border-slate-200 bg-white p-4"
+        className="mt-4 space-y-2.5 rounded-card border border-slate-200 bg-white p-3 sm:p-4"
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
@@ -409,7 +409,7 @@ function PurchaseForm({
         {!purchaseId && canWrite && !voided && (
           <ScanBillBlock kind="BUY" vendorId={vendorId} onDraft={applyDraft} />
         )}
-        <div className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-2 min-[720px]:grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_auto_minmax(0,7.5rem)_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 min-[720px]:grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_auto_minmax(0,7.5rem)_minmax(0,1fr)]">
           <Field label="Date" required className="min-w-0">
             <input
               type="date"
@@ -420,7 +420,7 @@ function PurchaseForm({
             />
           </Field>
           <Field label="Vendor" required className="min-w-0">
-            <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 flex-col gap-1.5 min-[480px]:flex-row min-[480px]:items-center">
               <div className="min-w-0 flex-1">
                 <SearchCreate
                   query={vendorQuery || vendorName}
@@ -672,7 +672,7 @@ function PurchaseForm({
           />
         )}
 
-        <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Field label="Delivery charge">
             <input
               inputMode="decimal"
@@ -734,7 +734,7 @@ function PurchaseForm({
         {error && <p className="text-xs text-red-700">{error}</p>}
 
         {canWrite && !voided && (
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
             {purchaseId && (
               <button
                 type="button"
@@ -747,7 +747,7 @@ function PurchaseForm({
                       setError(err instanceof Error ? err.message : "Could not delete"),
                   });
                 }}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 sm:py-2"
               >
                 Delete
               </button>
@@ -755,7 +755,7 @@ function PurchaseForm({
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 sm:py-2"
             >
               {pending ? "Saving…" : purchaseId ? "Save" : "Save buy"}
             </button>

@@ -115,9 +115,9 @@ export function ExpensesListPage() {
   }, [search, kind, category, from, to]);
 
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
+    <div className="min-w-0">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-slate-900">Expenses</h1>
           <p className="mt-1 text-sm text-slate-500">
             {searching
@@ -129,32 +129,29 @@ export function ExpensesListPage() {
               ? ` · ${booksMoney(shownTotal, shownMasked)}`
               : ""}
             {maskSalaries ? " · salaries hidden" : ""}
-            {canPrivacy && (
-              <>
-                {" · "}
-                <button
-                  type="button"
-                  disabled={privacy.isPending}
-                  onClick={() => privacy.mutate({ maskSalaries: !maskSalaries })}
-                  className="font-medium text-brand-700 hover:underline disabled:opacity-50"
-                >
-                  {maskSalaries ? "Show salaries" : "Hide salaries"}
-                </button>
-              </>
-            )}
           </p>
+          {canPrivacy && (
+            <button
+              type="button"
+              disabled={privacy.isPending}
+              onClick={() => privacy.mutate({ maskSalaries: !maskSalaries })}
+              className="mt-1 text-sm font-medium text-brand-700 hover:underline disabled:opacity-50"
+            >
+              {maskSalaries ? "Show salaries" : "Hide salaries"}
+            </button>
+          )}
         </div>
         {canWrite && (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <Link
               to="/expenses/new"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:py-1.5"
             >
               Log expense
             </Link>
             <Link
               to="/expenses/new-buy"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 sm:py-1.5"
             >
               <Plus className="h-4 w-4" /> Log a buy
             </Link>
@@ -170,7 +167,7 @@ export function ExpensesListPage() {
       </div>
 
       {!searching && categoryTotals.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-1.5">
+        <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
           {categoryTotals.map((row) => {
             const active = category === row.slug || category === row.id;
             return (
@@ -179,7 +176,7 @@ export function ExpensesListPage() {
                 type="button"
                 onClick={() => setCategory(active ? null : row.slug)}
                 className={cn(
-                  "rounded-md border px-2.5 py-1 text-xs font-medium transition",
+                  "shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition",
                   active
                     ? "bg-brand-50 border-brand-500 text-brand-700"
                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
@@ -214,18 +211,18 @@ export function ExpensesListPage() {
       {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
 
       {!searching && (
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:flex sm:flex-wrap">
           <input
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className={cn(inputClass, "w-auto")}
+            className={cn(inputClass, "min-w-0 sm:w-auto")}
           />
           <input
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className={cn(inputClass, "w-auto")}
+            className={cn(inputClass, "min-w-0 sm:w-auto")}
           />
         </div>
       )}
@@ -306,22 +303,22 @@ export function ExpensesListPage() {
 
             <ul className="divide-y divide-slate-100 md:hidden">
               {rows.map((row) => (
-                <li key={row.id} className="flex items-start">
+                <li key={row.id} className="flex items-stretch">
                   <button
                     type="button"
                     onClick={() => navigate(expenseHref(row))}
-                    className="flex min-w-0 flex-1 items-start justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50"
+                    className="flex min-w-0 flex-1 items-start gap-2 px-3 py-3 text-left hover:bg-slate-50 sm:gap-3 sm:px-4"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-slate-900">{expenseTitle(row)}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs leading-snug break-words text-slate-500">
                         {formatBooksDate(row.date)} · {purposeLabel(row.purpose)}
                         {row.buy ? ` · ${row.category.name}` : ""}
                         {row.paidBy ? ` · ${row.paidBy.name}` : ""}
                       </p>
                       <p className="truncate text-xs text-slate-500">{itemsPreview(row)}</p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1 pt-0.5">
                       <span className="text-sm font-semibold text-slate-900 tabular-nums">
                         {booksMoney(row.amount, row.amountMasked)}
                       </span>
@@ -329,7 +326,7 @@ export function ExpensesListPage() {
                     </div>
                   </button>
                   {canWrite && (
-                    <div className="shrink-0 py-3 pr-3">
+                    <div className="flex shrink-0 items-start py-2.5 pr-2">
                       <BooksDeleteButton
                         confirm={booksDeleteConfirm(
                           row.purchaseId ? "buy" : row.orderId ? "delivery" : "expense",
@@ -342,8 +339,8 @@ export function ExpensesListPage() {
                 </li>
               ))}
             </ul>
-            <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm">
-              <span className="text-slate-500">
+            <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-3 py-3 text-sm sm:px-4">
+              <span className="min-w-0 truncate text-slate-500">
                 {searching
                   ? "Matching total"
                   : selectedCategory
@@ -362,7 +359,7 @@ export function ExpensesListPage() {
               lastItem={data ? Math.min(data.page * data.pageSize, data.total) : 0}
               onPageChange={setPage}
               noun="expenses"
-              className="mx-4 mb-4"
+              className="mx-3 mb-3 sm:mx-4 sm:mb-4"
             />
           </>
         )}

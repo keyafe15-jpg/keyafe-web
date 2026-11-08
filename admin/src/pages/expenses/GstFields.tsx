@@ -21,34 +21,34 @@ export function GstFields({
   inRates?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <Field label="CGST" hint={inRates ? "Already in rates" : "Same state"}>
+    <div className="grid min-w-0 grid-cols-3 gap-1.5 sm:gap-2">
+      <Field label="CGST" className="min-w-0" hint={inRates ? "Already in rates" : "Same state"}>
         <input
           inputMode="decimal"
           value={cgst}
           onChange={(e) => onCgst(e.target.value)}
           placeholder="0"
-          className={inputClass}
+          className={`${inputClass} px-2 sm:px-3`}
           disabled={disabled}
         />
       </Field>
-      <Field label="SGST">
+      <Field label="SGST" className="min-w-0">
         <input
           inputMode="decimal"
           value={sgst}
           onChange={(e) => onSgst(e.target.value)}
           placeholder="0"
-          className={inputClass}
+          className={`${inputClass} px-2 sm:px-3`}
           disabled={disabled}
         />
       </Field>
-      <Field label="IGST" hint={inRates ? "Already in rates" : "Other state"}>
+      <Field label="IGST" className="min-w-0" hint={inRates ? "Already in rates" : "Other state"}>
         <input
           inputMode="decimal"
           value={igst}
           onChange={(e) => onIgst(e.target.value)}
           placeholder="0"
-          className={inputClass}
+          className={`${inputClass} px-2 sm:px-3`}
           disabled={disabled}
         />
       </Field>

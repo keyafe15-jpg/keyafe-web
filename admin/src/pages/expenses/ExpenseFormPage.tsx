@@ -210,14 +210,14 @@ function ExpenseForm({
   };
 
   return (
-    <div>
+    <div className="min-w-0">
       <Link
         to="/expenses"
         className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-500"
       >
         <ArrowLeft className="h-3 w-3" /> All expenses
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold text-slate-900">
+      <h1 className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">
         {expenseId ? "Edit expense" : "Log an expense"}
       </h1>
       {voided && <p className="mt-1 text-sm text-slate-500">Voided — not in the books.</p>}
@@ -236,7 +236,7 @@ function ExpenseForm({
       )}
 
       <form
-        className="mt-4 space-y-3 rounded-card border border-slate-200 bg-white p-4"
+        className="mt-4 space-y-3 rounded-card border border-slate-200 bg-white p-3 sm:p-4"
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
@@ -326,7 +326,7 @@ function ExpenseForm({
             disabled={!canWrite || voided}
           />
         </Field>
-        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Date" required>
             <input
               type="date"
@@ -365,7 +365,7 @@ function ExpenseForm({
             disabled={!canWrite || voided || initial.amountMasked}
           />
         )}
-        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <ExpenseCategoryField
             value={category}
             onChange={(next) => {
@@ -392,14 +392,16 @@ function ExpenseForm({
               ))}
             </select>
           </Field>
-          <PaidByField
-            value={paidById}
-            onChange={setPaidById}
-            disabled={!canWrite || voided}
-            required
-            autofill={!expenseId}
-            hint="Whose cash / UPI / bank this left."
-          />
+          <div className="sm:col-span-2">
+            <PaidByField
+              value={paidById}
+              onChange={setPaidById}
+              disabled={!canWrite || voided}
+              required
+              autofill={!expenseId}
+              hint="Whose cash / UPI / bank this left."
+            />
+          </div>
         </div>
 
         {salary ? (
@@ -497,7 +499,7 @@ function ExpenseForm({
         {error && <p className="text-xs text-red-700">{error}</p>}
 
         {canWrite && !voided && (
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
             {expenseId && (
               <button
                 type="button"
@@ -510,7 +512,7 @@ function ExpenseForm({
                       setError(err instanceof Error ? err.message : "Could not delete"),
                   });
                 }}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 sm:py-2"
               >
                 Delete
               </button>
@@ -518,7 +520,7 @@ function ExpenseForm({
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 sm:py-2"
             >
               {pending ? "Saving…" : expenseId ? "Save" : "Save expense"}
             </button>

@@ -43,9 +43,9 @@ export function ScanBillBlock({
       <p className="mt-0.5 text-xs text-slate-500">
         Typed invoice or handwritten slip. Close and well lit. JPEG, PNG, or screenshot — not stored.
       </p>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         {preview ? (
-          <div className="relative">
+          <div className="relative shrink-0 self-start">
             <img
               src={preview}
               alt="Bill preview"
@@ -61,7 +61,7 @@ export function ScanBillBlock({
             </button>
           </div>
         ) : (
-          <label className="flex h-14 w-14 cursor-pointer items-center justify-center rounded border border-dashed border-slate-300 text-slate-400 hover:border-brand-500 hover:text-brand-600">
+          <label className="flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center self-start rounded border border-dashed border-slate-300 text-slate-400 hover:border-brand-500 hover:text-brand-600">
             <ImagePlus className="h-5 w-5" />
             <span className="sr-only">Add bill photo</span>
             <input
@@ -78,42 +78,44 @@ export function ScanBillBlock({
             />
           </label>
         )}
-        <Field label="Context" className="min-w-0 flex-1" hint="Optional — anything the photo misses.">
-          <input
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-            placeholder="e.g. the 2kg bag is cream"
-            className={cn(inputClass, "h-9")}
-            disabled={disabled}
-            maxLength={400}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.preventDefault();
-            }}
-          />
-        </Field>
-        <button
-          type="button"
-          disabled={disabled || !file || parse.isPending || readDone}
-          onClick={() => {
-            if (!file) return;
-            setError(null);
-            parse.mutate(
-              { kind, image: file, context, vendorId },
-              {
-                onSuccess: (draft) => {
-                  setReadDone(true);
-                  onDraft(draft);
+        <div className="flex min-w-0 flex-1 flex-col gap-2 min-[400px]:flex-row min-[400px]:items-end">
+          <Field label="Context" className="min-w-0 flex-1" hint="Optional — anything the photo misses.">
+            <input
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder="e.g. the 2kg bag is cream"
+              className={cn(inputClass, "h-9")}
+              disabled={disabled}
+              maxLength={400}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.preventDefault();
+              }}
+            />
+          </Field>
+          <button
+            type="button"
+            disabled={disabled || !file || parse.isPending || readDone}
+            onClick={() => {
+              if (!file) return;
+              setError(null);
+              parse.mutate(
+                { kind, image: file, context, vendorId },
+                {
+                  onSuccess: (draft) => {
+                    setReadDone(true);
+                    onDraft(draft);
+                  },
+                  onError: (err) =>
+                    setError(err instanceof Error ? err.message : "Could not read that bill"),
                 },
-                onError: (err) =>
-                  setError(err instanceof Error ? err.message : "Could not read that bill"),
-              },
-            );
-          }}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-        >
-          <Sparkles className="h-4 w-4" />
-          {parse.isPending ? "Reading…" : readDone ? "Read" : "Read bill"}
-        </button>
+              );
+            }}
+            className="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 min-[400px]:w-auto"
+          >
+            <Sparkles className="h-4 w-4" />
+            {parse.isPending ? "Reading…" : readDone ? "Read" : "Read bill"}
+          </button>
+        </div>
       </div>
       {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
     </div>

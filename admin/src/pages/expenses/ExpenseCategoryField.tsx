@@ -25,11 +25,11 @@ export function ExpenseCategoryField({
       hint="Travel is bike parking, bus, auto. Delivery is sending cakes."
     >
       {!adding ? (
-        <div className="flex gap-2">
+        <div className="flex min-w-0 gap-2">
           <select
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className={selectClass}
+            className={`${selectClass} min-w-0`}
             disabled={disabled}
           >
             {items.map((c) => (
@@ -52,12 +52,12 @@ export function ExpenseCategoryField({
           )}
         </div>
       ) : (
-        <div className="flex gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Trade license"
-            className={inputClass}
+            className={`${inputClass} min-w-0 flex-1`}
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter") {
