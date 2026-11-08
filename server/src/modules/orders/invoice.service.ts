@@ -198,7 +198,8 @@ export interface InvoiceData {
   invoiceNumber: string;
   invoiceDate: Date;
   orderNumber: string;
-  orderDate: Date;
+  /** Omitted on stall breakfast bills — the invoice date is what matters. */
+  orderDate: Date | null;
   seller: InvoiceParty;
   buyer: InvoiceParty;
   /** Set only on bill-to/ship-to orders, where the goods left the billed state. */
@@ -509,7 +510,7 @@ export async function buildInvoiceData(
     invoiceNumber: issued.invoiceNumber,
     invoiceDate: issued.invoiceDate,
     orderNumber: order.orderNumber,
-    orderDate: order.createdAt,
+    orderDate: order.source === "STALL_BILL" ? null : order.createdAt,
     seller: {
       name: settings.tradeName,
       legalName: settings.legalName,

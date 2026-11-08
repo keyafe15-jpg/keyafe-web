@@ -58,10 +58,17 @@ export function renderInvoicePdf(data: InvoiceData): Promise<Buffer> {
       width: fullWidth,
       align: "right",
     });
-    doc.text(`Order  ${data.orderNumber} · ${formatDate(data.orderDate)}`, left, doc.y, {
-      width: fullWidth,
-      align: "right",
-    });
+    doc.text(
+      data.orderDate
+        ? `Order  ${data.orderNumber} · ${formatDate(data.orderDate)}`
+        : `Order  ${data.orderNumber}`,
+      left,
+      doc.y,
+      {
+        width: fullWidth,
+        align: "right",
+      },
+    );
 
     // Clear whichever masthead is taller — the logo box or the invoice meta.
     doc.y = Math.max(doc.y, PAGE.margin + (logo ? LOGO_BOX : 62));
