@@ -273,6 +273,8 @@ export async function createBreakfastBill(stallId: string, month: string) {
   const plates = entries.reduce((n, e) => n + e.plates, 0);
   const total = fromPaise(entries.reduce((n, e) => n + toPaise(e.platePrice) * e.plates, 0));
   const lastDay = entries[entries.length - 1]!.date;
+  const billed = dayToDate(`${month}-01`);
+  const invoiceDate = new Date(Date.UTC(billed.getUTCFullYear(), billed.getUTCMonth() + 1, 1));
   const tax = computeLineTax({
     lineInclusive: total,
     gstRate: BREAKFAST_GST_RATE,
@@ -316,6 +318,7 @@ export async function createBreakfastBill(stallId: string, month: string) {
         paymentMode: "FULL",
         status: "DELIVERED",
         source: "STALL_BILL",
+        invoiceDate,
         adminNotes: `Breakfast at ${stall.name}, ${monthLabel(month)}: ${plates} plates.`,
         items: { create: line },
       },

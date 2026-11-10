@@ -14,7 +14,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
-    "seed:books": "tsx scripts/seed-books.ts",
+    "seed:books": "node dist/seed-books.js",
     "backfill:customers": "tsx scripts/backfill-customers.ts",
     "postinstall": "prisma generate"
   },

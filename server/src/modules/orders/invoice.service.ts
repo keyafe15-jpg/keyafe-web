@@ -69,17 +69,54 @@ export async function getSellerSettings(): Promise<SellerSettings> {
   return settings;
 }
 
+function latestDelivery(items: { deliveryDate: Date | null }[]): Date | null {
+  let latest: Date | null = null;
+  for (const { deliveryDate } of items) {
+    if (deliveryDate && (!latest || deliveryDate > latest)) latest = deliveryDate;
+  }
+  return latest;
+}
+
 /**
  * The order's last delivery day, capped at now so an invoice issued before
  * delivery is never future-dated. Orders without delivery dates use now.
  */
 function supplyDate(items: { deliveryDate: Date | null }[]): Date {
   const now = new Date();
-  let latest: Date | null = null;
-  for (const { deliveryDate } of items) {
-    if (deliveryDate && (!latest || deliveryDate > latest)) latest = deliveryDate;
-  }
+  const latest = latestDelivery(items);
   return latest && latest < now ? latest : now;
+}
+
+/**
+ * Office breakfast is billed on the 1st of the month after it was served
+ * (October plates → 1 November), so the tax invoice lands in that return.
+ * Delivery dates are stored as UTC midnight of the calendar day.
+ */
+function stallBillInvoiceDate(items: { deliveryDate: Date | null }[]): Date {
+  const basis = latestDelivery(items) ?? new Date();
+  return new Date(Date.UTC(basis.getUTCFullYear(), basis.getUTCMonth() + 1, 1));
+}
+
+function sameUtcDay(a: Date, b: Date) {
+  return (
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
+  );
+}
+
+async function syncStallBillInvoiceDate(
+  orderId: string,
+  items: { deliveryDate: Date | null }[],
+  current: Date,
+): Promise<Date> {
+  const next = stallBillInvoiceDate(items);
+  if (sameUtcDay(current, next)) return current;
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { invoiceDate: next },
+  });
+  return next;
 }
 
 /**
@@ -101,17 +138,24 @@ export async function ensureInvoiceNumber(
       invoiceNumber: true,
       invoiceDate: true,
       status: true,
+      source: true,
       items: { select: { deliveryDate: true } },
     },
   });
   if (!existing) throw HttpError.notFound("Order not found");
 
   // Re-issuing is idempotent: the same order always keeps its first number, so
-  // a second download can never mint a duplicate.
+  // a second download can never mint a duplicate. Breakfast bills dated before
+  // we billed on the 1st of the following month get that date corrected here
+  // without minting a new number.
   if (existing.invoiceNumber && existing.invoiceDate) {
+    const invoiceDate =
+      existing.source === "STALL_BILL"
+        ? await syncStallBillInvoiceDate(orderId, existing.items, existing.invoiceDate)
+        : existing.invoiceDate;
     return {
       invoiceNumber: existing.invoiceNumber,
-      invoiceDate: existing.invoiceDate,
+      invoiceDate,
       reused: true,
     };
   }
@@ -124,9 +168,12 @@ export async function ensureInvoiceNumber(
   }
 
   const settings = await getSellerSettings();
-  // Dated by the supply, not by when someone clicked, so the invoice lands in
-  // the return period the delivery happened in.
-  const invoiceDate = supplyDate(existing.items);
+  // Regular orders are dated by supply (capped at now). Breakfast bills are
+  // always the 1st of the month after the plates were served.
+  const invoiceDate =
+    existing.source === "STALL_BILL"
+      ? stallBillInvoiceDate(existing.items)
+      : supplyDate(existing.items);
   const fy = financialYearLabel(invoiceDate, settings.fyStartMonth);
   const series = `${settings.invoicePrefix}/${fy}`;
 
