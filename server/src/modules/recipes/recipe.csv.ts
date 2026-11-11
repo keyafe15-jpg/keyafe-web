@@ -15,12 +15,14 @@ export type CsvRecipeRow = {
   yieldQty: number | null;
   yieldUnit: RecipeUnitKey | null;
   yieldNote: string | null;
+  sizes: string[];
   ingredients: {
     qty: number;
     unit: RecipeUnitKey;
     name: string;
     note: string | null;
     nested: boolean;
+    extraQtys: (number | null)[];
   }[];
   usage: UsageInput[];
   steps: string[];
@@ -116,6 +118,7 @@ export function parseRecipeCsv(text: string): CsvRecipeRow[] {
   const iIngs = col("ingredients");
   const iUsage = col("usage");
   const iSteps = col("steps");
+  const iSizes = col("sizes");
   if (iName < 0 || iCat < 0 || iIngs < 0) {
     throw HttpError.badRequest("CSV needs name, category, and ingredients columns.");
   }
@@ -124,15 +127,18 @@ export function parseRecipeCsv(text: string): CsvRecipeRow[] {
   for (const cells of table.slice(1)) {
     const name = (cells[iName] ?? "").trim();
     if (!name) continue;
+    const sizes = iSizes >= 0 ? splitJoined(cells[iSizes] ?? "").slice(0, 4) : [];
+    const extraCount = sizes.length >= 2 ? sizes.length - 1 : 0;
     const ingredients = splitJoined(cells[iIngs] ?? "").flatMap((part) => {
       const bits = part.split(";");
       const qty = parseRecipeQty(bits[0]);
       const unit = parseUnit(bits[1] ?? "");
       const ingName = (bits[2] ?? "").trim();
-      if (!qty || !unit || !ingName) return [];
+      const extraQtys = Array.from({ length: extraCount }, (_, i) => parseRecipeQty(bits[5 + i] ?? ""));
+      if ((!qty && !extraQtys.some((q) => q != null)) || !unit || !ingName) return [];
       const note = (bits[3] ?? "").trim() || null;
       const nested = (bits[4] ?? "").trim().toLowerCase() === "recipe";
-      return [{ qty, unit, name: ingName, note, nested }];
+      return [{ qty: qty ?? 0, unit, name: ingName, note, nested, extraQtys }];
     });
     if (ingredients.length === 0) continue;
 
@@ -151,6 +157,7 @@ export function parseRecipeCsv(text: string): CsvRecipeRow[] {
       yieldQty: iYieldQty >= 0 ? parseRecipeQty(cells[iYieldQty]) : null,
       yieldUnit: iYieldUnit >= 0 ? parseUnit(cells[iYieldUnit] ?? "") : null,
       yieldNote: iYieldNote >= 0 ? (cells[iYieldNote] ?? "").trim() || null : null,
+      sizes,
       ingredients,
       usage,
       steps: iSteps >= 0 ? splitJoined(cells[iSteps] ?? "") : [],
@@ -248,6 +255,7 @@ export async function importRecipesFromCsv(text: string): Promise<RecipeImportRe
             qty: line.qty,
             unit: line.unit,
             note: line.note,
+            extraQtys: line.extraQtys,
           });
           continue;
         }
@@ -256,6 +264,7 @@ export async function importRecipesFromCsv(text: string): Promise<RecipeImportRe
           qty: line.qty,
           unit: line.unit,
           note: line.note,
+          extraQtys: line.extraQtys,
           componentRecipeId: childId,
         });
         continue;
@@ -265,6 +274,7 @@ export async function importRecipesFromCsv(text: string): Promise<RecipeImportRe
         qty: line.qty,
         unit: line.unit,
         note: line.note,
+        extraQtys: line.extraQtys,
         buyItemId: itemByNorm.get(normalizeItemName(line.name)) ?? null,
       });
     }
@@ -276,6 +286,7 @@ export async function importRecipesFromCsv(text: string): Promise<RecipeImportRe
           yieldQty: row.yieldQty,
           yieldUnit: row.yieldQty ? row.yieldUnit : null,
           yieldNote: row.yieldNote,
+          sizes: row.sizes.length >= 2 ? row.sizes.map((label) => ({ label })) : undefined,
           ingredients,
           steps: row.steps,
           usage: row.usage,

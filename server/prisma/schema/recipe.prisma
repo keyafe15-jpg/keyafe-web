@@ -42,6 +42,7 @@ model RecipeVersion {
   ingredients RecipeIngredient[]
   steps       RecipeStep[]
   usageRows   RecipeUsageRow[]
+  sizes       RecipeSize[]
   currentFor  Recipe?            @relation("RecipeCurrentVersion")
 
   createdAt DateTime @default(now())
@@ -63,9 +64,34 @@ model RecipeIngredient {
   buyItem            BuyItem?   @relation(fields: [buyItemId], references: [id], onDelete: SetNull)
   componentRecipeId  String?
   componentRecipe    Recipe?    @relation("IngredientComponent", fields: [componentRecipeId], references: [id], onDelete: Restrict)
+  extraQtys          RecipeIngredientQty[]
 
   @@index([versionId, sortOrder])
   @@index([componentRecipeId])
+}
+
+/// Named qty column on a version (Regular / Small, 350g / 500g). First column stays on RecipeIngredient.qty.
+model RecipeSize {
+  id        String        @id @default(cuid())
+  versionId String
+  version   RecipeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  label     String
+  sortOrder Int           @default(0)
+  qtys      RecipeIngredientQty[]
+
+  @@index([versionId, sortOrder])
+}
+
+model RecipeIngredientQty {
+  id           String           @id @default(cuid())
+  ingredientId String
+  ingredient   RecipeIngredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  sizeId       String
+  size         RecipeSize       @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+  qty          Decimal?         @db.Decimal(10, 3)
+
+  @@unique([ingredientId, sizeId])
+  @@index([sizeId])
 }
 
 model RecipeStep {

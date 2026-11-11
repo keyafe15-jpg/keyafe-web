@@ -1,5 +1,6 @@
 // Which pincodes we deliver to and what the local rules are.
-// Everything not in this table is treated as "not serviceable".
+// Missing 700/711/712 PINs fall back to the nearest listed PIN (see checkPincode).
+// Everything else is treated as "not serviceable".
 
 enum DeliveryDistrict {
   KOLKATA

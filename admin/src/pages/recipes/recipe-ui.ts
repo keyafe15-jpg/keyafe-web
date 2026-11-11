@@ -67,10 +67,38 @@ export function unitLabel(unit: string) {
   return unit.toLowerCase();
 }
 
-export function formatRecipeQty(qty: number, unit: string) {
+const KITCHEN_FRACTIONS: [number, string][] = [
+  [0.125, "1/8"],
+  [0.25, "1/4"],
+  [1 / 3, "1/3"],
+  [0.375, "3/8"],
+  [0.5, "1/2"],
+  [0.625, "5/8"],
+  [2 / 3, "2/3"],
+  [0.75, "3/4"],
+  [0.875, "7/8"],
+];
+
+/** 0.5 → 1/2, 1.5 → 1 1/2. Staff read slash fractions, not decimals. */
+export function kitchenQtyLabel(qty: number): string {
   const n = Math.round(qty * 1000) / 1000;
-  const shown = n === 0.25 ? "¼" : n === 0.5 ? "½" : n === 0.75 ? "¾" : String(n);
-  return `${shown} ${unitLabel(unit)}`;
+  const match = (x: number) => KITCHEN_FRACTIONS.find(([v]) => Math.abs(x - v) < 0.0005)?.[1];
+  const whole = Math.floor(n + 1e-9);
+  const frac = n - whole;
+  if (whole > 0 && frac > 0.0005) {
+    const f = match(frac);
+    if (f) return `${whole} ${f}`;
+  }
+  return match(n) ?? String(n);
+}
+
+export function formatRecipeQty(qty: number, unit: string) {
+  return `${kitchenQtyLabel(qty)} ${unitLabel(unit)}`;
+}
+
+export function formatRecipeQtyCell(qty: number | null | undefined, unit: string, factor = 1) {
+  if (qty == null || qty <= 0) return "";
+  return formatRecipeQty(scaleQty(qty, factor), unit);
 }
 
 export function scaleQty(qty: number, factor: number) {

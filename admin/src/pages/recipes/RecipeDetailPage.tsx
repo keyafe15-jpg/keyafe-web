@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Printer } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { inputClass } from "@/components/form/Field";
 import { useStaffPermission } from "@/lib/permissions";
@@ -11,7 +11,7 @@ import {
   usePrintRecipes,
   useSetCurrentRecipeVersion,
 } from "@/hooks/useAdminRecipes";
-import { formatRecipeQty, scaleQty } from "@/pages/recipes/recipe-ui";
+import { formatRecipeQty, formatRecipeQtyCell, scaleQty } from "@/pages/recipes/recipe-ui";
 
 const PRESETS = [
   { label: "½", factor: 0.5 },
@@ -212,33 +212,91 @@ export function RecipeDetailPage() {
       <div className="space-y-4 rounded-card border border-slate-200 bg-white p-4">
         <div>
           <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Ingredients</p>
-          <ul className="mt-2 divide-y divide-slate-100">
-            {viewing.ingredients.map((line) => (
-              <li key={line.id ?? `${line.name}-${line.qty}`} className="flex justify-between gap-3 py-1.5 text-sm">
-                <span className="min-w-0">
-                  {line.componentRecipeId && line.componentRecipe ? (
-                    <Link
-                      to={`/recipes/${line.componentRecipeId}`}
-                      className="font-medium text-brand-700 hover:underline"
-                    >
-                      {line.componentRecipe.name}
-                    </Link>
-                  ) : (
-                    <span className="font-medium text-slate-900">{line.name}</span>
-                  )}
-                  {line.componentRecipeId ? (
-                    <span className="ml-1.5 text-[10px] tracking-wide text-slate-400 uppercase">
-                      Recipe
+          {(viewing.sizes?.length ?? 0) >= 2 ? (
+            <table className="mt-2 w-full text-left text-sm">
+              <thead className="text-xs tracking-wide text-slate-500 uppercase">
+                <tr>
+                  <th className="py-1 pr-3 font-medium">Ingredient</th>
+                  {viewing.sizes.map((s) => (
+                    <th key={s.id ?? s.label} className="py-1 pr-3 text-right font-medium">
+                      {s.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {viewing.ingredients.map((line) => (
+                  <tr key={line.id ?? `${line.name}-${line.qty}`}>
+                    <td className="py-1.5 pr-3">
+                      {line.componentRecipeId && line.componentRecipe ? (
+                        <Link
+                          to={`/recipes/${line.componentRecipeId}`}
+                          className="font-medium text-brand-700 hover:underline"
+                        >
+                          {line.componentRecipe.name}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-slate-900">{line.name}</span>
+                      )}
+                      {line.componentRecipeId ? (
+                        <span className="ml-1.5 text-[10px] tracking-wide text-slate-400 uppercase">
+                          Recipe
+                        </span>
+                      ) : null}
+                      {line.note ? <span className="ml-1 text-slate-500">· {line.note}</span> : null}
+                      {line.componentRecipeId ? (
+                        <NestedRecipeIngredients recipeId={line.componentRecipeId} />
+                      ) : null}
+                    </td>
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-slate-700">
+                      {formatRecipeQtyCell(line.qty, line.unit, scale)}
+                    </td>
+                    {viewing.sizes.slice(1).map((s, i) => (
+                      <td
+                        key={s.id ?? s.label}
+                        className="py-1.5 pr-3 text-right tabular-nums text-slate-700"
+                      >
+                        {formatRecipeQtyCell(line.extraQtys?.[i], line.unit, scale)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <ul className="mt-2 divide-y divide-slate-100">
+              {viewing.ingredients.map((line) => (
+                <li key={line.id ?? `${line.name}-${line.qty}`} className="py-1.5 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="min-w-0">
+                      {line.componentRecipeId && line.componentRecipe ? (
+                        <Link
+                          to={`/recipes/${line.componentRecipeId}`}
+                          className="font-medium text-brand-700 hover:underline"
+                        >
+                          {line.componentRecipe.name}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-slate-900">{line.name}</span>
+                      )}
+                      {line.componentRecipeId ? (
+                        <span className="ml-1.5 text-[10px] tracking-wide text-slate-400 uppercase">
+                          Recipe
+                        </span>
+                      ) : null}
+                      {line.note ? <span className="ml-1 text-slate-500">· {line.note}</span> : null}
                     </span>
+                    <span className="shrink-0 tabular-nums text-slate-700">
+                      {formatRecipeQty(scaleQty(line.qty, scale), line.unit)}
+                    </span>
+                  </div>
+                  {line.componentRecipeId ? (
+                    <NestedRecipeIngredients recipeId={line.componentRecipeId} />
                   ) : null}
-                  {line.note ? <span className="ml-1 text-slate-500">· {line.note}</span> : null}
-                </span>
-                <span className="shrink-0 tabular-nums text-slate-700">
-                  {formatRecipeQty(scaleQty(line.qty, scale), line.unit)}
-                </span>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {viewing.usage.length > 0 && (
@@ -295,6 +353,87 @@ export function RecipeDetailPage() {
         >
           Archive recipe
         </button>
+      )}
+    </div>
+  );
+}
+
+function NestedRecipeIngredients({ recipeId }: { recipeId: string }) {
+  const [open, setOpen] = useState(false);
+  const nested = useAdminRecipe(open ? recipeId : undefined);
+  const nestedVersion = nested.data?.currentVersion;
+  const ingredients = nestedVersion?.ingredients ?? [];
+  const nestedSizes = nestedVersion?.sizes ?? [];
+
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-0.5 text-[11px] font-medium text-slate-500 hover:text-brand-700"
+      >
+        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        {open ? "Hide ingredients" : "Show ingredients"}
+      </button>
+      {open && (
+        <div className="mt-1 ml-4">
+          {nested.isLoading ? (
+            <p className="text-xs text-slate-400">Loading…</p>
+          ) : nested.isError ? (
+            <p className="text-xs text-red-700">Could not load that recipe.</p>
+          ) : ingredients.length === 0 ? (
+            <p className="text-xs text-slate-400">No ingredients saved.</p>
+          ) : (
+            nestedSizes.length >= 2 ? (
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead>
+                  <tr className="text-[10px] tracking-wide text-slate-400 uppercase">
+                    <th className="py-0.5 pr-2 font-medium">Ingredient</th>
+                    {nestedSizes.map((s) => (
+                      <th key={s.id ?? s.label} className="py-0.5 text-right font-medium">
+                        {s.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ingredients.map((ing) => (
+                    <tr key={ing.id ?? `${ing.name}-${ing.qty}`}>
+                      <td className="py-0.5 pr-2">{ing.componentRecipe?.name ?? ing.name}</td>
+                      <td className="py-0.5 text-right tabular-nums">
+                        {formatRecipeQtyCell(ing.qty, ing.unit)}
+                      </td>
+                      {nestedSizes.slice(1).map((s, i) => (
+                        <td key={s.id ?? s.label} className="py-0.5 text-right tabular-nums">
+                          {formatRecipeQtyCell(ing.extraQtys?.[i], ing.unit)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+            <ul className="space-y-0.5 text-xs text-slate-600">
+              {ingredients.map((ing) => (
+                <li
+                  key={ing.id ?? `${ing.name}-${ing.qty}`}
+                  className="flex justify-between gap-3"
+                >
+                  <span className="min-w-0">
+                    {ing.componentRecipe?.name ?? ing.name}
+                    {ing.componentRecipeId ? (
+                      <span className="ml-1 tracking-wide text-slate-400 uppercase">Recipe</span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 tabular-nums">
+                    {formatRecipeQty(ing.qty, ing.unit)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            )
+          )}
+        </div>
       )}
     </div>
   );

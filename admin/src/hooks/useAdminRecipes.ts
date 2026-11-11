@@ -21,6 +21,13 @@ export interface RecipeIngredient {
   buyItem?: { id: string; name: string } | null;
   componentRecipeId?: string | null;
   componentRecipe?: { id: string; name: string } | null;
+  extraQtys?: (number | null)[];
+}
+
+export interface RecipeSize {
+  id?: string;
+  label: string;
+  sortOrder?: number;
 }
 
 export interface RecipeUsage {
@@ -48,6 +55,7 @@ export interface RecipeVersion {
   printedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  sizes: RecipeSize[];
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
   usage: RecipeUsage[];
@@ -89,6 +97,7 @@ export interface RecipeWritePayload {
     yieldQty?: number | null;
     yieldUnit?: RecipeUnit | null;
     yieldNote?: string | null;
+    sizes?: { label: string }[];
     ingredients: {
       name?: string;
       qty: number;
@@ -96,6 +105,7 @@ export interface RecipeWritePayload {
       note?: string | null;
       buyItemId?: string | null;
       componentRecipeId?: string | null;
+      extraQtys?: (number | null)[];
     }[];
     steps: string[];
     usage: { axis1: string; axis2?: string | null; qty: number; unit: RecipeUnit }[];

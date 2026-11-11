@@ -139,10 +139,12 @@ export const recipeVersionInclude = {
     include: {
       buyItem: { select: { id: true, name: true } },
       componentRecipe: { select: { id: true, name: true } },
+      extraQtys: true,
     },
   },
   steps: { orderBy: { sortOrder: "asc" as const } },
   usageRows: { orderBy: { sortOrder: "asc" as const } },
+  sizes: { orderBy: { sortOrder: "asc" as const } },
 };
 
 export const recipeInclude = {

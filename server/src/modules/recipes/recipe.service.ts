@@ -16,6 +16,7 @@ export type IngredientInput = {
   note?: string | null;
   buyItemId?: string | null;
   componentRecipeId?: string | null;
+  extraQtys?: (number | null)[];
 };
 
 export type UsageInput = {
@@ -29,6 +30,7 @@ export type VersionFields = {
   yieldQty?: number | null;
   yieldUnit?: RecipeUnitKey | null;
   yieldNote?: string | null;
+  sizes?: { label: string }[];
   ingredients: IngredientInput[];
   steps: string[];
   usage: UsageInput[];
@@ -39,18 +41,25 @@ function unitOr(u: string | null | undefined): RecipeUnit | null {
   return (RECIPE_UNITS as readonly string[]).includes(u) ? (u as RecipeUnit) : "G";
 }
 
-export function serializeIngredient(row: {
-  id: string;
-  name: string;
-  qty: { toString(): string } | number;
-  unit: string;
-  note: string | null;
-  sortOrder: number;
-  buyItemId: string | null;
-  buyItem: { id: string; name: string } | null;
-  componentRecipeId: string | null;
-  componentRecipe: { id: string; name: string } | null;
-}) {
+type QtyCell = { sizeId: string; qty: { toString(): string } | number | null };
+
+export function serializeIngredient(
+  row: {
+    id: string;
+    name: string;
+    qty: { toString(): string } | number;
+    unit: string;
+    note: string | null;
+    sortOrder: number;
+    buyItemId: string | null;
+    buyItem: { id: string; name: string } | null;
+    componentRecipeId: string | null;
+    componentRecipe: { id: string; name: string } | null;
+    extraQtys?: QtyCell[];
+  },
+  extraSizes: { id: string }[] = [],
+) {
+  const bySize = new Map((row.extraQtys ?? []).map((q) => [q.sizeId, q.qty]));
   return {
     id: row.id,
     name: row.componentRecipe?.name ?? row.name,
@@ -62,6 +71,12 @@ export function serializeIngredient(row: {
     buyItem: row.buyItem,
     componentRecipeId: row.componentRecipeId,
     componentRecipe: row.componentRecipe,
+    extraQtys: extraSizes.map((s) => {
+      const raw = bySize.get(s.id);
+      if (raw == null) return null;
+      const n = qtyNum(raw);
+      return n > 0 ? n : null;
+    }),
   };
 }
 
@@ -85,7 +100,10 @@ export function serializeVersion(row: {
     unit: string;
     sortOrder: number;
   }[];
+  sizes?: { id: string; label: string; sortOrder: number }[];
 }) {
+  const sizes = [...(row.sizes ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+  const extraSizes = sizes.filter((s) => s.sortOrder > 0);
   return {
     id: row.id,
     recipeId: row.recipeId,
@@ -96,7 +114,8 @@ export function serializeVersion(row: {
     printedAt: row.printedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    ingredients: row.ingredients.map(serializeIngredient),
+    sizes: sizes.map((s) => ({ id: s.id, label: s.label, sortOrder: s.sortOrder })),
+    ingredients: row.ingredients.map((ing) => serializeIngredient(ing, extraSizes)),
     steps: row.steps.map((s) => ({ id: s.id, sortOrder: s.sortOrder, text: s.text })),
     usage: row.usageRows.map((u) => ({
       id: u.id,
@@ -198,13 +217,36 @@ async function wouldCycle(parentRecipeId: string, childRecipeId: string): Promis
   return false;
 }
 
+function positiveQty(n: number | null | undefined): number | null {
+  return n != null && n > 0 ? n : null;
+}
+
+function lineHasQty(line: IngredientInput) {
+  return positiveQty(line.qty) != null || (line.extraQtys ?? []).some((q) => positiveQty(q) != null);
+}
+
+function normalizeSizeLabels(sizes?: { label: string }[]) {
+  const raw = (sizes ?? []).slice(0, 4);
+  if (raw.length < 2) return [];
+  return raw.map((s, i) => ({
+    label: s.label.trim() || `Size ${i + 1}`,
+    sortOrder: i,
+  }));
+}
+
+type NormalizedIngredient = Prisma.RecipeIngredientUncheckedCreateWithoutVersionInput & {
+  extraQtys: (number | null)[];
+};
+
 async function normalizeIngredients(
   recipeId: string,
   lines: IngredientInput[],
-): Promise<Prisma.RecipeIngredientUncheckedCreateWithoutVersionInput[]> {
-  const out: Prisma.RecipeIngredientUncheckedCreateWithoutVersionInput[] = [];
+): Promise<NormalizedIngredient[]> {
+  const out: NormalizedIngredient[] = [];
   for (const [i, line] of lines.entries()) {
-    if (!(line.qty > 0)) continue;
+    if (!lineHasQty(line)) continue;
+    const extraQtys = (line.extraQtys ?? []).slice(0, 3).map((q) => positiveQty(q));
+    const qty = positiveQty(line.qty) ?? 0;
     const componentId = line.componentRecipeId || null;
     if (componentId) {
       const exists = await prisma.recipe.findUnique({
@@ -217,11 +259,12 @@ async function normalizeIngredients(
       }
       out.push({
         name: exists.name,
-        qty: line.qty,
+        qty,
         unit: line.unit,
         note: line.note?.trim() || null,
         sortOrder: i,
         componentRecipeId: componentId,
+        extraQtys,
       });
       continue;
     }
@@ -229,15 +272,44 @@ async function normalizeIngredients(
     if (!name) continue;
     out.push({
       name,
-      qty: line.qty,
+      qty,
       unit: line.unit,
       note: line.note?.trim() || null,
       sortOrder: i,
       buyItemId: line.buyItemId || null,
+      extraQtys,
     });
   }
   if (out.length === 0) throw HttpError.badRequest("Add at least one ingredient.");
   return out;
+}
+
+function stripExtra<T extends { extraQtys: (number | null)[] }>(row: T) {
+  const { extraQtys: _extra, ...rest } = row;
+  return rest;
+}
+
+async function writeExtraQtys(
+  tx: Prisma.TransactionClient,
+  saved: {
+    ingredients: { id: string; sortOrder: number }[];
+    sizes: { id: string; sortOrder: number }[];
+  },
+  lines: NormalizedIngredient[],
+) {
+  const extraSizes = [...saved.sizes].filter((s) => s.sortOrder > 0).sort((a, b) => a.sortOrder - b.sortOrder);
+  if (extraSizes.length === 0) return;
+  const ings = [...saved.ingredients].sort((a, b) => a.sortOrder - b.sortOrder);
+  const rows: Prisma.RecipeIngredientQtyCreateManyInput[] = [];
+  for (const [i, ing] of ings.entries()) {
+    const extras = lines[i]?.extraQtys ?? [];
+    for (const [j, size] of extraSizes.entries()) {
+      const qty = extras[j];
+      if (qty == null) continue;
+      rows.push({ ingredientId: ing.id, sizeId: size.id, qty });
+    }
+  }
+  if (rows.length) await tx.recipeIngredientQty.createMany({ data: rows });
 }
 
 function normalizeSteps(steps: string[]): Prisma.RecipeStepCreateWithoutVersionInput[] {
@@ -345,6 +417,7 @@ export async function createRecipe(input: {
       data: { name, categoryId: input.categoryId },
     });
     const ingredients = await normalizeIngredients(recipe.id, input.version.ingredients);
+    const sizes = normalizeSizeLabels(input.version.sizes);
     const version = await tx.recipeVersion.create({
       data: {
         recipeId: recipe.id,
@@ -352,11 +425,17 @@ export async function createRecipe(input: {
         yieldQty: input.version.yieldQty ?? null,
         yieldUnit: unitOr(input.version.yieldUnit),
         yieldNote: input.version.yieldNote?.trim() || null,
-        ingredients: { create: ingredients },
+        ingredients: { create: ingredients.map(stripExtra) },
         steps: { create: normalizeSteps(input.version.steps) },
         usageRows: { create: normalizeUsage(input.version.usage) },
+        sizes: { create: sizes },
+      },
+      include: {
+        ingredients: { orderBy: { sortOrder: "asc" } },
+        sizes: { orderBy: { sortOrder: "asc" } },
       },
     });
+    await writeExtraQtys(tx, version, ingredients);
     return tx.recipe.update({
       where: { id: recipe.id },
       data: { currentVersionId: version.id },
@@ -387,20 +466,28 @@ export async function updateRecipe(
   const updated = await prisma.$transaction(async (tx) => {
     if (input.version && existing.currentVersionId) {
       const ingredients = await normalizeIngredients(id, input.version.ingredients);
+      const sizes = normalizeSizeLabels(input.version.sizes);
       await tx.recipeIngredient.deleteMany({ where: { versionId: existing.currentVersionId } });
       await tx.recipeStep.deleteMany({ where: { versionId: existing.currentVersionId } });
       await tx.recipeUsageRow.deleteMany({ where: { versionId: existing.currentVersionId } });
-      await tx.recipeVersion.update({
+      await tx.recipeSize.deleteMany({ where: { versionId: existing.currentVersionId } });
+      const version = await tx.recipeVersion.update({
         where: { id: existing.currentVersionId },
         data: {
           yieldQty: input.version.yieldQty ?? null,
           yieldUnit: unitOr(input.version.yieldUnit),
           yieldNote: input.version.yieldNote?.trim() || null,
-          ingredients: { create: ingredients },
+          ingredients: { create: ingredients.map(stripExtra) },
           steps: { create: normalizeSteps(input.version.steps) },
           usageRows: { create: normalizeUsage(input.version.usage) },
+          sizes: { create: sizes },
+        },
+        include: {
+          ingredients: { orderBy: { sortOrder: "asc" } },
+          sizes: { orderBy: { sortOrder: "asc" } },
         },
       });
+      await writeExtraQtys(tx, version, ingredients);
     }
     return tx.recipe.update({
       where: { id },
@@ -455,8 +542,36 @@ export async function cloneVersion(id: string, label?: string) {
             sortOrder: i,
           })),
         },
+        sizes: {
+          create: (cur.sizes ?? []).map((s, i) => ({
+            label: s.label,
+            sortOrder: s.sortOrder ?? i,
+          })),
+        },
+      },
+      include: {
+        ingredients: { orderBy: { sortOrder: "asc" } },
+        sizes: { orderBy: { sortOrder: "asc" } },
       },
     });
+    const extraSizes = [...version.sizes].filter((s) => s.sortOrder > 0).sort((a, b) => a.sortOrder - b.sortOrder);
+    if (extraSizes.length) {
+      const srcIngs = [...cur.ingredients].sort((a, b) => a.sortOrder - b.sortOrder);
+      const destIngs = [...version.ingredients].sort((a, b) => a.sortOrder - b.sortOrder);
+      const rows: Prisma.RecipeIngredientQtyCreateManyInput[] = [];
+      for (const [i, dest] of destIngs.entries()) {
+        const src = srcIngs[i];
+        for (const size of extraSizes) {
+          const cell = src?.extraQtys?.find((q) => {
+            const srcSize = (cur.sizes ?? []).find((s) => s.id === q.sizeId);
+            return (srcSize?.sortOrder ?? 0) === size.sortOrder;
+          });
+          if (cell?.qty == null) continue;
+          rows.push({ ingredientId: dest.id, sizeId: size.id, qty: cell.qty });
+        }
+      }
+      if (rows.length) await tx.recipeIngredientQty.createMany({ data: rows });
+    }
     return tx.recipe.update({
       where: { id },
       data: { currentVersionId: version.id },

@@ -37,11 +37,12 @@ const unitSchema = z.enum(RECIPE_UNITS);
 
 const ingredientSchema = z.object({
   name: z.string().trim().max(160).optional(),
-  qty: z.coerce.number().positive(),
+  qty: z.coerce.number().min(0),
   unit: unitSchema,
   note: z.string().trim().max(160).optional().nullable(),
   buyItemId: z.string().min(1).optional().nullable(),
   componentRecipeId: z.string().min(1).optional().nullable(),
+  extraQtys: z.array(z.coerce.number().min(0).nullable()).max(3).optional(),
 });
 
 const usageSchema = z.object({
@@ -55,6 +56,10 @@ const versionSchema = z.object({
   yieldQty: z.coerce.number().positive().optional().nullable(),
   yieldUnit: unitSchema.optional().nullable(),
   yieldNote: z.string().trim().max(160).optional().nullable(),
+  sizes: z
+    .array(z.object({ label: z.string().trim().max(40) }))
+    .max(4)
+    .optional(),
   ingredients: z.array(ingredientSchema).min(1),
   steps: z.array(z.string().trim().max(2000)).default([]),
   usage: z.array(usageSchema).default([]),

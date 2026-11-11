@@ -6,6 +6,8 @@ import {
   CalendarRange,
   ChevronDown,
   ChevronRight,
+  Eye,
+  EyeOff,
   Package,
   ShoppingBag,
   TrendingUp,
@@ -46,7 +48,34 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("en-IN").format(value);
 }
 
+const MASK = "••••";
 const COMPACT_FROM = 10_00_000;
+
+function EyeToggle({
+  shown,
+  onToggle,
+  label,
+}: {
+  shown: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onToggle();
+      }}
+      aria-label={shown ? `Hide ${label}` : `Show ${label}`}
+      aria-pressed={shown}
+      className="shrink-0 rounded-md p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+    >
+      {shown ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
 
 /** ₹12.5L / ₹1.2Cr — used on narrow screens where full figures don't fit two-up. */
 function formatCompact(value: number, currency: boolean) {
@@ -66,30 +95,105 @@ const PRESETS: { key: Preset; label: string }[] = [
   { key: "custom", label: "Custom" },
 ];
 
+function OutstandingBanner({
+  pendingLabel,
+  customers,
+  breakfastLabel,
+  shown,
+  onToggleShow,
+  onOpen,
+}: {
+  pendingLabel: string;
+  customers: number;
+  breakfastLabel: string | null;
+  shown: boolean;
+  onToggleShow: () => void;
+  onOpen: () => void;
+}) {
+  const text = (
+    <span className="min-w-0 text-slate-600">
+      Outstanding across all orders:{" "}
+      <span className="font-semibold text-amber-700 tabular-nums">{pendingLabel}</span> from{" "}
+      {customers} customer{customers === 1 ? "" : "s"}
+      {breakfastLabel && (
+        <>
+          {" "}
+          · breakfast not billed yet{" "}
+          <span className="font-semibold text-amber-700 tabular-nums">{breakfastLabel}</span>
+        </>
+      )}
+    </span>
+  );
+  const boxClass =
+    "mt-3 flex w-full items-center gap-2 rounded-card border border-slate-200 bg-white px-3 py-2.5 text-left text-sm sm:px-4";
+  if (!shown) {
+    return (
+      <div className={boxClass}>
+        {text}
+        <span className="ml-auto shrink-0">
+          <EyeToggle shown={shown} onToggle={onToggleShow} label="outstanding" />
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className={boxClass}>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:text-slate-900"
+      >
+        {text}
+        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+      <EyeToggle shown={shown} onToggle={onToggleShow} label="outstanding" />
+    </div>
+  );
+}
+
 function StallDuesBanner({
-  amount,
+  amountLabel,
   entries,
+  shown,
+  onToggleShow,
   canOpen,
 }: {
-  amount: number;
+  amountLabel: string;
   entries: number;
+  shown: boolean;
+  onToggleShow: () => void;
   canOpen: boolean;
 }) {
-  const body = (
-    <span className="text-slate-600">
+  const text = (
+    <span className="min-w-0 text-slate-600">
       Stall dues not yet collected:{" "}
-      <span className="font-semibold text-amber-700 tabular-nums">{formatINR(amount)}</span> across{" "}
+      <span className="font-semibold text-amber-700 tabular-nums">{amountLabel}</span> across{" "}
       {entries} entr{entries === 1 ? "y" : "ies"}
     </span>
   );
   const boxClass =
-    "mt-3 flex w-full items-center justify-between gap-3 rounded-card border border-slate-200 bg-white px-3 py-2.5 text-left text-sm sm:px-4";
-  if (!canOpen) return <div className={boxClass}>{body}</div>;
+    "mt-3 flex w-full items-center gap-2 rounded-card border border-slate-200 bg-white px-3 py-2.5 text-left text-sm sm:px-4";
+  if (!shown || !canOpen) {
+    return (
+      <div className={boxClass}>
+        {text}
+        <span className="ml-auto shrink-0">
+          <EyeToggle shown={shown} onToggle={onToggleShow} label="stall dues" />
+        </span>
+      </div>
+    );
+  }
   return (
-    <Link to="/stall?tab=history" className={cn(boxClass, "transition hover:border-amber-300")}>
-      {body}
-      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
-    </Link>
+    <div className={boxClass}>
+      <Link
+        to="/stall?tab=history"
+        className="flex min-w-0 flex-1 items-center justify-between gap-3 transition hover:text-slate-900"
+      >
+        {text}
+        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+      </Link>
+      <EyeToggle shown={shown} onToggle={onToggleShow} label="stall dues" />
+    </div>
   );
 }
 
@@ -98,7 +202,10 @@ export function DashboardPage() {
   const [customFrom, setCustomFrom] = useState(() => monthRange(0).from);
   const [customTo, setCustomTo] = useState(() => toInputDate(new Date()));
   const [showMore, setShowMore] = useState(false);
+  const [shown, setShown] = useState<Record<string, boolean>>({});
   const [drawer, setDrawer] = useState<{ scope: CollectionsScope; label: string } | null>(null);
+  const isShown = (id: string) => Boolean(shown[id]);
+  const toggleShown = (id: string) => setShown((s) => ({ ...s, [id]: !s[id] }));
   const user = useAdminAuth((s) => s.user);
   const canReadDashboard = staffHasPermission(user, "dashboard.read");
   const canReadExpenses = staffHasPermission(user, "expenses.read");
@@ -164,6 +271,7 @@ export function DashboardPage() {
       label: "Total orders received",
       value: formatNumber(summary.totalOrdersReceived),
       compact: formatCompact(summary.totalOrdersReceived, false),
+      money: false,
       icon: ShoppingBag,
       accent: "text-slate-700",
       tone: "bg-slate-100",
@@ -172,6 +280,7 @@ export function DashboardPage() {
       label: "Orders this month",
       value: formatNumber(summary.ordersThisMonth),
       compact: formatCompact(summary.ordersThisMonth, false),
+      money: false,
       icon: Package,
       accent: "text-brand-600",
       tone: "bg-brand-100",
@@ -180,6 +289,7 @@ export function DashboardPage() {
       label: "Overall sales",
       value: formatINR(summary.totalSales),
       compact: formatCompact(summary.totalSales, true),
+      money: true,
       icon: TrendingUp,
       accent: "text-emerald-600",
       tone: "bg-emerald-100",
@@ -188,6 +298,7 @@ export function DashboardPage() {
       label: "Monthly sales",
       value: formatINR(summary.monthlySales),
       compact: formatCompact(summary.monthlySales, true),
+      money: true,
       icon: ArrowUpRight,
       accent: "text-indigo-600",
       tone: "bg-indigo-100",
@@ -196,6 +307,7 @@ export function DashboardPage() {
       label: "GST received",
       value: formatINR(summary.totalGstReceived),
       compact: formatCompact(summary.totalGstReceived, true),
+      money: true,
       icon: ArrowUpRight,
       accent: "text-violet-600",
       tone: "bg-violet-100",
@@ -283,25 +395,31 @@ export function DashboardPage() {
       >
         <MoneyCard
           label="Total sales"
-          value={money ? formatINR(money.sales) : "—"}
-          hint={salesIncludes ? `incl. ${salesIncludes}` : undefined}
+          value={money ? (isShown("sales") ? formatINR(money.sales) : MASK) : "—"}
+          hint={isShown("sales") && salesIncludes ? `incl. ${salesIncludes}` : undefined}
+          shown={isShown("sales")}
+          onToggleShow={() => toggleShown("sales")}
         />
         <MoneyCard
           label="Received"
-          value={money ? formatINR(money.received) : "—"}
+          value={money ? (isShown("received") ? formatINR(money.received) : MASK) : "—"}
           hint={
-            [
-              collectedPct == null ? null : `${collectedPct}% collected`,
-              receivedIncludes ? `incl. ${receivedIncludes}` : null,
-            ]
-              .filter(Boolean)
-              .join(" · ") || undefined
+            isShown("received")
+              ? [
+                  collectedPct == null ? null : `${collectedPct}% collected`,
+                  receivedIncludes ? `incl. ${receivedIncludes}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined
+              : undefined
           }
           valueClassName="text-emerald-700"
+          shown={isShown("received")}
+          onToggleShow={() => toggleShown("received")}
         />
         <MoneyCard
           label="Pending"
-          value={money ? formatINR(money.pending) : "—"}
+          value={money ? (isShown("pending") ? formatINR(money.pending) : MASK) : "—"}
           hint={
             !money
               ? undefined
@@ -311,8 +429,10 @@ export function DashboardPage() {
                     money.pendingOrders > 0
                       ? `${money.pendingOrders} order${money.pendingOrders === 1 ? "" : "s"} · see who owes`
                       : null,
-                    money.stall.due > 0 ? `stall dues ${formatINR(money.stall.due)}` : null,
-                    money.breakfast.unbilled > 0
+                    isShown("pending") && money.stall.due > 0
+                      ? `stall dues ${formatINR(money.stall.due)}`
+                      : null,
+                    isShown("pending") && money.breakfast.unbilled > 0
                       ? `breakfast not billed ${formatINR(money.breakfast.unbilled)}`
                       : null,
                   ]
@@ -324,8 +444,12 @@ export function DashboardPage() {
             "border-amber-200 bg-amber-50/40",
             !canReadExpenses && "col-span-2 sm:col-span-1",
           )}
+          shown={isShown("pending")}
+          onToggleShow={() => toggleShown("pending")}
           onClick={
-            money && (money.pendingOrders > 0 || money.breakfast.unbilled > 0)
+            isShown("pending") &&
+            money &&
+            (money.pendingOrders > 0 || money.breakfast.unbilled > 0)
               ? () =>
                   setDrawer({
                     scope: { from, to },
@@ -337,15 +461,19 @@ export function DashboardPage() {
         {canReadExpenses && (
           <MoneyCard
             label="Expenses"
-            value={expenses.data ? formatINR(expenses.data.total) : "—"}
+            value={expenses.data ? (isShown("expenses") ? formatINR(expenses.data.total) : MASK) : "—"}
             hint={
               expenses.data
                 ? [
                     expenses.data.count
                       ? `${expenses.data.count} in books`
                       : "Nothing logged",
-                    expenses.data.buys ? `buys ${formatINR(expenses.data.buys)}` : null,
-                    expenses.data.delivery ? `delivery ${formatINR(expenses.data.delivery)}` : null,
+                    isShown("expenses") && expenses.data.buys
+                      ? `buys ${formatINR(expenses.data.buys)}`
+                      : null,
+                    isShown("expenses") && expenses.data.delivery
+                      ? `delivery ${formatINR(expenses.data.delivery)}`
+                      : null,
                     expenses.data.maskSalaries ? "salaries hidden" : null,
                   ]
                     .filter(Boolean)
@@ -353,65 +481,67 @@ export function DashboardPage() {
                 : "by shop date"
             }
             valueClassName="text-rose-700"
+            shown={isShown("expenses")}
+            onToggleShow={() => toggleShown("expenses")}
             to="/expenses"
           />
         )}
       </div>
 
       {outstanding && (outstanding.pending > 0 || outstanding.breakfastUnbilled > 0) && (
-        <button
-          type="button"
-          onClick={() => setDrawer({ scope: "all", label: "All orders, all time" })}
-          className="mt-3 flex w-full items-center justify-between gap-3 rounded-card border border-slate-200 bg-white px-3 py-2.5 text-left text-sm transition hover:border-amber-300 sm:px-4"
-        >
-          <span className="text-slate-600">
-            Outstanding across all orders:{" "}
-            <span className="font-semibold text-amber-700 tabular-nums">
-              {formatINR(outstanding.pending)}
-            </span>{" "}
-            from {outstanding.customers} customer{outstanding.customers === 1 ? "" : "s"}
-            {outstanding.breakfastUnbilled > 0 && (
-              <>
-                {" "}
-                · breakfast not billed yet{" "}
-                <span className="font-semibold text-amber-700 tabular-nums">
-                  {formatINR(outstanding.breakfastUnbilled)}
-                </span>
-              </>
-            )}
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
-        </button>
+        <OutstandingBanner
+          pendingLabel={isShown("outstanding") ? formatINR(outstanding.pending) : MASK}
+          customers={outstanding.customers}
+          breakfastLabel={
+            outstanding.breakfastUnbilled > 0
+              ? isShown("outstanding")
+                ? formatINR(outstanding.breakfastUnbilled)
+                : MASK
+              : null
+          }
+          shown={isShown("outstanding")}
+          onToggleShow={() => toggleShown("outstanding")}
+          onOpen={() => setDrawer({ scope: "all", label: "All orders, all time" })}
+        />
       )}
 
       {outstanding && outstanding.stallDue > 0 && (
         <StallDuesBanner
-          amount={outstanding.stallDue}
+          amountLabel={isShown("stallDues") ? formatINR(outstanding.stallDue) : MASK}
           entries={outstanding.stallDueEntries}
+          shown={isShown("stallDues")}
+          onToggleShow={() => toggleShown("stallDues")}
           canOpen={canManageStalls}
         />
       )}
 
       <section className="mt-4 rounded-card border border-slate-200 bg-white sm:mt-6">
-        <button
-          type="button"
-          onClick={() => setShowMore(!showMore)}
-          aria-expanded={showMore}
-          className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left sm:px-4"
-        >
-          <span>
-            <span className="block text-sm font-semibold text-slate-900">More stats</span>
-            <span className="block text-xs text-slate-500">
-              Order counts, overall sales, GST and the daily sales chart
+        <div className="flex items-center gap-1 px-2 sm:px-3">
+          <button
+            type="button"
+            onClick={() => setShowMore(!showMore)}
+            aria-expanded={showMore}
+            className="flex min-w-0 flex-1 items-center justify-between gap-3 px-2 py-3 text-left sm:px-2"
+          >
+            <span>
+              <span className="block text-sm font-semibold text-slate-900">More stats</span>
+              <span className="block text-xs text-slate-500">
+                Order counts, overall sales, GST and the daily sales chart
+              </span>
             </span>
-          </span>
-          <ChevronDown
-            className={cn(
-              "h-4 w-4 shrink-0 text-slate-400 transition-transform",
-              showMore && "rotate-180",
-            )}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 text-slate-400 transition-transform",
+                showMore && "rotate-180",
+              )}
+            />
+          </button>
+          <EyeToggle
+            shown={isShown("moreStats")}
+            onToggle={() => toggleShown("moreStats")}
+            label="more stats"
           />
-        </button>
+        </div>
 
         {showMore && (
           <div className="border-t border-slate-100 p-3 sm:p-4">
@@ -443,10 +573,12 @@ export function DashboardPage() {
                     </div>
                     <p
                       className="truncate text-xl font-semibold text-slate-900 tabular-nums sm:text-2xl"
-                      title={kpi.value}
+                      title={kpi.money && !isShown("moreStats") ? undefined : kpi.value}
                     >
                       {isLoading ? (
                         "—"
+                      ) : kpi.money && !isShown("moreStats") ? (
+                        MASK
                       ) : kpi.compact ? (
                         <>
                           <span className="sm:hidden">{kpi.compact}</span>
@@ -463,7 +595,9 @@ export function DashboardPage() {
 
             <div className="mt-4 grid gap-3 sm:gap-4 lg:grid-cols-[1.5fr_0.8fr]">
               <PanelCard title="Sales over time" description="Daily sales for the selected period.">
-                {chart.length === 0 ? (
+                {!isShown("moreStats") ? (
+                  <EmptyState label="Show figures to see the chart." />
+                ) : chart.length === 0 ? (
                   <EmptyState label="No sales recorded for this range." />
                 ) : (
                   <SalesLineChart chart={chart} peakSales={peakSales} />
@@ -473,13 +607,25 @@ export function DashboardPage() {
               <PanelCard title="Range summary" description="Selected window totals.">
                 <div className="-my-1.5 divide-y divide-slate-100">
                   <StatLine label="Orders in range" value={formatNumber(summary.rangeOrders)} />
-                  <StatLine label="Sales in range" value={formatINR(summary.rangeSales)} />
-                  <StatLine label="GST in range" value={formatINR(summary.rangeGstReceived)} />
-                  <StatLine label="Monthly sales" value={formatINR(summary.monthlySales)} />
-                  <StatLine label="Overall sales" value={formatINR(summary.totalSales)} />
+                  <StatLine
+                    label="Sales in range"
+                    value={isShown("moreStats") ? formatINR(summary.rangeSales) : MASK}
+                  />
+                  <StatLine
+                    label="GST in range"
+                    value={isShown("moreStats") ? formatINR(summary.rangeGstReceived) : MASK}
+                  />
+                  <StatLine
+                    label="Monthly sales"
+                    value={isShown("moreStats") ? formatINR(summary.monthlySales) : MASK}
+                  />
+                  <StatLine
+                    label="Overall sales"
+                    value={isShown("moreStats") ? formatINR(summary.totalSales) : MASK}
+                  />
                   <StatLine
                     label="Total GST received"
-                    value={formatINR(summary.totalGstReceived)}
+                    value={isShown("moreStats") ? formatINR(summary.totalGstReceived) : MASK}
                   />
                 </div>
               </PanelCard>
@@ -510,6 +656,8 @@ function MoneyCard({
   className,
   onClick,
   to,
+  shown,
+  onToggleShow,
 }: {
   label: string;
   value: string;
@@ -518,13 +666,11 @@ function MoneyCard({
   className?: string;
   onClick?: () => void;
   to?: string;
+  shown: boolean;
+  onToggleShow: () => void;
 }) {
-  const body = (
+  const figures = (
     <>
-      <span className="flex items-center justify-between gap-2 text-[11px] font-medium tracking-wide text-slate-500 uppercase sm:text-xs">
-        {label}
-        {(onClick || to) && <ChevronRight className="h-4 w-4 text-slate-400" />}
-      </span>
       <span
         className={cn(
           "mt-1.5 block truncate text-xl font-semibold text-slate-900 tabular-nums sm:text-2xl",
@@ -538,27 +684,34 @@ function MoneyCard({
     </>
   );
 
-  const base = cn(
-    "min-w-0 rounded-card border border-slate-200 bg-white p-3 text-left sm:p-4",
-    className,
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-card border border-slate-200 bg-white p-3 text-left sm:p-4",
+        (onClick || to) && "transition hover:border-amber-400 hover:shadow-sm",
+        className,
+      )}
+    >
+      <span className="flex items-center justify-between gap-2 text-[11px] font-medium tracking-wide text-slate-500 uppercase sm:text-xs">
+        {label}
+        <span className="flex items-center gap-0.5">
+          <EyeToggle shown={shown} onToggle={onToggleShow} label={label} />
+          {(onClick || to) && <ChevronRight className="h-4 w-4 text-slate-400" />}
+        </span>
+      </span>
+      {to ? (
+        <Link to={to} className="block">
+          {figures}
+        </Link>
+      ) : onClick ? (
+        <button type="button" onClick={onClick} className="block w-full text-left">
+          {figures}
+        </button>
+      ) : (
+        figures
+      )}
+    </div>
   );
-
-  const interactive = cn(base, "block transition hover:border-amber-400 hover:shadow-sm");
-  if (to) {
-    return (
-      <Link to={to} className={interactive}>
-        {body}
-      </Link>
-    );
-  }
-  if (onClick) {
-    return (
-      <button type="button" onClick={onClick} className={interactive}>
-        {body}
-      </button>
-    );
-  }
-  return <div className={base}>{body}</div>;
 }
 
 function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {

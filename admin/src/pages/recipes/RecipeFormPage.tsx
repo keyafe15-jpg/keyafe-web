@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
-import { Field, inputClass, selectClass, textareaClass } from "@/components/form/Field";
+import { Field, inputClass, selectClass } from "@/components/form/Field";
 import { useStaffPermission } from "@/lib/permissions";
 import { useAdminCategories } from "@/hooks/useAdminCategories";
 import { useAdminBuyItems } from "@/hooks/useAdminBooks";
@@ -15,6 +15,7 @@ import {
 } from "@/hooks/useAdminRecipes";
 import {
   RECIPE_UNITS,
+  kitchenQtyLabel,
   parseRecipeQty,
   type RecipeUnit,
   unitFromQtyText,
@@ -27,19 +28,36 @@ type DraftLine = {
   key: string;
   name: string;
   qty: string;
+  extraQtys: string[];
   unit: RecipeUnit;
   note: string;
   buyItemId?: string;
   componentRecipeId?: string;
 };
 
+type DraftSize = { key: string; label: string };
 type DraftUsage = { key: string; axis1: string; axis2: string; qty: string; unit: RecipeUnit };
+type DraftStep = { key: string; text: string };
 
-function emptyLine(): DraftLine {
-  return { key: Math.random().toString(36).slice(2), name: "", qty: "", unit: "G", note: "" };
+function emptyLine(extraCount = 0): DraftLine {
+  return {
+    key: Math.random().toString(36).slice(2),
+    name: "",
+    qty: "",
+    extraQtys: Array.from({ length: extraCount }, () => ""),
+    unit: "G",
+    note: "",
+  };
+}
+
+function qtyText(n: number | null | undefined) {
+  return n != null && n > 0 ? kitchenQtyLabel(n) : "";
 }
 function emptyUsage(): DraftUsage {
   return { key: Math.random().toString(36).slice(2), axis1: "", axis2: "", qty: "", unit: "G" };
+}
+function emptyStep(): DraftStep {
+  return { key: Math.random().toString(36).slice(2), text: "" };
 }
 
 export function RecipeFormPage() {
@@ -62,27 +80,43 @@ export function RecipeFormPage() {
       initial={{
         name: existing.data?.name ?? "",
         categoryId: existing.data?.categoryId ?? "",
-        yieldQty: cur?.yieldQty != null ? String(cur.yieldQty) : "",
+        yieldQty: cur?.yieldQty != null ? kitchenQtyLabel(cur.yieldQty) : "",
         yieldUnit: cur?.yieldUnit ?? "KG",
         yieldNote: cur?.yieldNote ?? "",
+        sizes:
+          (cur?.sizes?.length ?? 0) >= 2
+            ? cur!.sizes.map((s) => ({
+                key: s.id ?? Math.random().toString(36).slice(2),
+                label: s.label,
+              }))
+            : [],
         lines: cur?.ingredients.length
           ? cur.ingredients.map((l) => ({
               key: l.id ?? Math.random().toString(36).slice(2),
               name: l.name,
-              qty: String(l.qty),
+              qty: qtyText(l.qty),
+              extraQtys:
+                (cur.sizes?.length ?? 0) >= 2
+                  ? Array.from({ length: cur.sizes.length - 1 }, (_, i) => qtyText(l.extraQtys?.[i]))
+                  : [],
               unit: l.unit,
               note: l.note ?? "",
               buyItemId: l.buyItemId ?? undefined,
               componentRecipeId: l.componentRecipeId ?? undefined,
             }))
           : [emptyLine()],
-        steps: cur?.steps.map((s) => s.text).join("\n") ?? "",
+        steps: cur?.steps.length
+          ? cur.steps.map((s) => ({
+              key: s.id ?? Math.random().toString(36).slice(2),
+              text: s.text,
+            }))
+          : [emptyStep()],
         usage: cur?.usage.length
           ? cur.usage.map((u) => ({
               key: u.id ?? Math.random().toString(36).slice(2),
               axis1: u.axis1,
               axis2: u.axis2 ?? "",
-              qty: String(u.qty),
+              qty: kitchenQtyLabel(u.qty),
               unit: u.unit,
             }))
           : [],
@@ -102,8 +136,9 @@ function RecipeForm({
     yieldQty: string;
     yieldUnit: RecipeUnit;
     yieldNote: string;
+    sizes: DraftSize[];
     lines: DraftLine[];
-    steps: string;
+    steps: DraftStep[];
     usage: DraftUsage[];
   };
 }) {
@@ -112,17 +147,29 @@ function RecipeForm({
   const create = useCreateRecipe();
   const update = useUpdateRecipe();
   const categories = useAdminCategories();
+  const [pickerSearch, setPickerSearch] = useState("");
   const items = useAdminBuyItems({ pageSize: 80 });
-  const recipes = useAdminRecipes({ pageSize: 80 });
+  const recipes = useAdminRecipes({
+    search: pickerSearch.trim().length >= 2 ? pickerSearch.trim() : null,
+    pageSize: 20,
+  });
   const [name, setName] = useState(initial.name);
   const [categoryId, setCategoryId] = useState(initial.categoryId);
   const [yieldQty, setYieldQty] = useState(initial.yieldQty);
   const [yieldUnit, setYieldUnit] = useState<RecipeUnit>(initial.yieldUnit);
   const [yieldNote, setYieldNote] = useState(initial.yieldNote);
+  const [sizes, setSizes] = useState(initial.sizes);
   const [lines, setLines] = useState(initial.lines);
   const [steps, setSteps] = useState(initial.steps);
   const [usage, setUsage] = useState(initial.usage);
   const [lineQueries, setLineQueries] = useState<Record<string, string>>({});
+  const [pickedRecipes, setPickedRecipes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      initial.lines
+        .filter((l) => l.componentRecipeId)
+        .map((l) => [l.componentRecipeId!, l.name]),
+    ),
+  );
   const [error, setError] = useState<string | null>(null);
   const [scanNote, setScanNote] = useState<string | null>(null);
   const pending = create.isPending || update.isPending;
@@ -149,13 +196,23 @@ function RecipeForm({
       return {
         key: Math.random().toString(36).slice(2),
         name: linked?.name ?? l.name,
-        qty: String(l.qty),
+        qty: qtyText(l.qty),
+        extraQtys: Array.from({ length: Math.max(0, sizes.length - 1) }, () => ""),
         unit: l.unit,
         note: l.note ?? "",
         buyItemId: l.buyItemId ?? linked?.buyItemId,
         componentRecipeId: l.componentRecipeId ?? linked?.componentRecipeId,
       };
     });
+
+  const rememberNested = (rows: DraftLine[]) => {
+    setPickedRecipes((prev) => {
+      const extra = Object.fromEntries(
+        rows.filter((l) => l.componentRecipeId).map((l) => [l.componentRecipeId!, l.name]),
+      );
+      return Object.keys(extra).length ? { ...prev, ...extra } : prev;
+    });
+  };
 
   const applyDraft = (draft: RecipeDraft) => {
     if (draft.name) setName(draft.name);
@@ -167,6 +224,7 @@ function RecipeForm({
       const next = toDraftLines(draft.ingredients);
       setLines(next);
       setLineQueries(Object.fromEntries(next.map((l) => [l.key, l.name])));
+      rememberNested(next);
     }
     if (draft.usage.length) {
       setUsage(
@@ -174,12 +232,14 @@ function RecipeForm({
           key: Math.random().toString(36).slice(2),
           axis1: u.axis1,
           axis2: u.axis2 ?? "",
-          qty: String(u.qty),
+          qty: kitchenQtyLabel(u.qty),
           unit: u.unit,
         })),
       );
     }
-    if (draft.steps.length) setSteps(draft.steps.join("\n"));
+    if (draft.steps.length) {
+      setSteps(draft.steps.map((text) => ({ key: Math.random().toString(36).slice(2), text })));
+    }
     setScanNote(
       draft.uncertain
         ? "Some lines were unclear — check qty and names, then save."
@@ -199,11 +259,61 @@ function RecipeForm({
       ...prev,
       ...Object.fromEntries(next.map((l) => [l.key, l.name])),
     }));
+    rememberNested(next);
     setScanNote(`Inserted ${next.length} ingredient${next.length === 1 ? "" : "s"}. Check qty and names, then save.`);
   };
 
   const setLine = (key: string, patch: Partial<DraftLine>) => {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  };
+
+  const extraCount = Math.max(0, sizes.length - 1);
+  const multi = sizes.length >= 2;
+
+  const addSize = () => {
+    if (sizes.length >= 4) return;
+    if (sizes.length === 0) {
+      setSizes([
+        { key: Math.random().toString(36).slice(2), label: "Regular" },
+        { key: Math.random().toString(36).slice(2), label: "Small" },
+      ]);
+      setLines((prev) => prev.map((l) => ({ ...l, extraQtys: [""] })));
+      return;
+    }
+    setSizes((prev) => [...prev, { key: Math.random().toString(36).slice(2), label: "" }]);
+    setLines((prev) => prev.map((l) => ({ ...l, extraQtys: [...l.extraQtys, ""] })));
+  };
+
+  const removeSize = (index: number) => {
+    if (sizes.length <= 2) {
+      if (index === 0) {
+        setLines((prev) => prev.map((l) => ({ ...l, qty: l.extraQtys[0] ?? "", extraQtys: [] })));
+      } else {
+        setLines((prev) => prev.map((l) => ({ ...l, extraQtys: [] })));
+      }
+      setSizes([]);
+      return;
+    }
+    setSizes((prev) => prev.filter((_, i) => i !== index));
+    setLines((prev) =>
+      prev.map((l) => {
+        if (index === 0) {
+          return { ...l, qty: l.extraQtys[0] ?? "", extraQtys: l.extraQtys.slice(1) };
+        }
+        return { ...l, extraQtys: l.extraQtys.filter((_, j) => j !== index - 1) };
+      }),
+    );
+  };
+
+  const setExtraQty = (key: string, extraIndex: number, value: string) => {
+    setLines((prev) =>
+      prev.map((l) => {
+        if (l.key !== key) return l;
+        const extraQtys = [...l.extraQtys];
+        extraQtys[extraIndex] = value;
+        return { ...l, extraQtys };
+      }),
+    );
   };
 
   const buildPayload = (): RecipeWritePayload | null => {
@@ -218,19 +328,30 @@ function RecipeForm({
     const ingredients = lines
       .map((l) => {
         const qty = parseRecipeQty(l.qty);
+        const extraQtys = multi
+          ? sizes.slice(1).map((_, i) => parseRecipeQty(l.extraQtys[i] ?? "") )
+          : [];
         return {
           name: l.name.trim() || undefined,
           qty: qty ?? 0,
+          extraQtys: extraQtys.map((q) => q ?? null),
           unit: unitFromQtyText(l.qty) ?? l.unit,
           note: l.note.trim() || null,
           buyItemId: l.buyItemId,
           componentRecipeId: l.componentRecipeId,
         };
       })
-      .filter((l) => l.qty > 0 && (l.componentRecipeId || l.name));
-    const namedWithoutQty = lines.filter(
-      (l) => (l.name.trim() || l.componentRecipeId) && !parseRecipeQty(l.qty),
-    );
+      .filter(
+        (l) =>
+          (l.componentRecipeId || l.name) &&
+          (l.qty > 0 || l.extraQtys.some((q) => q != null && q > 0)),
+      );
+    const namedWithoutQty = lines.filter((l) => {
+      if (!(l.name.trim() || l.componentRecipeId)) return false;
+      if (parseRecipeQty(l.qty)) return false;
+      if (multi && l.extraQtys.some((q) => parseRecipeQty(q))) return false;
+      return true;
+    });
     if (ingredients.length === 0) {
       setError("Add at least one ingredient.");
       return null;
@@ -247,11 +368,9 @@ function RecipeForm({
         yieldQty: parsedYield,
         yieldUnit: parsedYield ? (unitFromQtyText(yieldQty) ?? yieldUnit) : null,
         yieldNote: yieldNote.trim() || null,
+        sizes: multi ? sizes.map((s) => ({ label: s.label.trim() })) : undefined,
         ingredients,
-        steps: steps
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean),
+        steps: steps.map((s) => s.text.trim()).filter(Boolean),
         usage: usage
           .filter((u) => u.axis1.trim() && parseRecipeQty(u.qty))
           .map((u) => ({
@@ -264,14 +383,19 @@ function RecipeForm({
     };
   };
 
+  const recipeHits = new Map<string, string>();
+  for (const [id, rName] of Object.entries(pickedRecipes)) {
+    if (id !== recipeId) recipeHits.set(id, rName);
+  }
+  for (const r of recipes.data?.items ?? []) {
+    if (r.id !== recipeId) recipeHits.set(r.id, r.name);
+  }
   const pickerOptions = [
-    ...(recipes.data?.items ?? [])
-      .filter((r) => r.id !== recipeId)
-      .map((r) => ({
-        id: `recipe:${r.id}`,
-        label: r.name,
-        hint: "Recipe",
-      })),
+    ...[...recipeHits.entries()].map(([id, rName]) => ({
+      id: `recipe:${id}`,
+      label: rName,
+      hint: "Recipe",
+    })),
     ...(items.data?.items ?? []).map((it) => ({
       id: `item:${it.id}`,
       label: it.name,
@@ -379,12 +503,53 @@ function RecipeForm({
         </div>
 
         <div className="space-y-1.5">
-          <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Ingredients</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Ingredients</p>
+            {multi &&
+              sizes.map((s, i) => (
+                <span key={s.key} className="inline-flex items-center gap-1">
+                  <input
+                    value={s.label}
+                    onChange={(e) =>
+                      setSizes((prev) =>
+                        prev.map((row) => (row.key === s.key ? { ...row, label: e.target.value } : row)),
+                      )
+                    }
+                    placeholder={i === 0 ? "Regular" : i === 1 ? "Small" : "350g"}
+                    className={`${inputClass} w-[5.5rem] py-1 text-xs`}
+                    disabled={!canWrite}
+                  />
+                  {canWrite && (
+                    <button
+                      type="button"
+                      className="text-slate-400 hover:text-red-700"
+                      onClick={() => removeSize(i)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </span>
+              ))}
+            {canWrite && sizes.length < 4 && (
+              <button
+                type="button"
+                onClick={addSize}
+                className="inline-flex items-center gap-1 text-sm font-medium text-brand-700"
+              >
+                <Plus className="h-4 w-4" /> Add size
+              </button>
+            )}
+          </div>
           {lines.map((line) => {
             const q = lineQueries[line.key] ?? line.name;
+            const qtyCols = Array.from({ length: multi ? sizes.length : 1 }, () => "4.5rem").join(" ");
             return (
-              <div key={line.key} className="grid grid-cols-[4.5rem_5.5rem_minmax(0,1fr)_auto] gap-1.5">
-                <Field label="Qty">
+              <div
+                key={line.key}
+                className="grid gap-1.5"
+                style={{ gridTemplateColumns: `${qtyCols} 5.5rem minmax(0,1fr) auto` }}
+              >
+                <Field label={multi ? sizes[0]?.label || "Qty" : "Qty"}>
                   <input
                     inputMode="decimal"
                     value={line.qty}
@@ -394,6 +559,19 @@ function RecipeForm({
                     disabled={!canWrite}
                   />
                 </Field>
+                {multi &&
+                  sizes.slice(1).map((s, i) => (
+                    <Field key={s.key} label={s.label || "Qty"}>
+                      <input
+                        inputMode="decimal"
+                        value={line.extraQtys[i] ?? ""}
+                        onChange={(e) => setExtraQty(line.key, i, e.target.value)}
+                        placeholder="1/2"
+                        className={inputClass}
+                        disabled={!canWrite}
+                      />
+                    </Field>
+                  ))}
                 <Field label="Unit">
                   <select
                     value={line.unit}
@@ -409,49 +587,63 @@ function RecipeForm({
                   </select>
                 </Field>
                 <Field label="Item or recipe">
-                  <SearchCreate
-                    query={q}
-                    onQuery={(next) => {
-                      setLineQueries((prev) => ({ ...prev, [line.key]: next }));
-                      setLine(line.key, {
-                        name: next,
-                        buyItemId: undefined,
-                        componentRecipeId: undefined,
-                      });
-                    }}
-                    options={pickerOptions.filter((o) =>
-                      o.label.toLowerCase().includes(q.trim().toLowerCase()),
-                    )}
-                    placeholder="Maida, cookie recipe…"
-                    createLabel={q.trim() && !line.buyItemId && !line.componentRecipeId ? `Use “${q.trim()}”` : null}
-                    onSelect={(raw) => {
-                      if (raw.startsWith("recipe:")) {
-                        const id = raw.slice(7);
-                        const r = recipes.data?.items.find((row) => row.id === id);
-                        setLine(line.key, {
-                          componentRecipeId: id,
-                          buyItemId: undefined,
-                          name: r?.name ?? "",
-                        });
-                        setLineQueries((prev) => ({ ...prev, [line.key]: r?.name ?? "" }));
-                        return;
-                      }
-                      if (raw.startsWith("item:")) {
-                        const id = raw.slice(5);
-                        const it = items.data?.items.find((row) => row.id === id);
-                        setLine(line.key, {
-                          buyItemId: id,
-                          componentRecipeId: undefined,
-                          name: it?.name ?? "",
-                        });
-                        setLineQueries((prev) => ({ ...prev, [line.key]: it?.name ?? "" }));
-                      }
-                    }}
-                    onCreate={(n) => {
-                      setLine(line.key, { name: n, buyItemId: undefined, componentRecipeId: undefined });
-                      setLineQueries((prev) => ({ ...prev, [line.key]: n }));
-                    }}
-                  />
+                  <div className="flex items-start gap-1.5">
+                    <div className="min-w-0 flex-1">
+                      <SearchCreate
+                        query={q}
+                        onQuery={(next) => {
+                          setPickerSearch(next);
+                          setLineQueries((prev) => ({ ...prev, [line.key]: next }));
+                          setLine(line.key, {
+                            name: next,
+                            buyItemId: undefined,
+                            componentRecipeId: undefined,
+                          });
+                        }}
+                        options={pickerOptions.filter((o) =>
+                          o.label.toLowerCase().includes(q.trim().toLowerCase()),
+                        )}
+                        placeholder="Maida, cookie recipe…"
+                        createLabel={q.trim() && !line.buyItemId && !line.componentRecipeId ? `Use “${q.trim()}”` : null}
+                        onSelect={(raw) => {
+                          if (raw.startsWith("recipe:")) {
+                            const id = raw.slice(7);
+                            const rName =
+                              recipeHits.get(id) ??
+                              recipes.data?.items.find((row) => row.id === id)?.name ??
+                              "";
+                            setPickedRecipes((prev) => ({ ...prev, [id]: rName }));
+                            setLine(line.key, {
+                              componentRecipeId: id,
+                              buyItemId: undefined,
+                              name: rName,
+                            });
+                            setLineQueries((prev) => ({ ...prev, [line.key]: rName }));
+                            return;
+                          }
+                          if (raw.startsWith("item:")) {
+                            const id = raw.slice(5);
+                            const it = items.data?.items.find((row) => row.id === id);
+                            setLine(line.key, {
+                              buyItemId: id,
+                              componentRecipeId: undefined,
+                              name: it?.name ?? "",
+                            });
+                            setLineQueries((prev) => ({ ...prev, [line.key]: it?.name ?? "" }));
+                          }
+                        }}
+                        onCreate={(n) => {
+                          setLine(line.key, { name: n, buyItemId: undefined, componentRecipeId: undefined });
+                          setLineQueries((prev) => ({ ...prev, [line.key]: n }));
+                        }}
+                      />
+                    </div>
+                    {line.componentRecipeId ? (
+                      <span className="mt-2.5 shrink-0 text-[10px] font-medium tracking-wide text-brand-600 uppercase">
+                        Recipe
+                      </span>
+                    ) : null}
+                  </div>
                 </Field>
                 {lines.length > 1 && canWrite && (
                   <button
@@ -468,10 +660,50 @@ function RecipeForm({
           {canWrite && (
             <button
               type="button"
-              onClick={() => setLines((prev) => [...prev, emptyLine()])}
+              onClick={() => setLines((prev) => [...prev, emptyLine(extraCount)])}
               className="inline-flex items-center gap-1 text-sm font-medium text-brand-700"
             >
               <Plus className="h-4 w-4" /> Add ingredient
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Process</p>
+          {steps.map((step, index) => (
+            <div key={step.key} className="flex items-start gap-1.5">
+              <span className="mt-2.5 w-5 shrink-0 text-right text-xs tabular-nums text-slate-400">
+                {index + 1}.
+              </span>
+              <input
+                value={step.text}
+                onChange={(e) =>
+                  setSteps((prev) =>
+                    prev.map((s) => (s.key === step.key ? { ...s, text: e.target.value } : s)),
+                  )
+                }
+                placeholder="Preheat the oven…"
+                className={`${inputClass} min-w-0 flex-1`}
+                disabled={!canWrite}
+              />
+              {steps.length > 1 && canWrite && (
+                <button
+                  type="button"
+                  className="mt-2.5 text-slate-400 hover:text-red-700"
+                  onClick={() => setSteps((prev) => prev.filter((s) => s.key !== step.key))}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          ))}
+          {canWrite && (
+            <button
+              type="button"
+              onClick={() => setSteps((prev) => [...prev, emptyStep()])}
+              className="inline-flex items-center gap-1 text-sm font-medium text-brand-700"
+            >
+              <Plus className="h-4 w-4" /> Add step
             </button>
           )}
         </div>
@@ -562,16 +794,6 @@ function RecipeForm({
             </button>
           )}
         </div>
-
-        <Field label="Process" hint="One step per line.">
-          <textarea
-            value={steps}
-            onChange={(e) => setSteps(e.target.value)}
-            rows={4}
-            className={textareaClass}
-            disabled={!canWrite}
-          />
-        </Field>
 
         {error && <p className="text-xs text-red-700">{error}</p>}
         {canWrite && (
