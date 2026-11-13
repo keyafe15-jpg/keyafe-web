@@ -65,7 +65,6 @@ export function ScanRecipeBlock({
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/*"
-              capture="environment"
               disabled={disabled}
               onChange={(e) => {
                 const next = e.target.files?.[0] ?? null;

@@ -57,6 +57,7 @@ import { useOrderCustomerLookup } from "@/hooks/useAdminCustomers";
 import { OrderItemsEditPanel } from "@/components/orders/OrderItemsEditPanel";
 import { CustomerDetailsCard } from "@/components/orders/CustomerDetailsCard";
 import { OrderItemCard, SlotSelect, slotLabelFor } from "@/components/orders/OrderItemCard";
+import { ShareOrderButton } from "@/components/orders/ShareOrderButton";
 import { ReorderHandle, ReorderList } from "@/components/reorder/ReorderList";
 import {
   CreditNotesCard,
@@ -216,11 +217,14 @@ export function OrderDetailPage() {
             )}
           </p>
         </div>
-        <StatusChanger
-          currentStatus={order.status}
-          onChange={(status) => update.mutate({ id: order.id, status })}
-          pending={update.isPending}
-        />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <ShareOrderButton order={order} />
+          <StatusChanger
+            currentStatus={order.status}
+            onChange={(status) => update.mutate({ id: order.id, status })}
+            pending={update.isPending}
+          />
+        </div>
       </div>
 
       <div className="mt-6 space-y-3">
