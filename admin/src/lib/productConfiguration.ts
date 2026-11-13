@@ -58,6 +58,20 @@ export function customPoundsToGrams(pounds: number): number {
   return Math.round(pounds * CAKE_BASE_GRAMS);
 }
 
+export function gramsToPoundsInput(grams: number): string {
+  const pounds = grams / CAKE_BASE_GRAMS;
+  const rounded = Math.round(pounds * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+export function matchCakeSizeByGrams<T extends { grams: number }>(
+  sizes: T[],
+  grams: number | null | undefined,
+): T | undefined {
+  if (grams == null || !Number.isFinite(grams)) return undefined;
+  return sizes.find((s) => s.grams === Math.round(grams));
+}
+
 export function isGramsWithinBounds(
   grams: number,
   minGrams: number | null | undefined,

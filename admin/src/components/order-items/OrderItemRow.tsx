@@ -14,16 +14,20 @@ import {
   OrderItemSummary,
 } from "@/components/orders/OrderItemSummary";
 import { resetCatalogProductPick, type CatalogPicker } from "@/lib/catalogProductOptions";
+import { usePublicCakeSizes } from "@/hooks/useCakeSizes";
 import {
   availableFixedSkus,
   computeCakeUnitPrice,
   customPoundsToGrams,
   formatCustomPoundLabel,
   getSizeOptionGroup,
+  gramsToPoundsInput,
   isGramsWithinBounds,
+  matchCakeSizeByGrams,
   optionUnitPrice,
   parseCustomPounds,
 } from "@/lib/productConfiguration";
+import { CakeSizeField, CAKE_SIZE_OTHER, allowedCakeSizes } from "./CakeSizeField";
 import { Price, applyFactor, formatINR } from "@keyafe/shared";
 import { cn } from "@/lib/cn";
 import { isExtraChargeItem } from "@/lib/extraCharge";
@@ -74,6 +78,7 @@ export function OrderItemRow({
   const { data: productDetail } = useAdminProduct(
     item.kind === "CATALOG" && item.productId ? item.productId : undefined,
   );
+  const { data: cakeSizes = [] } = usePublicCakeSizes();
 
   const template = productDetail?.template ?? selectedProduct?.template;
   const factor =
@@ -210,13 +215,30 @@ export function OrderItemRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPizza, productDetail]);
 
-  // Default to 1 lb when cake product loads (pounds-only — no size dropdown).
+  const catalogCakeSizes = allowedCakeSizes(
+    cakeSizes,
+    productDetail?.minGrams,
+    productDetail?.maxGrams,
+  );
+  const customCakeSizes = allowedCakeSizes(cakeSizes);
+
+  // Default to 1 lb (or the 1-pound named size) when a pound cake loads.
   useEffect(() => {
     if (!soldByPound) return;
-    if (item.customPounds.trim() || frozen) return;
+    if (item.customPounds.trim() || item.cakeSizeId || frozen) return;
+    const oneLb = catalogCakeSizes.find((s) => s.grams === 500);
+    if (oneLb) {
+      onPatch({
+        cakeSizeId: oneLb.id,
+        customPounds: gramsToPoundsInput(oneLb.grams),
+        sizeGrams: String(oneLb.grams),
+        sizeLabel: oneLb.label,
+      });
+      return;
+    }
     onPatch({ customPounds: "1", cakeSizeId: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [soldByPound, productDetail?.id]);
+  }, [soldByPound, productDetail?.id, catalogCakeSizes.length]);
 
   // Preselect flavour when there's an obvious default.
   useEffect(() => {
@@ -255,27 +277,29 @@ export function OrderItemRow({
       return;
     }
 
-    const parsedPounds = parseCustomPounds(item.customPounds);
+    const named = cakeSizes.find((s) => s.id === item.cakeSizeId);
+    const parsedPounds = named ? named.grams / 500 : parseCustomPounds(item.customPounds);
     if (parsedPounds == null) return;
-    const grams = customPoundsToGrams(parsedPounds);
+    const grams = named ? named.grams : customPoundsToGrams(parsedPounds);
     if (!isGramsWithinBounds(grams, productDetail.minGrams, productDetail.maxGrams)) return;
 
     const computed = computeCakeUnitPrice(base, grams, flavourAdditional, hasAttachedFlavours);
     onPatch({
       ...(frozen ? {} : { unitPrice: (applyFactor(computed, factor) + addonsDelta).toFixed(0) }),
       sizeGrams: String(grams),
-      sizeLabel: formatCustomPoundLabel(parsedPounds),
-      cakeSizeId: "",
+      sizeLabel: named ? named.label : formatCustomPoundLabel(parsedPounds),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isCakeConfigurator,
     soldByPound,
     item.customPounds,
+    item.cakeSizeId,
     item.flavourId,
     item.addonSelections.join("|"),
     productDetail,
     hasAttachedFlavours,
+    cakeSizes,
   ]);
 
   useEffect(() => {
@@ -305,28 +329,71 @@ export function OrderItemRow({
     item.addonSelections.join("|"),
   ]);
 
-  // Custom cake — sync size label/grams from pounds.
+  // Custom cake — sync size label/grams from a named size or typed pounds.
   useEffect(() => {
     if (!isCustomCake) return;
 
+    const named = cakeSizes.find((s) => s.id === item.cakeSizeId);
+    if (named) {
+      const grams = String(named.grams);
+      if (item.sizeLabel === named.label && item.sizeGrams === grams) return;
+      onPatch({ sizeLabel: named.label, sizeGrams: grams });
+      return;
+    }
     const parsedPounds = parseCustomPounds(item.customPounds);
     if (parsedPounds == null) return;
     const grams = customPoundsToGrams(parsedPounds);
+    const label = formatCustomPoundLabel(parsedPounds);
+    if (item.sizeLabel === label && item.sizeGrams === String(grams)) return;
     onPatch({
-      sizeLabel: formatCustomPoundLabel(parsedPounds),
+      sizeLabel: label,
       sizeGrams: String(grams),
-      cakeSizeId: "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCustomCake, item.customPounds]);
+  }, [isCustomCake, item.customPounds, item.cakeSizeId, cakeSizes]);
 
-  // Default 1 lb for a custom cake.
+  // Default 1 lb (or the 1-pound named size) for a custom cake.
   useEffect(() => {
     if (!isCustomCake) return;
-    if (item.customPounds.trim()) return;
+    if (item.customPounds.trim() || item.cakeSizeId) return;
+    const oneLb = customCakeSizes.find((s) => s.grams === 500);
+    if (oneLb) {
+      onPatch({
+        cakeSizeId: oneLb.id,
+        customPounds: gramsToPoundsInput(oneLb.grams),
+        sizeGrams: String(oneLb.grams),
+        sizeLabel: oneLb.label,
+      });
+      return;
+    }
     onPatch({ customPounds: "1", cakeSizeId: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCustomCake]);
+  }, [isCustomCake, customCakeSizes.length]);
+
+  // Map 150g / 200g (old 0.3 lb / 0.4 lb) onto Bento / Mini when those sizes exist.
+  useEffect(() => {
+    if (!soldByPound && !isCustomCake) return;
+    const pool = isCustomCake ? customCakeSizes : catalogCakeSizes;
+    if (pool.length === 0) return;
+    if (item.cakeSizeId === CAKE_SIZE_OTHER) return;
+    if (item.cakeSizeId && pool.some((s) => s.id === item.cakeSizeId)) return;
+    const fromLabel = item.sizeGrams.trim() ? Number(item.sizeGrams) : NaN;
+    const parsedPounds = parseCustomPounds(item.customPounds);
+    const grams = Number.isFinite(fromLabel)
+      ? fromLabel
+      : parsedPounds != null
+        ? customPoundsToGrams(parsedPounds)
+        : null;
+    const match = matchCakeSizeByGrams(pool, grams);
+    if (!match) return;
+    onPatch({
+      cakeSizeId: match.id,
+      sizeLabel: match.label,
+      sizeGrams: String(match.grams),
+      customPounds: gramsToPoundsInput(match.grams),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [soldByPound, isCustomCake, catalogCakeSizes, customCakeSizes, item.sizeGrams, item.cakeSizeId]);
 
   // Custom pizza — sync size label from preset or free text.
   useEffect(() => {
@@ -473,15 +540,17 @@ export function OrderItemRow({
   );
   const glance = itemGlanceBits(item, {
     poundsLabel:
-      isCustomCake || soldByPound || !!productDetail?.sellByPound
-        ? formatCustomPoundLabel(parsedCustomPounds ?? 1)
-        : parsedCustomPounds != null
-          ? formatCustomPoundLabel(parsedCustomPounds)
-          : customGrams != null
-            ? formatCustomPoundLabel(customGrams / 500)
-            : pickedSize?.weightGrams
-              ? formatCustomPoundLabel(pickedSize.weightGrams / 500)
-              : "",
+      (isCustomCake || soldByPound) && item.sizeLabel.trim()
+        ? item.sizeLabel.trim()
+        : isCustomCake || soldByPound || !!productDetail?.sellByPound
+          ? formatCustomPoundLabel(parsedCustomPounds ?? 1)
+          : parsedCustomPounds != null
+            ? formatCustomPoundLabel(parsedCustomPounds)
+            : customGrams != null
+              ? formatCustomPoundLabel(customGrams / 500)
+              : pickedSize?.weightGrams
+                ? formatCustomPoundLabel(pickedSize.weightGrams / 500)
+                : "",
     pizzaInches:
       inchesFromSizeOption(pickedSize) ||
       inchesFromSizeOption(pizzaSizePresets.find((s) => s.key === item.sizeOptionId)) ||
@@ -497,6 +566,16 @@ export function OrderItemRow({
           pizzaSizeLabelForKey(pizzaSizePresets, item.sizeOptionId)
         : "",
   });
+
+  const applyNamedCakeSize = (size: { id: string; grams: number; label: string }) =>
+    userPatch({
+      cakeSizeId: size.id,
+      customPounds: gramsToPoundsInput(size.grams),
+      sizeGrams: String(size.grams),
+      sizeLabel: size.label,
+    });
+  const applyOtherPounds = (pounds: string) =>
+    userPatch({ cakeSizeId: CAKE_SIZE_OTHER, customPounds: pounds });
 
   const changeCustomTemplate = (template: OrderItemDraft["customTemplate"]) =>
     userPatch({
@@ -904,17 +983,15 @@ export function OrderItemRow({
             />
           </Field>
           {customMeasure === "POUNDS" && (
-            <Field label="Pounds" required className={cn("min-w-0", customSpan[3])}>
-              <input
-                type="number"
-                min={0.1}
-                step={0.1}
-                value={item.customPounds}
-                onChange={(e) => userPatch({ customPounds: e.target.value, cakeSizeId: "" })}
-                placeholder="1"
-                className={cn(inputClass, "px-2")}
-              />
-            </Field>
+            <CakeSizeField
+              sizes={customCakeSizes}
+              cakeSizeId={item.cakeSizeId}
+              customPounds={item.customPounds}
+              className={cn("min-w-0", customSpan[4])}
+              poundsClassName={cn("min-w-0", customSpan[3])}
+              onPickNamed={applyNamedCakeSize}
+              onOtherPounds={applyOtherPounds}
+            />
           )}
           {customMeasure === "SIZE" && (
             <Field label="Size" className={customSpan[4]}>
@@ -990,34 +1067,27 @@ export function OrderItemRow({
             className={cn(
               "mt-3 grid gap-x-2 gap-y-3 sm:gap-2",
               soldByPound
-                ? "grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)]"
+                ? item.cakeSizeId && item.cakeSizeId !== CAKE_SIZE_OTHER
+                  ? "grid-cols-[minmax(8rem,1fr)_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)]"
+                  : "grid-cols-[minmax(8rem,1fr)_5.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_5.5rem_minmax(9rem,1fr)_minmax(14rem,1.8fr)]"
                 : "grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:grid-cols-[minmax(9rem,1fr)_minmax(14rem,1.8fr)]",
             )}
           >
             {soldByPound && (
-              <Field
-                label="Pounds"
-                required
+              <CakeSizeField
+                sizes={catalogCakeSizes}
+                cakeSizeId={item.cakeSizeId}
+                customPounds={item.customPounds}
+                minGrams={productDetail.minGrams}
+                maxGrams={productDetail.maxGrams}
                 error={
                   customOutOfRange
                     ? `Between ${productDetail.minGrams != null ? (productDetail.minGrams / 500).toFixed(1) : "0.1"}–${productDetail.maxGrams != null ? (productDetail.maxGrams / 500).toFixed(1) : "any"} lb`
                     : undefined
                 }
-              >
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min={productDetail.minGrams ? productDetail.minGrams / 500 : 0.1}
-                    max={productDetail.maxGrams ? productDetail.maxGrams / 500 : undefined}
-                    step={0.1}
-                    value={item.customPounds}
-                    onChange={(e) => userPatch({ customPounds: e.target.value, cakeSizeId: "" })}
-                    placeholder="1"
-                    className={cn(inputClass, "w-full")}
-                  />
-                  <span className="shrink-0 text-xs text-slate-500">lb</span>
-                </div>
-              </Field>
+                onPickNamed={applyNamedCakeSize}
+                onOtherPounds={applyOtherPounds}
+              />
             )}
             {pickerFlavours.length > 0 ? (
               <Field label="Flavour" required={!hasAttachedFlavours}>

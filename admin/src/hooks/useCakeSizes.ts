@@ -18,6 +18,18 @@ export function useAdminCakeSizes() {
   });
 }
 
+/** Active sizes for take-order — not gated on cake-sizes.write. */
+export function usePublicCakeSizes() {
+  return useQuery<CakeSize[]>({
+    queryKey: ["cake-sizes"],
+    queryFn: async () => {
+      const rows = await api.get<Array<Omit<CakeSize, "isActive">>>("/cake-sizes");
+      return rows.map((row) => ({ ...row, isActive: true }));
+    },
+    staleTime: 60_000,
+  });
+}
+
 export interface CakeSizePayload {
   grams: number;
   label: string;

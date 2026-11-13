@@ -193,7 +193,9 @@ function formatItem(item: ShareableOrderItem, index: number): string {
   const lines = [`${index + 1}. ${title} ×${qty}`];
 
   const flavour = item.flavourName?.trim();
-  if (flavour && flavour.toLowerCase() !== name.toLowerCase()) lines.push(flavour);
+  if (flavour && flavour.toLowerCase() !== name.toLowerCase()) {
+    lines.push(`Flavour: ${flavour}`);
+  }
 
   const parsed = lineDisplayNotes({
     instructions: item.instructions,
@@ -208,7 +210,7 @@ function formatItem(item: ShareableOrderItem, index: number): string {
   const description = item.description?.trim();
   if (description) lines.push(description);
 
-  if (parsed.message) lines.push(`Write: ${parsed.message}`);
+  if (parsed.message) lines.push(`Message on cake: ${parsed.message}`);
 
   const notes = kitchenNotes(parsed.notes);
   if (notes) lines.push(`Notes: ${notes}`);
