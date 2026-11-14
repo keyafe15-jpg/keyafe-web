@@ -629,15 +629,26 @@ export async function buildInvoiceData(
 /** Plates × rate on the tax invoice. Recovers qty from old qty-1 stall bills. */
 function summariseStallBillLines(order: OrderWithItems, lines: InvoiceLine[]): InvoiceLine[] {
   if (order.source !== "STALL_BILL" || lines.length === 0) return lines;
-  const presented = lines.map((line) => presentStallBillLine(order, line));
-  if (presented.length === 1) return presented;
+
+  const description = stallBillDescription(lines[0]!.description, order.adminNotes);
+  const labelled = lines.map((line) => ({ ...line, description }));
+
+  // Old bills stored one lump (qty 1, rate = month total). Recover plates from the name/notes.
+  if (labelled.length === 1 && labelled[0]!.qty === 1) {
+    const plates = parsePlateCount(`${labelled[0]!.description}\n${order.adminNotes ?? ""}`);
+    if (plates && plates > 1) {
+      const line = labelled[0]!;
+      return [{ ...line, qty: plates, unitPrice: roundMoney(line.lineTotal / plates) }];
+    }
+    return labelled;
+  }
 
   const grouped = new Map<string, InvoiceLine>();
-  for (const line of presented) {
-    const key = `${line.unitPrice}|${line.gstRate}|${line.hsnCode ?? ""}`;
+  for (const line of labelled) {
+    const key = `${roundMoney(line.unitPrice)}|${line.gstRate}|${line.hsnCode ?? ""}`;
     const existing = grouped.get(key);
     if (!existing) {
-      grouped.set(key, { ...line });
+      grouped.set(key, { ...line, unitPrice: roundMoney(line.unitPrice) });
       continue;
     }
     existing.qty += line.qty;
@@ -647,20 +658,37 @@ function summariseStallBillLines(order: OrderWithItems, lines: InvoiceLine[]): I
     existing.igstAmount = roundMoney(existing.igstAmount + line.igstAmount);
     existing.lineTotal = roundMoney(existing.lineTotal + line.lineTotal);
   }
-  return [...grouped.values()];
+  return foldStallBillLumps([...grouped.values()]);
 }
 
-function presentStallBillLine(order: OrderWithItems, line: InvoiceLine): InvoiceLine {
-  const notes = [line.description, order.adminNotes].filter(Boolean).join("\n");
-  const plates = line.qty > 1 ? line.qty : parsePlateCount(notes) ?? line.qty;
-  const unitPrice =
-    plates > 0 && plates !== line.qty ? roundMoney(line.lineTotal / plates) : line.unitPrice;
-  return {
-    ...line,
-    description: stallBillDescription(line.description, order.adminNotes),
-    qty: plates,
-    unitPrice,
-  };
+/** Leftover lumps (qty 1, or a tiny derived rate) that divide the main plate rate merge in. */
+function foldStallBillLumps(lines: InvoiceLine[]): InvoiceLine[] {
+  if (lines.length < 2) return lines;
+  const copies = lines.map((line) => ({ ...line }));
+  copies.sort((a, b) => b.lineTotal - a.lineTotal);
+  const hostIdx = copies.findIndex((line) => line.qty > 1 && line.unitPrice >= 10);
+  if (hostIdx < 0) return lines;
+  const host = copies[hostIdx]!;
+  const leftover: InvoiceLine[] = [];
+  for (let i = 0; i < copies.length; i++) {
+    if (i === hostIdx) continue;
+    const lump = copies[i]!;
+    const isQtyOneLump = lump.qty === 1 && Math.abs(lump.unitPrice - lump.lineTotal) < 0.005;
+    const isTinyRate = lump.unitPrice < 10;
+    const n = Math.round(lump.lineTotal / host.unitPrice);
+    const divides = n >= 1 && Math.abs(n * host.unitPrice - lump.lineTotal) <= 0.05;
+    if (!(divides && (isQtyOneLump || isTinyRate))) {
+      leftover.push(lump);
+      continue;
+    }
+    host.qty += n;
+    host.taxableValue = roundMoney(host.taxableValue + lump.taxableValue);
+    host.cgstAmount = roundMoney(host.cgstAmount + lump.cgstAmount);
+    host.sgstAmount = roundMoney(host.sgstAmount + lump.sgstAmount);
+    host.igstAmount = roundMoney(host.igstAmount + lump.igstAmount);
+    host.lineTotal = roundMoney(host.lineTotal + lump.lineTotal);
+  }
+  return leftover.length ? [host, ...leftover] : [host];
 }
 
 function parsePlateCount(text: string): number | null {
