@@ -188,6 +188,7 @@ export const buyItemSelect = {
   id: true,
   name: true,
   nameNormalized: true,
+  alias: true,
   unit: true,
   packSize: true,
   isActive: true,

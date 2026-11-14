@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ChevronDown, ChevronRight, Printer } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ShareRecipeButton } from "@/components/recipes/ShareRecipeButton";
 import { inputClass } from "@/components/form/Field";
 import { useStaffPermission } from "@/lib/permissions";
 import {
@@ -78,8 +79,22 @@ export function RecipeDetailPage() {
             {viewing.yieldNote ? ` · ${viewing.yieldNote}` : ""}
           </p>
         </div>
-        {canWrite && (
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-start justify-end gap-2">
+          <ShareRecipeButton
+            recipe={{
+              name: row.name,
+              scale,
+              yieldQty: viewing.yieldQty,
+              yieldUnit: viewing.yieldUnit,
+              yieldNote: viewing.yieldNote,
+              sizes: viewing.sizes,
+              ingredients: viewing.ingredients,
+              steps: viewing.steps,
+              usage: viewing.usage,
+            }}
+          />
+          {canWrite && (
+            <>
             {isCurrent && (
               <Link
                 to={`/recipes/${row.id}/edit`}
@@ -144,8 +159,9 @@ export function RecipeDetailPage() {
               <Printer className="h-4 w-4" />
               {print.isPending ? "Printing…" : "Print this version"}
             </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {error && <p className="mb-3 text-sm text-red-700">{error}</p>}

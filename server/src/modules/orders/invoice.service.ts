@@ -511,8 +511,6 @@ export async function buildInvoiceData(
       lineTotal,
     };
   });
-  // Office breakfast is billed as one supply. Day-wise plates live on the
-  // statement; the tax invoice the company files is a single titled line.
   const lines = summariseStallBillLines(order, rawLines);
 
   // Per-line values when we have them; otherwise the order-level snapshot.
@@ -624,44 +622,80 @@ export async function buildInvoiceData(
         ? "Composition taxable person, not eligible to collect tax on supplies."
         : null,
     isLegacyOrder,
-    annexureNote:
-      order.source === "STALL_BILL"
-        ? "Day-wise plates are on the breakfast statement issued with this invoice."
-        : null,
+    annexureNote: null,
   };
 }
 
-/** One GST line for a stall breakfast bill, even when the order still has a row per day. */
+/** Plates × rate on the tax invoice. Recovers qty from old qty-1 stall bills. */
 function summariseStallBillLines(order: OrderWithItems, lines: InvoiceLine[]): InvoiceLine[] {
-  if (order.source !== "STALL_BILL" || lines.length <= 1) return lines;
-  const rates = new Set(lines.map((l) => l.gstRate));
-  if (rates.size > 1) return lines;
+  if (order.source !== "STALL_BILL" || lines.length === 0) return lines;
+  const presented = lines.map((line) => presentStallBillLine(order, line));
+  if (presented.length === 1) return presented;
 
-  const taxableValue = roundMoney(lines.reduce((s, l) => s + l.taxableValue, 0));
-  const cgstAmount = roundMoney(lines.reduce((s, l) => s + l.cgstAmount, 0));
-  const sgstAmount = roundMoney(lines.reduce((s, l) => s + l.sgstAmount, 0));
-  const igstAmount = roundMoney(lines.reduce((s, l) => s + l.igstAmount, 0));
-  const lineTotal = roundMoney(lines.reduce((s, l) => s + l.lineTotal, 0));
-  const plates = roundMoney(lines.reduce((s, l) => s + l.qty, 0));
-  const fromNotes = order.adminNotes?.replace(/:\s*[\d.]+\s*plates\.?\s*$/i, "").trim();
-  const description = fromNotes
-    ? `${fromNotes} (${plates} plates)`
-    : `Office breakfast (${plates} plates)`;
-  const first = lines[0]!;
-  return [
-    {
-      description,
-      hsnCode: lines.find((l) => l.hsnCode)?.hsnCode ?? first.hsnCode,
-      qty: 1,
-      unitPrice: lineTotal,
-      taxableValue,
-      gstRate: first.gstRate,
-      cgstAmount,
-      sgstAmount,
-      igstAmount,
-      lineTotal,
-    },
-  ];
+  const grouped = new Map<string, InvoiceLine>();
+  for (const line of presented) {
+    const key = `${line.unitPrice}|${line.gstRate}|${line.hsnCode ?? ""}`;
+    const existing = grouped.get(key);
+    if (!existing) {
+      grouped.set(key, { ...line });
+      continue;
+    }
+    existing.qty += line.qty;
+    existing.taxableValue = roundMoney(existing.taxableValue + line.taxableValue);
+    existing.cgstAmount = roundMoney(existing.cgstAmount + line.cgstAmount);
+    existing.sgstAmount = roundMoney(existing.sgstAmount + line.sgstAmount);
+    existing.igstAmount = roundMoney(existing.igstAmount + line.igstAmount);
+    existing.lineTotal = roundMoney(existing.lineTotal + line.lineTotal);
+  }
+  return [...grouped.values()];
+}
+
+function presentStallBillLine(order: OrderWithItems, line: InvoiceLine): InvoiceLine {
+  const notes = [line.description, order.adminNotes].filter(Boolean).join("\n");
+  const plates = line.qty > 1 ? line.qty : parsePlateCount(notes) ?? line.qty;
+  const unitPrice =
+    plates > 0 && plates !== line.qty ? roundMoney(line.lineTotal / plates) : line.unitPrice;
+  return {
+    ...line,
+    description: stallBillDescription(line.description, order.adminNotes),
+    qty: plates,
+    unitPrice,
+  };
+}
+
+function parsePlateCount(text: string): number | null {
+  const match = text.match(/(\d+)\s*plates/i);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** Breakfast Served at {stall} during the Month of October-26 */
+function stallBillDescription(lineText: string, adminNotes: string | null): string {
+  const served = (name: string, month: string) =>
+    `Breakfast Served at ${name} during the Month of ${month}`;
+  const shortMonth = (label: string) => {
+    const m = label.match(/^([A-Za-z]+)\s+(\d{4})$/);
+    return m ? `${m[1]}-${m[2]!.slice(-2)}` : null;
+  };
+
+  const tryRewrite = (raw: string) => {
+    const dash = raw.match(/^Breakfast at (.+?) — ([A-Za-z]+ \d{4})/i);
+    if (dash) {
+      const month = shortMonth(dash[2]!);
+      if (month) return served(dash[1]!.trim(), month);
+    }
+    const comma = raw.match(/^Breakfast at (.+?),\s*([A-Za-z]+ \d{4})/i);
+    if (comma) {
+      const month = shortMonth(comma[2]!);
+      if (month) return served(comma[1]!.trim(), month);
+    }
+    const already = raw.match(/^Breakfast Served at (.+?) during the Month of ([A-Za-z]+-\d{2})/i);
+    if (already) return served(already[1]!.trim(), already[2]!);
+    return null;
+  };
+
+  return tryRewrite(lineText) ?? (adminNotes ? tryRewrite(adminNotes) : null) ?? lineText;
 }
 
 /** Issues (or reuses) the number and returns the full printable invoice. */

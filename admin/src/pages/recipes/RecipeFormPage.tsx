@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, X } from "lucide-react";
 import { Field, inputClass, selectClass } from "@/components/form/Field";
 import { useStaffPermission } from "@/lib/permissions";
 import { useAdminCategories } from "@/hooks/useAdminCategories";
@@ -15,6 +15,7 @@ import {
 } from "@/hooks/useAdminRecipes";
 import {
   RECIPE_UNITS,
+  kitchenItemLabel,
   kitchenQtyLabel,
   parseRecipeQty,
   type RecipeUnit,
@@ -32,6 +33,7 @@ type DraftLine = {
   unit: RecipeUnit;
   note: string;
   buyItemId?: string;
+  catalogName?: string;
   componentRecipeId?: string;
 };
 
@@ -102,6 +104,7 @@ export function RecipeFormPage() {
               unit: l.unit,
               note: l.note ?? "",
               buyItemId: l.buyItemId ?? undefined,
+              catalogName: l.buyItem?.name,
               componentRecipeId: l.componentRecipeId ?? undefined,
             }))
           : [emptyLine()],
@@ -176,17 +179,25 @@ function RecipeForm({
 
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
-  const linkLine = (name: string): Pick<DraftLine, "name" | "buyItemId" | "componentRecipeId"> => {
+  const linkLine = (
+    name: string,
+  ): Pick<DraftLine, "name" | "buyItemId" | "catalogName" | "componentRecipeId"> => {
     const n = norm(name);
     if (n.length < 2) return { name };
     const recipe = (recipes.data?.items ?? []).find(
       (r) => r.id !== recipeId && (norm(r.name) === n || (n.length >= 4 && norm(r.name).includes(n))),
     );
     if (recipe) return { name: recipe.name, componentRecipeId: recipe.id };
-    const item = (items.data?.items ?? []).find(
-      (it) => norm(it.name) === n || (n.length >= 4 && (norm(it.name).includes(n) || n.includes(norm(it.name)))),
-    );
-    if (item) return { name: item.name, buyItemId: item.id };
+    const item = (items.data?.items ?? []).find((it) => {
+      const names = [it.name, it.alias].filter((s): s is string => Boolean(s?.trim()));
+      return names.some((nm) => {
+        const m = norm(nm);
+        return m === n || (n.length >= 4 && (m.includes(n) || n.includes(m)));
+      });
+    });
+    if (item) {
+      return { name: kitchenItemLabel(item), buyItemId: item.id, catalogName: item.name };
+    }
     return { name };
   };
 
@@ -201,6 +212,7 @@ function RecipeForm({
         unit: l.unit,
         note: l.note ?? "",
         buyItemId: l.buyItemId ?? linked?.buyItemId,
+        catalogName: linked?.catalogName ?? l.buyItem?.name,
         componentRecipeId: l.componentRecipeId ?? linked?.componentRecipeId,
       };
     });
@@ -332,7 +344,7 @@ function RecipeForm({
           ? sizes.slice(1).map((_, i) => parseRecipeQty(l.extraQtys[i] ?? "") )
           : [];
         return {
-          name: l.name.trim() || undefined,
+          name: l.name.trim() || l.catalogName || undefined,
           qty: qty ?? 0,
           extraQtys: extraQtys.map((q) => q ?? null),
           unit: unitFromQtyText(l.qty) ?? l.unit,
@@ -396,11 +408,14 @@ function RecipeForm({
       label: rName,
       hint: "Recipe",
     })),
-    ...(items.data?.items ?? []).map((it) => ({
-      id: `item:${it.id}`,
-      label: it.name,
-      hint: unitLabel(it.unit),
-    })),
+    ...(items.data?.items ?? []).map((it) => {
+      const alias = it.alias?.trim();
+      return {
+        id: `item:${it.id}`,
+        label: alias || it.name,
+        hint: alias ? it.name : unitLabel(it.unit),
+      };
+    }),
   ];
 
   return (
@@ -503,8 +518,11 @@ function RecipeForm({
         </div>
 
         <div className="space-y-1.5">
+          <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Ingredients</p>
+          <p className="text-xs text-slate-500">
+            Pick the item from the list, then set a short alias (oil, maida) for the kitchen.
+          </p>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Ingredients</p>
             {multi &&
               sizes.map((s, i) => (
                 <span key={s.key} className="inline-flex items-center gap-1">
@@ -541,13 +559,18 @@ function RecipeForm({
             )}
           </div>
           {lines.map((line) => {
-            const q = lineQueries[line.key] ?? line.name;
+            const catalogName =
+              line.catalogName ??
+              items.data?.items.find((row) => row.id === line.buyItemId)?.name;
+            const q = lineQueries[line.key] ?? (line.buyItemId ? catalogName ?? "" : line.name);
             const qtyCols = Array.from({ length: multi ? sizes.length : 1 }, () => "4.5rem").join(" ");
             return (
               <div
                 key={line.key}
                 className="grid gap-1.5"
-                style={{ gridTemplateColumns: `${qtyCols} 5.5rem minmax(0,1fr) auto` }}
+                style={{
+                  gridTemplateColumns: `${qtyCols} 5.5rem minmax(8rem,1fr) 7.5rem auto`,
+                }}
               >
                 <Field label={multi ? sizes[0]?.label || "Qty" : "Qty"}>
                   <input
@@ -594,15 +617,22 @@ function RecipeForm({
                         onQuery={(next) => {
                           setPickerSearch(next);
                           setLineQueries((prev) => ({ ...prev, [line.key]: next }));
+                          if (line.buyItemId) return;
                           setLine(line.key, {
                             name: next,
                             buyItemId: undefined,
+                            catalogName: undefined,
                             componentRecipeId: undefined,
                           });
                         }}
-                        options={pickerOptions.filter((o) =>
-                          o.label.toLowerCase().includes(q.trim().toLowerCase()),
-                        )}
+                        options={pickerOptions.filter((o) => {
+                          const needle = q.trim().toLowerCase();
+                          if (!needle) return true;
+                          return (
+                            o.label.toLowerCase().includes(needle) ||
+                            (o.hint?.toLowerCase().includes(needle) ?? false)
+                          );
+                        })}
                         placeholder="Maida, cookie recipe…"
                         createLabel={q.trim() && !line.buyItemId && !line.componentRecipeId ? `Use “${q.trim()}”` : null}
                         onSelect={(raw) => {
@@ -616,6 +646,7 @@ function RecipeForm({
                             setLine(line.key, {
                               componentRecipeId: id,
                               buyItemId: undefined,
+                              catalogName: undefined,
                               name: rName,
                             });
                             setLineQueries((prev) => ({ ...prev, [line.key]: rName }));
@@ -624,16 +655,23 @@ function RecipeForm({
                           if (raw.startsWith("item:")) {
                             const id = raw.slice(5);
                             const it = items.data?.items.find((row) => row.id === id);
+                            const kitchen = it?.alias?.trim() || "";
                             setLine(line.key, {
                               buyItemId: id,
                               componentRecipeId: undefined,
-                              name: it?.name ?? "",
+                              catalogName: it?.name,
+                              name: kitchen,
                             });
                             setLineQueries((prev) => ({ ...prev, [line.key]: it?.name ?? "" }));
                           }
                         }}
                         onCreate={(n) => {
-                          setLine(line.key, { name: n, buyItemId: undefined, componentRecipeId: undefined });
+                          setLine(line.key, {
+                            name: n,
+                            buyItemId: undefined,
+                            catalogName: undefined,
+                            componentRecipeId: undefined,
+                          });
                           setLineQueries((prev) => ({ ...prev, [line.key]: n }));
                         }}
                       />
@@ -643,8 +681,38 @@ function RecipeForm({
                         Recipe
                       </span>
                     ) : null}
+                    {(line.buyItemId || line.componentRecipeId) && canWrite ? (
+                      <button
+                        type="button"
+                        title="Unlink"
+                        className="mt-2.5 shrink-0 text-slate-400 hover:text-slate-700"
+                        onClick={() =>
+                          setLine(line.key, {
+                            buyItemId: undefined,
+                            catalogName: undefined,
+                            componentRecipeId: undefined,
+                          })
+                        }
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
                   </div>
                 </Field>
+                {!line.componentRecipeId ? (
+                  <Field label="Alias">
+                    <input
+                      value={line.name}
+                      onChange={(e) => setLine(line.key, { name: e.target.value })}
+                      placeholder="oil"
+                      maxLength={40}
+                      className={inputClass}
+                      disabled={!canWrite}
+                    />
+                  </Field>
+                ) : (
+                  <span />
+                )}
                 {lines.length > 1 && canWrite && (
                   <button
                     type="button"

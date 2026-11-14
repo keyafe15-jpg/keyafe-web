@@ -101,6 +101,8 @@ model BuyItem {
   id             String      @id @default(cuid())
   name           String
   nameNormalized String      @unique
+  /// Kitchen short name for recipes (oil). Purchases keep `name`.
+  alias          String?
   unit           BuyItemUnit
   packSize       Int?
   isActive       Boolean     @default(true)

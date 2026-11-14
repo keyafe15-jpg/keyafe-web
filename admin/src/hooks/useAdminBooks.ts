@@ -43,6 +43,7 @@ export interface AdminBuyItem {
   id: string;
   name: string;
   nameNormalized: string;
+  alias: string | null;
   unit: BuyItemUnit;
   packSize: number | null;
   isActive: boolean;
@@ -251,11 +252,24 @@ export function useAdminBuyItem(id: string | undefined, page = 1) {
 export function useUpdateBuyItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, category }: { id: string; category: string }) =>
-      api.patch<AdminBuyItem>(`/admin/buy-items/${id}`, { category }),
+    mutationFn: ({
+      id,
+      category,
+      alias,
+    }: {
+      id: string;
+      category?: string;
+      alias?: string | null;
+    }) => {
+      const body: { category?: string; alias?: string | null } = {};
+      if (category !== undefined) body.category = category;
+      if (alias !== undefined) body.alias = alias;
+      return api.patch<AdminBuyItem>(`/admin/buy-items/${id}`, body);
+    },
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: ["admin", "buy-items"] });
       void qc.invalidateQueries({ queryKey: ["admin", "buy-item", data.id] });
+      void qc.invalidateQueries({ queryKey: ["admin", "recipes"] });
     },
   });
 }

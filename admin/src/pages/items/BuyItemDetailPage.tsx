@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { PaginationControls } from "@/components/ClientPagination";
@@ -9,7 +9,7 @@ import {
   useUpdateBuyItem,
 } from "@/hooks/useAdminBooks";
 import { useStaffPermission } from "@/lib/permissions";
-import { selectClass } from "@/components/form/Field";
+import { inputClass, selectClass } from "@/components/form/Field";
 import {
   booksDeleteConfirm,
   formatBooksDate,
@@ -26,12 +26,18 @@ export function BuyItemDetailPage() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const canWrite = useStaffPermission("expenses.write");
+  const canAlias = canWrite || useStaffPermission("recipes.write");
   const remove = useDeleteBooksRow();
   const update = useUpdateBuyItem();
   const categories = useExpenseCategories();
   const { data, isLoading, isError } = useAdminBuyItem(id, page);
+  const [alias, setAlias] = useState("");
   const history = data?.history.items ?? [];
   const total = data?.history.total ?? 0;
+
+  useEffect(() => {
+    setAlias(data?.alias ?? "");
+  }, [data?.id, data?.alias]);
 
   if (isLoading) return <p className="text-sm text-slate-500">Loading item…</p>;
   if (isError || !data) return <p className="text-sm text-red-700">Item not found.</p>;
@@ -48,32 +54,65 @@ export function BuyItemDetailPage() {
       <p className="mt-1 text-sm text-slate-500">
         Sold by {packUnitLabel(data.unit, data.packSize)}
         {data.category?.name ? ` · ${data.category.name}` : ""}.
+        {data.alias ? ` Kitchen name: ${data.alias}.` : ""}
       </p>
-      {canWrite && (
-        <div className="mt-3 max-w-xs">
-          <label className="mb-1 block text-xs font-medium text-slate-500">Category</label>
-          <select
-            value={data.category?.slug ?? ""}
-            disabled={update.isPending}
-            onChange={(e) => {
-              const next = e.target.value;
-              if (!next || !data.id) return;
-              update.mutate(
-                { id: data.id, category: next },
-                {
-                  onError: (err) =>
-                    setError(err instanceof Error ? err.message : "Could not update category"),
-                },
-              );
-            }}
-            className={selectClass}
-          >
-            {(categories.data?.items ?? []).map((c) => (
-              <option key={c.id} value={c.slug}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+      {(canAlias || canWrite) && (
+        <div className="mt-3 flex flex-wrap gap-3">
+          {canAlias && (
+            <div className="max-w-xs">
+              <label className="mb-1 block text-xs font-medium text-slate-500">Alias</label>
+              <input
+                value={alias}
+                disabled={update.isPending}
+                onChange={(e) => setAlias(e.target.value)}
+                onBlur={() => {
+                  if (!data.id) return;
+                  const next = alias.trim() || null;
+                  if (next === (data.alias ?? null)) return;
+                  update.mutate(
+                    { id: data.id, alias: next },
+                    {
+                      onError: (err) =>
+                        setError(err instanceof Error ? err.message : "Could not update alias"),
+                    },
+                  );
+                }}
+                placeholder="oil"
+                maxLength={40}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Short kitchen name on recipes, e.g. oil. Bills keep the full name.
+              </p>
+            </div>
+          )}
+          {canWrite && (
+            <div className="max-w-xs">
+              <label className="mb-1 block text-xs font-medium text-slate-500">Category</label>
+              <select
+                value={data.category?.slug ?? ""}
+                disabled={update.isPending}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (!next || !data.id) return;
+                  update.mutate(
+                    { id: data.id, category: next },
+                    {
+                      onError: (err) =>
+                        setError(err instanceof Error ? err.message : "Could not update category"),
+                    },
+                  );
+                }}
+                className={selectClass}
+              >
+                {(categories.data?.items ?? []).map((c) => (
+                  <option key={c.id} value={c.slug}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
 

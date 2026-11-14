@@ -27,6 +27,7 @@ export function serializeBuyItem(row: {
   id: string;
   name: string;
   nameNormalized: string;
+  alias: string | null;
   unit: string;
   packSize: number | null;
   isActive: boolean;
@@ -40,6 +41,7 @@ export function serializeBuyItem(row: {
     id: row.id,
     name: row.name,
     nameNormalized: row.nameNormalized,
+    alias: row.alias?.trim() || null,
     unit: row.unit,
     packSize: row.packSize,
     isActive: row.isActive,

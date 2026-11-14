@@ -2,6 +2,7 @@ import type { Prisma, RecipeUnit } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
 import {
+  kitchenIngredientName,
   qtyNum,
   recipeInclude,
   recipeVersionInclude,
@@ -52,7 +53,7 @@ export function serializeIngredient(
     note: string | null;
     sortOrder: number;
     buyItemId: string | null;
-    buyItem: { id: string; name: string } | null;
+    buyItem: { id: string; name: string; alias: string | null } | null;
     componentRecipeId: string | null;
     componentRecipe: { id: string; name: string } | null;
     extraQtys?: QtyCell[];
@@ -62,7 +63,7 @@ export function serializeIngredient(
   const bySize = new Map((row.extraQtys ?? []).map((q) => [q.sizeId, q.qty]));
   return {
     id: row.id,
-    name: row.componentRecipe?.name ?? row.name,
+    name: kitchenIngredientName(row),
     qty: qtyNum(row.qty),
     unit: row.unit,
     note: row.note,
@@ -284,6 +285,27 @@ async function normalizeIngredients(
   return out;
 }
 
+async function persistBuyItemAliases(lines: IngredientInput[]) {
+  const byId = new Map<string, string>();
+  for (const line of lines) {
+    if (!line.buyItemId || line.componentRecipeId) continue;
+    const name = line.name?.trim();
+    if (!name) continue;
+    byId.set(line.buyItemId, name);
+  }
+  if (byId.size === 0) return;
+  const items = await prisma.buyItem.findMany({
+    where: { id: { in: [...byId.keys()] } },
+    select: { id: true, name: true, alias: true },
+  });
+  for (const item of items) {
+    const kitchen = (byId.get(item.id)?.trim() ?? "").slice(0, 40);
+    const next = kitchen && kitchen !== item.name ? kitchen : null;
+    if ((item.alias ?? null) === next) continue;
+    await prisma.buyItem.update({ where: { id: item.id }, data: { alias: next } });
+  }
+}
+
 function stripExtra<T extends { extraQtys: (number | null)[] }>(row: T) {
   const { extraQtys: _extra, ...rest } = row;
   return rest;
@@ -442,6 +464,7 @@ export async function createRecipe(input: {
       include: recipeInclude,
     });
   });
+  await persistBuyItemAliases(input.version.ingredients);
   return serializeRecipe(created);
 }
 
@@ -498,6 +521,7 @@ export async function updateRecipe(
       include: recipeInclude,
     });
   });
+  if (input.version) await persistBuyItemAliases(input.version.ingredients);
   return serializeRecipe(updated);
 }
 

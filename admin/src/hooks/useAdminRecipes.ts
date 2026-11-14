@@ -18,7 +18,7 @@ export interface RecipeIngredient {
   note: string | null;
   sortOrder?: number;
   buyItemId?: string | null;
-  buyItem?: { id: string; name: string } | null;
+  buyItem?: { id: string; name: string; alias?: string | null } | null;
   componentRecipeId?: string | null;
   componentRecipe?: { id: string; name: string } | null;
   extraQtys?: (number | null)[];
@@ -127,6 +127,8 @@ export interface RecipeDraft {
 
 function invalidate(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["admin", "recipes"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "buy-items"] });
+  void qc.invalidateQueries({ queryKey: ["admin", "buy-item"] });
 }
 
 export function useAdminRecipes(filter: {

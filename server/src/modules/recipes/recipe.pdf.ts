@@ -1,5 +1,5 @@
 import PDFDocument from "pdfkit";
-import { qtyNum, unitLabel } from "./recipe.shared.js";
+import { kitchenIngredientName, qtyNum, unitLabel } from "./recipe.shared.js";
 
 const A5 = { width: 419.53, height: 595.28 };
 const MARGIN_LEFT = 60;
@@ -28,6 +28,7 @@ type PrintVersion = {
     name: string;
     qty: { toString(): string } | number;
     unit: string;
+    buyItem?: { alias?: string | null } | null;
     componentRecipe: { name: string } | null;
     extraQtys?: PrintQtyRow[] | (number | null)[];
   }[];
@@ -206,7 +207,7 @@ function measureHeight(doc: PDFKit.PDFDocument, v: PrintVersion, w: number): num
     h += 11;
   }
   for (const line of v.ingredients) {
-    const name = line.componentRecipe?.name ?? line.name;
+    const name = kitchenIngredientName(line);
     h += Math.max(10, doc.heightOfString(name, { width: nameW }));
   }
   if (v.usageRows.length) {
@@ -302,7 +303,7 @@ function drawInto(doc: PDFKit.PDFDocument, flow: Flow, box: Box): Flow | null {
   doc.font("Helvetica").fontSize(7).fillColor(INK);
   while (flow.ing < v.ingredients.length) {
     const line = v.ingredients[flow.ing]!;
-    const name = line.componentRecipe?.name ?? line.name;
+    const name = kitchenIngredientName(line);
     const lineH = Math.max(10, doc.heightOfString(name, { width: nameW }));
     if (!fits(lineH) && !atTop()) break;
     doc.font("Helvetica").fontSize(7).fillColor(INK);

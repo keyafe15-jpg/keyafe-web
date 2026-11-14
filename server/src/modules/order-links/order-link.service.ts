@@ -1046,11 +1046,8 @@ export async function placeOfflineOrder(input: PlaceOfflineOrderInput) {
         input.deliveryFee != null ? Number(input.deliveryFee) : Number(info.deliveryFee);
       localZoneStateCode = sellerStateCode;
     } else {
-      // Staff can still deliver to an unlisted pincode at a charge they set.
-      if (input.deliveryFee == null) {
-        throw HttpError.badRequest("Enter the delivery charge for this pincode.");
-      }
-      deliveryFee = Number(input.deliveryFee);
+      // Admin take-order can deliver to an unlisted pincode; fee is whatever staff typed (₹0 if blank).
+      deliveryFee = input.deliveryFee != null ? Number(input.deliveryFee) : 0;
       if (input.saveDeliveryPincode) {
         localZoneStateCode = sellerStateCode;
         pincodeToSave = {

@@ -41,6 +41,17 @@ export const monthLabel = (month: string) =>
     timeZone: "UTC",
   });
 
+/** Invoice wording: October-26 */
+export const billMonthLabel = (month: string) => {
+  const d = dayToDate(`${month}-01`);
+  const name = d.toLocaleDateString("en-IN", { month: "long", timeZone: "UTC" });
+  return `${name}-${String(d.getUTCFullYear()).slice(-2)}`;
+};
+
+export function breakfastServedDescription(stallName: string, month: string) {
+  return `Breakfast Served at ${stallName} during the Month of ${billMonthLabel(month)}`;
+}
+
 const dayLabel = (d: Date) =>
   d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", timeZone: "UTC" });
 
@@ -251,9 +262,8 @@ export async function getBreakfastMonth(stallId: string, month: string) {
 }
 
 /**
- * Raises the month's bill: one already-delivered order for the company. The
- * tax invoice is a single titled line (total + GST) for the corporate books;
- * the day-wise plates stay on the breakfast statement.
+ * Raises the month's bill: one already-delivered order for the company.
+ * The tax invoice is plates × plate price; day-wise rows stay on the statement.
  */
 export async function createBreakfastBill(stallId: string, month: string) {
   const stall = await requireOfficeStall(stallId);
@@ -275,24 +285,38 @@ export async function createBreakfastBill(stallId: string, month: string) {
   const lastDay = entries[entries.length - 1]!.date;
   const billed = dayToDate(`${month}-01`);
   const invoiceDate = new Date(Date.UTC(billed.getUTCFullYear(), billed.getUTCMonth() + 1, 1));
-  const tax = computeLineTax({
-    lineInclusive: total,
-    gstRate: BREAKFAST_GST_RATE,
-    priceIsGstInclusive: true,
-    isIntraState: true,
-  });
-  const line = {
-    productName: `Breakfast at ${stall.name} — ${monthLabel(month)} (${plates} plates)`,
-    description: `${plates} plates. Day-wise list is on the breakfast statement.`,
-    deliveryDate: lastDay,
-    unitPrice: total,
-    qty: 1,
-    lineTotal: total,
-    hsnCode: BREAKFAST_SAC_CODE,
-    gstRate: BREAKFAST_GST_RATE,
-    ...tax,
-  };
-  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax([line]);
+  const productName = breakfastServedDescription(stall.name, month);
+
+  const byRate = new Map<number, { platePrice: number; plates: number }>();
+  for (const e of entries) {
+    const paise = toPaise(e.platePrice);
+    const row = byRate.get(paise) ?? { platePrice: fromPaise(paise), plates: 0 };
+    row.plates += e.plates;
+    byRate.set(paise, row);
+  }
+  const lines = [...byRate.values()]
+    .sort((a, b) => a.platePrice - b.platePrice)
+    .map((g, i) => {
+      const lineTotal = fromPaise(toPaise(g.platePrice) * g.plates);
+      const tax = computeLineTax({
+        lineInclusive: lineTotal,
+        gstRate: BREAKFAST_GST_RATE,
+        priceIsGstInclusive: true,
+        isIntraState: true,
+      });
+      return {
+        productName,
+        deliveryDate: lastDay,
+        unitPrice: g.platePrice,
+        qty: g.plates,
+        lineTotal,
+        hsnCode: BREAKFAST_SAC_CODE,
+        gstRate: BREAKFAST_GST_RATE,
+        sortOrder: i,
+        ...tax,
+      };
+    });
+  const { taxableAmount, cgstAmount, sgstAmount, igstAmount } = sumLineTax(lines);
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.order.create({
@@ -319,8 +343,8 @@ export async function createBreakfastBill(stallId: string, month: string) {
         status: "DELIVERED",
         source: "STALL_BILL",
         invoiceDate,
-        adminNotes: `Breakfast at ${stall.name}, ${monthLabel(month)}: ${plates} plates.`,
-        items: { create: line },
+        adminNotes: `${productName}: ${plates} plates.`,
+        items: { create: lines },
       },
       select: { id: true, orderNumber: true },
     });

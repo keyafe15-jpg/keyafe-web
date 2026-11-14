@@ -121,6 +121,18 @@ export function mapRecipeUnit(raw: unknown): RecipeUnit {
   return "G";
 }
 
+export function kitchenIngredientName(line: {
+  name: string;
+  buyItem?: { alias?: string | null } | null;
+  componentRecipe?: { name: string } | null;
+}): string {
+  const nested = line.componentRecipe?.name?.trim();
+  if (nested) return nested;
+  const alias = line.buyItem?.alias?.trim();
+  if (alias) return alias;
+  return line.name;
+}
+
 export function unitLabel(unit: string) {
   if (unit === "KG") return "kg";
   if (unit === "G") return "g";
@@ -137,7 +149,7 @@ export const recipeVersionInclude = {
   ingredients: {
     orderBy: { sortOrder: "asc" as const },
     include: {
-      buyItem: { select: { id: true, name: true } },
+      buyItem: { select: { id: true, name: true, alias: true } },
       componentRecipe: { select: { id: true, name: true } },
       extraQtys: true,
     },

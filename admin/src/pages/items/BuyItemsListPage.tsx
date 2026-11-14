@@ -69,6 +69,7 @@ export function BuyItemsListPage() {
               <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-2 font-medium">Item</th>
+                  <th className="px-4 py-2 font-medium">Alias</th>
                   <th className="px-4 py-2 font-medium">Bought</th>
                   <th className="px-4 py-2 font-medium">Last rate</th>
                   <th className="px-4 py-2 font-medium">Last vendor</th>
@@ -91,6 +92,7 @@ export function BuyItemsListPage() {
                         {packUnitLabel(item.unit, item.packSize)}
                       </p>
                     </td>
+                    <td className="px-4 py-3 text-slate-700">{item.alias?.trim() || "—"}</td>
                     <td className="px-4 py-3 text-slate-700">
                       {timesLabel(item.timesBought ?? 0)}
                       {(item.totalQty ?? 0) > 0 && (
@@ -130,6 +132,7 @@ export function BuyItemsListPage() {
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-900">{item.name}</p>
                       <p className="text-xs text-slate-500">
+                        {item.alias?.trim() ? `Alias: ${item.alias.trim()} · ` : ""}
                         {item.category?.name ? `${item.category.name} · ` : ""}
                         {packUnitLabel(item.unit, item.packSize)}
                         {(item.timesBought ?? 0) > 0 ? ` · ${timesLabel(item.timesBought ?? 0)}` : ""}

@@ -445,8 +445,8 @@ function BillsSection({
       )}
       <p className="mt-2 text-xs text-slate-500">
         {data.bills.length > 0
-          ? "The tax invoice is the GST bill for the company (title, total, tax). The statement is the day-wise plates. Open the order to mark it paid when the company pays."
-          : "Creates one order for the company and issues its GST invoice. It shows under Pending until marked paid. Day-wise plates stay on the statement."}
+          ? "The tax invoice is plates × rate for the company. The statement is the day-wise plates. Open the order to mark it paid when the company pays."
+          : "Creates one order for the company and issues its GST invoice (plates × rate). It shows under Pending until marked paid. Day-wise plates stay on the statement."}
       </p>
       {!billReady && data.totals.unbilledCount > 0 && (
         <p className="mt-2 text-xs font-medium text-amber-700">

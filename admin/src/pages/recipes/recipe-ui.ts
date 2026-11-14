@@ -55,6 +55,10 @@ export function unitFromQtyText(raw: string): RecipeUnit | null {
   return null;
 }
 
+export function kitchenItemLabel(item: { name: string; alias?: string | null }) {
+  return item.alias?.trim() || item.name;
+}
+
 export function unitLabel(unit: string) {
   if (unit === "KG") return "kg";
   if (unit === "G") return "g";

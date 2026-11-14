@@ -415,11 +415,13 @@ export function OfflineOrderDirectFormPage() {
       .get<PincodeInfo>(`/delivery/check-pincode/${pincode}`)
       .then((info) => {
         if (cancelled) return;
+        setPincodeError(null);
         setPincodeInfo(info);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         setPincodeError(err instanceof Error ? err.message : "Check failed");
+        setPincodeInfo({ serviceable: false, deliveryFee: 0 });
       })
       .finally(() => {
         if (!cancelled) setPincodeChecking(false);
@@ -445,16 +447,20 @@ export function OfflineOrderDirectFormPage() {
 
   const place = pickedPlace?.pincode === pincode ? pickedPlace : null;
   /** Checked and not in the delivery table: staff set the charge themselves. */
-  const unlistedPincode = fulfillment === "DELIVERY" && pincodeInfo?.serviceable === false;
+  const unlistedPincode =
+    fulfillment === "DELIVERY" &&
+    !pincodeChecking &&
+    /^\d{6}$/.test(pincode) &&
+    pincodeInfo != null &&
+    pincodeInfo.serviceable !== true;
   const deliveryPriced =
     fulfillment === "DELIVERY" && (pincodeInfo?.serviceable || unlistedPincode);
 
   useEffect(() => {
     if (!unlistedPincode) return;
-    const city = place?.city ?? "";
-    setZoneCity(city);
-    setZoneArea("");
-    setZoneDistrict(guessDistrict(city));
+    const city = place?.city?.trim() || "";
+    setZoneCity((prev) => prev.trim() || city || "Kolkata");
+    if (city) setZoneDistrict(guessDistrict(city));
   }, [unlistedPincode, place]);
 
   const deliveryFee =
@@ -505,12 +511,6 @@ export function OfflineOrderDirectFormPage() {
     if (line1.trim().length < 3) return "Add address line 1";
     if (!/^\d{6}$/.test(pincode)) return "Enter a 6-digit pincode";
     if (pincodeChecking) return "Checking pincode…";
-    if (pincodeInfo?.serviceable !== true) {
-      if (!unlistedPincode) return "Check the pincode";
-      if (deliveryFeeInput.trim() === "") return "Set the delivery charge";
-      if (canSavePincode && savePincode && zoneCity.trim().length < 2)
-        return "Add the city for this pincode";
-    }
     if (!recipientIsCustomer) {
       if (recipientName.trim().length < 2) return "Add recipient name";
       if (!/^[0-9+\-\s]{7,15}$/.test(deliveryPhone.trim())) return "Enter a valid recipient phone";
@@ -705,7 +705,7 @@ export function OfflineOrderDirectFormPage() {
         saveDeliveryPincode:
           unlistedPincode && canSavePincode && savePincode
             ? {
-                city: zoneCity.trim(),
+                city: zoneCity.trim() || place?.city?.trim() || "Kolkata",
                 area: zoneArea.trim() || null,
                 district: zoneDistrict,
               }
@@ -1076,7 +1076,7 @@ export function OfflineOrderDirectFormPage() {
                         : pincodeError
                           ? pincodeError
                           : unlistedPincode
-                            ? `${pincode} isn't in your delivery pincodes. Enter the delivery charge for this order.`
+                            ? `${pincode} isn't in your delivery pincodes. You can still place the order — enter a charge if you're charging for delivery.`
                             : lastChargedFee != null
                               ? `${pincodeInfo?.city ?? ""}${pincodeInfo?.area ? ` · ${pincodeInfo.area}` : ""} · last charged ₹${lastChargedFee.toFixed(0)} — edit if charging differently`
                               : `${pincodeInfo?.city ?? ""}${pincodeInfo?.area ? ` · ${pincodeInfo.area}` : ""} · table rate ₹${Number(pincodeInfo?.deliveryFee ?? 0).toFixed(0)} — edit if charging differently`}

@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { HttpError } from "../../utils/httpError.js";
-import type { AuthenticatedRequest } from "../../middleware/auth.js";
+import { staffHasPermission, type AuthenticatedRequest } from "../../middleware/auth.js";
 import {
   BUY_ITEM_UNITS,
   buyItemSelect,
@@ -29,6 +29,7 @@ adminBuyItemRouter.get("/", async (req, res) => {
     where.OR = [
       { name: { contains: q, mode: "insensitive" } },
       { nameNormalized: { contains: normalizeItemName(q) } },
+      { alias: { contains: q, mode: "insensitive" } },
     ];
   } else {
     where.isActive = true;
@@ -51,6 +52,7 @@ adminBuyItemRouter.post("/", async (req, res) => {
   const parsed = z
     .object({
       name: z.string().trim().min(1).max(120),
+      alias: z.string().max(40).nullable().optional(),
       unit: z.enum(BUY_ITEM_UNITS),
       packSize: z.coerce.number().int().positive().nullable().optional(),
       category: z.string().trim().min(1).optional(),
@@ -86,6 +88,7 @@ adminBuyItemRouter.post("/", async (req, res) => {
     data: {
       name: parsed.data.name.trim(),
       nameNormalized,
+      alias: parsed.data.alias?.trim() || null,
       unit: parsed.data.unit,
       packSize: parsed.data.packSize ?? null,
       categoryId: category?.id ?? null,
@@ -96,20 +99,34 @@ adminBuyItemRouter.post("/", async (req, res) => {
 });
 
 adminBuyItemRouter.patch("/:id", async (req, res) => {
-  requireBooksWrite(req as AuthenticatedRequest);
+  const staff = (req as AuthenticatedRequest).staff;
+  const canBooks = Boolean(staff && staffHasPermission(staff, "expenses.write"));
+  const canRecipes = Boolean(staff && staffHasPermission(staff, "recipes.write"));
+  if (!canBooks && !canRecipes) {
+    throw HttpError.forbidden("You don't have permission to edit this item");
+  }
   const id = req.params.id ?? "";
   const parsed = z
     .object({
       category: z.string().trim().min(1).optional(),
+      alias: z.string().max(40).nullable().optional(),
     })
     .safeParse(req.body);
   if (!parsed.success) throw HttpError.badRequest("Invalid item", parsed.error.flatten());
+  if (parsed.data.category && !canBooks) {
+    throw HttpError.forbidden("You don't have permission to edit books");
+  }
   const existing = await prisma.buyItem.findUnique({ where: { id }, select: { id: true } });
   if (!existing) throw HttpError.notFound("Item not found");
   const category = parsed.data.category ? await resolveCategory(parsed.data.category) : undefined;
+  const alias =
+    parsed.data.alias === undefined ? undefined : parsed.data.alias?.trim() || null;
   const updated = await prisma.buyItem.update({
     where: { id },
-    data: category ? { categoryId: category.id } : {},
+    data: {
+      ...(category ? { categoryId: category.id } : {}),
+      ...(alias !== undefined ? { alias } : {}),
+    },
     select: buyItemSelect,
   });
   res.json(serializeBuyItem(updated));
